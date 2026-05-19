@@ -2,68 +2,83 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function pct(a,b) { return b>0?Math.round(a/b*100):0 }
 
-const EMPTY = { name:"", cat:"", price:"", desc:"", icon:"🍽", active:true, image_url:null }
+const EMPTY = { name:"", cat:"", price:"", desc:"", icon:"🍽", active:true, image_url:null, cogs:0 }
 
 export default function Products() {
-  const [products,   setProducts]   = useState([])
-  const [categories, setCategories] = useState([])
-  const [search,     setSearch]     = useState("")
-  const [catFilter,  setCatFilter]  = useState("all")
-  const [modal,      setModal]      = useState(null)
-  const [form,       setForm]       = useState(EMPTY)
-  const [saving,     setSaving]     = useState(false)
-  const [loading,    setLoading]    = useState(true)
-  const [uploading,  setUploading]  = useState(false)
-  const [preview,    setPreview]    = useState(null)
+  const [products,    setProducts]    = useState([])
+  const [categories,  setCategories]  = useState([])
+  const [recipes,     setRecipes]     = useState([])
+  const [modifiers,   setModifiers]   = useState([])
+  const [search,      setSearch]      = useState("")
+  const [catFilter,   setCatFilter]   = useState("")
+  const [viewMode,    setViewMode]    = useState("list") // list | grid
+  const [modal,       setModal]       = useState(null)
+  const [form,        setForm]        = useState(EMPTY)
+  const [variants,    setVariants]    = useState([])
+  const [saving,      setSaving]      = useState(false)
+  const [loading,     setLoading]     = useState(true)
+  const [uploading,   setUploading]   = useState(false)
+  const [preview,     setPreview]     = useState(null)
+  const [syncing,     setSyncing]     = useState(false)
   const fileRef = useRef()
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
-    const [{ data: prods }, { data: cats }] = await Promise.all([
+    const [{ data: prods }, { data: cats }, { data: recs }, { data: mods }] = await Promise.all([
       supabase.from("products").select("*").order("cat").order("name"),
       supabase.from("categories").select("*").order("sort"),
+      supabase.from("recipes").select("product_id,ingredient_id"),
+      supabase.from("modifier_groups").select("id,name"),
     ])
     setProducts(prods || [])
     setCategories(cats || [])
+    setRecipes(recs || [])
+    setModifiers(mods || [])
     setLoading(false)
   }
 
   const filtered = products.filter(p => {
-    const matchCat    = catFilter === "all" || p.cat === catFilter
-    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase())
-    return matchCat && matchSearch
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.sku?.toLowerCase().includes(search.toLowerCase())
+    const matchCat    = !catFilter || p.cat === catFilter
+    return matchSearch && matchCat
   })
 
-  function openAdd()  { setForm(EMPTY); setPreview(null); setModal("add") }
-  function openEdit(p){ setForm({ ...p, price: String(p.price) }); setPreview(p.image_url||null); setModal("edit") }
-  function closeModal(){ setModal(null); setForm(EMPTY); setPreview(null) }
+  function hasRecipe(p) { return recipes.some(r => r.product_id === p.sku || r.product_id === p.id) }
+  function getCatColor(catName) {
+    const c = categories.find(x => x.name === catName || x.id === catName)
+    return c?.color || "#6B778C"
+  }
+  function margin(p) {
+    if (!p.price || !p.cogs) return null
+    return pct(p.price - p.cogs, p.price)
+  }
+
+  function openAdd()   { setForm(EMPTY); setVariants([]); setPreview(null); setModal("add") }
+  function openEdit(p) {
+    setForm({ ...p, price: String(p.price), cogs: String(p.cogs||0) })
+    setVariants(p.variants || [])
+    setPreview(p.image_url || null)
+    setModal("edit")
+  }
+  function closeModal(){ setModal(null); setForm(EMPTY); setVariants([]); setPreview(null) }
 
   async function handleFile(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0]; if (!file) return
     setPreview(URL.createObjectURL(file))
     setUploading(true)
     try {
       const ext  = file.name.split(".").pop()
       const path = `products/${Date.now()}.${ext}`
-      const { error: upErr } = await supabase.storage.from("product-images").upload(path, file, { upsert:true, contentType:file.type })
-      if (upErr) throw upErr
+      const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert:true, contentType:file.type })
+      if (error) throw error
       const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path)
       setForm(f => ({ ...f, image_url: publicUrl }))
-    } catch (err) {
-      alert("Upload failed: " + err.message)
-      setPreview(form.image_url||null)
-    }
+    } catch (err) { alert("Upload failed: " + err.message); setPreview(form.image_url||null) }
     setUploading(false)
-  }
-
-  async function removePhoto() {
-    setPreview(null)
-    setForm(f => ({ ...f, image_url: null }))
-    if (fileRef.current) fileRef.current.value = ""
   }
 
   async function save() {
@@ -73,20 +88,20 @@ export default function Products() {
       name:      form.name.trim(),
       cat:       form.cat,
       price:     parseInt(form.price) || 0,
+      cogs:      parseInt(form.cogs) || 0,
       desc:      form.desc || null,
       icon:      form.icon || "🍽",
       active:    form.active !== false,
       image_url: form.image_url || null,
+      variants:  variants,
     }
     if (modal === "add") {
-      const sku = form.cat.slice(0,3).toUpperCase() + Date.now().toString().slice(-6)
+      const sku = (form.cat||"PRD").slice(0,3).toUpperCase().replace(/\s/g,"") + Date.now().toString().slice(-6)
       await supabase.from("products").insert({ ...payload, sku })
     } else {
       await supabase.from("products").update(payload).eq("sku", form.sku)
     }
-    await load()
-    closeModal()
-    setSaving(false)
+    await load(); closeModal(); setSaving(false)
   }
 
   async function toggleActive(p) {
@@ -98,135 +113,349 @@ export default function Products() {
     if (!confirm("Delete this product?")) return
     await supabase.from("products").delete().eq("sku", sku)
     setProducts(prev => prev.filter(p => p.sku !== sku))
+    closeModal()
   }
+
+  async function syncFromPOS() {
+    setSyncing(true)
+    // Re-run upsert from seed data
+    const SEED = [
+      {sku:"DRI001",name:"Air hangat",cat:"Drinks",icon:"🥤",price:2000,cogs:0,active:true},
+      {sku:"DRI002",name:"Air Mineral",cat:"Drinks",icon:"🥤",price:5000,cogs:0,active:true},
+      {sku:"DRI003",name:"Americano",cat:"Drinks",icon:"🥤",price:17000,cogs:0,active:true},
+      {sku:"MAI004",name:"Ayam bakar",cat:"Main Dishies",icon:"🍲",price:28000,cogs:0,active:true},
+      {sku:"MAI005",name:"Ayam Bakar taliwang",cat:"Main Dishies",icon:"🍲",price:33000,cogs:0,active:true},
+      {sku:"MAI006",name:"Ayam Kremes",cat:"Main Dishies",icon:"🍲",price:30000,cogs:0,active:true},
+      {sku:"NAS007",name:"Bihun Goreng ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
+      {sku:"GEN008",name:"Chicken Steak BBQ",cat:"Gen-Z Specials",icon:"🌮",price:38000,cogs:0,active:true},
+      {sku:"SNA009",name:"Cireng",cat:"Snacks",icon:"🍟",price:10000,cogs:0,active:true},
+      {sku:"ICE010",name:"Cup tempo doeloe",cat:"Ice Cream",icon:"🍦",price:12000,cogs:0,active:true},
+      {sku:"DEL011",name:"Delivery",cat:"Delivery",icon:"🚴",price:5000,cogs:0,active:true},
+      {sku:"EXT012",name:"Es batu",cat:"Extra",icon:"➕",price:2000,cogs:0,active:true},
+      {sku:"ICE013",name:"Es lilin lapis",cat:"Ice Cream",icon:"🍦",price:12000,cogs:0,active:true},
+      {sku:"ICE014",name:"Es lilin polos",cat:"Ice Cream",icon:"🍦",price:11000,cogs:0,active:true},
+      {sku:"EXT015",name:"Extra Nasi",cat:"Extra",icon:"➕",price:5000,cogs:0,active:true},
+      {sku:"EXT016",name:"Extra Sambal bawang",cat:"Extra",icon:"➕",price:3000,cogs:0,active:true},
+      {sku:"EXT017",name:"Extra Telor",cat:"Extra",icon:"➕",price:3000,cogs:0,active:true},
+      {sku:"JAG018",name:"Jagung Coklat Keju",cat:"Jagung",icon:"🌽",price:15000,cogs:0,active:true},
+      {sku:"JAG019",name:"Jagung Garlic Butter",cat:"Jagung",icon:"🌽",price:12000,cogs:0,active:true},
+      {sku:"JAG020",name:"Jagung Spicy",cat:"Jagung",icon:"🌽",price:12000,cogs:0,active:true},
+      {sku:"DRI021",name:"Jeruk",cat:"Drinks",icon:"🥤",price:12000,cogs:0,active:true},
+      {sku:"SNA022",name:"Kentang Goreng homemade",cat:"Snacks",icon:"🍟",price:15000,cogs:0,active:true},
+      {sku:"DRI023",name:"Kopi Hitam",cat:"Drinks",icon:"🥤",price:8000,cogs:0,active:true},
+      {sku:"DRI024",name:"Latte",cat:"Drinks",icon:"🥤",price:20000,cogs:0,active:true},
+      {sku:"DRI025",name:"Lemon tea",cat:"Drinks",icon:"🥤",price:18000,cogs:0,active:true},
+      {sku:"DRI026",name:"Lychee Tea",cat:"Drinks",icon:"🥤",price:20000,cogs:0,active:true},
+      {sku:"GEN027",name:"Mac & Cheese",cat:"Gen-Z Specials",icon:"🌮",price:30000,cogs:0,active:true},
+      {sku:"DRI028",name:"Matcha",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
+      {sku:"SNA029",name:"Mendoan",cat:"Snacks",icon:"🍟",price:15000,cogs:0,active:true},
+      {sku:"NAS030",name:"Mie Goreng Ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
+      {sku:"NAS031",name:"Mie Goreng Telur",cat:"Nasi & Mie",icon:"🍜",price:20000,cogs:0,active:true},
+      {sku:"NAS032",name:"Mie NYemek ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
+      {sku:"DRI033",name:"Milo Dinosaur",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
+      {sku:"NAS034",name:"Nasi Goreng Ayam Kremes",cat:"Nasi & Mie",icon:"🍜",price:38000,cogs:0,active:true},
+      {sku:"NAS035",name:"Nasi Goreng Kambing",cat:"Nasi & Mie",icon:"🍜",price:38000,cogs:0,active:true},
+      {sku:"NAS036",name:"Nasi Goreng Telur",cat:"Nasi & Mie",icon:"🍜",price:20000,cogs:0,active:true},
+      {sku:"DES037",name:"Pisang Coklat Keju",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
+      {sku:"DES038",name:"Pisang Semut",cat:"Dessert",icon:"🍮",price:15000,cogs:0,active:true},
+      {sku:"DES039",name:"Pisang Susu",cat:"Dessert",icon:"🍮",price:15000,cogs:0,active:true},
+      {sku:"DRI040",name:"Redvelvet",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
+      {sku:"DES041",name:"Ronde",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
+      {sku:"DES042",name:"Roti Bakar Coklat Kacang",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
+      {sku:"DES043",name:"Roti Bakar Coklat Keju",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
+      {sku:"SAT044",name:"Sate Ayam",cat:"Sate",icon:"🍢",price:33000,cogs:0,active:true},
+      {sku:"SAT045",name:"Sate Kambing",cat:"Sate",icon:"🍢",price:38000,cogs:0,active:true},
+      {sku:"SNA046",name:"Siomay Ayam Mentai",cat:"Snacks",icon:"🍟",price:20000,cogs:0,active:true},
+      {sku:"MAI047",name:"Sop Iga Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
+      {sku:"MAI048",name:"Sop Tulang Daging Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
+      {sku:"DEL049",name:"Take Away",cat:"Delivery",icon:"🚴",price:2000,cogs:0,active:true},
+      {sku:"DRI050",name:"Teh Manis",cat:"Drinks",icon:"🥤",price:7000,cogs:0,active:true},
+      {sku:"DRI051",name:"Teh Tawar",cat:"Drinks",icon:"🥤",price:5000,cogs:0,active:true},
+      {sku:"MAI052",name:"Tengkleng rica",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
+      {sku:"DRI053",name:"Thai Tea",cat:"Drinks",icon:"🥤",price:22000,cogs:0,active:true},
+      {sku:"MAI054",name:"Tongseng Ayam",cat:"Main Dishies",icon:"🍲",price:33000,cogs:0,active:true},
+      {sku:"MAI055",name:"Tongseng Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
+      {sku:"DRI056",name:"Wedang Jahe",cat:"Drinks",icon:"🥤",price:12000,cogs:0,active:true},
+      {sku:"DRI057",name:"Wedang Jahe Susu",cat:"Drinks",icon:"🥤",price:15000,cogs:0,active:true},
+      {sku:"DRI058",name:"Wedang Uwuh",cat:"Drinks",icon:"🥤",price:15000,cogs:0,active:true},
+      {sku:"DRI059",name:"Yuzu Lemon",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
+      {sku:"DRI060",name:"Yuzu Lychee",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
+    ]
+    const { error } = await supabase.from("products").upsert(SEED, { onConflict:"sku" })
+    if (error) alert("Sync failed: " + error.message)
+    await load()
+    setSyncing(false)
+  }
+
+  // ── Variant helpers ──
+  function addVariant() { setVariants(v => [...v, { name:"", price:"", sku:"" }]) }
+  function removeVariant(i) { setVariants(v => v.filter((_,idx)=>idx!==i)) }
+  function updateVariant(i,k,val) { setVariants(v => v.map((x,idx)=>idx===i?{...x,[k]:val}:x)) }
+
+  // ── Render ──
+  const withRecipe = products.filter(p => hasRecipe(p)).length
 
   return (
     <div>
+      {/* Stats bar */}
+      <div style={{ display:"flex", gap:20, padding:"10px 16px", background:"#fff", border:"1px solid var(--surface3)", borderRadius:"var(--r-xl)", marginBottom:16, flexWrap:"wrap" }}>
+        <span style={{ fontSize:13, color:"var(--ink4)" }}><strong style={{ color:"var(--ink)" }}>{products.length}</strong> total</span>
+        <span style={{ fontSize:13, color:"var(--ink4)" }}><strong style={{ color:"var(--green)" }}>{products.filter(p=>p.active).length}</strong> active</span>
+        <span style={{ fontSize:13, color:"var(--ink4)" }}><strong style={{ color:"var(--ink5)" }}>{products.filter(p=>!p.active).length}</strong> hidden</span>
+        <span style={{ fontSize:13, color:"var(--ink4)" }}><strong style={{ color:"var(--brand)" }}>{withRecipe}</strong> with recipe</span>
+      </div>
+
       {/* Toolbar */}
-      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <input placeholder="Search products..." value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" style={{ maxWidth:240 }} />
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <div style={{ position:"relative" }}>
+          <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"var(--ink5)", fontSize:14 }}>⌕</span>
+          <input placeholder="Search products or SKU..." value={search} onChange={e=>setSearch(e.target.value)}
+            className="bo-input" style={{ paddingLeft:30, width:220 }} />
+        </div>
         <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{ maxWidth:180 }}>
-          <option value="all">All Categories</option>
+          <option value="">All Categories</option>
           {categories.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
         </select>
-        <div style={{ marginLeft:"auto" }}>
+        {/* View toggle */}
+        <div style={{ display:"flex", border:"1px solid var(--surface3)", borderRadius:"var(--r)", overflow:"hidden" }}>
+          <button onClick={()=>setViewMode("grid")} style={{ padding:"7px 12px", background:viewMode==="grid"?"var(--brand)":"#fff", color:viewMode==="grid"?"#fff":"var(--ink4)", border:"none", cursor:"pointer", fontSize:16 }} title="Grid">⊞</button>
+          <button onClick={()=>setViewMode("list")} style={{ padding:"7px 12px", background:viewMode==="list"?"var(--brand)":"#fff", color:viewMode==="list"?"#fff":"var(--ink4)", border:"none", cursor:"pointer", fontSize:16 }} title="List">☰</button>
+        </div>
+        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+          <button onClick={syncFromPOS} disabled={syncing} className="bo-btn bo-btn-ghost">
+            {syncing ? "Syncing…" : "↻ Sync from POS"}
+          </button>
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Product</button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div style={{ display:"flex", gap:20, padding:"10px 16px", background:"#fff", border:"1px solid var(--surface3)", borderRadius:"var(--r-xl)", marginBottom:16, flexWrap:"wrap" }}>
-        <span style={{ fontSize:12, color:"var(--ink4)" }}>Total: <strong style={{ color:"var(--ink)" }}>{products.length}</strong></span>
-        <span style={{ fontSize:12, color:"var(--ink4)" }}>Active: <strong style={{ color:"var(--green)" }}>{products.filter(p=>p.active).length}</strong></span>
-        <span style={{ fontSize:12, color:"var(--ink4)" }}>Hidden: <strong style={{ color:"var(--ink5)" }}>{products.filter(p=>!p.active).length}</strong></span>
-        <span style={{ fontSize:12, color:"var(--ink4)" }}>With photo: <strong style={{ color:"var(--brand)" }}>{products.filter(p=>p.image_url).length}</strong></span>
-        <span style={{ fontSize:12, color:"var(--ink4)" }}>Showing: <strong style={{ color:"var(--ink)" }}>{filtered.length}</strong></span>
-      </div>
+      {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
 
-      {/* Table */}
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
-        {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
-          <table className="bo-table">
-            <thead>
-              <tr><th>Photo</th><th>Product</th><th>SKU</th><th>Category</th><th>Price</th><th>Status</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-              {filtered.map(p => (
-                <tr key={p.sku} style={{ opacity: p.active ? 1 : 0.55 }}>
-                  <td style={{ width:56, padding:"8px 12px" }}>
+        viewMode === "grid" ? (
+          /* ── GRID VIEW ── */
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:12 }}>
+            {filtered.map(p => {
+              const color  = getCatColor(p.cat)
+              const m      = margin(p)
+              const recipe = hasRecipe(p)
+              return (
+                <div key={p.sku} style={{ background:"#fff", border:"1.5px solid var(--surface3)", borderRadius:16, overflow:"hidden", opacity:p.active?1:0.65 }}>
+                  <div style={{ height:90, background: color+"22", borderBottom:"2px solid "+color+"33", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
                     {p.image_url
-                      ? <img src={p.image_url} alt={p.name} style={{ width:44, height:44, borderRadius:10, objectFit:"cover", border:"1px solid var(--surface3)", display:"block" }} />
-                      : <div style={{ width:44, height:44, borderRadius:10, background:"var(--surface)", border:"1px solid var(--surface3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{p.icon||"🍽"}</div>
+                      ? <img src={p.image_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
+                      : <span style={{ fontSize:40 }}>{p.icon||"🍽"}</span>
                     }
-                  </td>
-                  <td>
-                    <div style={{ fontWeight:700, color:"var(--ink)" }}>{p.name}</div>
-                    {p.desc && <div style={{ fontSize:11, color:"var(--ink5)", marginTop:1 }}>{p.desc}</div>}
-                  </td>
-                  <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{p.sku}</td>
-                  <td><span className="bo-badge bo-badge-blue">{p.cat||"-"}</span></td>
-                  <td style={{ fontWeight:700, color:"var(--brand)" }}>{fmt(p.price)}</td>
-                  <td><span className={"bo-badge "+(p.active?"bo-badge-green":"bo-badge-amber")}>{p.active?"Active":"Hidden"}</span></td>
-                  <td>
-                    <div style={{ display:"flex", gap:6 }}>
-                      <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
-                      <button onClick={()=>toggleActive(p)} className="bo-btn bo-btn-ghost bo-btn-sm">{p.active?"Hide":"Show"}</button>
-                      <button onClick={()=>deleteProduct(p.sku)} className="bo-btn bo-btn-danger bo-btn-sm">Del</button>
-                    </div>
-                  </td>
+                    {!p.active && <span style={{ position:"absolute", top:6, left:6, fontSize:10, fontWeight:700, background:"var(--amber-lt)", color:"var(--amber)", padding:"2px 7px", borderRadius:10 }}>Hidden</span>}
+                    {recipe && <span style={{ position:"absolute", top:6, right:6, fontSize:14 }}>📖</span>}
+                  </div>
+                  <div style={{ padding:"10px 12px" }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:"var(--ink)", lineHeight:1.3 }}>{p.name}</div>
+                    <div style={{ fontSize:10, color:"var(--ink5)", marginTop:1 }}>{p.sku}</div>
+                    <div style={{ display:"inline-block", fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:10, background:color+"18", color:color, marginTop:4 }}>{p.cat}</div>
+                    <div style={{ fontSize:13, fontWeight:800, color:"var(--brand)", marginTop:4 }}>{fmt(p.price)}</div>
+                    {m !== null
+                      ? <div style={{ fontSize:10, fontWeight:700, color: m>=65?"var(--green)":m>=45?"var(--amber)":"var(--red)" }}>{m}% margin</div>
+                      : <div style={{ fontSize:10, color:"var(--ink5)" }}>No recipe</div>
+                    }
+                  </div>
+                  <div style={{ display:"flex", borderTop:"1px solid var(--surface3)" }}>
+                    <button onClick={()=>openEdit(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color:"var(--ink4)", background:"none", border:"none", borderRight:"1px solid var(--surface3)", cursor:"pointer" }}>Edit</button>
+                    <button onClick={()=>openEdit(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color:"var(--brand)", background:"none", border:"none", borderRight:"1px solid var(--surface3)", cursor:"pointer" }}>Recipe</button>
+                    <button onClick={()=>toggleActive(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color: p.active?"var(--amber)":"var(--green)", background:"none", border:"none", cursor:"pointer" }}>{p.active?"Hide":"Show"}</button>
+                  </div>
+                </div>
+              )
+            })}
+            {filtered.length === 0 && <div style={{ gridColumn:"1/-1", textAlign:"center", padding:48, color:"var(--ink5)" }}>No products found</div>}
+          </div>
+        ) : (
+          /* ── LIST VIEW ── */
+          <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+            <table className="bo-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>SKU</th>
+                  <th>Category</th>
+                  <th>Price</th>
+                  <th>COGS</th>
+                  <th>Margin</th>
+                  <th>Recipe</th>
+                  <th>Status</th>
+                  <th>Actions</th>
                 </tr>
-              ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No products found</td></tr>
-              )}
-            </tbody>
-          </table>
-        )}
-      </div>
+              </thead>
+              <tbody>
+                {filtered.map(p => {
+                  const color  = getCatColor(p.cat)
+                  const m      = margin(p)
+                  const recipe = hasRecipe(p)
+                  return (
+                    <tr key={p.sku} style={{ opacity: p.active ? 1 : 0.55 }}>
+                      <td>
+                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                          {p.image_url
+                            ? <img src={p.image_url} alt={p.name} style={{ width:36, height:36, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                            : <span style={{ fontSize:24, flexShrink:0 }}>{p.icon||"🍽"}</span>
+                          }
+                          <div>
+                            <div style={{ fontWeight:700, color:"var(--ink)" }}>{p.name}</div>
+                            {p.desc && <div style={{ fontSize:11, color:"var(--ink5)" }}>{p.desc}</div>}
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{p.sku}</td>
+                      <td>
+                        <span style={{ fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, background:color+"18", color }}>
+                          {p.cat||"-"}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight:700, color:"var(--brand)" }}>{fmt(p.price)}</td>
+                      <td style={{ color:"var(--ink3)" }}>{p.cogs>0?fmt(p.cogs):"—"}</td>
+                      <td>
+                        {m!==null
+                          ? <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background: m>=65?"var(--green-lt)":m>=45?"var(--amber-lt)":"var(--red-lt)", color: m>=65?"var(--green)":m>=45?"var(--amber)":"var(--red)" }}>{m}%</span>
+                          : <span style={{ color:"var(--ink5)" }}>—</span>
+                        }
+                      </td>
+                      <td>
+                        {recipe
+                          ? <span className="bo-badge bo-badge-blue">Linked</span>
+                          : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>
+                        }
+                      </td>
+                      <td>
+                        <span className={"bo-badge "+(p.active?"bo-badge-green":"bo-badge-amber")}>
+                          {p.active?"Active":"Hidden"}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display:"flex", gap:4 }}>
+                          <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
+                          <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--brand)" }}>Recipe</button>
+                          <button onClick={()=>deleteProduct(p.sku)} className="bo-btn bo-btn-danger bo-btn-sm">✕</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {filtered.length === 0 && (
+                  <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"40px 0" }}>No products found</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
 
-      {/* Modal */}
+      {/* ── Modal ── */}
       {modal && (
         <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
-          <div className="bo-modal">
+          <div className="bo-modal" style={{ maxWidth:580, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
-              <div className="bo-modal-title">{modal==="add"?"Add Product":"Edit Product"}</div>
+              <div>
+                <div className="bo-modal-title">{modal==="add"?"Add Product":"Edit Product"}</div>
+                {form.sku && <div style={{ fontSize:11, color:"var(--ink5)", marginTop:2 }}>SKU: {form.sku}</div>}
+              </div>
               <button className="bo-modal-close" onClick={closeModal}>✕</button>
             </div>
-            <div className="bo-modal-body">
+            <div className="bo-modal-body" style={{ overflowY:"auto" }}>
+
               {/* Photo upload */}
               <div className="bo-form-row">
                 <label className="bo-label">Product Photo</label>
                 <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                   <div onClick={()=>!uploading&&fileRef.current?.click()} style={{ width:80, height:80, borderRadius:12, border:"2px dashed var(--surface3)", background:"var(--surface)", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", overflow:"hidden", flexShrink:0, position:"relative" }}>
-                    {preview ? <img src={preview} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:28 }}>{form.icon||"🍽"}</span>}
-                    {uploading && <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.8)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"var(--brand)" }}>Uploading…</div>}
+                    {preview ? <img src={preview} alt="preview" style={{ width:"100%", height:"100%", objectFit:"cover" }} /> : <span style={{ fontSize:32 }}>{form.icon||"🍽"}</span>}
+                    {uploading && <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.85)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, fontWeight:700, color:"var(--brand)" }}>Uploading…</div>}
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     <button type="button" onClick={()=>fileRef.current?.click()} disabled={uploading} className="bo-btn bo-btn-ghost bo-btn-sm">{uploading?"Uploading…":preview?"Change Photo":"Upload Photo"}</button>
-                    {preview && <button type="button" onClick={removePhoto} className="bo-btn bo-btn-danger bo-btn-sm">Remove</button>}
+                    {preview && <button type="button" onClick={()=>{setPreview(null);setForm(f=>({...f,image_url:null}))}} className="bo-btn bo-btn-danger bo-btn-sm">Remove</button>}
                     <span style={{ fontSize:10, color:"var(--ink5)" }}>JPG/PNG · max 2MB</span>
                   </div>
                   <input ref={fileRef} type="file" accept="image/*" style={{ display:"none" }} onChange={handleFile} />
                 </div>
               </div>
 
-              {/* Icon + Name */}
-              <div style={{ display:"grid", gridTemplateColumns:"64px 1fr", gap:12, marginBottom:14 }}>
+              {/* Name + Icon */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", gap:12, marginBottom:14 }}>
+                <div>
+                  <label className="bo-label">Product Name *</label>
+                  <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus />
+                </div>
                 <div>
                   <label className="bo-label">Icon</label>
                   <input value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))} className="bo-input" style={{ textAlign:"center", fontSize:24, padding:"6px" }} />
                 </div>
+              </div>
+
+              {/* Category + Price */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div>
-                  <label className="bo-label">Name *</label>
-                  <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus />
+                  <label className="bo-label">Category *</label>
+                  <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))} className="bo-select">
+                    <option value="">-- Select --</option>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="bo-label">Price (Rp) *</label>
+                  <input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} className="bo-input" placeholder="e.g. 25000" />
                 </div>
               </div>
 
-              <div className="bo-form-row">
-                <label className="bo-label">Category</label>
-                <select value={form.cat} onChange={e=>setForm(f=>({...f,cat:e.target.value}))} className="bo-select">
-                  <option value="">-- Select category --</option>
-                  {categories.map(c => <option key={c.id} value={c.name}>{c.icon} {c.name}</option>)}
-                </select>
-              </div>
-
-              <div className="bo-form-row">
-                <label className="bo-label">Price (Rp) *</label>
-                <input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} className="bo-input" placeholder="e.g. 25000" />
-              </div>
-
+              {/* Description */}
               <div className="bo-form-row">
                 <label className="bo-label">Description</label>
-                <input value={form.desc||""} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} className="bo-input" placeholder="Optional description" />
+                <textarea value={form.desc||""} onChange={e=>setForm(f=>({...f,desc:e.target.value}))} className="bo-input" placeholder="Optional — shown on digital menu" rows={2} style={{ resize:"vertical" }} />
               </div>
 
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {/* Available toggle */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
                 <label className="bo-label" style={{ marginBottom:0 }}>Available in POS</label>
                 <input type="checkbox" checked={form.active!==false} onChange={e=>setForm(f=>({...f,active:e.target.checked}))} style={{ width:16, height:16, accentColor:"var(--brand)" }} />
               </div>
+
+              {/* Variants */}
+              <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:14, marginBottom:14 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                  <span style={{ fontSize:13, fontWeight:700, color:"var(--ink)" }}>Variants / Sizes</span>
+                  <button onClick={addVariant} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Variant</button>
+                </div>
+                {variants.map((v,i) => (
+                  <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 120px 100px 36px", gap:8, marginBottom:8 }}>
+                    <input value={v.name} onChange={e=>updateVariant(i,"name",e.target.value)} className="bo-input" placeholder="Name (e.g. Large)" />
+                    <input type="number" value={v.price} onChange={e=>updateVariant(i,"price",e.target.value)} className="bo-input" placeholder="Price" />
+                    <input value={v.sku||""} onChange={e=>updateVariant(i,"sku",e.target.value)} className="bo-input" placeholder="SKU" />
+                    <button onClick={()=>removeVariant(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
+                  </div>
+                ))}
+                {variants.length === 0 && <div style={{ fontSize:12, color:"var(--ink5)" }}>No variants — add sizes or options</div>}
+              </div>
+
+              {/* Linked Modifiers */}
+              <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:14 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", marginBottom:8 }}>Linked Modifiers</div>
+                {modifiers.length === 0
+                  ? <div style={{ fontSize:12, color:"var(--ink5)" }}>No modifier groups yet — create in Modifiers tab</div>
+                  : <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                      {modifiers.map(m => (
+                        <span key={m.id} style={{ fontSize:12, fontWeight:600, padding:"4px 12px", borderRadius:20, background:"var(--brand-lt)", color:"var(--brand)", border:"1px solid rgba(0,102,255,0.2)" }}>
+                          {m.name}
+                        </span>
+                      ))}
+                    </div>
+                }
+                <div style={{ fontSize:11, color:"var(--ink5)", marginTop:6 }}>Manage modifier links in the Modifiers tab</div>
+              </div>
             </div>
+
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
+              {modal === "edit" && (
+                <button onClick={()=>deleteProduct(form.sku)} className="bo-btn bo-btn-danger">Delete</button>
+              )}
               <button onClick={save} disabled={saving||uploading||!form.name||!form.price} className="bo-btn bo-btn-primary">
                 {saving?"Saving...":modal==="add"?"Add Product":"Save Changes"}
               </button>
