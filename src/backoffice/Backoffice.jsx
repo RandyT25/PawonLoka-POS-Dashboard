@@ -23,6 +23,8 @@ import UsersAccess    from "./components/UsersAccess"
 import AuditLog       from "./components/AuditLog"
 import Integrations   from "./components/Integrations"
 
+import Inventory from "./components/Inventory"
+
 function ComingSoon({ title }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"60vh", gap:12 }}>
@@ -86,14 +88,14 @@ const SCREENS = {
   categories:        Categories,
   modifiers:         Modifiers,
   recipes:           Recipes,
-  "inv-overview":    () => <ComingSoon title="Inventory Overview" />,
-  "inv-ingredients": () => <ComingSoon title="Ingredients" />,
-  "inv-po":          () => <ComingSoon title="Purchase Orders" />,
-  "inv-suppliers":   () => <ComingSoon title="Suppliers" />,
-  "inv-production":  () => <ComingSoon title="Production" />,
-  "inv-opname":      () => <ComingSoon title="Stock Opname" />,
-  "inv-waste":       () => <ComingSoon title="Waste Recording" />,
-  "inv-movements":   () => <ComingSoon title="Movement History" />,
+  "inv-overview":    () => <Inventory initialTab="inv-overview" />,
+  "inv-ingredients": () => <Inventory initialTab="inv-ingredients" />,
+  "inv-po":          () => <Inventory initialTab="inv-po" />,
+  "inv-suppliers":   () => <Inventory initialTab="inv-suppliers" />,
+  "inv-production":  () => <Inventory initialTab="inv-production" />,
+  "inv-opname":      () => <Inventory initialTab="inv-opname" />,
+  "inv-waste":       () => <Inventory initialTab="inv-waste" />,
+  "inv-movements":   () => <Inventory initialTab="inv-movements" />,
   employees:         Employees,
   shifts:            Shifts,
   performance:       Performance,
