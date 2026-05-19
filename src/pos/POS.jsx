@@ -22,6 +22,7 @@ import PrinterSettings from './components/PrinterSettings'
 import { usePrinter } from './hooks/usePrinter'
 import { useWhatsApp } from './hooks/useWhatsApp'
 import './pos.mobile.css'
+import OfflineBar from './components/OfflineBar'
 
 export default function POS() {
   const [staff, setStaff]           = useState(null)
@@ -391,6 +392,8 @@ export default function POS() {
   )
 
   if (loading) return (
+    <>
+    <OfflineBar />
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', background:'#F4F7FA' }}>
       <div style={{ fontSize:40 }}>🏠</div>
       <div style={{ fontSize:16, fontWeight:700, color:'#0A1628', marginTop:8 }}>Loading menu...</div>
