@@ -1,49 +1,113 @@
 import { useState } from "react"
 import "./backoffice.css"
-import Dashboard   from "./components/Dashboard"
-import Products    from "./components/Products"
-import Categories  from "./components/Categories"
-import Employees   from "./components/Employees"
-import Customers   from "./components/Customers"
-import Reports     from "./components/Reports"
-import Settings    from "./components/Settings"
-import PaymentsTax from "./components/PaymentsTax"
-import Promotions  from "./components/Promotions"
-import FloorPlan   from "./components/FloorPlan"
 
-const BO_PIN     = "1999"
+// Existing components
+import Dashboard    from "./components/Dashboard"
+import Products     from "./components/Products"
+import Categories   from "./components/Categories"
+import Employees    from "./components/Employees"
+import Customers    from "./components/Customers"
+import Reports      from "./components/Reports"
+import Settings     from "./components/Settings"
+import PaymentsTax  from "./components/PaymentsTax"
+import Promotions   from "./components/Promotions"
+import FloorPlan    from "./components/FloorPlan"
+
+// Placeholder component for screens not built yet
+function ComingSoon({ title }) {
+  return (
+    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"60vh", gap:12 }}>
+      <div style={{ fontSize:48 }}>🚧</div>
+      <div style={{ fontSize:18, fontWeight:800, color:"var(--ink)" }}>{title}</div>
+      <div style={{ fontSize:13, color:"var(--ink5)" }}>This module is coming soon</div>
+    </div>
+  )
+}
+
+const BO_PIN      = "1999"
 const SESSION_KEY = "bo_auth"
 
 const NAV = [
   { group:"Overview" },
-  { id:"dashboard",  label:"Dashboard",      icon:"📊" },
-  { id:"reports",    label:"Reports",         icon:"📈" },
+  { id:"dashboard",       label:"Dashboard",         icon:"📊" },
+  { id:"reports",         label:"Reports",            icon:"📈" },
+
+  { group:"Finance" },
+  { id:"accounting",      label:"Accounting",         icon:"🧾" },
+
   { group:"Menu" },
-  { id:"products",   label:"Products",        icon:"🍽" },
-  { id:"categories", label:"Categories",      icon:"🏷" },
+  { id:"products",        label:"Products",           icon:"🍽" },
+  { id:"categories",      label:"Categories",         icon:"🏷" },
+  { id:"modifiers",       label:"Modifiers",          icon:"✏️" },
+  { id:"recipes",         label:"Recipes & COGS",     icon:"📒" },
+
+  { group:"Inventory" },
+  { id:"inv-overview",    label:"Overview",           icon:"📦" },
+  { id:"inv-ingredients", label:"Ingredients",        icon:"🧂" },
+  { id:"inv-po",          label:"Purchase Orders",    icon:"🛒" },
+  { id:"inv-suppliers",   label:"Suppliers",          icon:"🏭" },
+  { id:"inv-production",  label:"Production",         icon:"⚙️" },
+  { id:"inv-opname",      label:"Stock Opname",       icon:"🔢" },
+  { id:"inv-waste",       label:"Waste Recording",    icon:"🗑" },
+  { id:"inv-movements",   label:"Movement History",   icon:"📋" },
+
   { group:"People" },
-  { id:"employees",  label:"Employees",       icon:"👤" },
-  { id:"customers",  label:"Customers",       icon:"⭐" },
+  { id:"employees",       label:"Employees",          icon:"👤" },
+  { id:"shifts",          label:"Shifts",             icon:"🕐" },
+  { id:"performance",     label:"Performance",        icon:"📉" },
+  { id:"customers",       label:"Customers",          icon:"⭐" },
+  { id:"loyalty",         label:"Loyalty & Vouchers", icon:"🏆" },
+
   { group:"Sales" },
-  { id:"promotions", label:"Promotions",      icon:"🎁" },
-  { id:"payments",   label:"Payments & Tax",  icon:"💳" },
+  { id:"promotions",      label:"Promotions",         icon:"🎁" },
+  { id:"bundles",         label:"Bundle Packages",    icon:"📦" },
+  { id:"discounts",       label:"Discounts",          icon:"✂️" },
+  { id:"payments",        label:"Payments & Tax",     icon:"💳" },
+
   { group:"Operations" },
-  { id:"floorplan",  label:"Floor Plan",      icon:"🪑" },
+  { id:"floorplan",       label:"Floor Plan",         icon:"🪑" },
+
   { group:"System" },
-  { id:"settings",   label:"Settings",        icon:"⚙️" },
+  { id:"settings",        label:"Settings",           icon:"⚙️" },
+  { id:"receipt-designer",label:"Receipt Designer",   icon:"🖨" },
+  { id:"hardware",        label:"Hardware",           icon:"🔧" },
+  { id:"users-access",    label:"Users & Access",     icon:"🔑" },
+  { id:"audit-log",       label:"Audit Log",          icon:"📜" },
+  { id:"integrations",    label:"Integrations",       icon:"🔌" },
 ]
 
 const SCREENS = {
-  dashboard:  Dashboard,
-  reports:    Reports,
-  products:   Products,
-  categories: Categories,
-  employees:  Employees,
-  customers:  Customers,
-  promotions: Promotions,
-  payments:   PaymentsTax,
-  floorplan:  FloorPlan,
-  settings:   Settings,
+  dashboard:        Dashboard,
+  reports:          Reports,
+  accounting:       () => <ComingSoon title="Accounting" />,
+  products:         Products,
+  categories:       Categories,
+  modifiers:        () => <ComingSoon title="Modifiers" />,
+  recipes:          () => <ComingSoon title="Recipes & COGS" />,
+  "inv-overview":   () => <ComingSoon title="Inventory Overview" />,
+  "inv-ingredients":() => <ComingSoon title="Ingredients" />,
+  "inv-po":         () => <ComingSoon title="Purchase Orders" />,
+  "inv-suppliers":  () => <ComingSoon title="Suppliers" />,
+  "inv-production": () => <ComingSoon title="Production" />,
+  "inv-opname":     () => <ComingSoon title="Stock Opname" />,
+  "inv-waste":      () => <ComingSoon title="Waste Recording" />,
+  "inv-movements":  () => <ComingSoon title="Movement History" />,
+  employees:        Employees,
+  shifts:           () => <ComingSoon title="Shifts" />,
+  performance:      () => <ComingSoon title="Performance" />,
+  customers:        Customers,
+  loyalty:          () => <ComingSoon title="Loyalty & Vouchers" />,
+  promotions:       Promotions,
+  bundles:          () => <ComingSoon title="Bundle Packages" />,
+  discounts:        () => <ComingSoon title="Discounts" />,
+  payments:         PaymentsTax,
+  floorplan:        FloorPlan,
+  settings:         Settings,
+  "receipt-designer": () => <ComingSoon title="Receipt Designer" />,
+  hardware:         () => <ComingSoon title="Hardware" />,
+  "users-access":   () => <ComingSoon title="Users & Access" />,
+  "audit-log":      () => <ComingSoon title="Audit Log" />,
+  integrations:     () => <ComingSoon title="Integrations" />,
 }
 
 function BackofficeLogin({ onAuth }) {
