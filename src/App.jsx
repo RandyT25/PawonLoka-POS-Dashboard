@@ -7,10 +7,10 @@ function App() {
   const path = window.location.pathname
   const isBackoffice = path === "/backoffice" || path.startsWith("/backoffice/")
 
-  const [ready, setReady] = useState(isBackoffice) // backoffice skips seed
+  const [ready, setReady] = useState(isBackoffice)
 
   useEffect(() => {
-    if (isBackoffice) return // skip seed for backoffice
+    if (isBackoffice) return
     seedDatabase().then(() => setReady(true))
   }, [])
 
