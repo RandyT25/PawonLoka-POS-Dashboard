@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react"
 import { seedDatabase } from "./lib/seed"
 import POS from "./pos/POS"
@@ -6,7 +5,6 @@ import Backoffice from "./backoffice/Backoffice"
 
 function App() {
   const [ready, setReady] = useState(false)
-  const path = window.location.pathname
 
   useEffect(() => {
     seedDatabase().then(() => setReady(true))
@@ -18,6 +16,7 @@ function App() {
     </div>
   )
 
+  const path = window.location.pathname
   if (path === "/backoffice" || path.startsWith("/backoffice/")) return <Backoffice />
   return <POS />
 }
