@@ -392,8 +392,6 @@ export default function POS() {
   )
 
   if (loading) return (
-    <>
-    <OfflineBar />
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', background:'#F4F7FA' }}>
       <div style={{ fontSize:40 }}>🏠</div>
       <div style={{ fontSize:16, fontWeight:700, color:'#0A1628', marginTop:8 }}>Loading menu...</div>
@@ -580,6 +578,7 @@ export default function POS() {
       )}
 
       {showTablePicker === false && null}
+      <OfflineBar />
 
     </div>
   )
