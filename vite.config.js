@@ -28,7 +28,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2,json}"],
         navigateFallback: "/index.html",
-        navigateFallbackDenylist: [/^\/backoffice/],
+        navigateFallbackAllowlist: [/^(?!\/backoffice).*/],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.hostname.includes("supabase.co") && url.pathname.includes("/storage/"),
@@ -47,14 +47,6 @@ export default defineConfig({
               networkTimeoutSeconds: 4,
               expiration: { maxEntries: 200, maxAgeSeconds: 86400 },
               cacheableResponse: { statuses: [0, 200] },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
-            handler: "CacheFirst",
-            options: {
-              cacheName: "google-fonts",
-              expiration: { maxEntries: 20, maxAgeSeconds: 31536000 },
             },
           },
         ],
