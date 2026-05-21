@@ -25,7 +25,6 @@ import Integrations   from "./components/Integrations"
 
 import Inventory from "./components/Inventory"
 import StaffSubmissions from "./components/StaffSubmissions"
-import StaffSubmissions from "./components/StaffSubmissions"
 
 function ComingSoon({ title }) {
   return (
