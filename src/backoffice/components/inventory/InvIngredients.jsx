@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
+import { seedIngredients } from "../../../lib/seedIngredients"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
@@ -124,6 +125,7 @@ export default function InvIngredients() {
             <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" placeholder="Search..." style={{ paddingLeft:28, width:180 }} />
           </div>
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Ingredient</button>
+          <button onClick={async()=>{const r=await seedIngredients();alert(`Seeded: ${r.inserted} new, ${r.skipped} already exist`)}} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:11 }}>↑ Seed from xlsx</button>
         </div>
       </div>
 
