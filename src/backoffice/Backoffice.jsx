@@ -24,6 +24,8 @@ import AuditLog       from "./components/AuditLog"
 import Integrations   from "./components/Integrations"
 
 import Inventory from "./components/Inventory"
+import StaffSubmissions from "./components/StaffSubmissions"
+import StaffSubmissions from "./components/StaffSubmissions"
 
 function ComingSoon({ title }) {
   return (
@@ -58,6 +60,7 @@ const NAV = [
   { id:"inv-opname",       label:"Stock Opname",       icon:"🔢" },
   { id:"inv-waste",        label:"Waste Recording",    icon:"🗑" },
   { id:"inv-movements",    label:"Movement History",   icon:"📋" },
+  { id:"staff-submissions", label:"Staff Reports",       icon:"📱" },
   { group:"People" },
   { id:"employees",        label:"Employees",          icon:"👤" },
   { id:"shifts",           label:"Shifts",             icon:"🕐" },
@@ -96,6 +99,8 @@ const SCREENS = {
   "inv-opname":      () => <Inventory initialTab="inv-opname" />,
   "inv-waste":       () => <Inventory initialTab="inv-waste" />,
   "inv-movements":   () => <Inventory initialTab="inv-movements" />,
+  "staff-submissions": StaffSubmissions,
+  "staff-submissions": StaffSubmissions,
   employees:         Employees,
   shifts:            Shifts,
   performance:       Performance,

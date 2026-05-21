@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
+import SearchSelect from "../../components/SearchSelect"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion"]
@@ -465,10 +466,13 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
         <div className="bo-modal-body" style={{ overflowY:"auto" }}>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
             <div><label className="bo-label">Supplier *</label>
-              <select value={poForm.supplier_id} onChange={e=>setPOForm(f=>({...f,supplier_id:e.target.value}))} className="bo-select">
-                <option value="">— Select supplier —</option>
-                {suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
+              <SearchSelect
+                options={suppliers}
+                value={poForm.supplier_id}
+                onChange={v=>setPOForm(f=>({...f,supplier_id:v}))}
+                placeholder="— Search supplier —"
+                labelKey="name" valueKey="id"
+              />
             </div>
             <div><label className="bo-label">Invoice No.</label><input value={poForm.invoice_no} onChange={e=>setPOForm(f=>({...f,invoice_no:e.target.value}))} className="bo-input" placeholder="INV/001" /></div>
           </div>
@@ -486,10 +490,14 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
             </div>
             {poItems.map((item,i) => (
               <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
-                <select value={item.ingredient_id} onChange={e=>updatePOItem(i,"ingredient_id",e.target.value)} className="bo-select">
-                  <option value="">— Select —</option>
-                  {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
-                </select>
+                <SearchSelect
+                  options={ingredients}
+                  value={item.ingredient_id}
+                  onChange={v=>updatePOItem(i,"ingredient_id",v)}
+                  placeholder="— Search ingredient —"
+                  labelKey="name" valueKey="id"
+                  renderOption={o=><span>{o.name} <span style={{fontSize:10,color:"var(--ink5)"}}>({o.unit})</span></span>}
+                />
                 <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
                 <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
                   {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
