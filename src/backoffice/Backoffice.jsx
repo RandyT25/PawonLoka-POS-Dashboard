@@ -74,6 +74,7 @@ const NAV = [
   { group:"Operations" },
   { id:"floorplan",        label:"Floor Plan",         icon:"🪑" },
   { group:"System" },
+  { id:"import-export",     label:"Import / Export",    icon:"📂" },
   { id:"settings",         label:"Settings",           icon:"⚙️" },
   { id:"receipt-designer", label:"Receipt Designer",   icon:"🖨" },
   { id:"hardware",         label:"Hardware",           icon:"🔧" },

@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
-const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", production:"var(--green)" }
-const TYPE_ICONS  = { opname:"📋", waste:"🗑️", production:"🏭" }
+const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", production:"var(--green)", requisition:"#6554C0" }
+const TYPE_ICONS  = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
 
 export default function StaffSubmissions() {
   const [submissions, setSubmissions] = useState([])
@@ -71,6 +71,9 @@ export default function StaffSubmissions() {
             time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
           })
         }
+      } else if (sub.type==="requisition") {
+        // Requisition just gets marked approved — manager converts to PO manually
+        // No stock changes
       } else if (sub.type==="production") {
         const d = sub.data
         const item = ingredients.find(i=>i.id===d.item_id)
@@ -110,6 +113,32 @@ export default function StaffSubmissions() {
     await load(); setViewModal(null)
   }
 
+  async function convertToPO(sub) {
+    // Build PO payload from requisition items grouped by supplier
+    const items = (sub.data.items||[]).map(item => ({
+      ingredient_id: item.ingredient_id,
+      name: item.ingredient_name,
+      qty: item.qty,
+      unit: item.unit,
+      unit_cost: 0,
+      total_cost: 0,
+      notes: item.notes,
+    }))
+    const poId = "PO-"+Date.now()
+    await supabase.from("purchase_orders").insert({
+      id: poId,
+      supplierId: "", supplierName: "— Select Supplier —",
+      invoiceNo: poId,
+      date: new Date().toISOString().slice(0,10),
+      status: "Unpaid", subtotal: 0, total: 0,
+      items,
+      notes: `From staff requisition by ${sub.submitted_by}. Please assign supplier and prices.`
+    })
+    await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id", sub.id)
+    await load()
+    alert(`✅ Draft PO created from requisition. Go to Purchase Orders to complete it.`)
+  }
+
   const staffUrl = window.location.origin + "/staff"
 
   return (
@@ -147,6 +176,7 @@ export default function StaffSubmissions() {
                 const c = TYPE_COLORS[s.type]||"var(--ink5)"
                 const summary = s.type==="opname" ? `${(s.data.items||[]).length} items counted`
                   : s.type==="waste" ? `${s.data.qty} ${s.data.unit} — ${s.data.ingredient_name}`
+                  : s.type==="requisition" ? `${(s.data.items||[]).length} items requested`
                   : `${s.data.batch_qty} ${s.data.unit} ${s.data.item_name}`
                 return (
                   <tr key={s.id}>
@@ -162,6 +192,7 @@ export default function StaffSubmissions() {
                           <button onClick={()=>approve(s)} disabled={processing} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>✓ Approve</button>
                           <button onClick={()=>reject(s)} disabled={processing} className="bo-btn bo-btn-danger bo-btn-sm">Reject</button>
                         </>}
+                        {s.type==="requisition" && s.status==="pending" && <button onClick={()=>convertToPO(s)} className="bo-btn bo-btn-sm" style={{ background:"#6554C0", color:"#fff", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>→ To PO</button>}
                       </div>
                     </td>
                   </tr>
@@ -206,6 +237,22 @@ export default function StaffSubmissions() {
                   ))}
                 </div>
               )}
+              {viewModal.type==="requisition" && (
+                <table className="bo-table">
+                  <thead><tr><th>Ingredient</th><th>Qty Needed</th><th>Unit</th><th>Needed By</th><th>Notes</th></tr></thead>
+                  <tbody>
+                    {(viewModal.data.items||[]).map((item,i)=>(
+                      <tr key={i}>
+                        <td style={{ fontWeight:600 }}>{item.ingredient_name}</td>
+                        <td style={{ fontWeight:700, color:"#6554C0" }}>{item.qty}</td>
+                        <td>{item.unit}</td>
+                        <td style={{ fontSize:12 }}>{item.needed_by||"—"}</td>
+                        <td style={{ fontSize:12, color:"var(--ink4)" }}>{item.notes||"—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
               {viewModal.type==="production" && (
                 <div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
@@ -223,7 +270,10 @@ export default function StaffSubmissions() {
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>
               {viewModal.status==="pending" && <>
                 <button onClick={()=>reject(viewModal)} disabled={processing} className="bo-btn bo-btn-danger">Reject</button>
-                <button onClick={()=>approve(viewModal)} disabled={processing} className="bo-btn bo-btn-primary">✓ Approve & Apply</button>
+                {viewModal.type==="requisition"
+                  ? <button onClick={()=>convertToPO(viewModal)} disabled={processing} className="bo-btn bo-btn-primary" style={{ background:"#6554C0" }}>→ Convert to PO</button>
+                  : <button onClick={()=>approve(viewModal)} disabled={processing} className="bo-btn bo-btn-primary">✓ Approve & Apply</button>
+                }
               </>}
             </div>
           </div>

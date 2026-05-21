@@ -273,65 +273,6 @@ export default function InvPO() {
     setEditModal(po)
   }
 
-  function POFormModal({ title, onSubmit, onClose }) {
-    return (
-      <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-        <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh" }}>
-          <div className="bo-modal-header">
-            <div className="bo-modal-title">{title}</div>
-            <button className="bo-modal-close" onClick={onClose}>✕</button>
-          </div>
-          <div className="bo-modal-body" style={{ overflowY:"auto" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-              <div><label className="bo-label">Supplier *</label>
-                <select value={poForm.supplier_id} onChange={e=>setPOForm(f=>({...f,supplier_id:e.target.value}))} className="bo-select">
-                  <option value="">— Select supplier —</option>
-                  {suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-                </select>
-              </div>
-              <div><label className="bo-label">Invoice No.</label><input value={poForm.invoice_no} onChange={e=>setPOForm(f=>({...f,invoice_no:e.target.value}))} className="bo-input" placeholder="INV/001" /></div>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-              <div><label className="bo-label">Order Date</label><input type="date" value={poForm.order_date} onChange={e=>setPOForm(f=>({...f,order_date:e.target.value}))} className="bo-input" /></div>
-              <div><label className="bo-label">Due Date</label><input type="date" value={poForm.due_date} onChange={e=>setPOForm(f=>({...f,due_date:e.target.value}))} className="bo-input" /></div>
-            </div>
-            <div style={{ marginBottom:14 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-                <label className="bo-label" style={{ marginBottom:0 }}>Items *</label>
-                <button onClick={addPOItem} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
-              </div>
-              <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }}>
-                {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
-              </div>
-              {poItems.map((item,i) => (
-                <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
-                  <select value={item.ingredient_id} onChange={e=>updatePOItem(i,"ingredient_id",e.target.value)} className="bo-select">
-                    <option value="">— Select —</option>
-                    {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
-                  </select>
-                  <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
-                  <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
-                    {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
-                  </select>
-                  <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="Price/unit" />
-                  <button onClick={()=>removePOItem(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
-                </div>
-              ))}
-              <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 16px", background:"var(--surface)", borderRadius:"var(--r)", marginTop:8 }}>
-                <span style={{ fontWeight:700 }}>Grand Total</span>
-                <span style={{ fontSize:18, fontWeight:900, color:"var(--brand)" }}>{fmt(grandTotal)}</span>
-              </div>
-            </div>
-            <div className="bo-form-row"><label className="bo-label">Notes</label><textarea value={poForm.notes} onChange={e=>setPOForm(f=>({...f,notes:e.target.value}))} className="bo-input" rows={2} /></div>
-          </div>
-          <div className="bo-modal-footer">
-            <button onClick={onClose} className="bo-btn bo-btn-ghost">Cancel</button>
-            <button onClick={onSubmit} disabled={saving} className="bo-btn bo-btn-primary">{saving?"Saving...":title}</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div>

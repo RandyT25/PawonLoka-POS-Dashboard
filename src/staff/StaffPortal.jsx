@@ -5,17 +5,18 @@ function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 export default function StaffPortal() {
-  const [screen,      setScreen]      = useState("home")
-  const [ingredients, setIngredients] = useState([])
-  const [staffName,   setStaffName]   = useState(localStorage.getItem("staff_name")||"")
-  const [nameSet,     setNameSet]     = useState(!!localStorage.getItem("staff_name"))
-  const [saving,      setSaving]      = useState(false)
-  const [done,        setDone]        = useState(false)
-  const [opnameCounts,setOpnameCounts]= useState([])
-  const [wasteForm,   setWasteForm]   = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
-  const [prodForm,    setProdForm]    = useState({ item_id:"", batch_qty:"", unit:"", notes:"" })
-  const [prodUsed,    setProdUsed]    = useState([{ ingredient_id:"", qty:"", unit:"" }])
-  const [search,      setSearch]      = useState("")
+  const [screen,       setScreen]       = useState("home")
+  const [ingredients,  setIngredients]  = useState([])
+  const [staffName,    setStaffName]    = useState(localStorage.getItem("staff_name")||"")
+  const [nameSet,      setNameSet]      = useState(!!localStorage.getItem("staff_name"))
+  const [saving,       setSaving]       = useState(false)
+  const [done,         setDone]         = useState(false)
+  const [opnameCounts, setOpnameCounts] = useState([])
+  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
+  const [prodForm,     setProdForm]     = useState({ item_id:"", batch_qty:"", unit:"", notes:"" })
+  const [prodUsed,     setProdUsed]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
+  const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])
+  const [opnameSearch, setOpnameSearch] = useState("")
 
   useEffect(() => { loadIngredients() }, [])
 
@@ -64,16 +65,30 @@ export default function StaffPortal() {
     await supabase.from("staff_submissions").insert({
       id:"SS-"+Date.now(), type:"production", status:"pending",
       submitted_by:staffName, submitted_at:new Date().toISOString(),
-      data:{ item_id:item.id, item_name:item.name, batch_qty:parseFloat(prodForm.batch_qty), unit:prodForm.unit||item.unit, notes:prodForm.notes, ingredients_used:validUsed.map(u=>{ const ing=ingredients.find(i=>i.id===u.ingredient_id); return { ingredient_id:u.ingredient_id, name:ing?.name||"", qty:parseFloat(u.qty), unit:u.unit||ing?.unit||"" } }) }
+      data:{ item_id:item.id, item_name:item.name, batch_qty:parseFloat(prodForm.batch_qty), unit:prodForm.unit||item.unit, notes:prodForm.notes,
+        ingredients_used:validUsed.map(u=>{ const ing=ingredients.find(i=>i.id===u.ingredient_id); return { ingredient_id:u.ingredient_id, name:ing?.name||"", qty:parseFloat(u.qty), unit:u.unit||ing?.unit||"" } }) }
+    })
+    setSaving(false); setDone(true)
+  }
+
+  async function submitRequisition() {
+    const valid = reqItems.filter(i=>i.ingredient_id&&parseFloat(i.qty)>0)
+    if (!valid.length) { alert("Add at least one item"); return }
+    setSaving(true)
+    await supabase.from("staff_submissions").insert({
+      id:"SS-"+Date.now(), type:"requisition", status:"pending",
+      submitted_by:staffName, submitted_at:new Date().toISOString(),
+      data:{ items:valid.map(i=>{ const ing=ingredients.find(x=>x.id===i.ingredient_id); return { ingredient_id:i.ingredient_id, ingredient_name:ing?.name||"", qty:parseFloat(i.qty), unit:i.unit||ing?.unit||"", needed_by:i.needed_by||"", notes:i.notes||"", supplier:ing?.supplier||"" } }) }
     })
     setSaving(false); setDone(true)
   }
 
   function reset() {
-    setDone(false); setScreen("home"); setSearch("")
+    setDone(false); setScreen("home"); setOpnameSearch("")
     setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
     setProdForm({ item_id:"", batch_qty:"", unit:"", notes:"" })
     setProdUsed([{ ingredient_id:"", qty:"", unit:"" }])
+    setReqItems([{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])
   }
 
   const s = {
@@ -126,9 +141,10 @@ export default function StaffPortal() {
       <div style={s.body}>
         <div style={{ fontSize:13, color:"#666", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
         {[
-          { screen:"opname",     icon:"📋", label:"Stock Count",       sub:"Count current stock levels",          bg:"#0066ff" },
-          { screen:"waste",      icon:"🗑️", label:"Waste / Spoilage",  sub:"Report damaged or expired items",     bg:"#DE350B" },
-          { screen:"production", icon:"🏭", label:"Production Batch",  sub:"Record what was produced today",       bg:"#00875A" },
+          { screen:"opname",      icon:"📋", label:"Stock Count",        sub:"Count current stock levels",           bg:"#0066ff" },
+          { screen:"waste",       icon:"🗑️", label:"Waste / Spoilage",   sub:"Report damaged or expired items",      bg:"#DE350B" },
+          { screen:"production",  icon:"🏭", label:"Production Batch",   sub:"Record what was produced today",        bg:"#00875A" },
+          { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items to buy for today",       bg:"#6554C0" },
         ].map(b=>(
           <div key={b.screen} style={s.card}>
             <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"16px" }}>
@@ -145,7 +161,7 @@ export default function StaffPortal() {
   )
 
   if (screen==="opname") {
-    const filtered = opnameCounts.filter(i=>!search||i.name.toLowerCase().includes(search.toLowerCase()))
+    const filteredOp = opnameCounts.filter(i=>!opnameSearch||i.name.toLowerCase().includes(opnameSearch.toLowerCase()))
     return (
       <div style={s.wrap}>
         <div style={s.header}>
@@ -154,10 +170,10 @@ export default function StaffPortal() {
         </div>
         <div style={s.body}>
           <div style={{ ...s.card, padding:"10px 12px", marginBottom:10 }}>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Search ingredient..." style={{ ...s.input, border:"none", padding:"6px 4px", fontSize:14 }} />
+            <input value={opnameSearch} onChange={e=>setOpnameSearch(e.target.value)} placeholder="🔍 Search ingredient..." style={{ ...s.input, border:"none", padding:"6px 4px", fontSize:14 }} />
           </div>
           <div style={{ fontSize:12, color:"#888", marginBottom:10 }}>Only fill items you counted. Leave blank to skip.</div>
-          {filtered.map((item,idx)=>{
+          {filteredOp.map((item)=>{
             const realIdx = opnameCounts.findIndex(x=>x.ingredient_id===item.ingredient_id)
             return (
               <div key={item.ingredient_id} style={{ ...s.card, padding:"11px 14px", display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
@@ -165,14 +181,18 @@ export default function StaffPortal() {
                   <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
                   <div style={{ fontSize:11, color:"#888" }}>System: {fmt(item.system_qty)} {item.unit}</div>
                 </div>
-                <input type="number" inputMode="decimal" value={item.actual_qty} onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))} placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0 }} />
+                <input type="number" inputMode="decimal" value={item.actual_qty}
+                  onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))}
+                  placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0 }} />
                 <span style={{ fontSize:11, color:"#888", minWidth:22, flexShrink:0 }}>{item.unit}</span>
               </div>
             )
           })}
           <div style={{ height:80 }} />
-          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:"#fff", borderTop:"1px solid #eee", maxWidth:480, margin:"0 auto" }}>
-            <button onClick={submitOpname} disabled={saving} style={{ ...s.btn, background:"#0066ff", color:"#fff", marginBottom:0 }}>{saving?"Submitting...":"✓ Submit Count"}</button>
+          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:"#fff", borderTop:"1px solid #eee" }}>
+            <div style={{ maxWidth:480, margin:"0 auto" }}>
+              <button onClick={submitOpname} disabled={saving} style={{ ...s.btn, background:"#0066ff", color:"#fff", marginBottom:0 }}>{saving?"Submitting...":"✓ Submit Count"}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -225,14 +245,8 @@ export default function StaffPortal() {
             {ingredients.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
           </select>
           <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <div style={{ flex:1 }}>
-              <label style={s.label}>Quantity *</label>
-              <input type="number" inputMode="decimal" value={prodForm.batch_qty} onChange={e=>setProdForm(f=>({...f,batch_qty:e.target.value}))} style={s.input} placeholder="0" />
-            </div>
-            <div style={{ width:90 }}>
-              <label style={s.label}>Unit</label>
-              <input value={prodForm.unit} onChange={e=>setProdForm(f=>({...f,unit:e.target.value}))} style={s.input} placeholder="gr" />
-            </div>
+            <div style={{ flex:1 }}><label style={s.label}>Quantity *</label><input type="number" inputMode="decimal" value={prodForm.batch_qty} onChange={e=>setProdForm(f=>({...f,batch_qty:e.target.value}))} style={s.input} placeholder="0" /></div>
+            <div style={{ width:90 }}><label style={s.label}>Unit</label><input value={prodForm.unit} onChange={e=>setProdForm(f=>({...f,unit:e.target.value}))} style={s.input} placeholder="gr" /></div>
           </div>
         </div>
         <div style={s.card}>
@@ -252,11 +266,43 @@ export default function StaffPortal() {
             </div>
           ))}
         </div>
-        <div style={s.card}>
-          <label style={s.label}>Notes</label>
-          <input value={prodForm.notes} onChange={e=>setProdForm(f=>({...f,notes:e.target.value}))} style={s.input} placeholder="Optional" />
-        </div>
+        <div style={s.card}><label style={s.label}>Notes</label><input value={prodForm.notes} onChange={e=>setProdForm(f=>({...f,notes:e.target.value}))} style={s.input} placeholder="Optional" /></div>
         <button onClick={submitProduction} disabled={saving} style={{ ...s.btn, background:"#00875A", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Production"}</button>
+      </div>
+    </div>
+  )
+
+  if (screen==="requisition") return (
+    <div style={s.wrap}>
+      <div style={s.header}>
+        <button onClick={()=>setScreen("home")} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0 }}>←</button>
+        <span style={{ fontSize:17, fontWeight:800 }}>Request Ingredients</span>
+      </div>
+      <div style={s.body}>
+        <div style={{ fontSize:13, color:"#888", marginBottom:12 }}>Tell the manager what needs to be bought today.</div>
+        {reqItems.map((item,i)=>(
+          <div key={i} style={s.card}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+              <div style={{ fontSize:13, fontWeight:700 }}>Item {i+1}</div>
+              {reqItems.length>1 && <button onClick={()=>setReqItems(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:18, cursor:"pointer", padding:0 }}>✕</button>}
+            </div>
+            <label style={s.label}>Ingredient *</label>
+            <select value={item.ingredient_id} onChange={e=>{ const ing=ingredients.find(x=>x.id===e.target.value); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:e.target.value,unit:ing?.unit||""}:x)) }} style={s.input}>
+              <option value="">— Select —</option>
+              {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
+            </select>
+            <div style={{ display:"flex", gap:10, marginTop:12 }}>
+              <div style={{ flex:1 }}><label style={s.label}>Qty Needed *</label><input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={s.input} placeholder="0" /></div>
+              <div style={{ width:90 }}><label style={s.label}>Unit</label><input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={s.input} placeholder="kg" /></div>
+            </div>
+            <label style={{ ...s.label, marginTop:12 }}>Needed By</label>
+            <input type="date" value={item.needed_by} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,needed_by:e.target.value}:x))} style={s.input} />
+            <label style={{ ...s.label, marginTop:12 }}>Notes</label>
+            <input value={item.notes} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,notes:e.target.value}:x))} style={s.input} placeholder="e.g. urgent, specific brand..." />
+          </div>
+        ))}
+        <button onClick={()=>setReqItems(prev=>[...prev,{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])} style={{ ...s.btn, background:"#f0f0f0", color:"#333" }}>+ Add Another Item</button>
+        <button onClick={submitRequisition} disabled={saving} style={{ ...s.btn, background:"#6554C0", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Request"}</button>
       </div>
     </div>
   )
