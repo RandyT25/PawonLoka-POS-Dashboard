@@ -1,0 +1,12 @@
+README.md
+dist
+eslint.config.js
+filelist.txt
+index.html
+node_modules
+package-lock.json
+package.json
+public
+src
+structure.txt
+vite.config.js
