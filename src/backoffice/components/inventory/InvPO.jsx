@@ -28,93 +28,92 @@ async function recalcWAC(ing, qtyBase, totalCostForBatch) {
 }
 
 // Full cascade: ingredient WAC updated → recalc sub-recipes → recalc dishes
+// Tables: recipes (dishes, col product_id), sub_recipe_ingredients (subs, col sub_recipe_id)
+const UNIT_TO_BASE = {
+  gr:1,g:1,kg:1000,ml:1,mL:1,L:1000,Galon:19000,
+  pcs:1,butir:1,biji:1,buah:1,lembar:1,ekor:1,Ekor:1,
+  tsp:5,tbsp:15,cup:240,portion:1,porsi:1,slice:1,
+  bungkus:1,pack:1,sachet:1,ikat:1,botol:1,
+}
+function toBaseQty(qty, unit) { return qty * (UNIT_TO_BASE[unit] ?? 1) }
+
 async function cascadeRecalc(updatedIngIds) {
   if (!updatedIngIds.length) return
 
-  // 1. Get all recipe_lines that use updated ingredients
-  const { data: affectedLines } = await supabase
-    .from("recipe_lines")
-    .select("recipe_id, ingredient_id, qty, unit")
+  // Get fresh ingredient costs
+  const { data: allIngs } = await supabase.from("ingredients").select("id,cost_per_unit,unit,conversions")
+  const ingMap = {}
+  for (const i of allIngs||[]) ingMap[i.id] = i
+
+  // ── STEP 1: Recalc sub-recipes that use updated ingredients ──
+  const { data: subLines } = await supabase
+    .from("sub_recipe_ingredients")
+    .select("sub_recipe_id, ingredient_id, qty, unit")
     .in("ingredient_id", updatedIngIds)
 
-  if (!affectedLines || !affectedLines.length) return
-
-  // Unique recipe IDs affected
-  const affectedRecipeIds = [...new Set(affectedLines.map(l => l.recipe_id))]
-
-  // 2. For each affected recipe, recalculate its total cost
-  const { data: recipes } = await supabase
-    .from("recipes")
-    .select("id, type, product_id, ingredient_id, yield_qty")
-    .in("id", affectedRecipeIds)
-
-  if (!recipes || !recipes.length) return
-
-  // Get fresh ingredient costs
-  const { data: allIngs } = await supabase
-    .from("ingredients")
-    .select("id, cost_per_unit, unit, conversions")
-
-  const ingMap = {}
-  for (const i of allIngs || []) ingMap[i.id] = i
-
-  // Get all lines for these recipes
-  const { data: allLines } = await supabase
-    .from("recipe_lines")
-    .select("*")
-    .in("recipe_id", affectedRecipeIds)
-
-  const linesByRecipe = {}
-  for (const l of allLines || []) {
-    if (!linesByRecipe[l.recipe_id]) linesByRecipe[l.recipe_id] = []
-    linesByRecipe[l.recipe_id].push(l)
-  }
+  const affectedSubIds = [...new Set((subLines||[]).map(l => l.sub_recipe_id))]
 
   const updatedSubIngIds = []
+  for (const subId of affectedSubIds) {
+    const { data: allSubLines } = await supabase
+      .from("sub_recipe_ingredients")
+      .select("*")
+      .eq("sub_recipe_id", subId)
 
-  for (const recipe of recipes) {
-    const lines = linesByRecipe[recipe.id] || []
     let totalCost = 0
-
-    for (const line of lines) {
+    for (const line of allSubLines||[]) {
       const ing = ingMap[line.ingredient_id]
       if (!ing) continue
-      // Convert line qty to base unit
-      let qtyInBase = parseFloat(line.qty) || 0
-      if (line.unit && line.unit !== ing.unit) {
-        const conv = (ing.conversions||[]).find(c => c.unit === line.unit)
-        if (conv && parseFloat(conv.qty) > 0) {
-          qtyInBase = qtyInBase * parseFloat(conv.qty)
-        }
-      }
-      totalCost += qtyInBase * (ing.cost_per_unit || 0)
+      const qtyBase = toBaseQty(parseFloat(line.qty)||0, line.unit)
+      totalCost += qtyBase * (ing.cost_per_unit || 0)
     }
 
-    if (recipe.type === "sub" && recipe.ingredient_id) {
-      // Sub-recipe: update the ingredient's cost_per_unit (cost per yield unit)
-      const yieldQty = parseFloat(recipe.yield_qty) || 1
+    // Get sub-recipe yield
+    const { data: sub } = await supabase
+      .from("sub_recipes")
+      .select("id, ingredient_id, yield_qty, yield_unit")
+      .eq("id", subId)
+      .single()
+
+    if (sub?.ingredient_id) {
+      const yieldQty = parseFloat(sub.yield_qty) || 1
       const costPerYield = totalCost / yieldQty
-      await supabase.from("ingredients")
-        .update({ cost_per_unit: costPerYield })
-        .eq("id", recipe.ingredient_id)
-      ingMap[recipe.ingredient_id] = { ...ingMap[recipe.ingredient_id], cost_per_unit: costPerYield }
-      updatedSubIngIds.push(recipe.ingredient_id)
-    } else if (recipe.type === "dish" && recipe.product_id) {
-      // Dish: update product COGS and margin
-      const { data: product } = await supabase
-        .from("products")
-        .select("price")
-        .eq("id", recipe.product_id)
-        .single()
-      const price = product?.price || 0
-      const margin = price > 0 ? Math.round(((price - totalCost) / price) * 100) : 0
-      await supabase.from("products")
-        .update({ cogs: Math.round(totalCost), margin })
-        .eq("id", recipe.product_id)
+      await supabase.from("ingredients").update({ cost_per_unit: costPerYield }).eq("id", sub.ingredient_id)
+      ingMap[sub.ingredient_id] = { ...ingMap[sub.ingredient_id], cost_per_unit: costPerYield }
+      updatedSubIngIds.push(sub.ingredient_id)
     }
   }
 
-  // 3. If sub-recipes updated, cascade into dishes that use those sub-ingredients
+  // ── STEP 2: Recalc dishes that use updated ingredients (raw or sub) ──
+  const allChangedIds = [...new Set([...updatedIngIds, ...updatedSubIngIds])]
+  const { data: dishLines } = await supabase
+    .from("recipes")
+    .select("product_id, ingredient_id, qty, unit")
+    .in("ingredient_id", allChangedIds)
+
+  const affectedProductIds = [...new Set((dishLines||[]).map(l => l.product_id).filter(Boolean))]
+
+  for (const productId of affectedProductIds) {
+    const { data: allDishLines } = await supabase
+      .from("recipes")
+      .select("*")
+      .eq("product_id", productId)
+
+    let totalCost = 0
+    for (const line of allDishLines||[]) {
+      const ing = ingMap[line.ingredient_id]
+      if (!ing) continue
+      const qtyBase = toBaseQty(parseFloat(line.qty)||0, line.unit)
+      totalCost += qtyBase * (ing.cost_per_unit || 0)
+    }
+
+    const { data: product } = await supabase.from("products").select("price").eq("id", productId).single()
+    const price = product?.price || 0
+    const margin = price > 0 ? Math.round(((price - totalCost) / price) * 100) : 0
+    await supabase.from("products").update({ cogs: Math.round(totalCost), margin }).eq("id", productId)
+  }
+
+  // ── STEP 3: If subs updated, cascade into dishes that use those subs ──
   if (updatedSubIngIds.length) {
     await cascadeRecalc(updatedSubIngIds)
   }
@@ -137,12 +136,19 @@ export default function InvPO() {
 
   async function load() {
     setLoading(true)
-    const [{ data:p }, { data:i }, { data:s }] = await Promise.all([
-      supabase.from("purchase_orders").select("*, po_items(*)").order("created_at", { ascending:false }),
+    const [{ data:p }, { data:i }, { data:s }, { data:items }] = await Promise.all([
+      supabase.from("purchase_orders").select("*").order("created_at", { ascending:false }),
       supabase.from("ingredients").select("*"),
       supabase.from("suppliers").select("*").eq("active", true),
+      supabase.from("po_items").select("*"),
     ])
-    setPOs(p||[]); setIngredients(i||[]); setSuppliers(s||[])
+    const itemsByPO = {}
+    for (const item of items||[]) {
+      if (!itemsByPO[item.po_id]) itemsByPO[item.po_id] = []
+      itemsByPO[item.po_id].push(item)
+    }
+    const posWithItems = (p||[]).map(po => ({ ...po, po_items: itemsByPO[po.id] || [] }))
+    setPOs(posWithItems); setIngredients(i||[]); setSuppliers(s||[])
     setLoading(false)
   }
 
