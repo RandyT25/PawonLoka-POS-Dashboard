@@ -5,7 +5,7 @@ import Backoffice from "./backoffice/Backoffice"
 import StaffPortal from "./staff/StaffPortal"
 
 function App() {
-  const path = window.location.pathname
+  const path = window.location.pathname.replace(/\/+$/, "") || "/"
   const isBackoffice = path === "/backoffice" || path.startsWith("/backoffice/")
   const isStaff = path === "/staff" || path.startsWith("/staff/")
 

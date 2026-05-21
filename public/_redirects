@@ -1,5 +1,7 @@
-/staff/*  /index.html  200
-/staff    /index.html  200
-/backoffice/*  /index.html  200
-/backoffice    /index.html  200
-/*  /index.html  200
+/staff/ /staff 301
+/backoffice/ /backoffice 301
+/staff /index.html 200
+/staff/* /index.html 200
+/backoffice /index.html 200
+/backoffice/* /index.html 200
+/* /index.html 200
