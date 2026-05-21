@@ -1,3 +1,112 @@
+import { useState, useEffect } from "react"
+import { supabase } from "../../../lib/supabase"
+
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion"]
+
+function toBaseUnit(ing, qty, purchaseUnit) {
+  if (purchaseUnit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === purchaseUnit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[purchaseUnit]) return qty * fallbacks[purchaseUnit]
+  if (ing.unit==="ml" && fallbacks[purchaseUnit]) return qty * fallbacks[purchaseUnit]
+  return qty
+}
+
+async function recalcWAC(ing, qtyBase, totalCostForBatch) {
+  const oldStock     = parseFloat(ing.stock) || 0
+  const oldCost      = parseFloat(ing.cost_per_unit) || 0
+  const newTotalCost = (oldStock * oldCost) + totalCostForBatch
+  const newStock     = oldStock + qtyBase
+  const newWAC       = newStock > 0 ? newTotalCost / newStock : oldCost
+  await supabase.from("ingredients").update({ stock:newStock, cost_per_unit:newWAC }).eq("id", ing.id)
+  return newWAC
+}
+
+const UNIT_TO_BASE = {
+  gr:1,g:1,kg:1000,ml:1,mL:1,L:1000,Galon:19000,
+  pcs:1,butir:1,biji:1,buah:1,lembar:1,ekor:1,Ekor:1,
+  tsp:5,tbsp:15,cup:240,portion:1,porsi:1,slice:1,
+  bungkus:1,pack:1,sachet:1,ikat:1,botol:1,
+}
+function toBaseQty(qty, unit) { return qty * (UNIT_TO_BASE[unit] ?? 1) }
+
+async function cascadeRecalc(updatedIngIds) {
+  if (!updatedIngIds.length) return
+  const { data: allIngs } = await supabase.from("ingredients").select("id,cost_per_unit,unit,conversions")
+  const ingMap = {}
+  for (const i of allIngs||[]) ingMap[i.id] = i
+
+  const { data: subLines } = await supabase
+    .from("sub_recipe_ingredients").select("sub_recipe_id,ingredient_id,qty,unit")
+    .in("ingredient_id", updatedIngIds)
+  const affectedSubIds = [...new Set((subLines||[]).map(l => l.sub_recipe_id))]
+  const updatedSubIngIds = []
+
+  for (const subId of affectedSubIds) {
+    const { data: allSubLines } = await supabase.from("sub_recipe_ingredients").select("*").eq("sub_recipe_id", subId)
+    let totalCost = 0
+    for (const line of allSubLines||[]) {
+      const ing = ingMap[line.ingredient_id]
+      if (!ing) continue
+      totalCost += toBaseQty(parseFloat(line.qty)||0, line.unit) * (ing.cost_per_unit||0)
+    }
+    const { data: sub } = await supabase.from("sub_recipes").select("id,ingredient_id,yield_qty").eq("id", subId).single()
+    if (sub?.ingredient_id) {
+      const costPerYield = totalCost / (parseFloat(sub.yield_qty)||1)
+      await supabase.from("ingredients").update({ cost_per_unit:costPerYield }).eq("id", sub.ingredient_id)
+      ingMap[sub.ingredient_id] = { ...ingMap[sub.ingredient_id], cost_per_unit:costPerYield }
+      updatedSubIngIds.push(sub.ingredient_id)
+    }
+  }
+
+  const allChangedIds = [...new Set([...updatedIngIds, ...updatedSubIngIds])]
+  const { data: dishLines } = await supabase.from("recipes").select("product_id,ingredient_id,qty,unit").in("ingredient_id", allChangedIds)
+  const affectedProductIds = [...new Set((dishLines||[]).map(l => l.product_id).filter(Boolean))]
+
+  for (const productId of affectedProductIds) {
+    const { data: allDishLines } = await supabase.from("recipes").select("*").eq("product_id", productId)
+    let totalCost = 0
+    for (const line of allDishLines||[]) {
+      const ing = ingMap[line.ingredient_id]
+      if (!ing) continue
+      totalCost += toBaseQty(parseFloat(line.qty)||0, line.unit) * (ing.cost_per_unit||0)
+    }
+    const { data: product } = await supabase.from("products").select("price").eq("id", productId).single()
+    const price = product?.price || 0
+    const margin = price > 0 ? Math.round(((price - totalCost) / price) * 100) : 0
+    await supabase.from("products").update({ cogs:Math.round(totalCost), margin }).eq("id", productId)
+  }
+
+  if (updatedSubIngIds.length) await cascadeRecalc(updatedSubIngIds)
+}
+
+async function processPaidPO(po, ingMap) {
+  const updatedIngIds = []
+  for (const item of po.po_items||[]) {
+    const ing = ingMap[item.ingredient_id]
+    if (!ing) continue
+    const qtyBase = toBaseUnit(ing, parseFloat(item.qty), item.unit)
+    const costPerBase = qtyBase > 0 ? (parseFloat(item.unit_cost)||0) * parseFloat(item.qty) / qtyBase : 0
+    const newWAC = await recalcWAC(ing, qtyBase, qtyBase * costPerBase)
+    const updatedConvs = (ing.conversions||[]).map(c => c.unit===item.unit ? {...c,last_price:item.unit_cost} : c)
+    await supabase.from("ingredients").update({ last_purchase_price:item.unit_cost, last_purchase_unit:item.unit, conversions:updatedConvs }).eq("id", ing.id)
+    await supabase.from("stock_movements").insert({
+      id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
+      type:"Purchase", ingredient_id:ing.id, ingredient_name:ing.name,
+      qty:qtyBase, unit:ing.unit, ref:po.id,
+      note:`Received: ${item.qty} ${item.unit} @ ${fmt(item.unit_cost)} → WAC: ${fmt(newWAC)}/${ing.unit}`,
+      date:new Date().toISOString().slice(0,10),
+      time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
+    })
+    ingMap[ing.id] = { ...ing, stock:(ing.stock||0)+qtyBase, cost_per_unit:newWAC }
+    updatedIngIds.push(ing.id)
+  }
+  await supabase.from("purchase_orders").update({ status:"Paid" }).eq("id", po.id)
+  return updatedIngIds
+}
+
 export default function InvPO() {
   const [pos,         setPOs]         = useState([])
   const [ingredients, setIngredients] = useState([])
@@ -24,7 +133,6 @@ export default function InvPO() {
     ])
     const posNorm = (p||[]).map(po => ({
       ...po,
-      po_number:     po.id,
       supplier_name: po.supplierName || po.supplier_name || "",
       supplier_id:   po.supplierId   || po.supplier_id   || "",
       invoice_no:    po.invoiceNo    || po.invoice_no    || "",
@@ -42,7 +150,6 @@ export default function InvPO() {
   const voided  = pos.filter(p => p.status==="Void")
   const filtered = filter==="all" ? pos : filter==="unpaid" ? unpaid : filter==="paid" ? paid : filter==="overdue" ? overdue : voided
 
-  // Selection helpers
   const selectedUnpaid = [...selected].filter(id => pos.find(p=>p.id===id&&p.status==="Unpaid"))
   const allFilteredUnpaid = filtered.filter(p=>p.status==="Unpaid")
   const allUnpaidSelected = allFilteredUnpaid.length > 0 && allFilteredUnpaid.every(p=>selected.has(p.id))
@@ -89,31 +196,31 @@ export default function InvPO() {
   }
 
   async function markPaid(po) {
-    if (!confirm(`Mark ${po.po_number} as paid?`)) return
+    if (!confirm(`Mark ${po.id} as paid?`)) return
     const { data: freshIngs } = await supabase.from("ingredients").select("*")
     const ingMap = {}
     for (const i of freshIngs||[]) ingMap[i.id] = i
     const updatedIds = await processPaidPO(po, ingMap)
     if (updatedIds.length) await cascadeRecalc(updatedIds)
     await load(); setViewModal(null)
-    alert(`✅ ${po.po_number} paid. WAC + COGS updated.`)
+    alert(`✅ Paid. WAC + COGS updated.`)
   }
 
   async function voidPO(po) {
-    if (!confirm(`Void ${po.po_number}?`)) return
+    if (!confirm(`Void ${po.id}?`)) return
     await supabase.from("purchase_orders").update({ status:"Void" }).eq("id", po.id)
     await load(); setViewModal(null)
   }
 
   async function deletePO(po) {
-    if (!confirm(`Delete ${po.po_number}? This cannot be undone.`)) return
+    if (!confirm(`Delete ${po.id}? Cannot be undone.`)) return
     await supabase.from("purchase_orders").delete().eq("id", po.id)
     await load(); setViewModal(null)
   }
 
-  function addPOItem()        { setPOItems(items => [...items, { ingredient_id:"", qty:"", unit:"gr", unit_cost:"" }]) }
-  function removePOItem(i)    { setPOItems(items => items.filter((_,idx)=>idx!==i)) }
-  function updatePOItem(i,k,v){
+  function addPOItem()     { setPOItems(items => [...items, { ingredient_id:"", qty:"", unit:"gr", unit_cost:"" }]) }
+  function removePOItem(i) { setPOItems(items => items.filter((_,idx)=>idx!==i)) }
+  function updatePOItem(i,k,v) {
     setPOItems(items => items.map((x,idx) => {
       if (idx!==i) return x
       const updated = {...x,[k]:v}
@@ -160,68 +267,70 @@ export default function InvPO() {
   }
 
   function openEdit(po) {
-    setPOForm({ supplier_id:po.supplier_id||po.supplierId||"", invoice_no:po.invoice_no||"", order_date:po.order_date||po.date||"", due_date:po.due_date||po.dueDate||"", notes:po.notes||"" })
+    setPOForm({ supplier_id:po.supplier_id||"", invoice_no:po.invoice_no||"", order_date:po.order_date||"", due_date:po.due_date||"", notes:po.notes||"" })
     setPOItems((po.po_items||[]).map(i=>({ ingredient_id:i.ingredient_id, qty:String(i.qty), unit:i.unit, unit_cost:String(i.unit_cost) })))
     setEditModal(po)
   }
 
-  const POFormModal = ({ title, onSubmit, onClose }) => (
-    <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
-      <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh" }}>
-        <div className="bo-modal-header">
-          <div className="bo-modal-title">{title}</div>
-          <button className="bo-modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="bo-modal-body" style={{ overflowY:"auto" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-            <div><label className="bo-label">Supplier *</label>
-              <select value={poForm.supplier_id} onChange={e=>setPOForm(f=>({...f,supplier_id:e.target.value}))} className="bo-select">
-                <option value="">— Select supplier —</option>
-                {suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div><label className="bo-label">Invoice No.</label><input value={poForm.invoice_no} onChange={e=>setPOForm(f=>({...f,invoice_no:e.target.value}))} className="bo-input" placeholder="INV/001" /></div>
+  function POFormModal({ title, onSubmit, onClose }) {
+    return (
+      <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+        <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh" }}>
+          <div className="bo-modal-header">
+            <div className="bo-modal-title">{title}</div>
+            <button className="bo-modal-close" onClick={onClose}>✕</button>
           </div>
-          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-            <div><label className="bo-label">Order Date</label><input type="date" value={poForm.order_date} onChange={e=>setPOForm(f=>({...f,order_date:e.target.value}))} className="bo-input" /></div>
-            <div><label className="bo-label">Due Date</label><input type="date" value={poForm.due_date} onChange={e=>setPOForm(f=>({...f,due_date:e.target.value}))} className="bo-input" /></div>
-          </div>
-          <div style={{ marginBottom:14 }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-              <label className="bo-label" style={{ marginBottom:0 }}>Items *</label>
-              <button onClick={addPOItem} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
-            </div>
-            <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }}>
-              {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
-            </div>
-            {poItems.map((item,i) => (
-              <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
-                <select value={item.ingredient_id} onChange={e=>updatePOItem(i,"ingredient_id",e.target.value)} className="bo-select">
-                  <option value="">— Select —</option>
-                  {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
+          <div className="bo-modal-body" style={{ overflowY:"auto" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+              <div><label className="bo-label">Supplier *</label>
+                <select value={poForm.supplier_id} onChange={e=>setPOForm(f=>({...f,supplier_id:e.target.value}))} className="bo-select">
+                  <option value="">— Select supplier —</option>
+                  {suppliers.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
-                <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
-                <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
-                  {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
-                </select>
-                <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="Price/unit" />
-                <button onClick={()=>removePOItem(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
               </div>
-            ))}
-            <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 16px", background:"var(--surface)", borderRadius:"var(--r)", marginTop:8 }}>
-              <span style={{ fontWeight:700 }}>Grand Total</span>
-              <span style={{ fontSize:18, fontWeight:900, color:"var(--brand)" }}>{fmt(grandTotal)}</span>
+              <div><label className="bo-label">Invoice No.</label><input value={poForm.invoice_no} onChange={e=>setPOForm(f=>({...f,invoice_no:e.target.value}))} className="bo-input" placeholder="INV/001" /></div>
             </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
+              <div><label className="bo-label">Order Date</label><input type="date" value={poForm.order_date} onChange={e=>setPOForm(f=>({...f,order_date:e.target.value}))} className="bo-input" /></div>
+              <div><label className="bo-label">Due Date</label><input type="date" value={poForm.due_date} onChange={e=>setPOForm(f=>({...f,due_date:e.target.value}))} className="bo-input" /></div>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+                <label className="bo-label" style={{ marginBottom:0 }}>Items *</label>
+                <button onClick={addPOItem} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }}>
+                {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
+              </div>
+              {poItems.map((item,i) => (
+                <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
+                  <select value={item.ingredient_id} onChange={e=>updatePOItem(i,"ingredient_id",e.target.value)} className="bo-select">
+                    <option value="">— Select —</option>
+                    {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
+                  </select>
+                  <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
+                  <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
+                    {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
+                  </select>
+                  <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="Price/unit" />
+                  <button onClick={()=>removePOItem(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
+                </div>
+              ))}
+              <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 16px", background:"var(--surface)", borderRadius:"var(--r)", marginTop:8 }}>
+                <span style={{ fontWeight:700 }}>Grand Total</span>
+                <span style={{ fontSize:18, fontWeight:900, color:"var(--brand)" }}>{fmt(grandTotal)}</span>
+              </div>
+            </div>
+            <div className="bo-form-row"><label className="bo-label">Notes</label><textarea value={poForm.notes} onChange={e=>setPOForm(f=>({...f,notes:e.target.value}))} className="bo-input" rows={2} /></div>
           </div>
-          <div className="bo-form-row"><label className="bo-label">Notes</label><textarea value={poForm.notes} onChange={e=>setPOForm(f=>({...f,notes:e.target.value}))} className="bo-input" rows={2} /></div>
-        </div>
-        <div className="bo-modal-footer">
-          <button onClick={onClose} className="bo-btn bo-btn-ghost">Cancel</button>
-          <button onClick={onSubmit} disabled={saving} className="bo-btn bo-btn-primary">{saving?"Saving...":title}</button>
+          <div className="bo-modal-footer">
+            <button onClick={onClose} className="bo-btn bo-btn-ghost">Cancel</button>
+            <button onClick={onSubmit} disabled={saving} className="bo-btn bo-btn-primary">{saving?"Saving...":title}</button>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   return (
     <div>
@@ -238,16 +347,14 @@ export default function InvPO() {
             <button key={f} onClick={()=>setFilter(f)} className={"bo-btn bo-btn-sm "+(filter===f?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
           ))}
         </div>
-        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          {selectedUnpaid.length > 0 && (
-            <>
-              <span style={{ fontSize:12, color:"var(--ink4)", display:"flex", alignItems:"center" }}>{selectedUnpaid.length} selected</span>
-              <button onClick={bulkMarkPaid} disabled={bulkLoading} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>
-                {bulkLoading?"Processing...":"✓ Pay Selected"}
-              </button>
-              <button onClick={bulkVoid} disabled={bulkLoading} className="bo-btn bo-btn-danger bo-btn-sm">Void Selected</button>
-            </>
-          )}
+        <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
+          {selectedUnpaid.length > 0 && <>
+            <span style={{ fontSize:12, color:"var(--ink4)" }}>{selectedUnpaid.length} selected</span>
+            <button onClick={bulkMarkPaid} disabled={bulkLoading} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>
+              {bulkLoading?"Processing...":"✓ Pay Selected"}
+            </button>
+            <button onClick={bulkVoid} disabled={bulkLoading} className="bo-btn bo-btn-danger bo-btn-sm">Void Selected</button>
+          </>}
           <button onClick={()=>setNewPO(true)} className="bo-btn bo-btn-primary">+ New PO</button>
         </div>
       </div>
@@ -258,8 +365,7 @@ export default function InvPO() {
             <thead>
               <tr>
                 <th style={{ width:36 }}>
-                  <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll}
-                    style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />
+                  <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll} style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />
                 </th>
                 <th>PO #</th><th>Invoice</th><th>Supplier</th><th>Date</th><th>Due</th><th>Total</th><th>Status</th><th>Actions</th>
               </tr>
@@ -271,15 +377,12 @@ export default function InvPO() {
                 const isUnpaid = po.status==="Unpaid"
                 return (
                   <tr key={po.id} style={{ background:selected.has(po.id)?"var(--brand-lt)":"" }}>
-                    <td>
-                      {isUnpaid && <input type="checkbox" checked={selected.has(po.id)} onChange={()=>toggleSelect(po.id)}
-                        style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />}
-                    </td>
+                    <td>{isUnpaid && <input type="checkbox" checked={selected.has(po.id)} onChange={()=>toggleSelect(po.id)} style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />}</td>
                     <td style={{ fontWeight:700, fontFamily:"monospace", fontSize:12 }}>{po.id}</td>
                     <td style={{ fontSize:12, color:"var(--ink4)" }}>{po.invoice_no||"—"}</td>
                     <td style={{ fontWeight:600 }}>{po.supplier_name}</td>
-                    <td style={{ fontSize:12 }}>{po.order_date||po.date}</td>
-                    <td style={{ fontSize:12, color:isOverdue?"var(--red)":"var(--ink4)" }}>{po.due_date||po.dueDate||"—"}{isOverdue?" ⚠":""}</td>
+                    <td style={{ fontSize:12 }}>{po.order_date}</td>
+                    <td style={{ fontSize:12, color:isOverdue?"var(--red)":"var(--ink4)" }}>{po.due_date||"—"}{isOverdue?" ⚠":""}</td>
                     <td style={{ fontWeight:700, color:"var(--brand)" }}>{fmt(po.total)}</td>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:statusColor+"22", color:statusColor }}>{isOverdue?"Overdue":po.status}</span></td>
                     <td>
@@ -300,14 +403,13 @@ export default function InvPO() {
         )}
       </div>
 
-      {/* View Modal */}
       {viewModal && (
         <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setViewModal(null)}>
           <div className="bo-modal" style={{ maxWidth:600 }}>
             <div className="bo-modal-header">
               <div>
                 <div className="bo-modal-title">{viewModal.id}</div>
-                <div style={{ fontSize:11, color:"var(--ink5)" }}>{viewModal.invoice_no||viewModal.invoiceNo} · {viewModal.supplier_name||viewModal.supplierName}</div>
+                <div style={{ fontSize:11, color:"var(--ink5)" }}>{viewModal.invoice_no} · {viewModal.supplier_name}</div>
               </div>
               <button className="bo-modal-close" onClick={()=>setViewModal(null)}>✕</button>
             </div>
@@ -315,7 +417,7 @@ export default function InvPO() {
               <table className="bo-table">
                 <thead><tr><th>Item</th><th>Qty</th><th>Unit</th><th>Unit Cost</th><th>Total</th></tr></thead>
                 <tbody>
-                  {(viewModal.po_items||viewModal.items||[]).map((item,i) => (
+                  {(viewModal.po_items||[]).map((item,i) => (
                     <tr key={i}>
                       <td>{item.name}</td><td>{item.qty}</td><td>{item.unit}</td>
                       <td>{fmt(item.unit_cost)}</td>
