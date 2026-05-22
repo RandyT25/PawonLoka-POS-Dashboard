@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { supabase } from "../../supabaseClient";
+import { supabase } from "../../lib/supabase";
 
 /* ─── UNIT CONVERSION MAP ─────────────────────────────────── */
 const UNIT_TO_BASE = {
@@ -146,7 +146,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, allSubRecipes, o
         const { error: insErr } = await supabase.from("recipes").insert(inserts);
         if (insErr) throw insErr;
         /* Update products.cogs */
-        await supabase.from("products").update({ cogs: Math.round(totalCost) }).eq("id", item.id);
+        await supabase.from("products").update({ cogs: Math.round(totalCost) }).eq("sku", item.id);
 
       } else {
         /* Sub-recipe */
@@ -210,7 +210,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, allSubRecipes, o
         return sum + (found.cost_per_unit / ingBase) * baseQty;
       }, 0);
 
-      await supabase.from("products").update({ cogs: Math.round(cogs) }).eq("id", rec.product_id);
+      await supabase.from("products").update({ cogs: Math.round(cogs) }).eq("sku", rec.product_id);
     }
   }
 
@@ -330,7 +330,7 @@ export default function RecipeEditor() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      supabase.from("products").select("id,name,icon,price,cogs,category").order("name"),
+      supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name"),
       supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit").order("name"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit").order("name"),
     ]).then(([p, s, i]) => {
