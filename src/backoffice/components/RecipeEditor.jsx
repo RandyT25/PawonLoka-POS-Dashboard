@@ -159,6 +159,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         }
 
         setMsg({ err:false, text:`✓ Saved! Cost: Rp ${Math.round(costPerUnit).toLocaleString("id-ID")}/${yieldUnit}` })
+        onSaved({ cost_per_unit: costPerUnit, yield_qty: yieldQty, yield_unit: yieldUnit })
       } else {
         // Dish recipe
         const { error: delErr } = await supabase.from("recipes").delete().eq("product_id", item.id)
@@ -173,6 +174,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         await supabase.from("products").update({ cogs: Math.round(totalCost) }).eq("sku", item.id)
 
         setMsg({ err:false, text:`✓ Saved! COGS: ${fmtRp(totalCost)}` })
+        onSaved({ cogs: Math.round(totalCost) })
       }
       onSaved()
     } catch(e) {
@@ -360,9 +362,9 @@ export default function RecipeEditor() {
     })
   }, [tick])
 
-  const onSaved = useCallback(() => {
-    setSelected(null)
+  const onSaved = useCallback((updatedItem) => {
     setTick(t => t+1)
+    if (updatedItem) setSelected(s => s ? { ...s, ...updatedItem } : s)
   }, [])
 
   const listItems = (tab==="dish" ? products : subRecipes)
@@ -411,10 +413,9 @@ export default function RecipeEditor() {
                       {hasCogs
                         ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#d1fae5", color:"#065f46", fontWeight:700 }}>✓ Has recipe</span>
                         : <span style={{ padding:"1px 6px", borderRadius:10, background:"#f3f4f6", color:"#6b7280", fontWeight:700 }}>No recipe</span>}
+                      {hasCogs && tab==="sub" && <span style={{ fontSize:11, color:"#6b7280" }}>· Rp {(item.cost_per_unit||0).toFixed(2)}/{item.unit}</span>}
+                      {hasCogs && tab==="dish" && <span style={{ fontSize:11, color:"#6b7280" }}>· COGS {Math.round(item.cogs).toLocaleString("id-ID")}</span>}
                     </div>
-                    {hasCogs && <div style={{ fontSize:11, color:"var(--brand,#0066ff)", fontWeight:600, marginTop:1 }}>
-                      COGS: Rp {Math.round(tab==="dish"?item.cogs:item.cost_per_unit).toLocaleString("id-ID")}
-                    </div>}
                   </div>
                 </div>
                 {margin!==null && (
