@@ -330,7 +330,7 @@ export default function RecipeEditor() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name"),
+      supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name").then(r => ({ data: (r.data||[]).map(p => ({ ...p, id: p.sku, category: p.cat })), error: r.error })),
       supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit").order("name"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit").order("name"),
     ]).then(([p, s, i]) => {
