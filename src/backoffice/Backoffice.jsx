@@ -25,6 +25,7 @@ import Integrations   from "./components/Integrations"
 
 import Inventory from "./components/Inventory"
 import StaffSubmissions from "./components/StaffSubmissions"
+import ImportExport from "./components/ImportExport"
 
 function ComingSoon({ title }) {
   return (
@@ -100,7 +101,7 @@ const SCREENS = {
   "inv-waste":       () => <Inventory initialTab="inv-waste" />,
   "inv-movements":   () => <Inventory initialTab="inv-movements" />,
   "staff-submissions": StaffSubmissions,
-  "staff-submissions": StaffSubmissions,
+  "import-export":      ImportExport,
   employees:         Employees,
   shifts:            Shifts,
   performance:       Performance,

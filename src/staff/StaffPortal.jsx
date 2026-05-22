@@ -1,116 +1,203 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 
 function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
+const STAFF_LIST = ["Aisyah","Mahes","Alin","Meldy","Nita","Oji","Yudi","Claudy"]
+const DEPARTMENTS = ["Bar","Kitchen","Kasir","All"]
+
+function SearchableSelect({ options, value, onChange, placeholder, labelKey="name", valueKey="id" }) {
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState("")
+  const ref = useRef(null)
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [])
+  const selected = options.find(o => (o[valueKey]||o) === value)
+  const filtered = options.filter(o => {
+    const label = o[labelKey] || o
+    return !search || label.toLowerCase().includes(search.toLowerCase())
+  })
+  const s = {
+    wrap: { position:"relative" },
+    trigger: { width:"100%", padding:"11px 13px", border:"1.5px solid #e0e0e0", borderRadius:10, fontSize:15, boxSizing:"border-box", fontFamily:"inherit", background:"#fff", textAlign:"left", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" },
+    dropdown: { position:"absolute", zIndex:9999, top:"100%", left:0, right:0, background:"#fff", border:"1.5px solid #0066ff", borderRadius:10, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", marginTop:2, overflow:"hidden" },
+    search: { width:"100%", padding:"10px 12px", border:"none", borderBottom:"1px solid #eee", fontSize:14, fontFamily:"inherit", outline:"none", boxSizing:"border-box" },
+    list: { maxHeight:200, overflowY:"auto" },
+    item: { padding:"10px 14px", fontSize:14, cursor:"pointer" },
+  }
+  return (
+    <div ref={ref} style={s.wrap}>
+      <button type="button" onClick={()=>{setOpen(o=>!o);setSearch("")}} style={s.trigger}>
+        <span style={{ color: value ? "#111" : "#999" }}>{selected ? (selected[labelKey]||selected) : placeholder}</span>
+        <span style={{ fontSize:10, color:"#999" }}>{open?"▲":"▼"}</span>
+      </button>
+      {open && (
+        <div style={s.dropdown}>
+          <input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={s.search} onClick={e=>e.stopPropagation()} />
+          <div style={s.list}>
+            {filtered.length===0 ? <div style={{ ...s.item, color:"#999" }}>No results</div>
+              : filtered.map((o,i) => {
+                const label = o[labelKey]||o; const val = o[valueKey]||o
+                return <div key={i} onClick={()=>{onChange(val);setOpen(false);setSearch("")}} style={{ ...s.item, background:val===value?"#f0f5ff":"transparent", fontWeight:val===value?700:400, color:val===value?"#0066ff":"#111" }}>{label}</div>
+              })
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function StaffPortal() {
   const [screen,       setScreen]       = useState("home")
   const [ingredients,  setIngredients]  = useState([])
+  const [subRecipes,   setSubRecipes]   = useState([])
+  const [subRecipeIngs,setSubRecipeIngs]= useState([])
   const [staffName,    setStaffName]    = useState(localStorage.getItem("staff_name")||"")
   const [nameSet,      setNameSet]      = useState(!!localStorage.getItem("staff_name"))
   const [saving,       setSaving]       = useState(false)
   const [done,         setDone]         = useState(false)
   const [opnameCounts, setOpnameCounts] = useState([])
-  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
-  const [prodForm,     setProdForm]     = useState({ item_id:"", batch_qty:"", unit:"", notes:"" })
-  const [prodUsed,     setProdUsed]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
-  const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])
   const [opnameSearch, setOpnameSearch] = useState("")
+  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
+  const [prodSubId,    setProdSubId]    = useState("")
+  const [prodBatchQty, setProdBatchQty] = useState("")
+  const [prodYield,    setProdYield]    = useState("")
+  const [prodYieldUnit,setProdYieldUnit]= useState("")
+  const [prodUsed,     setProdUsed]     = useState([])
+  const [prodNotes,    setProdNotes]    = useState("")
+  const [reqDept,      setReqDept]      = useState("")
+  const [reqDate,      setReqDate]      = useState(new Date().toISOString().slice(0,10))
+  const [reqNotes,     setReqNotes]     = useState("")
+  const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
 
-  useEffect(() => { loadIngredients() }, [])
+  useEffect(() => { loadData() }, [])
 
-  async function loadIngredients() {
-    const { data } = await supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit").order("name")
-    setIngredients(data||[])
-    setOpnameCounts((data||[]).map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" })))
+  async function loadData() {
+    const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
+      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier").order("name"),
+      supabase.from("sub_recipes").select("*").order("name"),
+      supabase.from("sub_recipe_ingredients").select("*"),
+    ])
+    setIngredients(ings||[])
+    setSubRecipes(subs||[])
+    setSubRecipeIngs(subIngs||[])
+    setOpnameCounts((ings||[]).map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" })))
   }
 
-  function saveName() {
-    if (!staffName.trim()) return
-    localStorage.setItem("staff_name", staffName.trim())
+  function selectSubRecipe(subId) {
+    setProdSubId(subId)
+    if (!subId) { setProdUsed([]); return }
+    const sub = subRecipes.find(s=>s.id===subId)
+    if (sub) { setProdYield(sub.yield_qty||""); setProdYieldUnit(sub.yield_unit||sub.unit||"gr") }
+    const lines = subRecipeIngs.filter(l=>l.sub_recipe_id===subId)
+    if (lines.length) {
+      setProdUsed(lines.map(l=>{ const ing=ingredients.find(i=>i.id===l.ingredient_id); return { ingredient_id:l.ingredient_id, name:ing?.name||"", qty:String(l.qty), unit:l.unit||ing?.unit||"" } }))
+    } else {
+      setProdUsed([{ ingredient_id:"", qty:"", unit:"" }])
+    }
+  }
+
+  function saveName(name) {
+    const n = name || staffName
+    if (!n.trim()) return
+    localStorage.setItem("staff_name", n.trim())
+    setStaffName(n.trim())
     setNameSet(true)
+  }
+
+  async function submit(type, data) {
+    setSaving(true)
+    await supabase.from("staff_submissions").insert({
+      id:"SS-"+Date.now(), type, status:"pending",
+      submitted_by:staffName, submitted_at:new Date().toISOString(), data
+    })
+    setSaving(false); setDone(true)
   }
 
   async function submitOpname() {
     const filled = opnameCounts.filter(i=>i.actual_qty!=="")
     if (!filled.length) { alert("Enter at least one count"); return }
-    setSaving(true)
-    await supabase.from("staff_submissions").insert({
-      id:"SS-"+Date.now(), type:"opname", status:"pending",
-      submitted_by:staffName, submitted_at:new Date().toISOString(),
-      data:{ items:filled.map(i=>({ ...i, actual_qty:parseFloat(i.actual_qty)||0, diff:(parseFloat(i.actual_qty)||0)-i.system_qty })) }
-    })
-    setSaving(false); setDone(true)
+    await submit("opname", { items:filled.map(i=>({ ...i, actual_qty:parseFloat(i.actual_qty)||0, diff:(parseFloat(i.actual_qty)||0)-i.system_qty })) })
   }
 
   async function submitWaste() {
     const ing = ingredients.find(i=>i.id===wasteForm.ingredient_id)
     if (!ing||!wasteForm.qty) { alert("Select ingredient and quantity"); return }
-    setSaving(true)
-    await supabase.from("staff_submissions").insert({
-      id:"SS-"+Date.now(), type:"waste", status:"pending",
-      submitted_by:staffName, submitted_at:new Date().toISOString(),
-      data:{ ingredient_id:ing.id, ingredient_name:ing.name, qty:parseFloat(wasteForm.qty), unit:ing.unit, reason:wasteForm.reason, notes:wasteForm.notes, estimated_cost:(parseFloat(wasteForm.qty)||0)*(ing.cost_per_unit||0) }
-    })
-    setSaving(false); setDone(true)
+    await submit("waste", { ingredient_id:ing.id, ingredient_name:ing.name, qty:parseFloat(wasteForm.qty), unit:ing.unit, reason:wasteForm.reason, notes:wasteForm.notes, estimated_cost:(parseFloat(wasteForm.qty)||0)*(ing.cost_per_unit||0) })
   }
 
   async function submitProduction() {
-    const item = ingredients.find(i=>i.id===prodForm.item_id)
-    if (!item||!prodForm.batch_qty) { alert("Select item and quantity"); return }
+    if (!prodBatchQty) { alert("Enter batch quantity"); return }
     const validUsed = prodUsed.filter(u=>u.ingredient_id&&parseFloat(u.qty)>0)
     if (!validUsed.length) { alert("Add ingredients used"); return }
-    setSaving(true)
-    await supabase.from("staff_submissions").insert({
-      id:"SS-"+Date.now(), type:"production", status:"pending",
-      submitted_by:staffName, submitted_at:new Date().toISOString(),
-      data:{ item_id:item.id, item_name:item.name, batch_qty:parseFloat(prodForm.batch_qty), unit:prodForm.unit||item.unit, notes:prodForm.notes,
-        ingredients_used:validUsed.map(u=>{ const ing=ingredients.find(i=>i.id===u.ingredient_id); return { ingredient_id:u.ingredient_id, name:ing?.name||"", qty:parseFloat(u.qty), unit:u.unit||ing?.unit||"" } }) }
+    const sub = subRecipes.find(s=>s.id===prodSubId)
+    const isNewRecipe = !prodSubId
+    await submit("production", {
+      sub_recipe_id: prodSubId||null,
+      item_name: sub?.name||"Custom Production",
+      batch_qty: parseFloat(prodBatchQty),
+      actual_yield: parseFloat(prodYield)||parseFloat(prodBatchQty),
+      yield_unit: prodYieldUnit,
+      notes: prodNotes+(isNewRecipe?" [NEW RECIPE - needs review]":""),
+      needs_recipe_review: isNewRecipe,
+      ingredients_used: validUsed.map(u=>({ ingredient_id:u.ingredient_id, name:u.name||ingredients.find(i=>i.id===u.ingredient_id)?.name||"", qty:parseFloat(u.qty), unit:u.unit }))
     })
-    setSaving(false); setDone(true)
   }
 
   async function submitRequisition() {
     const valid = reqItems.filter(i=>i.ingredient_id&&parseFloat(i.qty)>0)
     if (!valid.length) { alert("Add at least one item"); return }
-    setSaving(true)
-    await supabase.from("staff_submissions").insert({
-      id:"SS-"+Date.now(), type:"requisition", status:"pending",
-      submitted_by:staffName, submitted_at:new Date().toISOString(),
-      data:{ items:valid.map(i=>{ const ing=ingredients.find(x=>x.id===i.ingredient_id); return { ingredient_id:i.ingredient_id, ingredient_name:ing?.name||"", qty:parseFloat(i.qty), unit:i.unit||ing?.unit||"", needed_by:i.needed_by||"", notes:i.notes||"", supplier:ing?.supplier||"" } }) }
+    if (!reqDept) { alert("Select department"); return }
+    await submit("requisition", {
+      department: reqDept, needed_by: reqDate, notes: reqNotes,
+      items: valid.map(i=>{ const ing=ingredients.find(x=>x.id===i.ingredient_id); return { ingredient_id:i.ingredient_id, ingredient_name:ing?.name||"", qty:parseFloat(i.qty), unit:i.unit||ing?.unit||"", supplier:ing?.supplier||"" } })
     })
-    setSaving(false); setDone(true)
   }
 
   function reset() {
     setDone(false); setScreen("home"); setOpnameSearch("")
     setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
-    setProdForm({ item_id:"", batch_qty:"", unit:"", notes:"" })
-    setProdUsed([{ ingredient_id:"", qty:"", unit:"" }])
-    setReqItems([{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])
+    setProdSubId(""); setProdBatchQty(""); setProdYield(""); setProdYieldUnit(""); setProdUsed([]); setProdNotes("")
+    setReqDept(""); setReqDate(new Date().toISOString().slice(0,10)); setReqNotes(""); setReqItems([{ ingredient_id:"", qty:"", unit:"" }])
   }
 
   const s = {
     wrap:{ minHeight:"100vh", background:"#f5f6fa", fontFamily:"system-ui,sans-serif", fontSize:15 },
-    header:{ background:"#0066ff", color:"#fff", padding:"14px 18px", display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:10 },
-    body:{ padding:"14px 16px", maxWidth:480, margin:"0 auto" },
+    header:{ background:"#5C3A1E", color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:10 },
+    body:{ padding:"14px 16px", maxWidth:480, margin:"0 auto", paddingBottom:100 },
     card:{ background:"#fff", borderRadius:14, padding:16, marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,0.06)" },
-    label:{ fontSize:12, fontWeight:700, color:"#666", marginBottom:4, display:"block", textTransform:"uppercase", letterSpacing:"0.4px" },
+    label:{ fontSize:12, fontWeight:700, color:"#666", marginBottom:6, display:"block", textTransform:"uppercase", letterSpacing:"0.4px" },
     input:{ width:"100%", padding:"11px 13px", border:"1.5px solid #e0e0e0", borderRadius:10, fontSize:15, boxSizing:"border-box", fontFamily:"inherit", outline:"none" },
     btn:{ width:"100%", padding:"14px", borderRadius:12, border:"none", fontSize:15, fontWeight:700, cursor:"pointer", marginBottom:8, fontFamily:"inherit" },
+    backBtn:{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0, lineHeight:1 },
+    fixedBottom:{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:"#fff", borderTop:"1px solid #eee", zIndex:10 },
   }
+
+  const Logo = () => (
+    <img src="/logo.png" alt="PawonLoka" style={{ height:36, width:36, borderRadius:8, objectFit:"cover" }} />
+  )
 
   if (!nameSet) return (
     <div style={s.wrap}>
-      <div style={s.header}><span style={{ fontSize:22 }}>🍳</span><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
+      <div style={s.header}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
       <div style={s.body}>
         <div style={{ ...s.card, marginTop:32 }}>
-          <div style={{ fontSize:17, fontWeight:800, marginBottom:4 }}>Who are you?</div>
-          <div style={{ fontSize:13, color:"#888", marginBottom:16 }}>Enter your name to continue</div>
-          <label style={s.label}>Your Name</label>
-          <input style={s.input} value={staffName} onChange={e=>setStaffName(e.target.value)} placeholder="e.g. Budi" onKeyDown={e=>e.key==="Enter"&&saveName()} autoFocus />
-          <button onClick={saveName} style={{ ...s.btn, background:"#0066ff", color:"#fff", marginTop:14 }}>Continue →</button>
+          <div style={{ textAlign:"center", marginBottom:20 }}>
+            <img src="/logo.png" alt="PawonLoka" style={{ width:80, height:80, borderRadius:16, objectFit:"cover", marginBottom:12 }} />
+            <div style={{ fontSize:18, fontWeight:800 }}>Who are you?</div>
+            <div style={{ fontSize:13, color:"#888", marginTop:4 }}>Select your name to continue</div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+            {STAFF_LIST.map(name=>(
+              <button key={name} onClick={()=>saveName(name)} style={{ ...s.btn, background:"#f5f0eb", color:"#5C3A1E", border:"2px solid #e8ddd0", marginBottom:0, padding:"14px 10px", fontSize:14, fontWeight:700, borderRadius:12 }}>
+                {name}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -118,7 +205,7 @@ export default function StaffPortal() {
 
   if (done) return (
     <div style={s.wrap}>
-      <div style={s.header}><span style={{ fontSize:22 }}>🍳</span><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
+      <div style={s.header}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
       <div style={{ ...s.body, textAlign:"center", paddingTop:60 }}>
         <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
         <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>Submitted!</div>
@@ -131,23 +218,23 @@ export default function StaffPortal() {
   if (screen==="home") return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <span style={{ fontSize:22 }}>🍳</span>
+        <Logo />
         <div style={{ flex:1 }}>
           <div style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</div>
           <div style={{ fontSize:12, opacity:0.85 }}>Hi, {staffName} 👋</div>
         </div>
-        <button onClick={()=>{localStorage.removeItem("staff_name");setNameSet(false)}} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", borderRadius:8, padding:"5px 11px", fontSize:12, cursor:"pointer" }}>Change</button>
+        <button onClick={()=>{localStorage.removeItem("staff_name");setNameSet(false)}} style={{ background:"rgba(255,255,255,0.15)", border:"none", color:"#fff", borderRadius:8, padding:"5px 11px", fontSize:12, cursor:"pointer" }}>Change</button>
       </div>
       <div style={s.body}>
-        <div style={{ fontSize:13, color:"#666", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
+        <div style={{ fontSize:13, color:"#888", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
         {[
-          { screen:"opname",      icon:"📋", label:"Stock Count",        sub:"Count current stock levels",           bg:"#0066ff" },
-          { screen:"waste",       icon:"🗑️", label:"Waste / Spoilage",   sub:"Report damaged or expired items",      bg:"#DE350B" },
-          { screen:"production",  icon:"🏭", label:"Production Batch",   sub:"Record what was produced today",        bg:"#00875A" },
-          { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items to buy for today",       bg:"#6554C0" },
+          { screen:"opname",      icon:"📋", label:"Stock Count",         sub:"Count current stock levels",          bg:"#0066ff" },
+          { screen:"waste",       icon:"🗑️", label:"Waste / Spoilage",    sub:"Report damaged or expired items",     bg:"#DE350B" },
+          { screen:"production",  icon:"🏭", label:"Production Batch",    sub:"Record what was produced today",       bg:"#00875A" },
+          { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items needed for today",      bg:"#5C3A1E" },
         ].map(b=>(
-          <div key={b.screen} style={s.card}>
-            <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"16px" }}>
+          <div key={b.screen} style={{ ...s.card, padding:0, overflow:"hidden" }}>
+            <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
               <span style={{ fontSize:28 }}>{b.icon}</span>
               <div>
                 <div style={{ fontSize:16 }}>{b.label}</div>
@@ -162,37 +249,43 @@ export default function StaffPortal() {
 
   if (screen==="opname") {
     const filteredOp = opnameCounts.filter(i=>!opnameSearch||i.name.toLowerCase().includes(opnameSearch.toLowerCase()))
+    const filledCount = opnameCounts.filter(i=>i.actual_qty!=="").length
     return (
       <div style={s.wrap}>
         <div style={s.header}>
-          <button onClick={()=>setScreen("home")} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0 }}>←</button>
-          <span style={{ fontSize:17, fontWeight:800 }}>Stock Count</span>
+          <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:17, fontWeight:800 }}>Stock Count</div>
+            <div style={{ fontSize:11, opacity:0.8 }}>{filledCount} items filled</div>
+          </div>
         </div>
         <div style={s.body}>
-          <div style={{ ...s.card, padding:"10px 12px", marginBottom:10 }}>
-            <input value={opnameSearch} onChange={e=>setOpnameSearch(e.target.value)} placeholder="🔍 Search ingredient..." style={{ ...s.input, border:"none", padding:"6px 4px", fontSize:14 }} />
+          <div style={{ ...s.card, padding:"10px 12px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
+            <span style={{ fontSize:16 }}>🔍</span>
+            <input value={opnameSearch} onChange={e=>setOpnameSearch(e.target.value)} placeholder="Search ingredient..." style={{ ...s.input, border:"none", padding:"4px 0", fontSize:14, flex:1 }} />
+            {opnameSearch && <button onClick={()=>setOpnameSearch("")} style={{ background:"none", border:"none", color:"#999", fontSize:18, cursor:"pointer", padding:0 }}>✕</button>}
           </div>
           <div style={{ fontSize:12, color:"#888", marginBottom:10 }}>Only fill items you counted. Leave blank to skip.</div>
           {filteredOp.map((item)=>{
             const realIdx = opnameCounts.findIndex(x=>x.ingredient_id===item.ingredient_id)
+            const filled = item.actual_qty !== ""
             return (
-              <div key={item.ingredient_id} style={{ ...s.card, padding:"11px 14px", display:"flex", alignItems:"center", gap:10, marginBottom:8 }}>
+              <div key={item.ingredient_id} style={{ ...s.card, padding:"11px 14px", display:"flex", alignItems:"center", gap:10, marginBottom:8, borderLeft:`3px solid ${filled?"#00875A":"#e0e0e0"}` }}>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
                   <div style={{ fontSize:11, color:"#888" }}>System: {fmt(item.system_qty)} {item.unit}</div>
                 </div>
                 <input type="number" inputMode="decimal" value={item.actual_qty}
                   onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))}
-                  placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0 }} />
-                <span style={{ fontSize:11, color:"#888", minWidth:22, flexShrink:0 }}>{item.unit}</span>
+                  placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0, background:filled?"#f0fff8":"#fafafa", borderColor:filled?"#00875A":"#e0e0e0" }} />
+                <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
               </div>
             )
           })}
-          <div style={{ height:80 }} />
-          <div style={{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:"#fff", borderTop:"1px solid #eee" }}>
-            <div style={{ maxWidth:480, margin:"0 auto" }}>
-              <button onClick={submitOpname} disabled={saving} style={{ ...s.btn, background:"#0066ff", color:"#fff", marginBottom:0 }}>{saving?"Submitting...":"✓ Submit Count"}</button>
-            </div>
+        </div>
+        <div style={s.fixedBottom}>
+          <div style={{ maxWidth:480, margin:"0 auto" }}>
+            <button onClick={submitOpname} disabled={saving} style={{ ...s.btn, background:"#0066ff", color:"#fff", marginBottom:0 }}>{saving?"Submitting...":"✓ Submit Count"+(filledCount>0?` (${filledCount} items)`:"")}</button>
           </div>
         </div>
       </div>
@@ -202,16 +295,13 @@ export default function StaffPortal() {
   if (screen==="waste") return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <button onClick={()=>setScreen("home")} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0 }}>←</button>
+        <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
         <span style={{ fontSize:17, fontWeight:800 }}>Waste / Spoilage</span>
       </div>
       <div style={s.body}>
         <div style={s.card}>
           <label style={s.label}>Ingredient *</label>
-          <select value={wasteForm.ingredient_id} onChange={e=>setWasteForm(f=>({...f,ingredient_id:e.target.value}))} style={s.input}>
-            <option value="">— Select ingredient —</option>
-            {ingredients.map(i=><option key={i.id} value={i.id}>{i.name} ({i.unit})</option>)}
-          </select>
+          <SearchableSelect options={ingredients} value={wasteForm.ingredient_id} onChange={v=>setWasteForm(f=>({...f,ingredient_id:v}))} placeholder="— Search ingredient —" />
           <label style={{ ...s.label, marginTop:14 }}>Quantity *</label>
           <input type="number" inputMode="decimal" value={wasteForm.qty} onChange={e=>setWasteForm(f=>({...f,qty:e.target.value}))} style={s.input} placeholder="0" />
           {wasteForm.ingredient_id && wasteForm.qty && (
@@ -231,78 +321,124 @@ export default function StaffPortal() {
     </div>
   )
 
-  if (screen==="production") return (
-    <div style={s.wrap}>
-      <div style={s.header}>
-        <button onClick={()=>setScreen("home")} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0 }}>←</button>
-        <span style={{ fontSize:17, fontWeight:800 }}>Production Batch</span>
-      </div>
-      <div style={s.body}>
-        <div style={s.card}>
-          <label style={s.label}>Item Produced *</label>
-          <select value={prodForm.item_id} onChange={e=>{ const ing=ingredients.find(i=>i.id===e.target.value); setProdForm(f=>({...f,item_id:e.target.value,unit:ing?.unit||""})) }} style={s.input}>
-            <option value="">— Select item —</option>
-            {ingredients.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}
-          </select>
-          <div style={{ display:"flex", gap:10, marginTop:14 }}>
-            <div style={{ flex:1 }}><label style={s.label}>Quantity *</label><input type="number" inputMode="decimal" value={prodForm.batch_qty} onChange={e=>setProdForm(f=>({...f,batch_qty:e.target.value}))} style={s.input} placeholder="0" /></div>
-            <div style={{ width:90 }}><label style={s.label}>Unit</label><input value={prodForm.unit} onChange={e=>setProdForm(f=>({...f,unit:e.target.value}))} style={s.input} placeholder="gr" /></div>
-          </div>
+  if (screen==="production") {
+    const selectedSub = subRecipes.find(s=>s.id===prodSubId)
+    return (
+      <div style={s.wrap}>
+        <div style={s.header}>
+          <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
+          <span style={{ fontSize:17, fontWeight:800 }}>Production Batch</span>
         </div>
-        <div style={s.card}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-            <div style={{ fontSize:14, fontWeight:700 }}>Ingredients Used *</div>
-            <button onClick={()=>setProdUsed(u=>[...u,{ingredient_id:"",qty:"",unit:""}])} style={{ background:"#f0f0f0", border:"none", borderRadius:8, padding:"5px 12px", fontSize:13, cursor:"pointer", fontWeight:600 }}>+ Add</button>
+        <div style={s.body}>
+          <div style={s.card}>
+            <label style={s.label}>What are you producing?</label>
+            <SearchableSelect
+              options={[...subRecipes.map(s=>({id:s.id,name:s.name})), {id:"__custom__",name:"➕ Something not in the list..."}]}
+              value={prodSubId} onChange={v=>{ if(v==="__custom__"){setProdSubId("");setProdUsed([{ingredient_id:"",qty:"",unit:"",name:""}])}else selectSubRecipe(v) }}
+              placeholder="— Search sub-recipe —"
+            />
+            {selectedSub && (
+              <div style={{ marginTop:8, padding:"8px 12px", background:"#f0fff8", borderRadius:8, fontSize:12, color:"#00875A", fontWeight:700 }}>
+                ✓ Recipe loaded — {selectedSub.yield_qty} {selectedSub.yield_unit||"gr"} per batch
+              </div>
+            )}
           </div>
-          {prodUsed.map((u,i)=>(
-            <div key={i} style={{ display:"flex", gap:8, marginBottom:10, alignItems:"center" }}>
-              <select value={u.ingredient_id} onChange={e=>{ const ing=ingredients.find(x=>x.id===e.target.value); setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:e.target.value,unit:ing?.unit||""}:x)) }} style={{ ...s.input, flex:2, fontSize:13 }}>
-                <option value="">— Select —</option>
-                {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
-              </select>
-              <input type="number" inputMode="decimal" value={u.qty} onChange={e=>setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, width:70, fontSize:14 }} placeholder="Qty" />
-              <span style={{ fontSize:11, color:"#888", minWidth:24 }}>{u.unit}</span>
-              <button onClick={()=>setProdUsed(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:20, cursor:"pointer", padding:0 }}>✕</button>
+
+          <div style={s.card}>
+            <label style={s.label}>Batch Quantity *</label>
+            <div style={{ display:"flex", gap:10 }}>
+              <input type="number" inputMode="decimal" value={prodBatchQty} onChange={e=>setProdBatchQty(e.target.value)} style={{ ...s.input, flex:1 }} placeholder="How many batches?" />
             </div>
-          ))}
+            <label style={{ ...s.label, marginTop:14 }}>Actual Yield (Total Output)</label>
+            <div style={{ display:"flex", gap:10 }}>
+              <input type="number" inputMode="decimal" value={prodYield} onChange={e=>setProdYield(e.target.value)} style={{ ...s.input, flex:1 }} placeholder={selectedSub?.yield_qty||"e.g. 1500"} />
+              <input value={prodYieldUnit} onChange={e=>setProdYieldUnit(e.target.value)} style={{ ...s.input, width:80 }} placeholder="gr" />
+            </div>
+          </div>
+
+          <div style={s.card}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+              <div>
+                <div style={{ fontSize:14, fontWeight:700 }}>Ingredients Used *</div>
+                {selectedSub && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>Auto-filled from recipe. Adjust if needed.</div>}
+              </div>
+              <button onClick={()=>setProdUsed(u=>[...u,{ingredient_id:"",qty:"",unit:"",name:""}])} style={{ background:"#f0f0f0", border:"none", borderRadius:8, padding:"5px 12px", fontSize:13, cursor:"pointer", fontWeight:600 }}>+ Add</button>
+            </div>
+            {prodUsed.map((u,i)=>(
+              <div key={i} style={{ display:"flex", gap:8, marginBottom:10, alignItems:"center" }}>
+                <div style={{ flex:2 }}>
+                  <SearchableSelect options={ingredients} value={u.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||"",name:ing?.name||""}:x)) }} placeholder="— Ingredient —" />
+                </div>
+                <input type="number" inputMode="decimal" value={u.qty} onChange={e=>setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, width:70, fontSize:14 }} placeholder="Qty" />
+                <span style={{ fontSize:11, color:"#888", minWidth:24 }}>{u.unit}</span>
+                <button onClick={()=>setProdUsed(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:20, cursor:"pointer", padding:0 }}>✕</button>
+              </div>
+            ))}
+            {prodUsed.length===0 && <div style={{ fontSize:13, color:"#999", textAlign:"center", padding:"12px 0" }}>Select a recipe above or add ingredients manually</div>}
+          </div>
+
+          <div style={s.card}>
+            <label style={s.label}>Notes</label>
+            <input value={prodNotes} onChange={e=>setProdNotes(e.target.value)} style={s.input} placeholder={!prodSubId?"Describe what you're making (for review)":"Optional notes"} />
+          </div>
+
+          {!prodSubId && (
+            <div style={{ padding:"10px 14px", background:"#fff8e1", borderRadius:10, marginBottom:12, fontSize:12, color:"#8a6000" }}>
+              ⚠️ No recipe selected — this will be sent for manager review before stock is updated.
+            </div>
+          )}
+
+          <button onClick={submitProduction} disabled={saving} style={{ ...s.btn, background:"#00875A", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Production"}</button>
         </div>
-        <div style={s.card}><label style={s.label}>Notes</label><input value={prodForm.notes} onChange={e=>setProdForm(f=>({...f,notes:e.target.value}))} style={s.input} placeholder="Optional" /></div>
-        <button onClick={submitProduction} disabled={saving} style={{ ...s.btn, background:"#00875A", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Production"}</button>
       </div>
-    </div>
-  )
+    )
+  }
 
   if (screen==="requisition") return (
     <div style={s.wrap}>
       <div style={s.header}>
-        <button onClick={()=>setScreen("home")} style={{ background:"none", border:"none", color:"#fff", fontSize:22, cursor:"pointer", padding:0 }}>←</button>
+        <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
         <span style={{ fontSize:17, fontWeight:800 }}>Request Ingredients</span>
       </div>
       <div style={s.body}>
-        <div style={{ fontSize:13, color:"#888", marginBottom:12 }}>Tell the manager what needs to be bought today.</div>
-        {reqItems.map((item,i)=>(
-          <div key={i} style={s.card}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
-              <div style={{ fontSize:13, fontWeight:700 }}>Item {i+1}</div>
-              {reqItems.length>1 && <button onClick={()=>setReqItems(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:18, cursor:"pointer", padding:0 }}>✕</button>}
+        <div style={s.card}>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+            <div>
+              <label style={s.label}>Department *</label>
+              <select value={reqDept} onChange={e=>setReqDept(e.target.value)} style={s.input}>
+                <option value="">— Select —</option>
+                {DEPARTMENTS.map(d=><option key={d}>{d}</option>)}
+              </select>
             </div>
-            <label style={s.label}>Ingredient *</label>
-            <select value={item.ingredient_id} onChange={e=>{ const ing=ingredients.find(x=>x.id===e.target.value); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:e.target.value,unit:ing?.unit||""}:x)) }} style={s.input}>
-              <option value="">— Select —</option>
-              {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
-            </select>
-            <div style={{ display:"flex", gap:10, marginTop:12 }}>
-              <div style={{ flex:1 }}><label style={s.label}>Qty Needed *</label><input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={s.input} placeholder="0" /></div>
-              <div style={{ width:90 }}><label style={s.label}>Unit</label><input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={s.input} placeholder="kg" /></div>
+            <div>
+              <label style={s.label}>Needed By *</label>
+              <input type="date" value={reqDate} onChange={e=>setReqDate(e.target.value)} style={s.input} />
             </div>
-            <label style={{ ...s.label, marginTop:12 }}>Needed By</label>
-            <input type="date" value={item.needed_by} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,needed_by:e.target.value}:x))} style={s.input} />
-            <label style={{ ...s.label, marginTop:12 }}>Notes</label>
-            <input value={item.notes} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,notes:e.target.value}:x))} style={s.input} placeholder="e.g. urgent, specific brand..." />
           </div>
-        ))}
-        <button onClick={()=>setReqItems(prev=>[...prev,{ ingredient_id:"", qty:"", unit:"", needed_by:"", notes:"" }])} style={{ ...s.btn, background:"#f0f0f0", color:"#333" }}>+ Add Another Item</button>
-        <button onClick={submitRequisition} disabled={saving} style={{ ...s.btn, background:"#6554C0", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Request"}</button>
+          <label style={s.label}>Notes</label>
+          <input value={reqNotes} onChange={e=>setReqNotes(e.target.value)} style={s.input} placeholder="e.g. urgent, for dinner service..." />
+        </div>
+
+        <div style={s.card}>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+            <div style={{ fontSize:14, fontWeight:700 }}>Items Needed</div>
+            <button onClick={()=>setReqItems(prev=>[...prev,{ingredient_id:"",qty:"",unit:""}])} style={{ background:"#5C3A1E", border:"none", borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontWeight:700, color:"#fff" }}>+ Add Item</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:8 }}>
+            {["#","INGREDIENT","QTY","UNIT",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"#999", textTransform:"uppercase" }}>{h}</div>)}
+          </div>
+          {reqItems.map((item,i)=>(
+            <div key={i} style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:10, alignItems:"center" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:"#999", textAlign:"center" }}>{i+1}</div>
+              <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||""}:x)) }} placeholder="Search..." />
+              <input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, padding:"10px 8px", fontSize:14, textAlign:"center" }} placeholder="0" />
+              <input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }} placeholder="kg" />
+              {reqItems.length>1 ? <button onClick={()=>setReqItems(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:18, cursor:"pointer", padding:0 }}>✕</button> : <div/>}
+            </div>
+          ))}
+        </div>
+
+        <button onClick={submitRequisition} disabled={saving||!reqDept} style={{ ...s.btn, background:"#5C3A1E", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Request"}</button>
       </div>
     </div>
   )
