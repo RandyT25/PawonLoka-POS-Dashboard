@@ -167,7 +167,7 @@ export default function StaffPortal() {
 
   const s = {
     wrap:{ minHeight:"100vh", background:"#f5f6fa", fontFamily:"system-ui,sans-serif", fontSize:15 },
-    header:{ background:"#5C3A1E", color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:10 },
+    header:{ background:"#1a1a2e", color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:10 },
     body:{ padding:"14px 16px", maxWidth:480, margin:"0 auto", paddingBottom:100 },
     card:{ background:"#fff", borderRadius:14, padding:16, marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,0.06)" },
     label:{ fontSize:12, fontWeight:700, color:"#666", marginBottom:6, display:"block", textTransform:"uppercase", letterSpacing:"0.4px" },
@@ -231,7 +231,7 @@ export default function StaffPortal() {
           { screen:"opname",      icon:"📋", label:"Stock Count",         sub:"Count current stock levels",          bg:"#0066ff" },
           { screen:"waste",       icon:"🗑️", label:"Waste / Spoilage",    sub:"Report damaged or expired items",     bg:"#DE350B" },
           { screen:"production",  icon:"🏭", label:"Production Batch",    sub:"Record what was produced today",       bg:"#00875A" },
-          { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items needed for today",      bg:"#5C3A1E" },
+          { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items needed for today",      bg:"#374151" },
         ].map(b=>(
           <div key={b.screen} style={{ ...s.card, padding:0, overflow:"hidden" }}>
             <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
@@ -422,7 +422,7 @@ export default function StaffPortal() {
         <div style={s.card}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
             <div style={{ fontSize:14, fontWeight:700 }}>Items Needed</div>
-            <button onClick={()=>setReqItems(prev=>[...prev,{ingredient_id:"",qty:"",unit:""}])} style={{ background:"#5C3A1E", border:"none", borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontWeight:700, color:"#fff" }}>+ Add Item</button>
+            <button onClick={()=>setReqItems(prev=>[...prev,{ingredient_id:"",qty:"",unit:""}])} style={{ background:"#374151", border:"none", borderRadius:8, padding:"6px 14px", fontSize:13, cursor:"pointer", fontWeight:700, color:"#fff" }}>+ Add Item</button>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:8 }}>
             {["#","INGREDIENT","QTY","UNIT",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"#999", textTransform:"uppercase" }}>{h}</div>)}
@@ -438,7 +438,7 @@ export default function StaffPortal() {
           ))}
         </div>
 
-        <button onClick={submitRequisition} disabled={saving||!reqDept} style={{ ...s.btn, background:"#5C3A1E", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Request"}</button>
+        <button onClick={submitRequisition} disabled={saving||!reqDept} style={{ ...s.btn, background:"#374151", color:"#fff" }}>{saving?"Submitting...":"✓ Submit Request"}</button>
       </div>
     </div>
   )

@@ -176,6 +176,7 @@ export default function Backoffice() {
     <div className="bo-app">
       <div className="bo-sidebar">
         <div className="bo-sidebar-logo">
+          <img src="/logo.png" alt="PawonLoka" style={{ width:48, height:48, borderRadius:10, objectFit:"cover", marginBottom:6, display:"block" }} />
           <div className="bo-sidebar-logo-name">PawonLoka</div>
           <div className="bo-sidebar-logo-sub">Back Office</div>
         </div>
