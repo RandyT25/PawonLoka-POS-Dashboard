@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
 
 /* ─── UNIT CONVERSION MAP ─────────────────────────────────── */
@@ -29,55 +29,87 @@ function MarginPill({ margin }) {
   return <span className={`re-pill ${cls}`}>{margin}% margin</span>;
 }
 
+/* ─── SEARCHABLE INGREDIENT SELECT ───────────────────────── */
+function IngSearch({ value, onChange, ingredients, subRecipes }) {
+  const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+
+  const allChoices = [
+    ...ingredients.map(i => ({ ...i, _group: "Raw Ingredients" })),
+    ...subRecipes.map(s => ({ ...s, name: s.name.replace(" (sub)","") + " (sub)", _group: "Sub-recipes" })),
+  ];
+
+  const selected = allChoices.find(x => x.id === value);
+  const filtered = allChoices.filter(x =>
+    !search || x.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div ref={ref} style={{ position:"relative", flex:2 }}>
+      <div onClick={() => { setOpen(o => !o); setSearch(""); }}
+        style={{ padding:"7px 10px", border:"1.5px solid #ddd", borderRadius:8, cursor:"pointer", fontSize:13, background:"#fff", display:"flex", justifyContent:"space-between", alignItems:"center", minHeight:36 }}>
+        <span style={{ color: selected ? "#111" : "#999", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1 }}>
+          {selected ? selected.name : "— Select ingredient —"}
+        </span>
+        <span style={{ fontSize:10, color:"#999", marginLeft:4 }}>{open ? "▲" : "▼"}</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", zIndex:9999, top:"100%", left:0, right:0, background:"#fff", border:"1.5px solid #0066ff", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", marginTop:2 }}>
+          <input autoFocus value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search..." onClick={e => e.stopPropagation()}
+            style={{ width:"100%", padding:"8px 10px", border:"none", borderBottom:"1px solid #eee", fontSize:13, outline:"none", boxSizing:"border-box" }} />
+          <div style={{ maxHeight:200, overflowY:"auto" }}>
+            {filtered.length === 0
+              ? <div style={{ padding:"10px", fontSize:12, color:"#999", textAlign:"center" }}>No results</div>
+              : filtered.map(o => (
+                <div key={o.id} onClick={() => { onChange(o); setOpen(false); setSearch(""); }}
+                  style={{ padding:"8px 12px", fontSize:13, cursor:"pointer", background: o.id===value ? "#f0f5ff" : "transparent", color: o.id===value ? "#0066ff" : o._group==="Sub-recipes" ? "#6554C0" : "#111", fontWeight: o.id===value ? 700 : 400 }}
+                  onMouseEnter={e => { if(o.id!==value) e.currentTarget.style.background="#f5f5f5" }}
+                  onMouseLeave={e => { if(o.id!==value) e.currentTarget.style.background="transparent" }}>
+                  {o.name}
+                  {o.cost_per_unit > 0 && <span style={{ fontSize:11, color:"#888", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit).toLocaleString("id-ID")}/{o.unit}</span>}
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── COST BREAKDOWN ROW ──────────────────────────────────── */
 function IngRow({ row, ingredients, subRecipes, onChange, onRemove }) {
   const allChoices = [
-    ...ingredients.map(i => ({ ...i, _type: "raw" })),
-    ...subRecipes.map(s => ({ ...s, _type: "sub", id: s.id, name: s.name + " (sub)", cost_per_unit: s.cost_per_unit })),
+    ...ingredients.map(i => ({ ...i })),
+    ...subRecipes.map(s => ({ ...s, name: s.name.replace(" (sub)","") + " (sub)" })),
   ];
   const selected = allChoices.find(x => x.id === row.ingredient_id);
-  const baseQty   = toBase(row.qty, row.unit);
-  const ingBase   = selected ? (UNIT_TO_BASE[selected.unit] ?? 1) : 1;
+  const baseQty     = toBase(row.qty, row.unit);
+  const ingBase     = selected ? (UNIT_TO_BASE[selected.unit] ?? 1) : 1;
   const costPerBase = selected ? ((selected.cost_per_unit ?? 0) / ingBase) : 0;
-  const rowCost   = costPerBase * baseQty;
+  const rowCost     = costPerBase * baseQty;
 
   return (
     <div className="re-ing-row">
-      <div className="re-ing-select-wrap">
-        <select
-          value={row.ingredient_id ?? ""}
-          onChange={e => {
-            const found = allChoices.find(x => String(x.id) === e.target.value);
-            onChange({ ...row, ingredient_id: found?.id ?? null, ingredient_name: found?.name ?? "", unit: found?.unit ?? row.unit });
-          }}
-        >
-          <option value="">— Pilih bahan —</option>
-          <optgroup label="Raw Ingredients">
-            {ingredients.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-          </optgroup>
-          <optgroup label="Sub-recipes">
-            {subRecipes.map(s => <option key={"sub_" + s.id} value={s.id}>{s.name} (sub)</option>)}
-          </optgroup>
-        </select>
-      </div>
-
-      <input
-        type="number"
-        className="re-qty"
-        min="0"
-        step="any"
-        value={row.qty}
-        onChange={e => onChange({ ...row, qty: parseFloat(e.target.value) || 0 })}
+      <IngSearch
+        value={row.ingredient_id}
+        onChange={found => onChange({ ...row, ingredient_id: found.id, ingredient_name: found.name, unit: found.unit ?? row.unit })}
+        ingredients={ingredients}
+        subRecipes={subRecipes}
       />
-
-      <select
-        className="re-unit"
-        value={row.unit}
-        onChange={e => onChange({ ...row, unit: e.target.value })}
-      >
+      <input type="number" className="re-qty" min="0" step="any" value={row.qty}
+        onChange={e => onChange({ ...row, qty: parseFloat(e.target.value) || 0 })} />
+      <select className="re-unit" value={row.unit} onChange={e => onChange({ ...row, unit: e.target.value })}>
         {UNITS.map(u => <option key={u}>{u}</option>)}
       </select>
-
       <span className="re-row-cost">{rowCost > 0 ? fmt(rowCost) : "—"}</span>
       <button className="re-remove-btn" onClick={onRemove}>✕</button>
     </div>
@@ -331,12 +363,38 @@ export default function RecipeEditor() {
     setLoading(true);
     Promise.all([
       supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name").then(r => ({ data: (r.data||[]).map(p => ({ ...p, id: p.sku, category: p.cat })), error: r.error })),
-      supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit").order("name"),
-      supabase.from("ingredients").select("id,name,unit,cost_per_unit").order("name"),
-    ]).then(([p, s, i]) => {
+      supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name"),
+      supabase.from("ingredients").select("id,name,unit,cost_per_unit,category").order("name"),
+    ]).then(async ([p, s, i]) => {
+      const allIngs = i.data ?? [];
+      let subs = s.data ?? [];
+
+      // Auto-sync: create sub_recipes rows for semi-finished ingredients that don't have one yet
+      const semiFinished = allIngs.filter(ing =>
+        ing.category === "Semi-finished" || ing.name?.toLowerCase().includes("(sub)")
+      );
+      const existingIngIds = new Set(subs.map(s => s.ingredient_id).filter(Boolean));
+      const toCreate = semiFinished.filter(ing => !existingIngIds.has(ing.id));
+
+      if (toCreate.length) {
+        const newRows = toCreate.map(ing => ({
+          id: "SR-" + ing.id,
+          name: ing.name,
+          ingredient_id: ing.id,
+          unit: ing.unit,
+          cost_per_unit: ing.cost_per_unit || 0,
+          yield_qty: 1,
+          yield_unit: ing.unit,
+        }));
+        await supabase.from("sub_recipes").upsert(newRows, { onConflict: "id", ignoreDuplicates: true });
+        // Reload sub_recipes after sync
+        const { data: refreshed } = await supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name");
+        subs = refreshed ?? [];
+      }
+
       setProducts(p.data ?? []);
-      setSubRecipes(s.data ?? []);
-      setIngredients(i.data ?? []);
+      setSubRecipes(subs);
+      setIngredients(allIngs);
       setLoading(false);
     });
   }, [refresh]);
