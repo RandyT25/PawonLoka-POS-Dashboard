@@ -2,20 +2,21 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
 const PERMISSIONS = [
-  { key:"pos",        label:"POS",         desc:"Access point of sale" },
-  { key:"void",       label:"Void Orders",  desc:"Can void transactions" },
-  { key:"cash",       label:"Cash In/Out",  desc:"Can do cash movements" },
-  { key:"discount",   label:"Discounts",    desc:"Can apply discounts" },
-  { key:"reports",    label:"Reports",      desc:"Can view sales reports" },
-  { key:"backoffice", label:"Back Office",  desc:"Full backoffice access" },
+  { key:"pos",        label:"POS Access",        desc:"Can log in and use the point of sale" },
+  { key:"backoffice", label:"Back Office",        desc:"Full access to backoffice management" },
+  { key:"reports",    label:"View Reports",       desc:"Can view sales and performance reports" },
+  { key:"refund",     label:"Process Refunds",    desc:"Can process order refunds" },
+  { key:"discount",   label:"Apply Discounts",    desc:"Can apply manual discounts at checkout" },
+  { key:"void",       label:"Void Transactions",  desc:"Can void completed transactions" },
+  { key:"cash",       label:"Cash In / Out",      desc:"Can record cash movements" },
 ]
 
 const ROLE_DEFAULTS = {
-  Owner:   { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:true  },
-  Manager: { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:false },
-  Cashier: { pos:true,  void:false, cash:true,  discount:false, reports:false, backoffice:false },
-  Waiter:  { pos:true,  void:false, cash:false, discount:false, reports:false, backoffice:false },
-  Kitchen: { pos:false, void:false, cash:false, discount:false, reports:false, backoffice:false },
+  Owner:   { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:true,  refund:true  },
+  Manager: { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:false, refund:true  },
+  Cashier: { pos:true,  void:false, cash:true,  discount:false, reports:false, backoffice:false, refund:false },
+  Waiter:  { pos:true,  void:false, cash:false, discount:false, reports:false, backoffice:false, refund:false },
+  Kitchen: { pos:false, void:false, cash:false, discount:false, reports:false, backoffice:false, refund:false },
 }
 
 const ROLES = Object.keys(ROLE_DEFAULTS)
