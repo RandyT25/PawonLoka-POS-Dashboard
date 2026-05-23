@@ -16,19 +16,19 @@ export default function Shifts() {
     if (range==="today") { from.setHours(0,0,0,0) }
     if (range==="week")  { from.setDate(now.getDate()-7) }
     if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
-    const {data} = await supabase.from("shifts").select("*").gte("opened_at",from.toISOString()).order("opened_at",{ascending:false})
+    const {data} = await supabase.from("shifts").select("*").gte("created_at",from.toISOString()).order("created_at",{ascending:false})
     setShifts(data||[]); setLoading(false)
   }
 
   function duration(s) {
-    if (!s.opened_at||!s.closed_at) return "Open"
-    const ms=new Date(s.closed_at)-new Date(s.opened_at)
+    if (!s.clock_in||!s.clock_out) return "Open"
+    const ms=new Date(s.clock_out)-new Date(s.clock_in)
     return `${Math.floor(ms/3600000)}h ${Math.floor((ms%3600000)/60000)}m`
   }
 
   const totalSales  = shifts.reduce((s,x)=>s+(x.total_sales||0),0)
   const totalOrders = shifts.reduce((s,x)=>s+(x.total_orders||0),0)
-  const openShifts  = shifts.filter(s=>!s.closed_at).length
+  const openShifts  = shifts.filter(s=>!s.clock_out).length
 
   return (
     <div>
@@ -50,7 +50,7 @@ export default function Shifts() {
               {shifts.map(s=>(
                 <tr key={s.id}>
                   <td style={{fontWeight:700}}>{s.staff_name||"-"}</td>
-                  <td style={{fontSize:12,color:"var(--ink4)"}}>{s.opened_at?new Date(s.opened_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-"}</td>
+                  <td style={{fontSize:12,color:"var(--ink4)"}}>{s.clock_in||s.created_at?new Date(s.clock_in||s.created_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-"}</td>
                   <td style={{fontSize:12,color:"var(--ink4)"}}>{s.closed_at?new Date(s.closed_at).toLocaleString("id-ID",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"}):"-"}</td>
                   <td>{duration(s)}</td>
                   <td>{s.total_orders||0}</td>
