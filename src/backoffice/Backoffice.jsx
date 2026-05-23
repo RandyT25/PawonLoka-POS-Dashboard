@@ -26,6 +26,7 @@ import Integrations   from "./components/Integrations"
 import Inventory from "./components/Inventory"
 import StaffSubmissions from "./components/StaffSubmissions"
 import ImportExport from "./components/ImportExport"
+import Schedule from "./components/Schedule"
 
 function ComingSoon({ title }) {
   return (
@@ -64,6 +65,7 @@ const NAV = [
   { group:"People" },
   { id:"employees",        label:"Employees",          icon:"👤" },
   { id:"shifts",           label:"Shifts",             icon:"🕐" },
+  { id:"schedule",         label:"Schedule",           icon:"📅" },
   { id:"performance",      label:"Performance",        icon:"📉" },
   { id:"customers",        label:"Customers",          icon:"⭐" },
   { id:"loyalty",          label:"Loyalty & Vouchers", icon:"🏆" },
@@ -104,6 +106,7 @@ const SCREENS = {
   "import-export":      ImportExport,
   employees:         Employees,
   shifts:            Shifts,
+  schedule:          Schedule,
   performance:       Performance,
   customers:         Customers,
   loyalty:           Loyalty,

@@ -62,6 +62,11 @@ export default function StaffPortal() {
   const [done,         setDone]         = useState(false)
   const [opnameCounts, setOpnameCounts] = useState([])
   const [opnameSearch, setOpnameSearch] = useState("")
+  const [todayAtt,    setTodayAtt]    = useState(null)
+  const [clockPhoto,  setClockPhoto]  = useState(null)
+  const [clockAction, setClockAction] = useState("in") // in | out
+  const [clockSaving, setClockSaving] = useState(false)
+  const [schedule,    setSchedule]    = useState(null)
   const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
   const [prodSubId,    setProdSubId]    = useState("")
   const [prodBatchQty, setProdBatchQty] = useState("")
@@ -77,6 +82,16 @@ export default function StaffPortal() {
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
+    // Load schedule and today's attendance
+    const today = new Date().toISOString().slice(0,10)
+    const dayName = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][new Date().getDay()]
+    const [{ data:sched }, { data:att }] = await Promise.all([
+      supabase.from("schedules").select("*").eq("id","weekly-template").single(),
+      supabase.from("attendance").select("*").eq("date",today).eq("staff_name",localStorage.getItem("staff_name")||"").maybeSingle(),
+    ])
+    if (sched) setSchedule({ ...sched, todayDay:dayName, todayData:sched.days?.[dayName]||{} })
+    setTodayAtt(att)
+    setClockAction(att?.clock_in && !att?.clock_out ? "out" : "in")
     const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
       supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier").order("name"),
       supabase.from("sub_recipes").select("*").order("name"),
@@ -232,6 +247,7 @@ export default function StaffPortal() {
           { screen:"waste",       icon:"🗑️", label:"Waste / Spoilage",    sub:"Report damaged or expired items",     bg:"#DE350B" },
           { screen:"production",  icon:"🏭", label:"Production Batch",    sub:"Record what was produced today",       bg:"#00875A" },
           { screen:"requisition", icon:"🛒", label:"Request Ingredients", sub:"Request items needed for today",      bg:"#374151" },
+          { screen:"clockin",     icon:"👆", label:"Clock In / Out",       sub:"Record your attendance with selfie",   bg:"#0f766e" },
         ].map(b=>(
           <div key={b.screen} style={{ ...s.card, padding:0, overflow:"hidden" }}>
             <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
@@ -442,6 +458,133 @@ export default function StaffPortal() {
       </div>
     </div>
   )
+
+  if (screen==="clockin") {
+    const STATIONS = ["Kasir","Bar","Bakar","Snack","Kitchen"]
+    const myStation = schedule ? STATIONS.find(s=>(schedule.todayData[s]||[]).includes(staffName)) : null
+    const isOff = (schedule?.todayData?.off||[]).includes(staffName)
+    const alreadyIn = todayAtt?.clock_in
+    const alreadyOut = todayAtt?.clock_out
+    const shiftStart = schedule?.shift_start||"08:00"
+
+    async function doClockAction() {
+      setClockSaving(true)
+      const now = new Date()
+      const todayStr = now.toISOString().slice(0,10)
+      const attId = "ATT-"+staffName.replace(/\s/g,"")+"-"+todayStr
+
+      // Check if late
+      const [sh,sm] = shiftStart.split(":").map(Number)
+      const shiftMs = (sh*60+sm)*60000
+      const nowMs = (now.getHours()*60+now.getMinutes())*60000
+      const status = clockAction==="in" ? (nowMs > shiftMs+10*60000 ? "late" : "on_time") : "done"
+
+      let photoUrl = null
+      if (clockPhoto) {
+        // Upload photo to Supabase storage
+        const blob = await fetch(clockPhoto).then(r=>r.blob())
+        const fname = attId+"-"+clockAction+".jpg"
+        const { data:up } = await supabase.storage.from("attendance-photos").upload(fname, blob, { upsert:true, contentType:"image/jpeg" })
+        if (up) {
+          const { data:pub } = supabase.storage.from("attendance-photos").getPublicUrl(fname)
+          photoUrl = pub?.publicUrl
+        }
+      }
+
+      if (clockAction==="in") {
+        await supabase.from("attendance").upsert({
+          id:attId, staff_name:staffName, date:todayStr,
+          clock_in:now.toISOString(), scheduled_station:myStation||null,
+          clock_in_photo:photoUrl, status
+        }, { onConflict:"id" })
+      } else {
+        await supabase.from("attendance").update({
+          clock_out:now.toISOString(), clock_out_photo:photoUrl
+        }).eq("id",attId)
+      }
+
+      setClockPhoto(null)
+      await loadData()
+      setClockSaving(false)
+      setDone(true)
+    }
+
+    return (
+      <div style={s.wrap}>
+        <div style={s.header}>
+          <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
+          <span style={{ fontSize:17, fontWeight:800 }}>Clock {clockAction==="in"?"In":"Out"}</span>
+        </div>
+        <div style={s.body}>
+          {isOff ? (
+            <div style={{ ...s.card, textAlign:"center", padding:32 }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🏖️</div>
+              <div style={{ fontSize:16, fontWeight:800 }}>You're OFF today</div>
+              <div style={{ fontSize:13, color:"#888", marginTop:6 }}>Enjoy your day off, {staffName}!</div>
+            </div>
+          ) : (
+            <>
+              <div style={s.card}>
+                <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+                  <div>
+                    <div style={{ fontSize:14, fontWeight:800 }}>{staffName}</div>
+                    <div style={{ fontSize:12, color:myStation?"#0f766e":"#888", fontWeight:600 }}>
+                      {myStation?"Station: "+myStation:"Not assigned to station"}
+                    </div>
+                  </div>
+                  <div style={{ textAlign:"right", fontSize:13, fontWeight:700 }}>
+                    <div>{new Date().toLocaleDateString("id-ID",{weekday:"long"})}</div>
+                    <div style={{ fontSize:11, color:"#888" }}>Shift {shiftStart}</div>
+                  </div>
+                </div>
+                {alreadyIn && (
+                  <div style={{ padding:"8px 12px", background:"#f0fdf4", borderRadius:8, fontSize:12, color:"#065f46", fontWeight:600 }}>
+                    Clocked in at {new Date(todayAtt.clock_in).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}
+                    {alreadyOut && ` · Out at ${new Date(todayAtt.clock_out).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}`}
+                  </div>
+                )}
+              </div>
+
+              {!alreadyOut && (
+                <div style={s.card}>
+                  <label style={{ ...s.label, marginBottom:8 }}>Take Selfie {clockAction==="in"?"(Clock In)":"(Clock Out)"}</label>
+                  {clockPhoto ? (
+                    <div style={{ position:"relative" }}>
+                      <img src={clockPhoto} style={{ width:"100%", borderRadius:10, maxHeight:280, objectFit:"cover" }} />
+                      <button onClick={()=>setClockPhoto(null)} style={{ position:"absolute", top:8, right:8, background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", borderRadius:20, padding:"4px 10px", cursor:"pointer", fontSize:12 }}>Retake</button>
+                    </div>
+                  ) : (
+                    <label style={{ display:"block", cursor:"pointer" }}>
+                      <div style={{ border:"2px dashed #ccc", borderRadius:10, padding:32, textAlign:"center", background:"#fafafa" }}>
+                        <div style={{ fontSize:40, marginBottom:8 }}>📸</div>
+                        <div style={{ fontSize:14, fontWeight:600, color:"#666" }}>Tap to take selfie</div>
+                        <div style={{ fontSize:12, color:"#999", marginTop:4 }}>Camera will open</div>
+                      </div>
+                      <input type="file" accept="image/*" capture="user" style={{ display:"none" }}
+                        onChange={e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>setClockPhoto(ev.target.result); r.readAsDataURL(f) } }} />
+                    </label>
+                  )}
+                </div>
+              )}
+
+              {alreadyOut ? (
+                <div style={{ ...s.card, textAlign:"center" }}>
+                  <div style={{ fontSize:32, marginBottom:8 }}>✅</div>
+                  <div style={{ fontSize:15, fontWeight:800 }}>Attendance complete for today</div>
+                  <div style={{ fontSize:12, color:"#888", marginTop:4 }}>See you tomorrow!</div>
+                </div>
+              ) : (
+                <button onClick={doClockAction} disabled={clockSaving}
+                  style={{ ...s.btn, background:clockAction==="in"?"#0f766e":"#b91c1c", color:"#fff" }}>
+                  {clockSaving?"Saving...":`👆 Clock ${clockAction==="in"?"In":"Out"} Now`}
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return null
 }
