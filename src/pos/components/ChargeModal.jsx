@@ -199,8 +199,11 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
               <div style={{ marginBottom:14, padding:12, background:'#FFFBEB', borderRadius:10, border:'1px solid #FDE68A' }}>
                 <div style={S.label}>Poin ({customer.name}: {customer.points} pts)</div>
                 <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <input type="number" value={usePoints}
+                  <input type="number" value={usePoints===0?"":usePoints}
                     onChange={e => setUsePoints(Math.min(parseInt(e.target.value)||0, maxPoints))}
+                    onFocus={e => { if(e.target.value==="0") e.target.value="" }}
+                    onBlur={e => { if(e.target.value==="") setUsePoints(0) }}
+                    placeholder="0"
                     min={0} max={maxPoints}
                     style={{ ...S.input, width:90, textAlign:'center', marginBottom:0 }} />
                   <span style={{ fontSize:12, color:'#6B7A8D' }}>= {fmt(usePoints*100)} off</span>

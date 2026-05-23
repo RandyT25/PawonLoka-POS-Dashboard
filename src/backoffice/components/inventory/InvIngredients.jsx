@@ -220,14 +220,14 @@ export default function InvIngredients() {
                 </div>
 
                 {/* Header row */}
-                <div style={{ display:"grid", gridTemplateColumns:"120px 1fr 140px 140px 140px 32px", gap:8, marginBottom:6 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"100px 1fr 110px 120px 110px 28px", gap:8, marginBottom:6 }}>
                   {["UNIT *","CONVERSION","HARGA MODAL","HARGA BELI","SKU",""].map((h,i)=>(
                     <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
                   ))}
                 </div>
 
                 {/* Base unit row (always shown) */}
-                <div style={{ display:"grid", gridTemplateColumns:"120px 1fr 140px 140px 140px 32px", gap:8, marginBottom:8, padding:"8px 10px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"100px 1fr 110px 120px 110px 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
                   <select value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="bo-select" style={{ fontSize:12 }}>
                     {UNITS.map(u=><option key={u}>{u}</option>)}
                   </select>
@@ -248,7 +248,7 @@ export default function InvIngredients() {
                 {convs.map((c, i) => {
                   const cpb = c.qty > 0 && c.last_price > 0 ? c.last_price / parseFloat(c.qty) : 0
                   return (
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"120px 1fr 140px 140px 140px 32px", gap:8, marginBottom:8, padding:"8px 10px", background:"#fff", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"100px 1fr 110px 120px 110px 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"#fff", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
                       <select value={c.unit} onChange={e=>updateConv(i,"unit",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
                         {UNITS.map(u=><option key={u}>{u}</option>)}
                       </select>

@@ -12,6 +12,85 @@ function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }
 function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("id-ID") }
 function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0 }
 
+function IngSearch({ value, onChange, ingredients, subRecipes }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const [cursor, setCursor] = useState(-1)
+  const ref = React.useRef(null)
+  const listRef = React.useRef(null)
+
+  const all = [
+    ...ingredients.map(i => ({ ...i, _g:"Raw" })),
+    ...subRecipes.map(s => ({ ...s, _g:"Sub" })),
+  ]
+  const filtered = q ? all.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : all
+  const sel = all.find(x => x.id === value)
+
+  useEffect(() => {
+    function h(e) { if (ref.current && !ref.current.contains(e.target)) { setOpen(false); setQ(""); setCursor(-1) } }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [])
+
+  function handleKey(e) {
+    if (!open) { if (e.key==="Enter"||e.key==="ArrowDown") setOpen(true); return }
+    if (e.key==="ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c+1, filtered.length-1)) }
+    else if (e.key==="ArrowUp") { e.preventDefault(); setCursor(c => Math.max(c-1, 0)) }
+    else if (e.key==="Enter") {
+      e.preventDefault()
+      if (cursor >= 0 && filtered[cursor]) { onChange(filtered[cursor]); setOpen(false); setQ(""); setCursor(-1) }
+    }
+    else if (e.key==="Escape") { setOpen(false); setQ(""); setCursor(-1) }
+  }
+
+  useEffect(() => {
+    if (cursor >= 0 && listRef.current) {
+      const el = listRef.current.children[cursor]
+      if (el) el.scrollIntoView({ block:"nearest" })
+    }
+  }, [cursor])
+
+  return (
+    <div ref={ref} style={{ position:"relative", flex:1, minWidth:0 }}>
+      <div onClick={()=>{ setOpen(o=>!o); setQ(""); setCursor(-1) }}
+        className="bo-select"
+        style={{ cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 10px", userSelect:"none" }}>
+        <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:13, color:sel?"var(--ink)":"var(--ink4)" }}>
+          {sel ? `${sel.name}${sel.cost_per_unit>0?` · Rp ${Math.round(sel.cost_per_unit).toLocaleString("id-ID")}/${sel.unit}`:""}` : "— Select ingredient or sub-recipe —"}
+        </span>
+        <span style={{ fontSize:9, color:"var(--ink4)", flexShrink:0, marginLeft:4 }}>▼</span>
+      </div>
+      {open && (
+        <div style={{ position:"absolute", zIndex:9999, top:"calc(100% + 2px)", left:0, right:0, background:"#fff", border:"1.5px solid var(--brand,#2563eb)", borderRadius:8, boxShadow:"0 8px 24px rgba(0,0,0,0.12)" }}>
+          <input autoFocus value={q} onChange={e=>{setQ(e.target.value);setCursor(-1)}}
+            onKeyDown={handleKey} placeholder="Type to search..."
+            onClick={e=>e.stopPropagation()}
+            style={{ width:"100%", padding:"8px 10px", border:"none", borderBottom:"1px solid #f0f0f0", fontSize:13, outline:"none", boxSizing:"border-box", borderRadius:"8px 8px 0 0", fontFamily:"inherit" }} />
+          <div ref={listRef} style={{ maxHeight:240, overflowY:"auto" }}>
+            {filtered.length===0
+              ? <div style={{ padding:"10px 12px", fontSize:12, color:"var(--ink4)", textAlign:"center" }}>No results</div>
+              : filtered.map((o,i) => (
+                <div key={o.id}
+                  onMouseDown={()=>{ onChange(o); setOpen(false); setQ(""); setCursor(-1) }}
+                  onMouseEnter={()=>setCursor(i)}
+                  style={{ padding:"8px 12px", fontSize:13, cursor:"pointer",
+                    background: i===cursor ? "var(--brand-lt,#eff6ff)" : o.id===value ? "#f0fdf4" : "transparent",
+                    color: o._g==="Sub" ? "#7c3aed" : "var(--ink)",
+                    fontWeight: o.id===value ? 700 : 400,
+                    borderLeft: i===cursor ? "3px solid var(--brand,#2563eb)" : "3px solid transparent" }}>
+                  {o.name}
+                  {o._g==="Sub" && <span style={{ fontSize:10, color:"#7c3aed", marginLeft:4 }}>(sub)</span>}
+                  {o.cost_per_unit>0 && <span style={{ fontSize:10, color:"var(--ink4)", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit).toLocaleString("id-ID")}/{o.unit}</span>}
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCancel }) {
   const [rows,      setRows]      = useState([])
   const [yieldQty,  setYieldQty]  = useState(1)
@@ -150,24 +229,12 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
           const cost  = found?.cost_per_unit ? (found.cost_per_unit/(UNIT_TO_BASE[found.unit]||1))*toBase(row.qty,row.unit) : 0
           return (
             <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, alignItems:"center" }}>
-              <select value={row.ingredient_id||""} onChange={e=>handleIngChange(i,e.target.value)}
-                className="bo-select" style={{ fontSize:13 }}>
-                <option value="">— Select ingredient or sub-recipe —</option>
-                <optgroup label="Raw Ingredients">
-                  {ingredients.map(ing=>(
-                    <option key={ing.id} value={ing.id}>
-                      {ing.name} ({ing.unit}){ing.cost_per_unit>0?` · Rp ${Math.round(ing.cost_per_unit).toLocaleString("id-ID")}/${ing.unit}`:""}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Sub-recipes">
-                  {subRecipes.map(s=>(
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.unit}){s.cost_per_unit>0?` · Rp ${s.cost_per_unit.toFixed(2)}/${s.unit}`:""}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+              <IngSearch
+                value={row.ingredient_id||""}
+                onChange={o=>handleIngChange(i,o.id)}
+                ingredients={ingredients}
+                subRecipes={subRecipes}
+              />
               <input type="number" value={row.qty===0?"":row.qty} min="0" step="any"
                 onChange={e=>updateRow(i,{qty:e.target.value})}
                 className="bo-input" style={{ fontSize:13, textAlign:"center" }} placeholder="0" />
@@ -225,19 +292,15 @@ export default function RecipeEditor() {
     ]).then(async ([pRes, sRes, iRes]) => {
       const allIngs = iRes.data || []
       let subs = sRes.data || []
-      const semiFinished = allIngs.filter(i => i.category==="Semi-finished" || i.name?.includes("(sub)"))
-      const existingIngIds = new Set(subs.map(s=>s.ingredient_id).filter(Boolean))
-      const toCreate = semiFinished.filter(i => !existingIngIds.has(i.id))
-      if (toCreate.length) {
-        const newRows = toCreate.map(i => ({
-          id: "SR-"+i.id.replace(/[^a-zA-Z0-9]/g,"-").slice(0,30),
-          name:i.name, ingredient_id:i.id, unit:i.unit,
-          cost_per_unit:i.cost_per_unit||0, yield_qty:1, yield_unit:i.unit,
-        }))
-        await supabase.from("sub_recipes").upsert(newRows, { onConflict:"id", ignoreDuplicates:true })
-        const { data:fresh } = await supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name")
-        subs = fresh || []
-      }
+      // No auto-sync — sub_recipes are managed via SQL seed only
+      // Just deduplicate by ingredient_id keeping the shorter/cleaner id
+      const seen = new Set()
+      subs = subs.filter(s => {
+        if (!s.ingredient_id) return true
+        if (seen.has(s.ingredient_id)) return false
+        seen.add(s.ingredient_id)
+        return true
+      })
       setProducts((pRes.data||[]).map(p=>({...p,id:p.sku,category:p.cat})))
       setSubRecipes(subs)
       setIngredients(allIngs)
@@ -246,9 +309,18 @@ export default function RecipeEditor() {
   }, [tick])
 
   const onSaved = useCallback((patch) => {
-    if (patch) setSelected(s => s ? {...s,...patch} : s)
+    if (patch && selected) {
+      setSelected(s => s ? {...s,...patch} : s)
+      // Update the list item in-place for instant left panel refresh
+      if (patch.cost_per_unit !== undefined) {
+        setSubRecipes(prev => prev.map(s => s.id===selected.id ? {...s,...patch} : s))
+      }
+      if (patch.cogs !== undefined) {
+        setProducts(prev => prev.map(p => p.id===selected.id ? {...p,...patch} : p))
+      }
+    }
     setTick(t => t+1)
-  }, [])
+  }, [selected])
 
   const listItems = (tab==="dish" ? products : subRecipes)
     .filter(x => !search || x.name?.toLowerCase().includes(search.toLowerCase()))
