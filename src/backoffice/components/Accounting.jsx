@@ -398,9 +398,21 @@ ARUS KAS
         <div>
           <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap" }}>
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
-              <button onClick={()=>setCatFilter("all")} className={"bo-btn bo-btn-sm "+(catFilter==="all"?"bo-btn-primary":"bo-btn-ghost")}>All</button>
+              <button onClick={()=>setCatFilter("all")}
+                style={{ padding:"8px 16px", borderRadius:20, fontSize:13, fontWeight:700, cursor:"pointer", flexShrink:0,
+                  border:"1.5px solid "+(catFilter==="all"?"var(--brand)":"#DFE1E6"),
+                  background:catFilter==="all"?"var(--brand)":"#fff",
+                  color:catFilter==="all"?"#fff":"#42526E" }}>
+                All
+              </button>
               {EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>(
-                <button key={c.id} onClick={()=>setCatFilter(c.id)} className={"bo-btn bo-btn-sm "+(catFilter===c.id?"bo-btn-primary":"bo-btn-ghost")}>{c.icon} {c.label}</button>
+                <button key={c.id} onClick={()=>setCatFilter(c.id)}
+                  style={{ padding:"8px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer", flexShrink:0, whiteSpace:"nowrap",
+                    border:"1.5px solid "+(catFilter===c.id?"var(--brand)":"#DFE1E6"),
+                    background:catFilter===c.id?"var(--brand)":"#fff",
+                    color:catFilter===c.id?"#fff":"#42526E" }}>
+                  {c.icon} {c.label}
+                </button>
               ))}
             </div>
             <div style={{ display:"flex",gap:8,marginTop:10 }}>

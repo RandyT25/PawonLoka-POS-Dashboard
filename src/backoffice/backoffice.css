@@ -135,247 +135,82 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 
 
 
-/* ─── MOBILE RESPONSIVE ──────────────────────────────────── */
+
+/* ─── MOBILE RESPONSIVE (single clean section) ───────────── */
 @media (max-width: 768px) {
-  .bo-root { flex-direction: column !important; height: 100dvh !important; overflow: hidden; }
+
+  /* Layout */
+  .bo-root { flex-direction: column !important; height: 100dvh !important; }
   .bo-sidebar { display: none !important; }
-  .bo-main { width: 100% !important; flex: 1 !important; display: flex; flex-direction: column; overflow: hidden; }
+  .bo-main { width: 100% !important; flex: 1 !important; display: flex; flex-direction: column; min-height: 0; }
+  .bo-content { flex: 1; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; padding: 12px !important; min-height: 0; box-sizing: border-box; }
 
   /* Topbar */
   .bo-topbar { padding: 10px 14px !important; min-height: 48px; display: flex; align-items: center; gap: 10px; }
-  .bo-topbar-title { font-size: 15px !important; font-weight: 700; }
   .bo-topbar-date { display: none; }
-
-  /* Hamburger */
-  .bo-hamburger {
-    display: flex !important;
-    align-items: center; justify-content: center;
-    width: 36px; height: 36px;
-    background: none; border: none;
-    color: var(--ink); font-size: 22px;
-    cursor: pointer; flex-shrink: 0;
-  }
-
-  /* Content */
-  .bo-content {
-    flex: 1 !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    padding: 12px 12px 24px !important;
-    min-height: 0;
-  }
+  .bo-hamburger { display: flex !important; align-items: center; justify-content: center; width: 36px; height: 36px; background: none; border: none; color: var(--ink); font-size: 24px; cursor: pointer; flex-shrink: 0; }
 
   /* Cards */
-  .bo-card { padding: 14px !important; margin-bottom: 12px !important; border-radius: 12px !important; }
+  .bo-card { border-radius: 12px !important; overflow: visible !important; box-sizing: border-box; }
+  .bo-card-title { font-size: 14px !important; }
+
+  /* Metrics 2-col */
   .bo-metrics { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
   .bo-met { padding: 12px !important; }
   .bo-met-val { font-size: 20px !important; }
+  .bo-met-label { font-size: 10px !important; }
 
-  /* Modals: slide up from bottom */
-  .bo-overlay { align-items: flex-end !important; padding: 0 !important; }
-  .bo-modal {
-    width: 100% !important; max-width: 100% !important;
-    border-radius: 20px 20px 0 0 !important;
-    max-height: 88dvh !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .bo-modal-footer {
-    position: sticky; bottom: 0;
-    background: #fff; z-index: 2;
-    padding: 12px 16px !important;
-  }
-
-  /* Inputs prevent iOS zoom */
-  .bo-input, .bo-select, input, select, textarea { font-size: 16px !important; }
-  .bo-btn { min-height: 40px; }
-  .bo-btn-sm { min-height: 34px; font-size: 12px !important; }
-
-  /* Tables - ALL tables get horizontal scroll on mobile */
-  .bo-card { overflow: hidden !important; }
-  .bo-card > table,
-  .bo-card > div > table,
-  .bo-card > div > div > table {
-    display: block !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    white-space: nowrap !important;
-    width: 100% !important;
-  }
+  /* Tables: scroll right only, never clip left */
   .bo-table {
     display: block !important;
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-    white-space: nowrap !important;
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
     font-size: 12px !important;
-    min-width: unset !important;
+    width: 100%;
   }
-  /* Wrap any table parent with overflow */
-  div[style*="overflow:hidden"] > table,
-  div[style*="overflow: hidden"] > table {
-    display: block !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
+  .bo-table th, .bo-table td { padding: 8px 10px !important; white-space: nowrap; }
+
   /* Sticky action column */
   .bo-table td:last-child, .bo-table th:last-child {
-    position: sticky; right: 0;
-    background: inherit;
+    position: sticky; right: 0; z-index: 2;
     box-shadow: -2px 0 6px rgba(0,0,0,0.08);
-    z-index: 2;
   }
+  .bo-table tbody td:last-child { background: #fff; }
   .bo-table thead th:last-child { background: #f9fafb; }
-  .bo-table tbody tr:nth-child(even) td:last-child { background: #fff; }
-  .bo-table tbody tr:nth-child(odd) td:last-child { background: #fff; }
+
+  /* Modals: full-width bottom sheet */
+  .bo-overlay { align-items: flex-end !important; padding: 0 !important; }
+  .bo-modal { width: 100% !important; max-width: 100% !important; border-radius: 20px 20px 0 0 !important; max-height: 88dvh !important; overflow-y: auto !important; }
+  .bo-modal-footer { position: sticky; bottom: 0; background: #fff; z-index: 2; padding: 12px 16px !important; }
+  .bo-modal-body { padding: 14px 16px !important; }
+
+  /* Inputs: prevent iOS zoom */
+  input, select, textarea, .bo-input, .bo-select { font-size: 16px !important; }
+  .bo-btn { min-height: 40px; }
+  .bo-btn-sm { min-height: 34px; font-size: 12px !important; }
+
+  /* Accounting specific */
+  .acc-metrics { grid-template-columns: repeat(2,1fr) !important; }
+  .acc-cashflow-cards { grid-template-columns: 1fr !important; }
+  .acc-summary-grid { grid-template-columns: 1fr !important; }
+  .acc-tabs { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
+  .acc-tabs::-webkit-scrollbar { display: none; }
+  .acc-cat-filter { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .acc-cat-filter::-webkit-scrollbar { display: none; }
+  .acc-cat-filter .bo-btn, .acc-cat-filter button { flex-shrink: 0 !important; white-space: nowrap !important; min-height: 38px !important; padding: 0 14px !important; font-size: 13px !important; }
+
+  /* PO items mobile */
+  .po-items-header { display: none !important; }
+  .po-item-row { display: flex !important; flex-direction: column !important; gap: 8px !important; background: var(--surface) !important; border: 1px solid var(--surface3) !important; border-radius: var(--r) !important; padding: 12px !important; margin-bottom: 10px !important; }
+  .po-item-row > * { width: 100% !important; }
+
+  /* Recipe editor */
+  div[style*="height:calc(100vh"] { height: auto !important; flex-direction: column !important; }
 }
 
-@media (max-width: 768px) {
-  /* Hide hamburger on desktop */
-}
 @media (min-width: 769px) {
   .bo-hamburger { display: none !important; }
-}
-
-/* PO items mobile card */
-@media (max-width: 768px) {
-  .po-items-header { display: none !important; }
-  .po-item-row {
-    display: flex !important; flex-direction: column !important;
-    gap: 8px !important; background: var(--surface) !important;
-    border: 1px solid var(--surface3) !important;
-    border-radius: var(--r) !important;
-    padding: 12px !important; margin-bottom: 10px !important;
-  }
-  .po-item-row > * { width: 100% !important; }
-}
-
-/* Mobile submenu (kept for compatibility) */
-.bo-mobile-submenu { display: none; }
-.bo-bottom-nav { display: none !important; }
-
-/* ─── GLOBAL TABLE SCROLL FIX ───────────────────────────── */
-@media (max-width: 768px) {
-  /* Every card that contains a table gets scroll */
-  .bo-card { position: relative; }
-  
-  /* Force all metric grids to 2 col */
-  .bo-metrics { 
-    grid-template-columns: repeat(2, 1fr) !important;
-    gap: 8px !important;
-  }
-  
-  /* Accounting + Dashboard tab bars */
-  .bo-content > div > div[style] {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    flex-wrap: nowrap !important;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-
-  /* All flex rows with buttons become scrollable */
-  div[style*="flexWrap"] {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-  
-  /* Fix card padding:0 overflow */
-  .bo-card[style*="overflow"] {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch !important;
-  }
-
-  /* Make sure table cells don't wrap */  
-  .bo-table th, .bo-table td {
-    white-space: nowrap !important;
-    padding: 8px 10px !important;
-  }
-
-  /* Met cards smaller on mobile */
-  .bo-met-val { font-size: 18px !important; }
-  .bo-met-label { font-size: 10px !important; }
-  .bo-met-sub { font-size: 10px !important; }
-
-  /* Recipe editor mobile */
-  div[style*="height:calc(100vh"] {
-    height: auto !important;
-    flex-direction: column !important;
-  }
-  
-  /* Charts responsive */
-  div[style*="ResponsiveContainer"] {
-    width: 100% !important;
-  }
-}
-
-/* ─── ACCOUNTING MOBILE ──────────────────────────────────── */
-@media (max-width: 768px) {
-  /* Metric grids: always 2 col */
-  .acc-metrics { grid-template-columns: repeat(2,1fr) !important; }
-
-  /* Summary grid: single col */
-  .acc-summary-grid { grid-template-columns: 1fr !important; }
-
-  /* Cashflow cards: single col */
-  .acc-cashflow-cards { grid-template-columns: 1fr !important; }
-
-  /* Category filter: horizontal scroll single row */
-  .acc-cat-filter {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-  .acc-cat-filter::-webkit-scrollbar { display: none; }
-
-  /* Tab bar: horizontal scroll */
-  .acc-tabs {
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-  .acc-tabs::-webkit-scrollbar { display: none; }
-
-  /* Stat cards smaller */
-  .acc-metrics > div { padding: 12px 10px !important; }
-}
-
-/* ─── PREVENT LEFT OVERFLOW ─────────────────────────────── */
-@media (max-width: 768px) {
-  .bo-content { overflow-x: hidden !important; }
-  .bo-content > * { max-width: 100%; box-sizing: border-box; }
-
-  /* Arus Kas: stack vertically */
-  .acc-cashflow-cards {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Fix all card content overflow */
-  .bo-card, .bo-card > div {
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-
-  /* Tables inside cards: scroll right only */
-  .bo-card .bo-table,
-  .bo-card table {
-    overflow-x: auto !important;
-    display: block !important;
-    max-width: 100% !important;
-  }
-
-  /* Accounting summary grid */
-  .acc-summary-grid { grid-template-columns: 1fr !important; }
-
-  /* Category filter pills single scrollable row */
-  .acc-cat-filter { 
-    flex-wrap: nowrap !important;
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .acc-cat-filter .bo-btn { flex-shrink: 0 !important; white-space: nowrap !important; }
+  .bo-bottom-nav { display: none !important; }
 }
