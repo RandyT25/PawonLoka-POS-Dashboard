@@ -308,3 +308,38 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
     width: 100% !important;
   }
 }
+
+/* ─── ACCOUNTING MOBILE ──────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Metric grids: always 2 col */
+  .acc-metrics { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* Summary grid: single col */
+  .acc-summary-grid { grid-template-columns: 1fr !important; }
+
+  /* Cashflow cards: single col */
+  .acc-cashflow-cards { grid-template-columns: 1fr !important; }
+
+  /* Category filter: horizontal scroll single row */
+  .acc-cat-filter {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .acc-cat-filter::-webkit-scrollbar { display: none; }
+
+  /* Tab bar: horizontal scroll */
+  .acc-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .acc-tabs::-webkit-scrollbar { display: none; }
+
+  /* Stat cards smaller */
+  .acc-metrics > div { padding: 12px 10px !important; }
+}

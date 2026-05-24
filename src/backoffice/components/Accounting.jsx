@@ -261,7 +261,7 @@ ARUS KAS
   return (
     <div>
       {/* Top bar */}
-      <div style={{ display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap" }}>
+      <div className="acc-tabs" style={{ display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap" }}>
         {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
@@ -277,13 +277,13 @@ ARUS KAS
       {/* OVERVIEW */}
       {tab==="overview" && (
         <>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16 }} className="acc-metrics">
             <StatCard label="Pendapatan Bersih" value={fmt(netRevenue)} color="#0052CC" big />
             <StatCard label="Total COGS" value={fmt(totalCOGS)} color="#6B778C" />
             <StatCard label="Laba Kotor" value={fmt(grossProfit)} sub={"Margin "+grossMargin+"%"} color={grossProfit>=0?"#00875A":"#DE350B"} />
             <StatCard label="Laba Bersih" value={fmt(netProfit)} sub={"Net "+netMargin+"%"} color={netProfit>=0?"#00875A":"#DE350B"} big />
           </div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16 }} className="acc-metrics">
             <StatCard label="Total Orders" value={orders.length} color="#0052CC" />
             <StatCard label="Total Beban Ops" value={fmt(totalOpex)} color="#FF8B00" />
             <StatCard label="Cash In" value={fmt(cashIn)} color="#00875A" />
@@ -291,7 +291,7 @@ ARUS KAS
           </div>
 
           {/* P&L Summary */}
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16 }}>
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:16 }} className="acc-summary-grid">
             <div className="bo-card">
               <div className="bo-card-title">Ringkasan Laba Rugi</div>
               {[
@@ -621,8 +621,8 @@ ARUS KAS
       {/* KAS BON */}
       {tab==="kasbon" && (
         <div>
-          <div style={{ display:"flex",justifyContent:"space-between",marginBottom:16,alignItems:"center" }}>
-            <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,flex:1,marginRight:16 }}>
+          <div style={{ display:"flex",flexDirection:"column",gap:12,marginBottom:16 }}>
+            <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10 }} className="acc-metrics">
               <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"14px 16px" }}>
                 <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>OUTSTANDING</div>
                 <div style={{ fontSize:20,fontWeight:900,color:"#DE350B" }}>{fmt(kbOutstanding)}</div>
@@ -636,7 +636,7 @@ ARUS KAS
                 <div style={{ fontSize:20,fontWeight:900,color:"#00875A" }}>{fmt(kasBonList.filter(k=>k.status==="deducted").reduce((a,k)=>a+k.amount,0))}</div>
               </div>
             </div>
-            <button onClick={()=>setKasBonModal(true)} className="bo-btn bo-btn-primary">+ Kas Bon</button>
+            <button onClick={()=>setKasBonModal(true)} className="bo-btn bo-btn-primary" style={{ width:"100%" }}>+ Kas Bon</button>
           </div>
 
           <div className="bo-card" style={{ padding:0,overflow:"hidden" }}>
