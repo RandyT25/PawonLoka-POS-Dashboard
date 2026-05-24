@@ -472,7 +472,7 @@ ARUS KAS
                     </tr>
                   )
                 })}
-                {catFilter!==="gaji" && filteredExp.length===0&&pos.length===0&&<tr><td colSpan={6} style={{ textAlign:"center",color:"var(--ink5)",padding:"32px 0" }}>No expenses yet</td></tr>}
+                {catFilter!=="gaji" && filteredExp.length===0&&pos.length===0&&<tr><td colSpan={6} style={{ textAlign:"center",color:"var(--ink5)",padding:"32px 0" }}>No expenses yet</td></tr>}
               </tbody>
             </table>
           </div>
