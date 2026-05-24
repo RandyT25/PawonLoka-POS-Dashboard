@@ -178,7 +178,7 @@ export default function InvIngredients() {
       </div>
 
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal" style={{ maxWidth:820, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">{modal==="add"?"Add Ingredient":"Edit — "+form.name}</div>

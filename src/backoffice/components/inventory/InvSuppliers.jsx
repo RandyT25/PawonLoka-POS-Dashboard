@@ -112,7 +112,7 @@ export default function InvSuppliers() {
       )}
 
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal">
             <div className="bo-modal-header">
               <div className="bo-modal-title">{modal==="add"?"Add Supplier":"Edit Supplier"}</div>

@@ -117,7 +117,7 @@ export default function InvProduction() {
 
       {/* New Batch Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal" style={{ maxWidth:600, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">New Production Batch</div>
@@ -176,7 +176,7 @@ export default function InvProduction() {
 
       {/* View Batch Modal */}
       {viewModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setViewModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setViewModal(null)}>
           <div className="bo-modal">
             <div className="bo-modal-header">
               <div className="bo-modal-title">{viewModal.id} — Production Batch</div>

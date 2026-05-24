@@ -183,7 +183,7 @@ export default function Customers() {
 
       {/* Edit Modal */}
       {editing && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setEditing(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditing(null)}>
           <div className="bo-modal" style={{ maxWidth:480 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Edit — {editing.name}</div>
@@ -221,7 +221,7 @@ export default function Customers() {
 
       {/* Add Modal */}
       {addModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setAddModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setAddModal(false)}>
           <div className="bo-modal" style={{ maxWidth:440 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Add Customer</div>

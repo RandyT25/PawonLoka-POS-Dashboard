@@ -342,7 +342,7 @@ export default function Schedule() {
 
       {/* Edit Day Modal */}
       {editDay && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setEditDay(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditDay(null)}>
           <div className="bo-modal" style={{ maxWidth:520 }}>
             <div className="bo-modal-header">
               <div>
@@ -407,7 +407,7 @@ export default function Schedule() {
 
       {/* Shuffle Modal */}
       {showShuffle && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setShowShuffle(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setShowShuffle(false)}>
           <div className="bo-modal" style={{ maxWidth:440 }}>
             <div className="bo-modal-header">
               <div>

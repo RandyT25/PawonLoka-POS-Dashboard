@@ -176,7 +176,7 @@ export default function Loyalty() {
 
       {/* New Voucher Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal" style={{ maxWidth:440 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">New Voucher</div>

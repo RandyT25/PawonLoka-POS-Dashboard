@@ -350,7 +350,7 @@ export default function Products() {
 
       {/* ── Modal ── */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal" style={{ maxWidth:580, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
               <div>

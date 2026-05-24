@@ -674,7 +674,7 @@ ARUS KAS
 
       {/* Add Expense Modal */}
       {expModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setExpModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setExpModal(false)}>
           <div className="bo-modal" style={{ maxWidth:480 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Add Expense</div>
@@ -710,7 +710,7 @@ ARUS KAS
 
       {/* Kas Bon Modal */}
       {kasBonModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setKasBonModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setKasBonModal(false)}>
           <div className="bo-modal" style={{ maxWidth:440 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Kas Bon / Staff Advance</div>

@@ -180,7 +180,7 @@ export default function Categories() {
 
       {/* Edit/Add Category Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal">
             <div className="bo-modal-header">
               <div className="bo-modal-title">{modal==="add"?"Add Category":"Edit Category"}</div>
@@ -238,7 +238,7 @@ export default function Categories() {
 
       {/* Quick Add Product Modal */}
       {addProdModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setAddProdModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setAddProdModal(null)}>
           <div className="bo-modal">
             <div className="bo-modal-header">
               <div className="bo-modal-title">

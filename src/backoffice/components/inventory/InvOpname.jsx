@@ -130,7 +130,7 @@ export default function InvOpname() {
       )}
 
       {viewModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setViewModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setViewModal(null)}>
           <div className="bo-modal" style={{ maxWidth:600, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
               <div>

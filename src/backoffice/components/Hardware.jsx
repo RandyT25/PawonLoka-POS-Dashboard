@@ -148,7 +148,7 @@ export default function Hardware() {
 
       {/* Add Device Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal" style={{ maxWidth:500 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Add Hardware Device</div>

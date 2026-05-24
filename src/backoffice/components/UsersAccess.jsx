@@ -171,7 +171,7 @@ export default function UsersAccess() {
 
       {/* Edit Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(null)}>
           <div className="bo-modal" style={{ maxWidth:480 }}>
             <div className="bo-modal-header">
               <div>

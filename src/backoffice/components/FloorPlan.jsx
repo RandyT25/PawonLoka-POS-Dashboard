@@ -295,7 +295,7 @@ export default function FloorPlan() {
 
       {/* Bulk Add Modal */}
       {bulk && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setBulk(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBulk(false)}>
           <div className="bo-modal" style={{ maxWidth:440 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">⚡ Bulk Add Tables</div>
@@ -337,7 +337,7 @@ export default function FloorPlan() {
 
       {/* Rename Area Modal */}
       {areaModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setAreaModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setAreaModal(false)}>
           <div className="bo-modal" style={{ maxWidth:360 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Rename Section</div>
@@ -360,7 +360,7 @@ export default function FloorPlan() {
 
       {/* Add/Edit Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal" style={{ maxWidth:480 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">{modal==="add"?"Add Table":"Edit — "+form.name}</div>

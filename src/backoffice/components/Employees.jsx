@@ -178,7 +178,7 @@ export default function Employees() {
 
       {/* Add/Edit Modal */}
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&closeModal()}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal" style={{ maxWidth:480 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">{modal==="add"?"Add Employee":"Edit — "+form.name}</div>
@@ -228,7 +228,7 @@ export default function Employees() {
 
       {/* Detail Modal */}
       {detail && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setDetail(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setDetail(null)}>
           <div className="bo-modal" style={{ maxWidth:400 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">{detail.name} — Detail</div>

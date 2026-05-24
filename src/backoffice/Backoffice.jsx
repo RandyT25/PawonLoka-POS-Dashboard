@@ -206,6 +206,14 @@ export default function Backoffice() {
           <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
         </div>
         <div className="bo-content"><Screen onNavChange={setActive} /></div>
+        <nav className="bo-bottom-nav" style={{ display:"none" }}>
+          {NAV.filter(n=>n.id&&!n.group).map(n=>(
+            <button key={n.id} className={"bo-bottom-nav-item"+(active===n.id?" active":"")} onClick={()=>setActive(n.id)}>
+              <span style={{ fontSize:20 }}>{n.icon}</span>
+              <span style={{ fontSize:10, fontWeight:600 }}>{n.label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
     </div>
   )

@@ -68,7 +68,7 @@ export default function Bundles() {
         </div>
       )}
       {modal&&(
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal">
             <div className="bo-modal-header"><div className="bo-modal-title">{modal==="add"?"Add Bundle":"Edit Bundle"}</div><button className="bo-modal-close" onClick={()=>setModal(false)}>✕</button></div>
             <div className="bo-modal-body">

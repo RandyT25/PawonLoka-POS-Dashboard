@@ -82,7 +82,7 @@ export default function InvMovements() {
       </div>
 
       {modal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal">
             <div className="bo-modal-header">
               <div className="bo-modal-title">Manual Stock Adjustment</div>

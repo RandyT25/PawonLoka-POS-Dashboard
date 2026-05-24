@@ -44,6 +44,7 @@ export default function POS() {
   const [clockPhoto, setClockPhoto]       = useState(null)
   const [todayAtt,  setTodayAtt]         = useState(null)
   const [clockSaving,setClockSaving]     = useState(false)
+  const [clockStaff, setClockStaff]       = useState(null)
   const [showSettings, setShowSettings]   = useState(false)
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
@@ -565,22 +566,22 @@ export default function POS() {
               <div style={{ fontSize:12,color:'#888' }}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div>
               {todayAtt?.clock_in && <div style={{ fontSize:12,color:'#059669',fontWeight:600,marginTop:4 }}>Clocked in at {new Date(todayAtt.clock_in).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</div>}
             </div>
-            {clockPhoto ? (
+            {clockStaff && clockPhoto ? (
               <div style={{ position:'relative',marginBottom:14 }}>
                 <img src={clockPhoto} style={{ width:'100%',borderRadius:12,maxHeight:220,objectFit:'cover' }} />
                 <button onClick={()=>setClockPhoto(null)} style={{ position:'absolute',top:8,right:8,background:'rgba(0,0,0,0.6)',border:'none',color:'#fff',borderRadius:20,padding:'4px 10px',cursor:'pointer',fontSize:12 }}>Retake</button>
               </div>
-            ) : (
+            ) : clockStaff ? (
               <label style={{ display:'block',cursor:'pointer',marginBottom:14 }}>
                 <div style={{ border:'2px dashed #ccc',borderRadius:12,padding:28,textAlign:'center',background:'#fafafa' }}>
                   <div style={{ fontSize:36,marginBottom:8 }}>📸</div>
                   <div style={{ fontSize:14,fontWeight:600,color:'#666' }}>Tap to take selfie</div>
                 </div>
-                <input type="file" accept="image/*" capture="user" style={{ display:'none' }}
+                <input type="file" accept="image/*;capture=camera" capture="user" style={{ display:'none' }}
                   onChange={e=>{ const f=e.target.files[0]; if(f){const r=new FileReader();r.onload=ev=>setClockPhoto(ev.target.result);r.readAsDataURL(f)} }} />
               </label>
-            )}
-            <button disabled={clockSaving} onClick={async()=>{
+            ) : null}
+            {clockStaff && <button disabled={clockSaving} onClick={async()=>{
               setClockSaving(true)
               const now=new Date()
               const today=now.toISOString().slice(0,10)
@@ -596,13 +597,13 @@ export default function POS() {
               if (isOut) {
                 await supabase.from("attendance").update({clock_out:now.toISOString(),clock_out_photo:photoUrl}).eq("id",attId)
               } else {
-                await supabase.from("attendance").upsert({id:attId,staff_name:staff.name,date:today,clock_in:now.toISOString(),clock_in_photo:photoUrl,status:"on_time"},{onConflict:"id"})
+                await supabase.from("attendance").upsert({id:attId,staff_name:(clockStaff||staff).name,date:today,clock_in:now.toISOString(),clock_in_photo:photoUrl,status:"on_time"},{onConflict:"id"})
               }
               setClockSaving(false); setShowClock(false); setClockPhoto(null)
               alert(isOut?"Clocked out!":"Clocked in!")
             }} style={{ width:'100%',padding:14,borderRadius:12,border:'none',fontSize:15,fontWeight:700,cursor:'pointer',background:todayAtt?.clock_in&&!todayAtt?.clock_out?"#DC2626":"#059669",color:'#fff' }}>
               {clockSaving?"Saving...":(todayAtt?.clock_in&&!todayAtt?.clock_out?"✓ Clock Out":"✓ Clock In")}
-            </button>
+            </button>}
           </div>
         </div>
       )}

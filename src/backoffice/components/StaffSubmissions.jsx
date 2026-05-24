@@ -205,7 +205,7 @@ export default function StaffSubmissions() {
       </div>
 
       {viewModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setViewModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setViewModal(null)}>
           <div className="bo-modal" style={{ maxWidth:560, maxHeight:"90vh" }}>
             <div className="bo-modal-header">
               <div>

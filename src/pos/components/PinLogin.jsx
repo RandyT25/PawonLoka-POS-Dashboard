@@ -57,17 +57,8 @@ export default function PinLogin({ onLogin }) {
           ))}
         </div>
 
-        <div style={{ marginTop:24, display:'flex', flexWrap:'wrap', gap:8, justifyContent:'center' }}>
-          {STAFF.map(s => (
-            <button key={s.id} onClick={() => onLogin(s)}
-              style={{ fontSize:11, padding:'4px 10px', borderRadius:20, border:'1.5px solid #E2E8F0', background:'white', cursor:'pointer', color:'#6B7A8D', fontWeight:600 }}>
-              {s.name}
-            </button>
-          ))}
-        </div>
-        <div style={{ fontSize:11, color:'#94A3B8', marginTop:8 }}>Quick login (demo only)</div>
-      </div>
 
+      </div>
       <style>{`
         @keyframes shake {
           0%,100%{transform:translateX(0)}

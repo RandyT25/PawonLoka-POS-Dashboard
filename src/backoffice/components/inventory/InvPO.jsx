@@ -346,7 +346,7 @@ export default function InvPO() {
       </div>
 
       {viewModal && (
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setViewModal(null)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setViewModal(null)}>
           <div className="bo-modal" style={{ maxWidth:600 }}>
             <div className="bo-modal-header">
               <div>
@@ -398,7 +398,7 @@ export default function InvPO() {
 function fmt2(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm, setPOForm, poItems, addPOItem, removePOItem, updatePOItem, getUnits, grandTotal, saving }) {
   return (
-    <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+    <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
       <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh" }}>
         <div className="bo-modal-header">
           <div className="bo-modal-title">{title}</div>

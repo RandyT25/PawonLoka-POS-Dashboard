@@ -73,7 +73,7 @@ export default function Discounts() {
         </div>
       )}
       {modal&&(
-        <div className="bo-overlay" onClick={e=>e.target===e.currentTarget&&setModal(false)}>
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setModal(false)}>
           <div className="bo-modal">
             <div className="bo-modal-header"><div className="bo-modal-title">{modal==="add"?"Add Discount":"Edit Discount"}</div><button className="bo-modal-close" onClick={()=>setModal(false)}>✕</button></div>
             <div className="bo-modal-body">
