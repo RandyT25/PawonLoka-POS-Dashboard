@@ -177,6 +177,7 @@ function BackofficeLogin({ onAuth }) {
 export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState("dashboard")
+  const [mobileSubMenu, setMobileSubMenu] = useState(null)
 
   function logout() { sessionStorage.removeItem(SESSION_KEY); setAuthed(false) }
 
