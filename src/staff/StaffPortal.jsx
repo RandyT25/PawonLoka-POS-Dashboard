@@ -560,7 +560,7 @@ export default function StaffPortal() {
                         <div style={{ fontSize:14, fontWeight:600, color:"#666" }}>Tap to take selfie</div>
                         <div style={{ fontSize:12, color:"#999", marginTop:4 }}>Camera will open</div>
                       </div>
-                      <input type="file" accept="image/*" capture="user" style={{ display:"none" }}
+                      <input type="file" accept="image/*;capture=camera" capture="user" style={{ display:"none" }}
                         onChange={e=>{ const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>setClockPhoto(ev.target.result); r.readAsDataURL(f) } }} />
                     </label>
                   )}

@@ -196,7 +196,7 @@ export default function Backoffice() {
           )}
         </nav>
         <div className="bo-sidebar-footer">
-          <a href="/" className="bo-pos-link">← Open POS</a>
+
           <button onClick={logout} className="bo-logout">Log Out</button>
         </div>
       </div>

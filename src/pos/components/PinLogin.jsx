@@ -26,7 +26,8 @@ export default function PinLogin({ onLogin }) {
   return (
     <div style={S.wrap}>
       <div style={S.card}>
-        <div style={{ fontSize:52, marginBottom:8 }}>🏠</div>
+        <img src="/logo.png" alt="PawonLoka" onError={e=>{e.target.style.display="none"}}
+          style={{ width:80, height:80, objectFit:"contain", marginBottom:8, borderRadius:16 }} />
         <div style={{ fontSize:24, fontWeight:900, color:'#0A1628', marginBottom:4 }}>PawonLoka</div>
         <div style={{ fontSize:14, color:'#6B7A8D', marginBottom:28 }}>Enter your PIN to continue</div>
 

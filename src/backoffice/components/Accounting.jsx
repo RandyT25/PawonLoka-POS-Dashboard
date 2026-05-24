@@ -399,6 +399,8 @@ ARUS KAS
           <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap" }}>
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
               <button onClick={()=>setCatFilter("all")} className={"bo-btn bo-btn-sm "+(catFilter==="all"?"bo-btn-primary":"bo-btn-ghost")}>All</button>
+              <button onClick={()=>setCatFilter("bahan_baku")} className={"bo-btn bo-btn-sm "+(catFilter==="bahan_baku"?"bo-btn-primary":"bo-btn-ghost")}>🥩 Bahan Baku</button>
+              <button onClick={()=>setCatFilter("gaji")} className={"bo-btn bo-btn-sm "+(catFilter==="gaji"?"bo-btn-primary":"bo-btn-ghost")}>👥 Gaji</button>
               {EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>(
                 <button key={c.id} onClick={()=>setCatFilter(c.id)} className={"bo-btn bo-btn-sm "+(catFilter===c.id?"bo-btn-primary":"bo-btn-ghost")}>{c.icon} {c.label}</button>
               ))}
@@ -434,7 +436,7 @@ ARUS KAS
               <thead><tr><th>Tanggal</th><th>Kategori</th><th>Deskripsi</th><th>Metode</th><th>Jumlah</th><th></th></tr></thead>
               <tbody>
                 {/* Auto: POs */}
-                {(catFilter==="all"||catFilter==="bahan_baku") && pos.map(p=>(
+                {(catFilter==="all"||catFilter==="bahan_baku") && catFilter!=="gaji" && pos.map(p=>(
                   <tr key={p.id} style={{ background:"#FFFBF0" }}>
                     <td style={{ fontSize:12 }}>{p.date}</td>
                     <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FFF7E6",color:"#FF8B00" }}>🥩 Bahan Baku</span></td>
@@ -445,7 +447,19 @@ ARUS KAS
                   </tr>
                 ))}
                 {/* Manual */}
-                {filteredExp.map(e=>{
+                {catFilter==="gaji" ? staff.map(s=>{
+                    const kb = kasBonList.filter(k=>k.staff_name===s.name&&k.status==="outstanding").reduce((a,k)=>a+k.amount,0)
+                    return (
+                      <tr key={s.id}>
+                        <td style={{ fontSize:12 }}>{period}</td>
+                        <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#EFF6FF",color:"#0052CC" }}>👥 Gaji</span></td>
+                        <td style={{ fontWeight:700 }}>{s.name} — {s.role}</td>
+                        <td style={{ fontSize:12,color:"#6B778C" }}>Auto</td>
+                        <td style={{ fontWeight:700 }}>{fmt(s.salary||0)}{kb>0&&<span style={{ fontSize:11,color:"#DE350B",marginLeft:4 }}>(-{fmt(kb)} KB)</span>}</td>
+                        <td style={{ fontSize:11,color:"#6B778C" }}>auto</td>
+                      </tr>
+                    )
+                  }) : filteredExp.map(e=>{
                   const cat = EXPENSE_CATEGORIES.find(c=>c.id===e.category)||{ icon:"📦",label:e.category }
                   return (
                     <tr key={e.id}>
@@ -458,7 +472,7 @@ ARUS KAS
                     </tr>
                   )
                 })}
-                {filteredExp.length===0&&pos.length===0&&<tr><td colSpan={6} style={{ textAlign:"center",color:"var(--ink5)",padding:"32px 0" }}>No expenses yet</td></tr>}
+                {catFilter!==="gaji" && filteredExp.length===0&&pos.length===0&&<tr><td colSpan={6} style={{ textAlign:"center",color:"var(--ink5)",padding:"32px 0" }}>No expenses yet</td></tr>}
               </tbody>
             </table>
           </div>
