@@ -10,8 +10,13 @@ const EXPENSE_CATEGORIES = [
   { id:"bar",             label:"Bar Supplies",        icon:"🧃", auto:false },
   { id:"floor_cleaning",  label:"Floor & Cleaning",   icon:"🧹", auto:false },
   { id:"gas_utilities",   label:"Gas & Utilities",    icon:"🔥", auto:false },
+  { id:"pln",             label:"PLN (Listrik)",      icon:"⚡", auto:false },
+  { id:"pdam",            label:"PDAM (Air)",         icon:"💧", auto:false },
+  { id:"wifi",            label:"WiFi / Internet",    icon:"📶", auto:false },
+  { id:"ipl",             label:"IPL",                icon:"🏢", auto:false },
+  { id:"staff_meal",      label:"Staff Meal",         icon:"🍱", auto:false },
   { id:"gaji",            label:"Gaji Karyawan",      icon:"👥", auto:true  },
-  { id:"kas_bon",         label:"Kas Bon",             icon:"💸", auto:false },
+  { id:"kas_bon",         label:"Kas Bon",            icon:"💸", auto:false },
   { id:"sewa",            label:"Sewa & Fasilitas",   icon:"🏠", auto:false },
   { id:"marketing",       label:"Marketing",           icon:"📣", auto:false },
   { id:"lain",            label:"Lain-lain",           icon:"📦", auto:false },
@@ -162,6 +167,46 @@ export default function Accounting() {
     setOpeningBal(p=>({...p,amount}))
   }
 
+  async function exportPDF() {
+    const content = `
+LAPORAN KEUANGAN PAWONLOKA
+Periode: ${period}
+Dicetak: ${new Date().toLocaleDateString("id-ID")}
+
+═══════════════════════════════════
+LAPORAN LABA RUGI
+═══════════════════════════════════
+
+PENDAPATAN
+  Penjualan Kotor          ${fmt(grossRevenue)}
+  Diskon                   (${fmt(totalDiscount)})
+  Penjualan Bersih         ${fmt(netRevenue)}
+
+HPP / COGS                 ${fmt(totalCOGS)}
+LABA KOTOR                 ${fmt(grossProfit)} (${grossMargin}%)
+
+BEBAN OPERASIONAL
+  Bahan Baku (PO)          ${fmt(poTotal)}
+  Gaji Karyawan            ${fmt(salaryTotal)}
+${EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>`  ${c.label.padEnd(22)} ${fmt(catTotal(c.id))}`).join("\n")}
+  Total Beban              ${fmt(totalOpex)}
+
+═══════════════════════════════════
+LABA BERSIH                ${fmt(netProfit)} (${netMargin}%)
+═══════════════════════════════════
+
+ARUS KAS
+  Opening Balance          ${fmt(openingBal.amount||0)}
+  Cash In                  ${fmt(cashIn+qrisIn)}
+  Cash Out                 ${fmt(cashOut)}
+  Saldo Akhir              ${fmt(netCash)}
+`
+    const blob = new Blob([content], { type:"text/plain;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a"); a.href=url; a.download=`pawonloka-pl-${period}.txt`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
   async function exportExcel() {
     const rows = [
       ["LAPORAN KEUANGAN PAWONLOKA","","",""],
@@ -217,14 +262,15 @@ export default function Accounting() {
     <div>
       {/* Top bar */}
       <div style={{ display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap" }}>
-        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
+        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["bahan_baku","🥩 Bahan Baku"],["gaji","👥 Gaji"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
         <div style={{ marginLeft:"auto",display:"flex",gap:8,alignItems:"center" }}>
           <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ fontSize:13 }}>
             {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
           </select>
-          <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">⬇ Export CSV</button>
+          <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">⬇ Excel/CSV</button>
+          <button onClick={exportPDF} className="bo-btn bo-btn-ghost bo-btn-sm">⬇ PDF/TXT</button>
         </div>
       </div>
 
@@ -466,6 +512,94 @@ export default function Accounting() {
                   <tr key={c.id}><td style={{ fontWeight:600 }}>{c.icon} {c.label}</td><td>—</td><td style={{ color:"#DE350B",fontWeight:700 }}>{fmt(catTotal(c.id))}</td></tr>
                 ))}
                 <tr style={{ background:"#f9fafb",fontWeight:800 }}><td>SALDO AKHIR</td><td style={{ color:"#00875A" }}>{fmt((openingBal.amount||0)+cashIn+qrisIn)}</td><td style={{ color:"#DE350B" }}>{fmt(cashOut)}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* BAHAN BAKU */}
+      {tab==="bahan_baku" && (
+        <div>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+            <div style={{ background:"#FFF7E6",border:"1px solid #FF8B0033",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#FF8B00",marginBottom:4 }}>TOTAL BAHAN BAKU</div>
+              <div style={{ fontSize:24,fontWeight:900,color:"#FF8B00" }}>{fmt(poTotal)}</div>
+              <div style={{ fontSize:11,color:"#6B778C",marginTop:4 }}>{pos.length} purchase orders</div>
+            </div>
+            <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>AVG PER ORDER</div>
+              <div style={{ fontSize:24,fontWeight:900,color:"#0052CC" }}>{fmt(orders.length>0?Math.round(totalCOGS/orders.length):0)}</div>
+            </div>
+            <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>% OF REVENUE</div>
+              <div style={{ fontSize:24,fontWeight:900,color:poTotal/netRevenue>0.4?"#DE350B":"#00875A" }}>
+                {netRevenue>0?Math.round((poTotal/netRevenue)*100):0}%
+              </div>
+            </div>
+          </div>
+          <div className="bo-card" style={{ padding:0,overflow:"hidden" }}>
+            <table className="bo-table">
+              <thead><tr><th>Tanggal</th><th>Supplier</th><th>Invoice</th><th>Items</th><th>Total</th><th>Status</th></tr></thead>
+              <tbody>
+                {pos.map(p=>(
+                  <tr key={p.id}>
+                    <td style={{ fontSize:12 }}>{p.date}</td>
+                    <td style={{ fontWeight:700 }}>{p.supplierName||p.supplier_name||"—"}</td>
+                    <td style={{ fontSize:12,fontFamily:"monospace" }}>{p.invoiceNo||p.invoice_no||"—"}</td>
+                    <td style={{ fontSize:12,color:"#6B778C" }}>{Array.isArray(p.items)?p.items.length:0} items</td>
+                    <td style={{ fontWeight:700 }}>{fmt(p.total||0)}</td>
+                    <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#E3FCEF",color:"#00875A" }}>Paid</span></td>
+                  </tr>
+                ))}
+                {pos.length===0&&<tr><td colSpan={6} style={{ textAlign:"center",color:"var(--ink5)",padding:"32px 0" }}>No purchase orders this period</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* GAJI */}
+      {tab==="gaji" && (
+        <div>
+          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+            <div style={{ background:"#EFF6FF",border:"1px solid #0052CC33",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#0052CC",marginBottom:4 }}>TOTAL GAJI BULAN INI</div>
+              <div style={{ fontSize:24,fontWeight:900,color:"#0052CC" }}>{fmt(salaryTotal)}</div>
+              <div style={{ fontSize:11,color:"#6B778C",marginTop:4 }}>{staff.length} karyawan aktif</div>
+            </div>
+            <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>KAS BON OUTSTANDING</div>
+              <div style={{ fontSize:24,fontWeight:900,color:"#DE350B" }}>{fmt(kbOutstanding)}</div>
+            </div>
+            <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"16px 20px" }}>
+              <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>NET GAJI (setelah potong)</div>
+              <div style={{ fontSize:24,fontWeight:900,color:"#00875A" }}>{fmt(salaryTotal-kbOutstanding)}</div>
+            </div>
+          </div>
+          <div className="bo-card" style={{ padding:0,overflow:"hidden" }}>
+            <table className="bo-table">
+              <thead><tr><th>Karyawan</th><th>Role</th><th>Gaji Pokok</th><th>Kas Bon</th><th>Net Gaji</th><th>Status</th></tr></thead>
+              <tbody>
+                {staff.map(s=>{
+                  const kb = kasBonList.filter(k=>k.staff_name===s.name&&k.status==="outstanding").reduce((a,k)=>a+k.amount,0)
+                  const net = (s.salary||0) - kb
+                  return (
+                    <tr key={s.id}>
+                      <td>
+                        <div style={{ display:"flex",alignItems:"center",gap:8 }}>
+                          <div style={{ width:32,height:32,borderRadius:"50%",background:s.color||"var(--brand)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:"#fff" }}>{s.name?.slice(0,2).toUpperCase()}</div>
+                          <span style={{ fontWeight:700 }}>{s.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ fontSize:12,color:"#6B778C" }}>{s.role}</td>
+                      <td style={{ fontWeight:700 }}>{fmt(s.salary||0)}</td>
+                      <td style={{ color:kb>0?"#DE350B":"#6B778C",fontWeight:kb>0?700:400 }}>{kb>0?"("+fmt(kb)+")":"—"}</td>
+                      <td style={{ fontWeight:800,color:net>0?"#00875A":"#DE350B" }}>{fmt(net)}</td>
+                      <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:s.active!==false?"#E3FCEF":"#f0f0f0",color:s.active!==false?"#00875A":"#6B778C" }}>{s.active!==false?"Active":"Inactive"}</span></td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>

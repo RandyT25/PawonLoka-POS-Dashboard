@@ -180,7 +180,7 @@ export default function Backoffice() {
     <div className="bo-app">
       <div className="bo-sidebar">
         <div className="bo-sidebar-logo">
-          <img src="/logo.png" alt="PawonLoka" style={{ width:48, height:48, borderRadius:10, objectFit:"cover", marginBottom:6, display:"block" }} />
+          <img src="/logo.png" alt="PawonLoka" onError={e=>{e.target.style.display="none"}} style={{ width:56, height:56, borderRadius:12, objectFit:"contain", marginBottom:6, display:"block", background:"#fff", padding:4 }} />
           <div className="bo-sidebar-logo-name">PawonLoka</div>
           <div className="bo-sidebar-logo-sub">Back Office</div>
         </div>

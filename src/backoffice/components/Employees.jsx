@@ -202,7 +202,7 @@ export default function Employees() {
                   </div>
                 </div>
               </div>
-              <div className="bo-form-row"><label className="bo-label">Monthly Salary (Rp)</label><input type="number" value={form.salary||0} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} className="bo-input" /></div>
+              <div className="bo-form-row"><label className="bo-label">Monthly Salary (Rp)</label><input type="number" value={form.salary===0?"":form.salary} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} onFocus={e=>{if(e.target.value==="0")e.target.value=""}} onBlur={e=>{if(e.target.value==="")setForm(f=>({...f,salary:0}))}} placeholder="0" className="bo-input" /></div>
               <div className="bo-form-row">
                 <label className="bo-label">Color</label>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
