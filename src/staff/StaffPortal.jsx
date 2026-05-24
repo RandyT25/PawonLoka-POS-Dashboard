@@ -181,9 +181,9 @@ export default function StaffPortal() {
   }
 
   const s = {
-    wrap:{ minHeight:"100vh", background:"#f5f6fa", fontFamily:"system-ui,sans-serif", fontSize:15 },
+    wrap:{ height:"100dvh", display:"flex", flexDirection:"column", background:"#f5f6fa", fontFamily:"system-ui,sans-serif", fontSize:15, overflow:"hidden" },
     header:{ background:"#1a1a2e", color:"#fff", padding:"12px 18px", display:"flex", alignItems:"center", gap:12, position:"sticky", top:0, zIndex:10 },
-    body:{ padding:"14px 16px", maxWidth:480, margin:"0 auto", paddingBottom:100 },
+    body:{ flex:1, overflowY:"auto", overflowX:"hidden", WebkitOverflowScrolling:"touch", padding:"14px 16px", maxWidth:480, margin:"0 auto", paddingBottom:120 },
     card:{ background:"#fff", borderRadius:14, padding:16, marginBottom:12, boxShadow:"0 2px 8px rgba(0,0,0,0.06)" },
     label:{ fontSize:12, fontWeight:700, color:"#666", marginBottom:6, display:"block", textTransform:"uppercase", letterSpacing:"0.4px" },
     input:{ width:"100%", padding:"11px 13px", border:"1.5px solid #e0e0e0", borderRadius:10, fontSize:15, boxSizing:"border-box", fontFamily:"inherit", outline:"none" },

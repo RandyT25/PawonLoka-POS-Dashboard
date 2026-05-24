@@ -399,8 +399,6 @@ ARUS KAS
           <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center",flexWrap:"wrap" }}>
             <div style={{ display:"flex",gap:6,flexWrap:"wrap" }}>
               <button onClick={()=>setCatFilter("all")} className={"bo-btn bo-btn-sm "+(catFilter==="all"?"bo-btn-primary":"bo-btn-ghost")}>All</button>
-              <button onClick={()=>setCatFilter("bahan_baku")} className={"bo-btn bo-btn-sm "+(catFilter==="bahan_baku"?"bo-btn-primary":"bo-btn-ghost")}>🥩 Bahan Baku</button>
-              <button onClick={()=>setCatFilter("gaji")} className={"bo-btn bo-btn-sm "+(catFilter==="gaji"?"bo-btn-primary":"bo-btn-ghost")}>👥 Gaji</button>
               {EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>(
                 <button key={c.id} onClick={()=>setCatFilter(c.id)} className={"bo-btn bo-btn-sm "+(catFilter===c.id?"bo-btn-primary":"bo-btn-ghost")}>{c.icon} {c.label}</button>
               ))}

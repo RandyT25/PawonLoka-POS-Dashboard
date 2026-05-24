@@ -60,7 +60,7 @@ export default function Settings() {
 
   const TABS = [
     ["outlet","🏪 Outlet"],["pos","🧾 POS"],["regional","🌍 Regional"],
-    ["loyalty","⭐ Loyalty"],["stations","🍳 Stations"],
+    ["loyalty","⭐ Loyalty"],["stations","🍳 Stations"],["reset","🗑 Reset"],
   ]
 
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div>
@@ -207,6 +207,66 @@ export default function Settings() {
           {saving?"Saving...":saved?"✓ Saved!":"Save Settings"}
         </button>
       </div>
+
+      {tab==="reset" && (
+        <div className="bo-card" style={{ border:"1.5px solid var(--red)" }}>
+          <div className="bo-card-title" style={{ color:"var(--red)" }}>🗑 Reset Data</div>
+          <div style={{ fontSize:13, color:"var(--ink4)", marginBottom:20, lineHeight:1.7 }}>
+            Use these options carefully. Deleted data cannot be recovered.<br/>
+            These operations only delete transaction data — products, staff, settings and inventory are kept.
+          </div>
+          {[
+            { label:"Clear All Orders", desc:"Delete all POS orders and receipts", table:"orders", color:"var(--amber)" },
+            { label:"Clear All Expenses", desc:"Delete all manually entered expenses", table:"expenses", color:"var(--amber)" },
+            { label:"Clear Attendance Records", desc:"Delete all clock in/out records", table:"attendance", color:"var(--amber)" },
+            { label:"Clear Shift Records", desc:"Delete all POS shift records", table:"shifts", color:"var(--amber)" },
+            { label:"Clear Customer Points", desc:"Reset all customer loyalty points to 0", table:"customers_points", color:"var(--red)" },
+            { label:"Clear Kas Bon", desc:"Delete all staff loan records", table:"kas_bon", color:"var(--amber)" },
+          ].map(item=>(
+            <div key={item.table} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"12px 0", borderBottom:"1px solid var(--surface2)" }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:700 }}>{item.label}</div>
+                <div style={{ fontSize:11, color:"var(--ink4)" }}>{item.desc}</div>
+              </div>
+              <button onClick={async()=>{
+                if (!confirm("Are you sure? This cannot be undone.\n\n"+item.desc)) return
+                const code = prompt("Type DELETE to confirm:")
+                if (code !== "DELETE") { alert("Cancelled"); return }
+                if (item.table==="customers_points") {
+                  const { supabase: sb } = await import("../../lib/supabase")
+                  await sb.from("customers").update({ points:0, visits:0, totalSpend:0 }).neq("id","none")
+                  alert("Customer points reset!")
+                } else {
+                  const { supabase: sb } = await import("../../lib/supabase")
+                  await sb.from(item.table).delete().neq("id","none")
+                  alert(item.label+" complete!")
+                }
+              }} style={{ padding:"8px 16px", border:"1.5px solid "+item.color, borderRadius:8, background:"#fff", color:item.color, fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0, marginLeft:16 }}>
+                Clear
+              </button>
+            </div>
+          ))}
+          <div style={{ marginTop:20, padding:"12px 16px", background:"#FFEBE6", borderRadius:8, fontSize:12, color:"var(--red)", fontWeight:600 }}>
+            ⚠️ Full reset: deletes orders + expenses + attendance + shifts. Products, staff, recipes and inventory are NOT deleted.
+          </div>
+          <button onClick={async()=>{
+            if (!confirm("FULL RESET: Delete ALL transaction data?\nThis cannot be undone.")) return
+            const code = prompt("Type RESET ALL to confirm:")
+            if (code !== "RESET ALL") { alert("Cancelled"); return }
+            const { supabase: sb } = await import("../../lib/supabase")
+            await Promise.all([
+              sb.from("orders").delete().neq("id","none"),
+              sb.from("expenses").delete().neq("id","none"),
+              sb.from("attendance").delete().neq("id","none"),
+              sb.from("shifts").delete().neq("id","none"),
+              sb.from("kas_bon").delete().neq("id","none"),
+            ])
+            alert("Full reset complete!")
+          }} className="bo-btn bo-btn-danger" style={{ width:"100%", marginTop:12 }}>
+            FULL RESET — Delete All Transaction Data
+          </button>
+        </div>
+      )}
     </div>
   )
 }
