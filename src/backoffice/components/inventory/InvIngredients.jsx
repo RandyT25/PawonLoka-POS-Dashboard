@@ -186,8 +186,6 @@ export default function InvIngredients() {
               <button className="bo-modal-close" onClick={closeModal}>✕</button>
             </div>
             <div className="bo-modal-body" style={{ overflowY:"auto" }}>
-
-              {/* Basic info */}
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Name *</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus /></div>
                 <div><label className="bo-label">SKU</label><input value={form.sku||""} onChange={e=>setForm(f=>({...f,sku:e.target.value}))} className="bo-input" placeholder="Auto if empty" /></div>
@@ -209,8 +207,6 @@ export default function InvIngredients() {
                 <div><label className="bo-label">Current Stock</label><input type="number" value={form.stock||0} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} className="bo-input" /></div>
                 <div><label className="bo-label">Min Stock Alert</label><input type="number" value={form.min_stock||0} onChange={e=>setForm(f=>({...f,min_stock:e.target.value}))} className="bo-input" /></div>
               </div>
-
-              {/* UOM Section */}
               <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:16, marginTop:4 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                   <div>
@@ -219,64 +215,54 @@ export default function InvIngredients() {
                   </div>
                   <button onClick={addConv} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Unit</button>
                 </div>
-
-                {/* Header row */}
-                <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", marginBottom:6 }}>
-                <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, minWidth:520 }}>
-                  {["UNIT *","CONVERSION","HARGA MODAL","HARGA BELI","SKU",""].map((h,i)=>(
-                    <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
-                  ))}
-                </div>
-
-                {/* Base unit row (always shown) */}
-                <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
-                  <select value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="bo-select" style={{ fontSize:12 }}>
-                    {UNITS.map(u=><option key={u}>{u}</option>)}
-                  </select>
-                  <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--ink4)" }}>
-                    <span>1</span>
-                    <span style={{ fontWeight:700 }}>{form.unit}</span>
-                    <span style={{ fontSize:10 }}>(base)</span>
-                  </div>
-                  <div style={{ fontSize:12, color:"var(--ink3)", display:"flex", alignItems:"center" }}>
-                    {form.cost_per_unit > 0 ? fmtDec(form.cost_per_unit) : <span style={{ color:"var(--ink5)" }}>—</span>}
-                  </div>
-                  <input type="number" value={form.cost_per_unit||0} onChange={e=>setForm(f=>({...f,cost_per_unit:e.target.value}))} className="bo-input" style={{ fontSize:12 }} placeholder="Manual cost" />
-                  <div style={{ fontSize:11, color:"var(--ink5)", display:"flex", alignItems:"center" }}>{form.sku||"—"}</div>
-                  <div />
-                </div>
-
-                {/* Conversion rows */}
-                {convs.map((c, i) => {
-                  const cpb = c.qty > 0 && c.last_price > 0 ? c.last_price / parseFloat(c.qty) : 0
-                  return (
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"#fff", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
-                      <select value={c.unit} onChange={e=>updateConv(i,"unit",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+                  <div style={{ minWidth:520 }}>
+                    <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:6 }}>
+                      {["UNIT *","CONVERSION","HARGA MODAL","HARGA BELI","SKU",""].map((h,i)=>(
+                        <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
+                      ))}
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
+                      <select value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="bo-select" style={{ fontSize:12 }}>
                         {UNITS.map(u=><option key={u}>{u}</option>)}
                       </select>
-                      <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                        <input type="number" value={c.qty} onChange={e=>updateConv(i,"qty",e.target.value)} className="bo-input" style={{ width:80, fontSize:12 }} placeholder="1000" />
-                        <span style={{ fontSize:12, color:"var(--ink4)", whiteSpace:"nowrap" }}>{form.unit}</span>
+                      <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--ink4)" }}>
+                        <span>1</span><span style={{ fontWeight:700 }}>{form.unit}</span><span style={{ fontSize:10 }}>(base)</span>
                       </div>
                       <div style={{ fontSize:12, color:"var(--ink3)", display:"flex", alignItems:"center" }}>
-                        {cpb > 0 ? fmtDec(cpb) : <span style={{ color:"var(--ink5)" }}>—</span>}
+                        {form.cost_per_unit > 0 ? fmtDec(form.cost_per_unit) : <span style={{ color:"var(--ink5)" }}>—</span>}
                       </div>
-                      <input type="number" value={c.last_price||0} onChange={e=>updateConv(i,"last_price",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="Last buy price" />
-                      <input value={c.sku||""} onChange={e=>updateConv(i,"sku",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder={form.sku+" "+c.unit} />
-                      <button onClick={()=>removeConv(i)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:16, padding:0 }}>✕</button>
+                      <input type="number" value={form.cost_per_unit||0} onChange={e=>setForm(f=>({...f,cost_per_unit:e.target.value}))} className="bo-input" style={{ fontSize:12 }} placeholder="Manual cost" />
+                      <div style={{ fontSize:11, color:"var(--ink5)", display:"flex", alignItems:"center" }}>{form.sku||"—"}</div>
+                      <div />
                     </div>
-                  )
-                })}
-
-                {/* Conversion summary */}
-                </div>{/* end scroll wrapper */}
+                    {convs.map((c,i) => {
+                      const cpb = c.qty > 0 && c.last_price > 0 ? c.last_price / parseFloat(c.qty) : 0
+                      return (
+                        <div key={i} style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"#fff", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
+                          <select value={c.unit} onChange={e=>updateConv(i,"unit",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                            {UNITS.map(u=><option key={u}>{u}</option>)}
+                          </select>
+                          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                            <input type="number" value={c.qty} onChange={e=>updateConv(i,"qty",e.target.value)} className="bo-input" style={{ width:80, fontSize:12 }} placeholder="1000" />
+                            <span style={{ fontSize:12, color:"var(--ink4)", whiteSpace:"nowrap" }}>{form.unit}</span>
+                          </div>
+                          <div style={{ fontSize:12, color:"var(--ink3)", display:"flex", alignItems:"center" }}>
+                            {cpb > 0 ? fmtDec(cpb) : <span style={{ color:"var(--ink5)" }}>—</span>}
+                          </div>
+                          <input type="number" value={c.last_price||0} onChange={e=>updateConv(i,"last_price",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="Last buy price" />
+                          <input value={c.sku||""} onChange={e=>updateConv(i,"sku",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder={form.sku+" "+c.unit} />
+                          <button onClick={()=>removeConv(i)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:16, padding:0 }}>✕</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
                 {convs.length > 0 && (
                   <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>
-                    {convs.map(c => `1 ${c.unit} = ${c.qty} ${form.unit}`).join(" · ")}
+                    {convs.map(c=>`1 ${c.unit} = ${c.qty} ${form.unit}`).join(" · ")}
                   </div>
                 )}
-
-                {/* WAC preview */}
                 {(convs.some(c=>c.last_price>0) || form.cost_per_unit > 0) && (
                   <div style={{ marginTop:12, padding:"10px 14px", background:"var(--brand-lt)", border:"1px solid rgba(0,102,255,0.2)", borderRadius:"var(--r)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                     <span style={{ fontSize:12, fontWeight:700, color:"var(--brand)" }}>Weighted Avg Cost (WAC)</span>
