@@ -136,6 +136,10 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 
 
 
+.acc-cashflow-cards { grid-template-columns: repeat(3,1fr); }
+.acc-metrics { grid-template-columns: repeat(4,1fr); }
+.acc-summary-grid { grid-template-columns: 1fr 1fr; }
+
 /* ─── MOBILE RESPONSIVE (single clean section) ───────────── */
 @media (max-width: 768px) {
 

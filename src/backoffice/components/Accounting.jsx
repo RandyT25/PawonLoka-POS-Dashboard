@@ -422,7 +422,7 @@ ARUS KAS
           </div>
 
           {/* Auto expenses summary */}
-          <div className="acc-cashflow-cards" style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"14px 16px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>🥩 BAHAN BAKU (AUTO)</div>
               <div style={{ fontSize:20,fontWeight:900,color:"#FF8B00" }}>{fmt(poTotal)}</div>
@@ -547,7 +547,7 @@ ARUS KAS
       {/* BAHAN BAKU */}
       {tab==="bahan_baku" && (
         <div>
-          <div className="acc-cashflow-cards" style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#FFF7E6",border:"1px solid #FF8B0033",borderRadius:12,padding:"16px 20px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#FF8B00",marginBottom:4 }}>TOTAL BAHAN BAKU</div>
               <div style={{ fontSize:24,fontWeight:900,color:"#FF8B00" }}>{fmt(poTotal)}</div>
@@ -588,7 +588,7 @@ ARUS KAS
       {/* GAJI */}
       {tab==="gaji" && (
         <div>
-          <div className="acc-cashflow-cards" style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#EFF6FF",border:"1px solid #0052CC33",borderRadius:12,padding:"16px 20px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#0052CC",marginBottom:4 }}>TOTAL GAJI BULAN INI</div>
               <div style={{ fontSize:24,fontWeight:900,color:"#0052CC" }}>{fmt(salaryTotal)}</div>
