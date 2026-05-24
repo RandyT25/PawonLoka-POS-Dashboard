@@ -228,7 +228,7 @@ export default function Backoffice() {
           })}
         </nav>
         {mobileSubMenu && (
-          <div className="bo-mobile-submenu" onClick={()=>setMobileSubMenu(null)}>
+          <div className="bo-mobile-submenu" onClick={()=>setMobileSubMenu(null)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:99,display:"flex",flexDirection:"column",justifyContent:"flex-end" }}>
             <div onClick={e=>e.stopPropagation()} style={{ background:"#1a1a2e", borderRadius:"20px 20px 0 0", paddingBottom:"env(safe-area-inset-bottom)" }}>
               <div style={{ width:40, height:4, background:"rgba(255,255,255,0.2)", borderRadius:2, margin:"10px auto 8px" }} />
               {MOBILE_TABS.find(t=>t.id===mobileSubMenu)?.items.map(id=>{
