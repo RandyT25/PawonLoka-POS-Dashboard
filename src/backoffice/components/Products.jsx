@@ -270,7 +270,7 @@ export default function Products() {
           </div>
         ) : (
           /* ── LIST VIEW ── */
-          <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+          <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             <table className="bo-table">
               <thead>
                 <tr>

@@ -93,7 +93,7 @@ export default function InvProduction() {
         <button onClick={()=>setModal(true)} className="bo-btn bo-btn-primary">+ New Production Batch</button>
       </div>
 
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+      <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead><tr><th>Batch ID</th><th>Date</th><th>Item Produced</th><th>Quantity</th><th>Produced By</th><th>Status</th><th>Actions</th></tr></thead>

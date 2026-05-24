@@ -66,7 +66,7 @@ export default function InvOpname() {
             <button onClick={submitOpname} disabled={submitting} className="bo-btn bo-btn-primary">{submitting?"Submitting...":"Submit Count"}</button>
           </div>
         </div>
-        <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+        <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
           <table className="bo-table">
             <thead><tr><th>Ingredient</th><th>Unit</th><th>System Stock</th><th>Actual Count</th><th>Difference</th><th>Value Diff</th></tr></thead>
             <tbody>
@@ -108,7 +108,7 @@ export default function InvOpname() {
       {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div>
       : sessions.length === 0 ? <div style={{ textAlign:"center", color:"var(--ink5)", padding:48 }}>No opname sessions yet</div>
       : (
-        <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+        <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
           <table className="bo-table">
             <thead><tr><th>Session ID</th><th>Date</th><th>Items Counted</th><th>Total Variance</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>

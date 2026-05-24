@@ -191,13 +191,42 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .bo-btn { min-height: 40px; }
   .bo-btn-sm { min-height: 34px; font-size: 12px !important; }
 
-  /* Tables */
-  .bo-table { font-size: 12px; }
+  /* Tables - ALL tables get horizontal scroll on mobile */
+  .bo-card { overflow: hidden !important; }
+  .bo-card > table,
+  .bo-card > div > table,
+  .bo-card > div > div > table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    width: 100% !important;
+  }
+  .bo-table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+    min-width: unset !important;
+  }
+  /* Wrap any table parent with overflow */
+  div[style*="overflow:hidden"] > table,
+  div[style*="overflow: hidden"] > table {
+    display: block !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  /* Sticky action column */
   .bo-table td:last-child, .bo-table th:last-child {
-    position: sticky; right: 0; background: #fff;
-    box-shadow: -2px 0 4px rgba(0,0,0,0.06); z-index: 1;
+    position: sticky; right: 0;
+    background: inherit;
+    box-shadow: -2px 0 6px rgba(0,0,0,0.08);
+    z-index: 2;
   }
   .bo-table thead th:last-child { background: #f9fafb; }
+  .bo-table tbody tr:nth-child(even) td:last-child { background: #fff; }
+  .bo-table tbody tr:nth-child(odd) td:last-child { background: #fff; }
 }
 
 @media (max-width: 768px) {
@@ -223,3 +252,59 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 /* Mobile submenu (kept for compatibility) */
 .bo-mobile-submenu { display: none; }
 .bo-bottom-nav { display: none !important; }
+
+/* ─── GLOBAL TABLE SCROLL FIX ───────────────────────────── */
+@media (max-width: 768px) {
+  /* Every card that contains a table gets scroll */
+  .bo-card { position: relative; }
+  
+  /* Force all metric grids to 2 col */
+  .bo-metrics { 
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+  
+  /* Accounting + Dashboard tab bars */
+  .bo-content > div > div[style] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  /* All flex rows with buttons become scrollable */
+  div[style*="flexWrap"] {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  
+  /* Fix card padding:0 overflow */
+  .bo-card[style*="overflow"] {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  /* Make sure table cells don't wrap */  
+  .bo-table th, .bo-table td {
+    white-space: nowrap !important;
+    padding: 8px 10px !important;
+  }
+
+  /* Met cards smaller on mobile */
+  .bo-met-val { font-size: 18px !important; }
+  .bo-met-label { font-size: 10px !important; }
+  .bo-met-sub { font-size: 10px !important; }
+
+  /* Recipe editor mobile */
+  div[style*="height:calc(100vh"] {
+    height: auto !important;
+    flex-direction: column !important;
+  }
+  
+  /* Charts responsive */
+  div[style*="ResponsiveContainer"] {
+    width: 100% !important;
+  }
+}

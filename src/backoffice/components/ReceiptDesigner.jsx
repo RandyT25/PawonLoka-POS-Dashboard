@@ -208,7 +208,7 @@ export default function ReceiptDesigner() {
 
       {/* Right: Preview */}
       <div style={{ position:"sticky", top:16 }}>
-        <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+        <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
           <div style={{ padding:"8px 12px", background:"var(--surface)", borderBottom:"1px solid var(--surface3)", fontSize:12, fontWeight:700, color:"var(--ink4)" }}>
             RECEIPT PREVIEW ({s.paper_size})
           </div>

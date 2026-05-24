@@ -88,7 +88,7 @@ export default function InvWaste() {
         <button onClick={()=>setModal(true)} className="bo-btn bo-btn-primary">+ Record Waste</button>
       </div>
 
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+      <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead><tr><th>Record ID</th><th>Date</th><th>Ingredient</th><th>Quantity</th><th>Reason</th><th>Cost Impact</th><th>Recorded By</th><th>Notes</th></tr></thead>

@@ -186,7 +186,7 @@ export default function Reports() {
       </div>
 
       {/* Orders table */}
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+      <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         <div style={{ padding:"14px 20px", borderBottom:"1px solid var(--surface3)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <span style={{ fontWeight:700 }}>All Orders</span>
           <span style={{ fontSize:12, color:"var(--ink5)" }}>{totalOrders} records</span>

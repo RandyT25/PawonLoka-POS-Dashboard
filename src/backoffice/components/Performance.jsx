@@ -88,7 +88,7 @@ export default function Performance() {
       )}
 
       {/* Table */}
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+      <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead><tr><th>Employee</th><th>Role</th><th>Shifts</th><th>Hours</th><th>Orders</th><th>Total Sales</th><th>Avg/Order</th><th>Late</th><th>Performance</th></tr></thead>

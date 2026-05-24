@@ -127,7 +127,7 @@ export default function InvIngredients() {
         </div>
       </div>
 
-      <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+      <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>

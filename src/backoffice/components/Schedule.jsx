@@ -318,7 +318,7 @@ export default function Schedule() {
               })}
             </div>
           </div>
-          <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+          <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             <table className="bo-table">
               <thead><tr><th>Date</th><th>Staff</th><th>Station</th><th>Clock In</th><th>Clock Out</th><th>Status</th><th>Photo</th></tr></thead>
               <tbody>
