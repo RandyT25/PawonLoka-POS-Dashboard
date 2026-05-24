@@ -291,6 +291,7 @@ export default function InvIngredients() {
               {modal==="edit" && <button onClick={()=>deleteIngredient(form.id)} className="bo-btn bo-btn-danger">Delete</button>}
               <button onClick={save} disabled={saving||!form.name} className="bo-btn bo-btn-primary">{saving?"Saving...":modal==="add"?"Add":"Save"}</button>
             </div>
+          </div>
         </div>
       )}
     </div>
