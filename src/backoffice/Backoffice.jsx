@@ -90,7 +90,7 @@ const NAV = [
 const SCREENS = {
   dashboard:         Dashboard,
   reports:           Reports,
-  accounting:        () => <ComingSoon title="Accounting" />,
+  accounting:        Accounting,
   products:          Products,
   categories:        Categories,
   modifiers:         Modifiers,
