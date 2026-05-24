@@ -42,6 +42,14 @@ function ComingSoon({ title }) {
 const BO_PIN      = "1999"
 const SESSION_KEY = "bo_auth"
 
+const MOBILE_TABS = [
+  { id:"home",    icon:"🏠", label:"Home",    items:["dashboard","reports","accounting"] },
+  { id:"menu",    icon:"🍽", label:"Menu",    items:["products","categories","modifiers","recipes"] },
+  { id:"stock",   icon:"📦", label:"Stock",   items:["inv-overview","inv-ingredients","inv-po","inv-suppliers","inv-production","inv-opname","inv-waste","inv-movements","staff-submissions"] },
+  { id:"people",  icon:"👥", label:"People",  items:["employees","shifts","schedule","performance","customers","loyalty"] },
+  { id:"more",    icon:"⚙️", label:"More",    items:["promotions","bundles","discounts","payments","floorplan","import-export","settings","receipt-designer","hardware","usersaccess","audit-log","integrations"] },
+]
+
 const NAV = [
   { group:"Overview" },
   { id:"dashboard",        label:"Dashboard",         icon:"📊" },
@@ -207,13 +215,40 @@ export default function Backoffice() {
         </div>
         <div className="bo-content"><Screen onNavChange={setActive} /></div>
         <nav className="bo-bottom-nav" style={{ display:"none" }}>
-          {NAV.filter(n=>n.id&&!n.group).map(n=>(
-            <button key={n.id} className={"bo-bottom-nav-item"+(active===n.id?" active":"")} onClick={()=>setActive(n.id)}>
-              <span style={{ fontSize:20 }}>{n.icon}</span>
-              <span style={{ fontSize:10, fontWeight:600 }}>{n.label}</span>
-            </button>
-          ))}
+          {MOBILE_TABS.map(tab => {
+            const isActive = tab.items.includes(active)
+            return (
+              <button key={tab.id} className={"bo-bottom-nav-item"+(isActive?" active":"")}
+                onClick={()=>{ setMobileSubMenu(s=>s===tab.id?null:tab.id); if(!isActive) setActive(tab.items[0]) }}>
+                <span>{tab.icon}</span>
+                <span>{tab.label}</span>
+              </button>
+            )
+          })}
         </nav>
+        {mobileSubMenu && (
+          <div className="bo-mobile-submenu" onClick={()=>setMobileSubMenu(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{ background:"#1a1a2e", borderRadius:"20px 20px 0 0", paddingBottom:"env(safe-area-inset-bottom)" }}>
+              <div style={{ width:40, height:4, background:"rgba(255,255,255,0.2)", borderRadius:2, margin:"10px auto 8px" }} />
+              {MOBILE_TABS.find(t=>t.id===mobileSubMenu)?.items.map(id=>{
+                const item = NAV.find(n=>n.id===id)
+                if (!item) return null
+                return (
+                  <button key={id} onClick={()=>{setActive(id);setMobileSubMenu(null)}}
+                    style={{ display:"flex", alignItems:"center", gap:14, width:"100%", padding:"13px 20px",
+                      border:"none", background:active===id?"rgba(0,102,255,0.25)":"transparent",
+                      color:active===id?"#fff":"rgba(255,255,255,0.65)", fontSize:14,
+                      fontWeight:active===id?700:400, cursor:"pointer",
+                      borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
+                    <span style={{ fontSize:20, width:28, textAlign:"center" }}>{item.icon}</span>
+                    <span style={{ flex:1, textAlign:"left" }}>{item.label}</span>
+                    {active===id && <span style={{ fontSize:16, color:"#0066ff" }}>●</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
