@@ -199,6 +199,7 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .acc-metrics { grid-template-columns: repeat(2,1fr) !important; }
   .acc-cashflow-cards { grid-template-columns: 1fr !important; display: flex !important; flex-direction: column !important; }
   .acc-summary-grid { grid-template-columns: 1fr !important; }
+  .acc-cashflow-cards { grid-template-columns: 1fr !important; display: grid !important; }
   .acc-tabs { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; padding-bottom: 4px; scrollbar-width: none; }
   .acc-tabs::-webkit-scrollbar { display: none; }
   .acc-cat-filter { flex-wrap: nowrap !important; overflow-x: auto !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
