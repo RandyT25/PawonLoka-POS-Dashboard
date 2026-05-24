@@ -58,7 +58,11 @@ export default function Performance() {
   }
 
   const maxSales = data[0]?.sales || 1
-  const medals   = ["🥇","🥈","🥉"]
+  const medals = [
+    { emoji:"🥇", border:"#FFB800", bg:"#FFFBF0" },
+    { emoji:"🥈", border:"#8C9BAB", bg:"#F7F8F9" },
+    { emoji:"🥉", border:"#CD7F32", bg:"#FDF6F0" },
+  ]
 
   return (
     <div>
@@ -72,8 +76,8 @@ export default function Performance() {
       {data.length > 0 && (
         <div style={{ display:"flex", gap:12, marginBottom:20, justifyContent:"center" }}>
           {data.slice(0,3).map((s,i) => (
-            <div key={s.name} style={{ textAlign:"center", padding:"16px 20px", background:"#fff", borderRadius:16, border:"1.5px solid var(--surface3)", minWidth:120 }}>
-              <div style={{ fontSize:28, marginBottom:4 }}>{medals[i]}</div>
+            <div key={s.name} style={{ textAlign:"center", padding:"16px 20px", background:"#fff", borderRadius:16, border:"2px solid "+medals[i].border, minWidth:140, background:medals[i].bg }}>
+              <div style={{ fontSize:32, marginBottom:4 }}>{medals[i].emoji}</div>
               <div style={{ width:40, height:40, borderRadius:"50%", background:s.color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, color:"#fff", margin:"0 auto 8px" }}>{s.name.slice(0,2).toUpperCase()}</div>
               <div style={{ fontSize:13, fontWeight:800 }}>{s.name}</div>
               <div style={{ fontSize:12, fontWeight:700, color:"var(--brand)" }}>{fmt(s.sales)}</div>

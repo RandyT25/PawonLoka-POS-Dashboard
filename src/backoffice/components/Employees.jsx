@@ -15,6 +15,7 @@ export default function Employees() {
   const [form,    setForm]    = useState(EMPTY)
   const [saving,  setSaving]  = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showPin, setShowPin]  = useState(false)
   const [filter,  setFilter]  = useState("all")
   const [search,  setSearch]  = useState("")
   const [detail,  setDetail]  = useState(null)
@@ -195,7 +196,10 @@ export default function Employees() {
                   </select>
                 </div>
                 <div><label className="bo-label">PIN (4 digits) *</label>
-                  <input type="password" maxLength={4} value={form.pin} onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} className="bo-input" placeholder="••••" style={{ letterSpacing:4, fontSize:18 }} />
+                  <div style={{ position:"relative" }}>
+                    <input type={showPin?"text":"password"} maxLength={4} value={form.pin} onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} className="bo-input" placeholder="••••" style={{ letterSpacing:4, fontSize:18, paddingRight:36 }} />
+                    <button type="button" onClick={()=>setShowPin(p=>!p)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"var(--ink4)" }}>{showPin?"🙈":"👁"}</button>
+                  </div>
                 </div>
               </div>
               <div className="bo-form-row"><label className="bo-label">Monthly Salary (Rp)</label><input type="number" value={form.salary||0} onChange={e=>setForm(f=>({...f,salary:e.target.value}))} className="bo-input" /></div>
