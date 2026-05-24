@@ -175,15 +175,35 @@ export default function FloorPlan() {
       <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
         <button onClick={()=>setActiveArea("All")} className={"bo-btn bo-btn-sm "+(activeArea==="All"?"bo-btn-primary":"bo-btn-ghost")}>All</button>
         {areas.map(a=>(
-          <div key={a} style={{ display:"flex", alignItems:"center", gap:2 }}>
-            <button onClick={()=>setActiveArea(a)} className={"bo-btn bo-btn-sm "+(activeArea===a?"bo-btn-primary":"bo-btn-ghost")}>{a}</button>
-            <button onClick={()=>{ setAreaForm({old:a,name:a}); setAreaModal(true) }}
-              style={{ background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#6B778C",padding:"2px 4px" }} title="Rename">✏️</button>
-            <button onClick={()=>deleteArea(a)}
-              style={{ background:"none",border:"none",cursor:"pointer",fontSize:12,color:"var(--red)",padding:"2px 4px" }} title="Delete area">✕</button>
+          <div key={a} style={{ position:"relative", display:"inline-flex" }} className="area-pill-wrap">
+            <button onClick={()=>setActiveArea(a)}
+              style={{ padding:"6px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+                border:"1.5px solid "+(activeArea===a?"var(--brand)":"#DFE1E6"),
+                background:activeArea===a?"var(--brand)":"#fff",
+                color:activeArea===a?"#fff":"#42526E",
+                paddingRight: activeArea===a ? "14px" : "30px" }}>
+              {a}
+              {activeArea!==a && <span style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", fontSize:10, color:"#9ca3af" }}>▼</span>}
+            </button>
+            {activeArea===a && (
+              <div style={{ display:"flex", gap:4, marginLeft:4 }}>
+                <button onClick={()=>{ setAreaForm({old:a,name:a}); setAreaModal(true) }}
+                  style={{ padding:"4px 8px", border:"1px solid #DFE1E6", borderRadius:8, background:"#fff", cursor:"pointer", fontSize:12, color:"#42526E" }}>
+                  Rename
+                </button>
+                <button onClick={()=>deleteArea(a)}
+                  style={{ padding:"4px 8px", border:"1px solid #fecaca", borderRadius:8, background:"#fff", cursor:"pointer", fontSize:12, color:"var(--red)" }}>
+                  Delete
+                </button>
+              </div>
+            )}
           </div>
         ))}
-        <button onClick={addNewArea} className="bo-btn bo-btn-ghost bo-btn-sm">+ Section</button>
+        <button onClick={addNewArea}
+          style={{ padding:"6px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+            border:"1.5px dashed #DFE1E6", background:"#fff", color:"#6B778C" }}>
+          + Section
+        </button>
       </div>
 
       {/* Toolbar */}
