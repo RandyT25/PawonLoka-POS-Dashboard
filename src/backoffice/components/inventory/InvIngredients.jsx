@@ -285,8 +285,6 @@ export default function InvIngredients() {
                 )}
               </div>
             </div>
-            </div>
-            </div>
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
               {modal==="edit" && <button onClick={()=>deleteIngredient(form.id)} className="bo-btn bo-btn-danger">Delete</button>}
