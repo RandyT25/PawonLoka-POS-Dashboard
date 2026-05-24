@@ -46,6 +46,18 @@ export default function FloorPlan() {
   async function load() {
     setLoading(true)
     const { data } = await supabase.from("tables").select("*").order("sort").order("name")
+    // Natural sort client-side
+    if (data) data.sort((a,b)=>{
+      const na=a.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
+      const nb=b.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
+      return na.localeCompare(nb)
+    })
+    // Natural sort client-side
+    if (data) data.sort((a,b)=>{
+      const na=a.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
+      const nb=b.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
+      return na.localeCompare(nb)
+    })
     const tbls = data||[]
     setTables(tbls)
     // Collect unique areas from DB
