@@ -262,7 +262,7 @@ ARUS KAS
     <div>
       {/* Top bar */}
       <div style={{ display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap" }}>
-        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["bahan_baku","🥩 Bahan Baku"],["gaji","👥 Gaji"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
+        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
         <div style={{ marginLeft:"auto",display:"flex",gap:8,alignItems:"center" }}>
