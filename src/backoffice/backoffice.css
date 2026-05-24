@@ -134,272 +134,92 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 }
 
 
+
 /* ─── MOBILE RESPONSIVE ──────────────────────────────────── */
 @media (max-width: 768px) {
-
-  /* Root */
   .bo-root { flex-direction: column !important; height: 100dvh !important; overflow: hidden; }
-
-  /* Hide desktop sidebar */
   .bo-sidebar { display: none !important; }
-
-  /* Main fills screen */
   .bo-main { width: 100% !important; flex: 1 !important; display: flex; flex-direction: column; overflow: hidden; }
 
-  /* Header: compact */
-  .bo-header { padding: 8px 14px !important; min-height: 48px; }
-  .bo-header-title { font-size: 14px !important; }
+  /* Topbar */
+  .bo-topbar { padding: 10px 14px !important; min-height: 48px; display: flex; align-items: center; gap: 10px; }
+  .bo-topbar-title { font-size: 15px !important; font-weight: 700; }
+  .bo-topbar-date { display: none; }
 
-  /* Content: scrollable */
+  /* Hamburger */
+  .bo-hamburger {
+    display: flex !important;
+    align-items: center; justify-content: center;
+    width: 36px; height: 36px;
+    background: none; border: none;
+    color: var(--ink); font-size: 22px;
+    cursor: pointer; flex-shrink: 0;
+  }
+
+  /* Content */
   .bo-content {
     flex: 1 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
-    padding: 12px 12px 80px !important;
+    padding: 12px 12px 24px !important;
     min-height: 0;
   }
 
-  /* ── Bottom Nav (5 tabs) ── */
-  .bo-bottom-nav {
-    display: flex !important;
-    position: fixed !important;
-    bottom: 0; left: 0; right: 0;
-    height: 60px;
-    background: #1a1a2e;
-    border-top: 1px solid rgba(255,255,255,0.08);
-    z-index: 100;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .bo-bottom-nav-item {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: none;
-    color: rgba(255,255,255,0.4);
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    gap: 2px;
-    padding: 6px 0;
-    transition: color 0.15s;
-  }
-  .bo-bottom-nav-item.active {
-    color: #fff;
-    background: rgba(0,102,255,0.15);
-  }
-  .bo-bottom-nav-item span:first-child { font-size: 22px; line-height: 1; }
-
-  /* ── Sub-menu drawer ── */
-  .bo-mobile-submenu { display: block !important; }
-
-  /* ── Cards ── */
+  /* Cards */
   .bo-card { padding: 14px !important; margin-bottom: 12px !important; border-radius: 12px !important; }
-  .bo-card-title { font-size: 14px !important; }
-
-  /* ── Metrics ── */
   .bo-metrics { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
   .bo-met { padding: 12px !important; }
   .bo-met-val { font-size: 20px !important; }
 
-  /* ── Tables: horizontal scroll ── */
-  .bo-table { font-size: 12px; }
-  .bo-table th, .bo-table td { padding: 8px 10px; white-space: nowrap; }
-
-  /* ── Modals: slide up from bottom ── */
-  .bo-overlay {
-    align-items: flex-end !important;
-  }
+  /* Modals: slide up from bottom */
+  .bo-overlay { align-items: flex-end !important; padding: 0 !important; }
   .bo-modal {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 100% !important; max-width: 100% !important;
     border-radius: 20px 20px 0 0 !important;
     max-height: 88dvh !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch;
   }
-  .bo-modal-body { padding: 12px 16px !important; }
-
-  /* ── Inputs: prevent iOS zoom ── */
-  .bo-input, .bo-select, input, select, textarea {
-    font-size: 16px !important;
+  .bo-modal-footer {
+    position: sticky; bottom: 0;
+    background: #fff; z-index: 2;
+    padding: 12px 16px !important;
   }
+
+  /* Inputs prevent iOS zoom */
+  .bo-input, .bo-select, input, select, textarea { font-size: 16px !important; }
   .bo-btn { min-height: 40px; }
   .bo-btn-sm { min-height: 34px; font-size: 12px !important; }
 
-  /* ── Forms ── */
-  .bo-form-row { margin-bottom: 12px !important; }
-  .bo-label { font-size: 11px !important; }
-
-  /* ── Hide non-essential on mobile ── */
-  .bo-hide-mobile { display: none !important; }
+  /* Tables */
+  .bo-table { font-size: 12px; }
+  .bo-table td:last-child, .bo-table th:last-child {
+    position: sticky; right: 0; background: #fff;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.06); z-index: 1;
+  }
+  .bo-table thead th:last-child { background: #f9fafb; }
 }
 
-@media (max-width: 480px) {
-  .bo-content { padding: 10px 10px 80px !important; }
-  .bo-metrics { grid-template-columns: 1fr 1fr !important; }
-}
-
-/* Mobile submenu drawer */
-.bo-mobile-submenu {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 99;
-  align-items: flex-end;
-}
 @media (max-width: 768px) {
-  .bo-mobile-submenu { display: flex !important; }
+  /* Hide hamburger on desktop */
+}
+@media (min-width: 769px) {
+  .bo-hamburger { display: none !important; }
 }
 
-/* ─── MOBILE MODAL & GRID FIXES ─────────────────────────── */
-@media (max-width: 768px) {
-  /* Force all modals to be full-width bottom sheets */
-  .bo-overlay {
-    align-items: flex-end !important;
-    padding: 0 !important;
-  }
-  .bo-modal {
-    width: 100% !important;
-    max-width: 100% !important;
-    max-height: 90dvh !important;
-    border-radius: 20px 20px 0 0 !important;
-    overflow-y: auto !important;
-  }
-  .bo-modal-body {
-    padding: 14px 16px !important;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  .bo-modal-footer {
-    padding: 12px 16px !important;
-    position: sticky;
-    bottom: 0;
-    background: #fff;
-    z-index: 2;
-  }
-
-  /* All inline grids become single column on mobile */
-  div[style*="gridTemplateColumns"] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Unit info grid in ingredients - make it scrollable instead */
-  div[style*="90px 140px"] {
-    grid-template-columns: 80px 1fr 80px 90px 80px 28px !important;
-    overflow-x: auto;
-  }
-
-  /* Tables in modals - horizontal scroll */
-  .bo-modal .bo-table,
-  .bo-modal table {
-    min-width: 400px;
-    font-size: 12px;
-  }
-  .bo-modal-body > div[style*="overflow:hidden"],
-  .bo-modal-body > div {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* Buttons in modal footer - stack or full width */
-  .bo-modal-footer { flex-wrap: wrap; gap: 8px; }
-  .bo-modal-footer .bo-btn { flex: 1; min-width: 120px; justify-content: center; }
-
-  /* Fix bo-content tables - wrap in scroll container */
-  .bo-content .bo-card > table,
-  .bo-content .bo-card > div > table {
-    display: block;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    max-width: 100%;
-  }
-
-  /* Recipe editor layout */
-  div[style*="height:calc(100vh - 56px)"] {
-    flex-direction: column !important;
-    height: auto !important;
-  }
-
-  /* Dashboard charts */
-  div[style*="gridTemplateColumns:\"1fr 1fr\""],
-  div[style*='gridTemplateColumns:"1fr 1fr"'] {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Accounting tabs - horizontal scroll */
-  div[style*="gap:8,marginBottom:20"] {
-    overflow-x: auto;
-    flex-wrap: nowrap !important;
-    padding-bottom: 4px;
-  }
-
-  /* Inputs in modals */
-  .bo-modal input, .bo-modal select {
-    font-size: 16px !important;
-  }
-
-  /* Fix ingredient unit grid - horizontal scroll wrapper */
-  .bo-modal-body > div {
-    max-width: 100%;
-  }
-}
-
-/* Sticky last column for action buttons in wide tables */
-@media (max-width: 768px) {
-  .bo-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .bo-table { min-width: 600px; }
-
-  /* Make action column sticky on right */
-  .bo-table td:last-child,
-  .bo-table th:last-child {
-    position: sticky;
-    right: 0;
-    background: #fff;
-    box-shadow: -2px 0 4px rgba(0,0,0,0.06);
-    z-index: 1;
-  }
-  .bo-table thead th:last-child {
-    background: #f9fafb;
-  }
-
-  /* Larger tap targets for table buttons */
-  .bo-table .bo-btn-sm {
-    min-height: 36px !important;
-    padding: 6px 12px !important;
-    font-size: 12px !important;
-  }
-
-  /* Fix tabs/filters horizontal scroll */
-  .bo-tab-bar {
-    overflow-x: auto;
-    flex-wrap: nowrap !important;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 4px;
-    scrollbar-width: none;
-  }
-  .bo-tab-bar::-webkit-scrollbar { display: none; }
-}
-
-/* PO items - mobile card layout */
+/* PO items mobile card */
 @media (max-width: 768px) {
   .po-items-header { display: none !important; }
   .po-item-row {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    background: var(--surface) !important;
+    display: flex !important; flex-direction: column !important;
+    gap: 8px !important; background: var(--surface) !important;
     border: 1px solid var(--surface3) !important;
     border-radius: var(--r) !important;
-    padding: 12px !important;
-    margin-bottom: 10px !important;
+    padding: 12px !important; margin-bottom: 10px !important;
   }
   .po-item-row > * { width: 100% !important; }
-  .po-item-row .bo-btn-danger {
-    width: auto !important;
-    align-self: flex-end !important;
-  }
 }
+
+/* Mobile submenu (kept for compatibility) */
+.bo-mobile-submenu { display: none; }
+.bo-bottom-nav { display: none !important; }

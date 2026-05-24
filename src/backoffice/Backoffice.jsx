@@ -178,6 +178,7 @@ export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState("dashboard")
   const [mobileSubMenu, setMobileSubMenu] = useState(null)
+  const [mobileSidebar, setMobileSidebar] = useState(false)
 
   function logout() { sessionStorage.removeItem(SESSION_KEY); setAuthed(false) }
 
@@ -211,42 +212,49 @@ export default function Backoffice() {
       </div>
       <div className="bo-main">
         <div className="bo-topbar">
+          <button className="bo-hamburger" onClick={()=>setMobileSidebar(true)}>☰</button>
           <div className="bo-topbar-title">{NAV.find(n=>n.id===active)?.label}</div>
           <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
         </div>
         <div className="bo-content"><Screen onNavChange={setActive} /></div>
-        <nav className="bo-bottom-nav" style={{ display:"none" }}>
-          {MOBILE_TABS.map(tab => {
-            const isActive = tab.items.includes(active)
-            return (
-              <button key={tab.id} className={"bo-bottom-nav-item"+(isActive?" active":"")}
-                onClick={()=>{ setMobileSubMenu(s=>s===tab.id?null:tab.id); if(!isActive) setActive(tab.items[0]) }}>
-                <span>{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            )
-          })}
-        </nav>
-        {mobileSubMenu && (
-          <div className="bo-mobile-submenu" onClick={()=>setMobileSubMenu(null)} style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:99,display:"flex",flexDirection:"column",justifyContent:"flex-end" }}>
-            <div onClick={e=>e.stopPropagation()} style={{ background:"#1a1a2e", borderRadius:"20px 20px 0 0", paddingBottom:"env(safe-area-inset-bottom)" }}>
-              <div style={{ width:40, height:4, background:"rgba(255,255,255,0.2)", borderRadius:2, margin:"10px auto 8px" }} />
-              {MOBILE_TABS.find(t=>t.id===mobileSubMenu)?.items.map(id=>{
-                const item = NAV.find(n=>n.id===id)
-                if (!item) return null
-                return (
-                  <button key={id} onClick={()=>{setActive(id);setMobileSubMenu(null)}}
-                    style={{ display:"flex", alignItems:"center", gap:14, width:"100%", padding:"13px 20px",
-                      border:"none", background:active===id?"rgba(0,102,255,0.25)":"transparent",
-                      color:active===id?"#fff":"rgba(255,255,255,0.65)", fontSize:14,
-                      fontWeight:active===id?700:400, cursor:"pointer",
-                      borderBottom:"1px solid rgba(255,255,255,0.05)" }}>
-                    <span style={{ fontSize:20, width:28, textAlign:"center" }}>{item.icon}</span>
-                    <span style={{ flex:1, textAlign:"left" }}>{item.label}</span>
-                    {active===id && <span style={{ fontSize:16, color:"#0066ff" }}>●</span>}
-                  </button>
-                )
-              })}
+        {/* Mobile sidebar overlay */}
+        {mobileSidebar && (
+          <div onClick={()=>setMobileSidebar(false)}
+            style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex" }}>
+            <div onClick={e=>e.stopPropagation()}
+              style={{ width:280,height:"100%",background:"#1a1a2e",display:"flex",flexDirection:"column",overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
+              {/* Header */}
+              <div style={{ padding:"20px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",gap:12 }}>
+                <img src="/logo.png" alt="" onError={e=>e.target.style.display="none"} style={{ width:36,height:36,borderRadius:8,objectFit:"contain" }} />
+                <div>
+                  <div style={{ fontSize:15,fontWeight:900,color:"#fff" }}>PawonLoka</div>
+                  <div style={{ fontSize:10,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:1 }}>Back Office</div>
+                </div>
+                <button onClick={()=>setMobileSidebar(false)}
+                  style={{ marginLeft:"auto",background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:22,cursor:"pointer",padding:4 }}>✕</button>
+              </div>
+              {/* Nav items */}
+              <nav style={{ flex:1,padding:"8px 8px",overflowY:"auto" }}>
+                {NAV.map((n,i) => n.group
+                  ? <div key={i} style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.25)",letterSpacing:"1.5px",textTransform:"uppercase",padding:"14px 16px 4px",marginTop:4 }}>{n.group}</div>
+                  : <button key={n.id}
+                      onClick={()=>{ setActive(n.id); setMobileSidebar(false) }}
+                      style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
+                        color:active===n.id?"#fff":"rgba(255,255,255,0.55)",
+                        background:active===n.id?"rgba(0,102,255,0.25)":"none",
+                        border:"none",cursor:"pointer",width:"100%",textAlign:"left",
+                        fontSize:13,fontWeight:active===n.id?700:400,marginBottom:1 }}>
+                      <span style={{ fontSize:16,width:20,textAlign:"center" }}>{n.icon}</span>
+                      <span>{n.label}</span>
+                    </button>
+                )}
+              </nav>
+              {/* Footer */}
+              <div style={{ padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+                <button onClick={logout} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,color:"rgba(255,255,255,0.5)",background:"none",border:"none",cursor:"pointer",width:"100%",fontSize:13 }}>
+                  <span>🚪</span><span>Log Out</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
