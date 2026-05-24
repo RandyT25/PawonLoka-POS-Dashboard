@@ -128,6 +128,7 @@ export default function InvIngredients() {
       </div>
 
       <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
+              <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>
@@ -220,7 +221,8 @@ export default function InvIngredients() {
                 </div>
 
                 {/* Header row */}
-                <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:6 }}>
+                <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch", marginBottom:6 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, minWidth:520 }}>
                   {["UNIT *","CONVERSION","HARGA MODAL","HARGA BELI","SKU",""].map((h,i)=>(
                     <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
                   ))}
@@ -267,6 +269,7 @@ export default function InvIngredients() {
                 })}
 
                 {/* Conversion summary */}
+                </div>{/* end scroll wrapper */}
                 {convs.length > 0 && (
                   <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>
                     {convs.map(c => `1 ${c.unit} = ${c.qty} ${form.unit}`).join(" · ")}

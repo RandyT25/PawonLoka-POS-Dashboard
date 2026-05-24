@@ -254,3 +254,132 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 @media (max-width: 768px) {
   .bo-mobile-submenu { display: flex !important; }
 }
+
+/* ─── MOBILE MODAL & GRID FIXES ─────────────────────────── */
+@media (max-width: 768px) {
+  /* Force all modals to be full-width bottom sheets */
+  .bo-overlay {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .bo-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: 90dvh !important;
+    border-radius: 20px 20px 0 0 !important;
+    overflow-y: auto !important;
+  }
+  .bo-modal-body {
+    padding: 14px 16px !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .bo-modal-footer {
+    padding: 12px 16px !important;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+    z-index: 2;
+  }
+
+  /* All inline grids become single column on mobile */
+  div[style*="gridTemplateColumns"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Unit info grid in ingredients - make it scrollable instead */
+  div[style*="90px 140px"] {
+    grid-template-columns: 80px 1fr 80px 90px 80px 28px !important;
+    overflow-x: auto;
+  }
+
+  /* Tables in modals - horizontal scroll */
+  .bo-modal .bo-table,
+  .bo-modal table {
+    min-width: 400px;
+    font-size: 12px;
+  }
+  .bo-modal-body > div[style*="overflow:hidden"],
+  .bo-modal-body > div {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Buttons in modal footer - stack or full width */
+  .bo-modal-footer { flex-wrap: wrap; gap: 8px; }
+  .bo-modal-footer .bo-btn { flex: 1; min-width: 120px; justify-content: center; }
+
+  /* Fix bo-content tables - wrap in scroll container */
+  .bo-content .bo-card > table,
+  .bo-content .bo-card > div > table {
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  /* Recipe editor layout */
+  div[style*="height:calc(100vh - 56px)"] {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+
+  /* Dashboard charts */
+  div[style*="gridTemplateColumns:\"1fr 1fr\""],
+  div[style*='gridTemplateColumns:"1fr 1fr"'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Accounting tabs - horizontal scroll */
+  div[style*="gap:8,marginBottom:20"] {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    padding-bottom: 4px;
+  }
+
+  /* Inputs in modals */
+  .bo-modal input, .bo-modal select {
+    font-size: 16px !important;
+  }
+
+  /* Fix ingredient unit grid - horizontal scroll wrapper */
+  .bo-modal-body > div {
+    max-width: 100%;
+  }
+}
+
+/* Sticky last column for action buttons in wide tables */
+@media (max-width: 768px) {
+  .bo-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .bo-table { min-width: 600px; }
+
+  /* Make action column sticky on right */
+  .bo-table td:last-child,
+  .bo-table th:last-child {
+    position: sticky;
+    right: 0;
+    background: #fff;
+    box-shadow: -2px 0 4px rgba(0,0,0,0.06);
+    z-index: 1;
+  }
+  .bo-table thead th:last-child {
+    background: #f9fafb;
+  }
+
+  /* Larger tap targets for table buttons */
+  .bo-table .bo-btn-sm {
+    min-height: 36px !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Fix tabs/filters horizontal scroll */
+  .bo-tab-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .bo-tab-bar::-webkit-scrollbar { display: none; }
+}

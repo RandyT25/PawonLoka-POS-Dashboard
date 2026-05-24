@@ -429,6 +429,7 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
             <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }}>
               {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
             </div>
+            <div style={{ overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             {poItems.map((item,i) => (
               <div key={i} style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
                 <SearchSelect
