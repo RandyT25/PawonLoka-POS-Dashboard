@@ -202,11 +202,13 @@ export default function Settings() {
         </>
       )}
 
-      <div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}>
-        <button onClick={save} disabled={saving} className="bo-btn bo-btn-primary" style={{ minWidth:140 }}>
-          {saving?"Saving...":saved?"✓ Saved!":"Save Settings"}
-        </button>
-      </div>
+      {tab !== "reset" && (
+        <div style={{ display:"flex", justifyContent:"flex-end", marginTop:16 }}>
+          <button onClick={save} disabled={saving} className="bo-btn bo-btn-primary" style={{ minWidth:140 }}>
+            {saving?"Saving...":saved?"✓ Saved!":"Save Settings"}
+          </button>
+        </div>
+      )}
 
       {tab==="reset" && (
         <div className="bo-card" style={{ border:"1.5px solid var(--red)" }}>

@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 const SHAPES   = ["square","round","rectangle"]
 const SECTIONS = ["Indoor","Outdoor","VIP Room","Bar","Takeaway"]
-const EMPTY    = { name:"", capacity:4, shape:"square", section:"Indoor", active:true }
+const EMPTY    = { name:"", capacity:4, shape:"square", area:"Indoor", active:true }
 
 const STATUS_COLORS = {
   Available: { bg:"#E3FCEF", border:"#00875A", text:"#00875A" },
@@ -53,8 +53,8 @@ export default function FloorPlan() {
     setLoading(false)
   }
 
-  const sections = ["All", ...SECTIONS.filter(s => tables.some(t=>t.section===s)||true)]
-  const filtered = tables.filter(t => section==="All" || t.section===section)
+  const sections = ["All", ...SECTIONS.filter(s => tables.some(t=>t.area===s)||true)]
+  const filtered = tables.filter(t => section==="All" || t.area===section)
 
   function openAdd()    { setForm(EMPTY); setModal("add") }
   function openEdit(t)  { setForm({...t}); setModal(t) }
@@ -67,7 +67,7 @@ export default function FloorPlan() {
       name:     form.name.trim(),
       capacity: parseInt(form.capacity)||4,
       shape:    form.shape||"square",
-      section:  form.section||"Indoor",
+      section:  form.area||"Indoor",
       active:   form.active!==false,
       status:   form.status||"Available",
     }
@@ -98,7 +98,7 @@ export default function FloorPlan() {
     <div>
       {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
-        {[["Total Tables",total,"#0052CC"],["Active",active,"#00875A"],["Total Capacity",capacity+" pax","#FF8B00"],["Sections",SECTIONS.filter(s=>tables.some(t=>t.section===s)).length,"#6554C0"]].map(([l,v,c])=>(
+        {[["Total Tables",total,"#0052CC"],["Active",active,"#00875A"],["Total Capacity",capacity+" pax","#FF8B00"],["Sections",SECTIONS.filter(s=>tables.some(t=>t.area===s)).length,"#6554C0"]].map(([l,v,c])=>(
           <div key={l} style={{ background:"#fff",borderRadius:12,padding:"16px 20px",border:"1px solid #f0f0f0" }}>
             <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>{l}</div>
             <div style={{ fontSize:24,fontWeight:900,color:c }}>{v}</div>
@@ -147,7 +147,7 @@ export default function FloorPlan() {
               </div>
               <div style={{ padding:"10px 14px" }}>
                 <div style={{ fontSize:14,fontWeight:800,color:"#0A1628" }}>{t.name}</div>
-                <div style={{ fontSize:11,color:"#6B778C",marginTop:2 }}>{t.section} · {t.capacity} pax · {t.shape}</div>
+                <div style={{ fontSize:11,color:"#6B778C",marginTop:2 }}>{t.area} · {t.capacity} pax · {t.shape}</div>
               </div>
               <div style={{ display:"flex",borderTop:"1px solid #f0f0f0" }}>
                 <button onClick={()=>openEdit(t)}
@@ -173,7 +173,7 @@ export default function FloorPlan() {
                 return (
                   <tr key={t.id}>
                     <td style={{ fontWeight:700 }}>{t.name}</td>
-                    <td style={{ fontSize:12 }}>{t.section}</td>
+                    <td style={{ fontSize:12 }}>{t.area}</td>
                     <td style={{ fontSize:12,textTransform:"capitalize" }}>{t.shape}</td>
                     <td>{t.capacity} pax</td>
                     <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:st.bg,color:st.text }}>{t.active?t.status||"Available":"Inactive"}</span></td>
@@ -211,7 +211,7 @@ export default function FloorPlan() {
                 </div>
                 <div>
                   <label className="bo-label">Section</label>
-                  <select value={form.section} onChange={e=>setForm(f=>({...f,section:e.target.value}))} className="bo-select">
+                  <select value={form.area} onChange={e=>setForm(f=>({...f,area:e.target.value}))} className="bo-select">
                     {SECTIONS.map(s=><option key={s}>{s}</option>)}
                   </select>
                 </div>
