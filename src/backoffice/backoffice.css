@@ -383,3 +383,23 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   }
   .bo-tab-bar::-webkit-scrollbar { display: none; }
 }
+
+/* PO items - mobile card layout */
+@media (max-width: 768px) {
+  .po-items-header { display: none !important; }
+  .po-item-row {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--surface3) !important;
+    border-radius: var(--r) !important;
+    padding: 12px !important;
+    margin-bottom: 10px !important;
+  }
+  .po-item-row > * { width: 100% !important; }
+  .po-item-row .bo-btn-danger {
+    width: auto !important;
+    align-self: flex-end !important;
+  }
+}

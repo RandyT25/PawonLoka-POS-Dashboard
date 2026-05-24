@@ -426,39 +426,25 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
               <label className="bo-label" style={{ marginBottom:0 }}>Items *</label>
               <button onClick={addPOItem} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
             </div>
+            <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }} className="po-items-header">
+              {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
+            </div>
             {poItems.map((item,i) => (
-              <div key={i} style={{ background:"var(--surface)", borderRadius:"var(--r)", padding:"12px", marginBottom:8, border:"1px solid var(--surface3)" }}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)" }}>ITEM {i+1}</div>
-                  <button onClick={()=>removePOItem(i)} style={{ background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:16,padding:0 }}>✕</button>
-                </div>
-                <div style={{ marginBottom:8 }}>
-                  <label className="bo-label">Ingredient</label>
-                  <SearchSelect
-                    options={ingredients}
-                    value={item.ingredient_id}
-                    onChange={v=>updatePOItem(i,"ingredient_id",v)}
-                    placeholder="— Search ingredient —"
-                    labelKey="name" valueKey="id"
-                    renderOption={o=><span>{o.name} <span style={{fontSize:10,color:"var(--ink5)"}}>({o.unit})</span></span>}
-                  />
-                </div>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-                  <div>
-                    <label className="bo-label">Qty</label>
-                    <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
-                  </div>
-                  <div>
-                    <label className="bo-label">Unit</label>
-                    <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
-                      {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="bo-label">Unit Cost (Rp)</label>
-                    <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="0" />
-                  </div>
-                </div>
+              <div key={i} className="po-item-row" style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
+                <SearchSelect
+                  options={ingredients}
+                  value={item.ingredient_id}
+                  onChange={v=>updatePOItem(i,"ingredient_id",v)}
+                  placeholder="— Search ingredient —"
+                  labelKey="name" valueKey="id"
+                  renderOption={o=><span>{o.name} <span style={{fontSize:10,color:"var(--ink5)"}}>({o.unit})</span></span>}
+                />
+                <input type="number" value={item.qty} onChange={e=>updatePOItem(i,"qty",e.target.value)} className="bo-input" placeholder="0" />
+                <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
+                  {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
+                </select>
+                <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="Price/unit" />
+                <button onClick={()=>removePOItem(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
               </div>
             ))}
             <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 16px", background:"var(--surface)", borderRadius:"var(--r)", marginTop:8 }}>
