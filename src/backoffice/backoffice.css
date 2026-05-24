@@ -343,3 +343,39 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   /* Stat cards smaller */
   .acc-metrics > div { padding: 12px 10px !important; }
 }
+
+/* ─── PREVENT LEFT OVERFLOW ─────────────────────────────── */
+@media (max-width: 768px) {
+  .bo-content { overflow-x: hidden !important; }
+  .bo-content > * { max-width: 100%; box-sizing: border-box; }
+
+  /* Arus Kas: stack vertically */
+  .acc-cashflow-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Fix all card content overflow */
+  .bo-card, .bo-card > div {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Tables inside cards: scroll right only */
+  .bo-card .bo-table,
+  .bo-card table {
+    overflow-x: auto !important;
+    display: block !important;
+    max-width: 100% !important;
+  }
+
+  /* Accounting summary grid */
+  .acc-summary-grid { grid-template-columns: 1fr !important; }
+
+  /* Category filter pills single scrollable row */
+  .acc-cat-filter { 
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .acc-cat-filter .bo-btn { flex-shrink: 0 !important; white-space: nowrap !important; }
+}

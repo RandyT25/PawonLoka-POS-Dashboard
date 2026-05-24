@@ -403,9 +403,9 @@ ARUS KAS
                 <button key={c.id} onClick={()=>setCatFilter(c.id)} className={"bo-btn bo-btn-sm "+(catFilter===c.id?"bo-btn-primary":"bo-btn-ghost")}>{c.icon} {c.label}</button>
               ))}
             </div>
-            <div style={{ marginLeft:"auto",display:"flex",gap:8 }}>
-              <input value={expSearch} onChange={e=>setExpSearch(e.target.value)} placeholder="Search..." className="bo-input" style={{ width:180 }} />
-              <button onClick={()=>setExpModal(true)} className="bo-btn bo-btn-primary">+ Add Expense</button>
+            <div style={{ display:"flex",gap:8,marginTop:10 }}>
+              <input value={expSearch} onChange={e=>setExpSearch(e.target.value)} placeholder="Search..." className="bo-input" style={{ flex:1 }} />
+              <button onClick={()=>setExpModal(true)} className="bo-btn bo-btn-primary" style={{ flexShrink:0 }}>+ Add</button>
             </div>
           </div>
 
