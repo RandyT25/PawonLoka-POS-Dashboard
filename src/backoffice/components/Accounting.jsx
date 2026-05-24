@@ -261,17 +261,17 @@ ARUS KAS
   return (
     <div>
       {/* Top bar */}
-      <div className="acc-tabs" style={{ display:"flex",gap:8,marginBottom:20,alignItems:"center",flexWrap:"wrap" }}>
+      <div className="acc-tabs" style={{ display:"flex",gap:6,marginBottom:16,alignItems:"center" }}>
         {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
-        <div style={{ marginLeft:"auto",display:"flex",gap:8,alignItems:"center" }}>
-          <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ fontSize:13 }}>
-            {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
-          </select>
-          <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">⬇ Excel/CSV</button>
-          <button onClick={exportPDF} className="bo-btn bo-btn-ghost bo-btn-sm">⬇ PDF/TXT</button>
-        </div>
+      </div>
+      <div style={{ display:"flex",gap:8,marginBottom:16,alignItems:"center" }} className="acc-toolbar">
+        <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ flex:1,fontSize:13 }}>
+          {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+        <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ CSV</button>
+        <button onClick={exportPDF} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ PDF</button>
       </div>
 
       {/* OVERVIEW */}
@@ -422,7 +422,7 @@ ARUS KAS
           </div>
 
           {/* Auto expenses summary */}
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#fff",border:"1px solid #f0f0f0",borderRadius:12,padding:"14px 16px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",marginBottom:4 }}>🥩 BAHAN BAKU (AUTO)</div>
               <div style={{ fontSize:20,fontWeight:900,color:"#FF8B00" }}>{fmt(poTotal)}</div>
@@ -524,20 +524,22 @@ ARUS KAS
           {/* Cash flow breakdown */}
           <div className="bo-card">
             <div className="bo-card-title">Rincian Arus Kas</div>
-            <table className="bo-table">
-              <thead><tr><th>Keterangan</th><th>Masuk</th><th>Keluar</th></tr></thead>
-              <tbody>
-                <tr><td style={{ fontWeight:600 }}>Saldo Awal</td><td style={{ color:"#00875A",fontWeight:700 }}>{fmt(openingBal.amount||0)}</td><td>—</td></tr>
-                <tr><td style={{ fontWeight:600 }}>Penjualan Cash</td><td style={{ color:"#00875A",fontWeight:700 }}>{fmt(cashIn)}</td><td>—</td></tr>
-                <tr><td style={{ fontWeight:600 }}>Penjualan Non-Cash</td><td style={{ color:"#00875A",fontWeight:700 }}>{fmt(qrisIn)}</td><td>—</td></tr>
-                <tr><td style={{ fontWeight:600 }}>Bahan Baku (PO)</td><td>—</td><td style={{ color:"#DE350B",fontWeight:700 }}>{fmt(poTotal)}</td></tr>
-                <tr><td style={{ fontWeight:600 }}>Gaji Karyawan</td><td>—</td><td style={{ color:"#DE350B",fontWeight:700 }}>{fmt(salaryTotal)}</td></tr>
-                {EXPENSE_CATEGORIES.filter(c=>!c.auto&&catTotal(c.id)>0).map(c=>(
-                  <tr key={c.id}><td style={{ fontWeight:600 }}>{c.icon} {c.label}</td><td>—</td><td style={{ color:"#DE350B",fontWeight:700 }}>{fmt(catTotal(c.id))}</td></tr>
-                ))}
-                <tr style={{ background:"#f9fafb",fontWeight:800 }}><td>SALDO AKHIR</td><td style={{ color:"#00875A" }}>{fmt((openingBal.amount||0)+cashIn+qrisIn)}</td><td style={{ color:"#DE350B" }}>{fmt(cashOut)}</td></tr>
-              </tbody>
-            </table>
+            {[
+              { label:"Saldo Awal",         masuk:fmt(openingBal.amount||0), keluar:null,          bold:false },
+              { label:"Penjualan Cash",      masuk:fmt(cashIn),               keluar:null,          bold:false },
+              { label:"Penjualan Non-Cash",  masuk:fmt(qrisIn),               keluar:null,          bold:false },
+              { label:"Bahan Baku (PO)",     masuk:null,  keluar:fmt(poTotal),                      bold:false },
+              { label:"Gaji Karyawan",       masuk:null,  keluar:fmt(salaryTotal),                  bold:false },
+              ...EXPENSE_CATEGORIES.filter(c=>!c.auto&&catTotal(c.id)>0).map(c=>({ label:c.icon+" "+c.label, masuk:null, keluar:fmt(catTotal(c.id)), bold:false })),
+              { label:"SALDO AKHIR",         masuk:fmt((openingBal.amount||0)+cashIn+qrisIn), keluar:fmt(cashOut), bold:true },
+            ].map((row,i)=>(
+              <div key={i} style={{ display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--surface2)",fontWeight:row.bold?800:400 }}>
+                <span style={{ fontSize:13,flex:1 }}>{row.label}</span>
+                <span style={{ fontSize:13,minWidth:100,textAlign:"right",color:row.masuk&&!row.bold?"#00875A":row.keluar&&!row.bold?"#DE350B":row.bold?"var(--ink)":"#6B778C" }}>
+                  {row.masuk||row.keluar||"—"}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -545,7 +547,7 @@ ARUS KAS
       {/* BAHAN BAKU */}
       {tab==="bahan_baku" && (
         <div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#FFF7E6",border:"1px solid #FF8B0033",borderRadius:12,padding:"16px 20px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#FF8B00",marginBottom:4 }}>TOTAL BAHAN BAKU</div>
               <div style={{ fontSize:24,fontWeight:900,color:"#FF8B00" }}>{fmt(poTotal)}</div>
@@ -586,7 +588,7 @@ ARUS KAS
       {/* GAJI */}
       {tab==="gaji" && (
         <div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16 }}>
+          <div className="acc-cashflow-cards" style={{ display:"grid",gap:10,marginBottom:16 }}>
             <div style={{ background:"#EFF6FF",border:"1px solid #0052CC33",borderRadius:12,padding:"16px 20px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#0052CC",marginBottom:4 }}>TOTAL GAJI BULAN INI</div>
               <div style={{ fontSize:24,fontWeight:900,color:"#0052CC" }}>{fmt(salaryTotal)}</div>

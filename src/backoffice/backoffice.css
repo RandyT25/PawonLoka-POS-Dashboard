@@ -214,3 +214,10 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .bo-hamburger { display: none !important; }
   .bo-bottom-nav { display: none !important; }
 }
+
+@media (max-width: 768px) {
+  .acc-cashflow-cards { grid-template-columns: 1fr !important; }
+  .acc-toolbar { flex-wrap: nowrap !important; }
+  .acc-tabs { overflow-x: auto !important; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .acc-tabs::-webkit-scrollbar { display: none; }
+}
