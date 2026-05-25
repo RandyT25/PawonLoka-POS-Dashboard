@@ -461,23 +461,17 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 }
 
 
-/* ── RECIPE INGREDIENT ROWS MOBILE ───────────────────────── */
+
 @media (max-width: 768px) {
-  /* Wrap the whole ingredients section in horizontal scroll */
-  .recipe-ing-header,
+  .recipe-ing-header { display: none !important; }
   .recipe-ing-row {
-    min-width: 480px;
+    grid-template-columns: 1fr 80px 90px 28px !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+    padding: 8px 4px !important;
+    border-bottom: 1px solid var(--surface3);
   }
-  /* Scroll wrapper around them */
-  .recipe-right .bo-card,
-  .recipe-right > div > div {
-    overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-  }
-  /* Fix right panel header row that was cut off */
-  .recipe-right > div:first-child {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-  }
+  /* Hide cost column on mobile */
+  .recipe-ing-row > *:nth-child(4) { display: none !important; }
+  .recipe-ing-row { grid-template-columns: 1fr 80px 90px 28px !important; }
 }
