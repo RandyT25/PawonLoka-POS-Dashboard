@@ -31,7 +31,7 @@ const formatReceipt = (order, customer) => {
   return lines.filter(l => l !== null).join('\n')
 }
 
-export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate }) {
+export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
   const { sendReceipt } = useWhatsApp()
   const [tab, setTab]           = useState('pay') // pay | split
   const [orderNote, setOrderNote] = useState('')
@@ -194,6 +194,20 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                   color: appliedPromo ? '#16A34A' : '#6B7A8D' }}>
                 {appliedPromo ? 'Promo: ' + appliedPromo.name + ' -' + fmt(appliedPromo.disc) : '+ Promo / Voucher'}
               </button>
+            {/* Bundles */}
+            {bundles?.length > 0 && (
+              <div style={{ marginBottom:14 }}>
+                <div style={S.label}>Bundle Packages</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {bundles.map(b=>(
+                    <button key={b.id} onClick={()=>onOpenPromo&&onOpenPromo('bundle',b)}
+                      style={{ ...S.optBtn, padding:"6px 12px" }}>
+                      📦 {b.name} — {fmt(b.price)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             </div>
 
             {/* Points */}
@@ -226,7 +240,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                   {backofficeDiscounts.map(d=>(
                     <button key={d.id} onClick={()=>onSelectDiscount(d)}
                       style={{ ...S.optBtn, ...(selectedDisc?.id===d.id?S.optActive:{}) }}>
-                      {d.name} {d.type==="percent"?`(${d.value}%)`:`(Rp ${Math.round(d.value).toLocaleString("id-ID")})`}
+                      {d.name} {d.type==="percent"||!d.type?`${d.value}%`:`Rp ${Math.round(d.value).toLocaleString("id-ID")}`}
                     </button>
                   ))}
                 </div>

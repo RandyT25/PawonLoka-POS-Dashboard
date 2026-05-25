@@ -51,17 +51,21 @@ export default function POS() {
   const [appSettings, setAppSettings] = useState(null)
 
   const [backofficeDiscounts, setBackofficeDiscounts] = useState([])
+  const [bundles, setBundles] = useState([])
+  const [showBundles, setShowBundles] = useState(false)
 
   useEffect(() => {
     supabase.from('app_settings').select('*').eq('id','main').maybeSingle()
       .then(({data}) => { if (data) setAppSettings(data) })
     supabase.from('discounts').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) setBackofficeDiscounts(data) })
+    supabase.from('bundles').select('*').eq('active', true).order('name')
+      .then(({data}) => { if (data) setBundles(data) })
   }, [])
 
   const paySettings = appSettings?.payments
-  const TAX_RATE_LIVE = paySettings?.tax?.enabled
-    ? (paySettings.tax.rate || 0) / 100
+  const TAX_RATE_LIVE = appSettings
+    ? (paySettings?.tax?.enabled ? (paySettings.tax.rate||0)/100 : 0)
     : 0.10
   const SERVICE_RATE = paySettings?.service?.enabled
     ? (paySettings.service.rate || 0) / 100
@@ -545,6 +549,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           serviceRate={SERVICE_RATE}
+          bundles={bundles}
         />
       )}
 
