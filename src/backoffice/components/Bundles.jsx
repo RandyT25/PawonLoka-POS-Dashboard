@@ -189,11 +189,29 @@ export default function Bundles() {
                 {form.items.map((item, i) => (
                   <div key={i} style={{ background:"var(--surface)", borderRadius:10, padding:"10px 12px", marginBottom:8, border:"1px solid var(--surface3)" }}>
                     <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:6 }}>
-                      <select value={item.sku} onChange={e=>updateItem(i,"sku",e.target.value)}
-                        className="bo-select" style={{ flex:1 }}>
-                        <option value="">— Select dish —</option>
-                        {products.map(p => <option key={p.sku} value={p.sku}>{p.icon||"🍽"} {p.name} — {fmt(p.price)}</option>)}
-                      </select>
+                      <div style={{ flex:1, position:"relative" }}>
+                        <input
+                          value={item.name || ""}
+                          onChange={e => {
+                            const q = e.target.value.toLowerCase()
+                            setForm(f => ({ ...f, _itemSearch: { ...f._itemSearch, [i]: q } }))
+                            updateItem(i, "name", e.target.value)
+                          }}
+                          onFocus={() => setForm(f=>({...f,_itemSearch:{...f._itemSearch,[i]:item.name||""}}))}
+                          className="bo-input" placeholder="Search dish..." />
+                        {form._itemSearch?.[i] !== undefined && (
+                          <div style={{ position:"absolute",top:"100%",left:0,right:0,background:"#fff",border:"1.5px solid var(--brand)",borderRadius:10,zIndex:100,maxHeight:200,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,0.12)" }}>
+                            {products.filter(p=>p.name.toLowerCase().includes((form._itemSearch[i]||"").toLowerCase())).slice(0,10).map(p=>(
+                              <div key={p.sku} onClick={()=>{updateItem(i,"sku",p.sku); setForm(f=>{const s={...f._itemSearch};delete s[i];return{...f,_itemSearch:s}})}}
+                                style={{ padding:"8px 12px",cursor:"pointer",borderBottom:"1px solid #f0f0f0",fontSize:13 }}
+                                onMouseEnter={e=>e.currentTarget.style.background="#f0f4ff"}
+                                onMouseLeave={e=>e.currentTarget.style.background=""}>
+                                {p.icon||"🍽"} {p.name} <span style={{color:"var(--ink5)",fontSize:11}}>— {fmt(p.price)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                       <button onClick={()=>removeItem(i)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:18, flexShrink:0 }}>✕</button>
                     </div>
                     <div style={{ display:"flex", gap:8, alignItems:"center" }}>
