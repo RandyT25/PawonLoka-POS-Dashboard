@@ -21,14 +21,20 @@
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault()
       deferredPrompt = e
-      window.dispatchEvent(new CustomEvent('pwa-installable'))
+      // Show custom banner immediately
+      document.getElementById('pwa-banner').style.display = 'flex'
     })
     window.installPWA = async () => {
       if (deferredPrompt) {
+        document.getElementById('pwa-banner').style.display = 'none'
         deferredPrompt.prompt()
         await deferredPrompt.userChoice
         deferredPrompt = null
       }
+    }
+    window.dismissPWA = () => {
+      document.getElementById('pwa-banner').style.display = 'none'
+      localStorage.setItem('pwa-dismissed', '1')
     }
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -36,5 +42,15 @@
       })
     }
   </script>
+  <!-- PWA Install Banner -->
+  <div id="pwa-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0A1628;color:#fff;padding:12px 16px;z-index:99999;align-items:center;gap:12px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);">
+    <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;object-fit:contain;flex-shrink:0;" />
+    <div style="flex:1;">
+      <div style="font-weight:700;font-size:14px;">Install PawonLoka</div>
+      <div style="font-size:11px;opacity:0.7;">Add to home screen for best experience</div>
+    </div>
+    <button onclick="window.installPWA()" style="background:#0066FF;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">Install</button>
+    <button onclick="window.dismissPWA()" style="background:none;border:none;color:rgba(255,255,255,0.5);font-size:20px;cursor:pointer;padding:4px;">✕</button>
+  </div>
 </body>
 </html>
