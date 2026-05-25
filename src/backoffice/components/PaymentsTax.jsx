@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { supabase } from "../../lib/supabase"
+import { useState, useEffect } from "react"
 
 const KEY = "pl_payments_settings"
 const DEFAULTS = {
@@ -49,9 +50,27 @@ export default function PaymentsTax() {
   const [s,     setS]     = useState(load)
   const [saved, setSaved] = useState(false)
 
-  function save() {
+  useEffect(() => {
+    supabase.from("app_settings").select("payments").eq("id","main").maybeSingle()
+      .then(({data}) => {
+        if (data?.payments) {
+          const loaded = { ...DEFAULTS, ...data.payments }
+          if (loaded.methods) {
+            loaded.methods = DEFAULTS.methods.map(def => {
+              const sv = loaded.methods.find(m=>m.id===def.id)
+              return sv ? { ...def, enabled:sv.enabled, surcharge:sv.surcharge||0 } : def
+            })
+          }
+          setS(loaded)
+        }
+      })
+  }, [])
+
+  async function save() {
     localStorage.setItem(KEY, JSON.stringify(s))
+    await supabase.from("app_settings").upsert({ id:"main", payments:s, updated_at:new Date().toISOString() })
     setSaved(true); setTimeout(()=>setSaved(false),2000)
+  }
   }
 
   function updateMethod(id, key, val) {
