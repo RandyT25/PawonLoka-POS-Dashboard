@@ -10,9 +10,6 @@ const formatReceipt = (order, customer) => {
     return line
   }).join('
 ')
-    return line
-  }).join('
-')
   const receiptUrl = 'https://pawonloka.pages.dev/receipt/' + order.id
   const lines = [
     '*STRUK PAWONLOKA*',
