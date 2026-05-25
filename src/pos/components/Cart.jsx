@@ -66,7 +66,7 @@ export default function Cart({
 
       {/* Delivery fee bar */}
       {(orderType==='Takeaway'||orderType==='Delivery') && (
-        <div style={{ display:'flex', gap:6, padding:'6px 12px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', alignItems:'center' }}>
+        <div style={{ display:'flex', gap:6, padding:'6px 12px', background:'#FFFBEB', borderBottom:'1px solid #FDE68A', alignItems:'center', flexWrap:'wrap' }}>
           <span style={{ fontSize:11, fontWeight:700, color:'#B45309', whiteSpace:'nowrap' }}>
             {orderType==='Delivery' ? 'Delivery Fee:' : 'Takeaway Fee:'}
           </span>

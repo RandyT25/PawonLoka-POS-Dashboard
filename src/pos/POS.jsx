@@ -495,35 +495,7 @@ export default function POS() {
           <button onClick={() => setShowCashLog(true)} style={S.headerBtn} className="pos-hide-mobile">Cash</button>
           <button onClick={() => setShowVoid(true)} style={{ ...S.headerBtn, color:'#FCA5A5' }} className="pos-hide-mobile">Void</button>
           <button onClick={() => setShowShift(true)} style={S.headerBtn} className="pos-hide-mobile">Shift</button>
-          <div style={{ position:'relative' }}>
-            <button onClick={() => setShowMobileMenu(m=>!m)} style={{ ...S.headerBtn, fontSize:20, padding:'4px 10px' }}>⋮</button>
-            {showMobileMenu && (
-              <div onClick={() => setShowMobileMenu(false)} style={{ position:'fixed', inset:0, zIndex:500 }}>
-                <div onClick={e=>e.stopPropagation()}
-                  style={{ position:'absolute', top:56, right:8, background:'#0d1f3c', borderRadius:12, padding:8, minWidth:170, boxShadow:'0 8px 32px rgba(0,0,0,0.5)', zIndex:501 }}>
-                  {[
-                    ['+ Customer', () => setShowCustomer(true)],
-                    ['Cash In/Out', () => setShowCashLog(true)],
-                    ['Void Order', () => setShowVoid(true)],
-                    ['Clock In/Out', async() => {
-                      const today=new Date().toISOString().slice(0,10)
-                      const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
-                      const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
-                      setTodayAtt(data); setClockPhoto(null); setShowClock(true)
-                    }],
-                    ['Shift', () => setShowShift(true)],
-                    ['Settings', () => setShowSettings(true)],
-                    ['Logout', () => { setStaff(null); setShift(null) }],
-                  ].map(([label, action]) => (
-                    <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}
-                      style={{ display:'block', width:'100%', padding:'11px 14px', background:'none', border:'none', color:'#fff', textAlign:'left', fontSize:13, fontWeight:600, cursor:'pointer', borderRadius:8, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <button onClick={() => setShowMobileMenu(true)} style={{ ...S.headerBtn, fontSize:20, padding:'4px 10px' }}>☰</button>
         </div>
       </div>
 
@@ -706,6 +678,50 @@ export default function POS() {
             }} style={{ width:'100%',padding:14,borderRadius:12,border:'none',fontSize:15,fontWeight:700,cursor:'pointer',background:todayAtt?.clock_in&&!todayAtt?.clock_out?"#DC2626":"#059669",color:'#fff' }}>
               {clockSaving?"Saving...":(todayAtt?.clock_in&&!todayAtt?.clock_out?"✓ Clock Out":"✓ Clock In")}
             </button>}
+          </div>
+        </div>
+      )}
+      {/* Mobile slide-in menu */}
+      {showMobileMenu && (
+        <div onClick={() => setShowMobileMenu(false)}
+          style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:2000, display:'flex' }}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ width:260, height:'100%', background:'#0A1628', display:'flex', flexDirection:'column', overflowY:'auto' }}>
+            <div style={{ padding:'20px 16px 16px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', gap:10 }}>
+              <img src="/logo.png" onError={e=>e.target.style.display="none"} style={{ width:36, height:36, borderRadius:8, objectFit:'contain' }} />
+              <div>
+                <div style={{ fontSize:15, fontWeight:900, color:'#fff' }}>PawonLoka</div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)' }}>{staff.name} · {staff.role}</div>
+              </div>
+              <button onClick={() => setShowMobileMenu(false)} style={{ marginLeft:'auto', background:'none', border:'none', color:'rgba(255,255,255,0.5)', fontSize:22, cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ flex:1, padding:'8px 0' }}>
+              {[
+                ['👤 + Customer', () => setShowCustomer(true)],
+                ['📋 Orders', () => setShowOrders(true)],
+                ['💵 Cash In/Out', () => setShowCashLog(true)],
+                ['🚫 Void Order', () => setShowVoid(true)],
+                ['🕐 Clock In/Out', async() => {
+                  const today=new Date().toISOString().slice(0,10)
+                  const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
+                  const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
+                  setTodayAtt(data); setClockPhoto(null); setShowClock(true)
+                }],
+                ['📊 Shift', () => setShowShift(true)],
+                ['⚙️ Settings', () => setShowSettings(true)],
+              ].map(([label, action]) => (
+                <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}
+                  style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'13px 20px', background:'none', border:'none', color:'rgba(255,255,255,0.8)', textAlign:'left', fontSize:14, fontWeight:500, cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ padding:'12px 8px', borderTop:'1px solid rgba(255,255,255,0.08)' }}>
+              <button onClick={() => { setStaff(null); setShift(null) }}
+                style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'12px 20px', background:'none', border:'none', color:'#FCA5A5', fontSize:14, fontWeight:600, cursor:'pointer' }}>
+                🚪 Logout
+              </button>
+            </div>
           </div>
         </div>
       )}
