@@ -9,6 +9,8 @@ const formatReceipt = (order, customer) => {
     if (i.isBundle && i.bundleItems) line += '
 ' + i.bundleItems.map(b => '  > '+(b.qty>1?b.qty+'x ':'')+b.name+(b.free?' FREE':'')).join('
 ')
+' + i.bundleItems.map(b => '  > '+(b.qty>1?b.qty+'x ':'')+b.name+(b.free?' FREE':'')).join('
+')
     return line
   }).join('
 ')
