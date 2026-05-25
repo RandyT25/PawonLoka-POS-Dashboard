@@ -76,3 +76,13 @@
     position: relative;
   }
 }
+
+@media (max-width: 768px) {
+  .pos-hide-mobile { display: none !important; }
+
+  /* Compact header */
+  .pos-header-row {
+    flex-wrap: nowrap !important;
+    overflow: hidden;
+  }
+}

@@ -459,12 +459,11 @@ export default function POS() {
           <span style={S.badge}>{staff.name} · {staff.role}</span>
           {shift && <span style={{ fontSize:11, color:'#86EFAC', fontWeight:600 }}>Shift Open</span>}
         </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
           <div style={{ position:'relative' }}>
             <button onClick={() => setShowTablePicker(p => !p)}
-              style={{ ...S.headerBtn, background: tableNo ? '#10B981' : 'rgba(255,255,255,0.15)', color:'white', minWidth:100, fontWeight:700, lineHeight:1.2 }}>
-              <div>{tableNo || 'Table -'}</div>
-              {customer && <div style={{ fontSize:10, opacity:0.85, fontWeight:500 }}>{customer.name}</div>}
+              style={{ ...S.headerBtn, background: tableNo ? '#10B981' : 'rgba(255,255,255,0.15)', color:'white', fontWeight:700 }}>
+              {tableNo || 'Table'}
             </button>
             {showTablePicker && (
               <TablePicker
@@ -488,23 +487,42 @@ export default function POS() {
               />
             )}
           </div>
-          <button onClick={() => setShowCustomer(true)} style={S.headerBtn}>
+          <button onClick={() => setShowOrders(true)} style={S.headerBtn}>Orders</button>
+          <button onClick={() => setShowCustomer(true)} style={{ ...S.headerBtn }} className="pos-hide-mobile">
             {customer ? customer.name : '+ Customer'}
           </button>
-          <button onClick={() => setShowOrders(true)} style={S.headerBtn}>Orders</button>
-          <button onClick={() => setShowCashLog(true)} style={S.headerBtn}>Cash</button>
-          <button onClick={() => setShowVoid(true)} style={{ ...S.headerBtn, color:'#FCA5A5' }}>Void</button>
-          <button onClick={async()=>{
-            const today=new Date().toISOString().slice(0,10)
-            const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
-            const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
-            setTodayAtt(data); setClockPhoto(null); setShowClock(true)
-          }} style={{ ...S.headerBtn, background:todayAtt?.clock_in&&!todayAtt?.clock_out?"rgba(239,68,68,0.3)":"rgba(16,185,129,0.3)" }}>
-            {todayAtt?.clock_in&&!todayAtt?.clock_out?"Clock Out":"Clock In"}
-          </button>
-          <button onClick={() => setShowShift(true)} style={S.headerBtn}>Shift</button>
-          <button onClick={() => setShowSettings(true)} style={S.headerBtn}>Settings</button>
-          <button onClick={() => { setStaff(null); setShift(null) }} style={S.headerBtn}>Logout</button>
+          <button onClick={() => setShowCashLog(true)} style={S.headerBtn} className="pos-hide-mobile">Cash</button>
+          <button onClick={() => setShowVoid(true)} style={{ ...S.headerBtn, color:'#FCA5A5' }} className="pos-hide-mobile">Void</button>
+          <button onClick={() => setShowShift(true)} style={S.headerBtn} className="pos-hide-mobile">Shift</button>
+          <div style={{ position:'relative' }}>
+            <button onClick={() => setShowMobileMenu(m=>!m)} style={{ ...S.headerBtn, fontSize:20, padding:'4px 10px' }}>⋮</button>
+            {showMobileMenu && (
+              <div onClick={() => setShowMobileMenu(false)} style={{ position:'fixed', inset:0, zIndex:500 }}>
+                <div onClick={e=>e.stopPropagation()}
+                  style={{ position:'absolute', top:56, right:8, background:'#0d1f3c', borderRadius:12, padding:8, minWidth:170, boxShadow:'0 8px 32px rgba(0,0,0,0.5)', zIndex:501 }}>
+                  {[
+                    ['+ Customer', () => setShowCustomer(true)],
+                    ['Cash In/Out', () => setShowCashLog(true)],
+                    ['Void Order', () => setShowVoid(true)],
+                    ['Clock In/Out', async() => {
+                      const today=new Date().toISOString().slice(0,10)
+                      const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
+                      const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
+                      setTodayAtt(data); setClockPhoto(null); setShowClock(true)
+                    }],
+                    ['Shift', () => setShowShift(true)],
+                    ['Settings', () => setShowSettings(true)],
+                    ['Logout', () => { setStaff(null); setShift(null) }],
+                  ].map(([label, action]) => (
+                    <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}
+                      style={{ display:'block', width:'100%', padding:'11px 14px', background:'none', border:'none', color:'#fff', textAlign:'left', fontSize:13, fontWeight:600, cursor:'pointer', borderRadius:8, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
