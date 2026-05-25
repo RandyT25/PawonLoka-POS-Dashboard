@@ -4,9 +4,14 @@ import { PAY_METHODS, fmt, TAX_RATE } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
 const formatReceipt = (order, customer) => {
-  const items = order.items.map(i =>
-    i.qty + 'x ' + i.name + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')
-  ).join('\n')
+  const items = order.items.map(i => {
+    let line = i.qty + 'x ' + i.name + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')
+    if (i.isBundle && i.bundleItems) line += '
+' + i.bundleItems.map(b => '  > '+(b.qty>1?b.qty+'x ':'')+b.name+(b.free?' FREE':'')).join('
+')
+    return line
+  }).join('
+')
   const receiptUrl = 'https://pawonloka.pages.dev/receipt/' + order.id
   const lines = [
     '*STRUK PAWONLOKA*',
