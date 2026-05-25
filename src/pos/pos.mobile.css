@@ -86,3 +86,11 @@
     overflow: hidden;
   }
 }
+
+/* Desktop: menu panel scrollable */
+@media (min-width: 769px) {
+  .pos-menu-panel {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+}

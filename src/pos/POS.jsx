@@ -150,12 +150,14 @@ export default function POS() {
   }
 
   async function loadData() {
-    const [{ data: prods }, { data: cats }] = await Promise.all([
+    const [{ data: prods }, { data: cats }, { data: mods }] = await Promise.all([
       supabase.from('products').select('*').eq('active', true),
-      supabase.from('categories').select('*').order('sort')
+      supabase.from('categories').select('*').order('sort'),
+      supabase.from('modifier_groups').select('*').order('name')
     ])
     setProducts(prods || [])
     setCategories(cats || [])
+    setModifierGroups(mods || [])
     setLoading(false)
   }
 
@@ -500,7 +502,7 @@ export default function POS() {
       </div>
 
       <div style={S.body} className="pos-body">
-        <div className="pos-menu-panel">
+        <div className="pos-menu-panel" style={{ display:"flex", flexDirection:"column", flex:1, minWidth:0, overflow:"hidden" }}>
           <MenuGrid
             products={products}
             categories={categories}
@@ -697,18 +699,16 @@ export default function POS() {
             </div>
             <div style={{ flex:1, padding:'8px 0' }}>
               {[
-                ['👤 + Customer', () => setShowCustomer(true)],
-                ['📋 Orders', () => setShowOrders(true)],
-                ['💵 Cash In/Out', () => setShowCashLog(true)],
-                ['🚫 Void Order', () => setShowVoid(true)],
                 ['🕐 Clock In/Out', async() => {
                   const today=new Date().toISOString().slice(0,10)
                   const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
                   const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
                   setTodayAtt(data); setClockPhoto(null); setShowClock(true)
                 }],
-                ['📊 Shift', () => setShowShift(true)],
+                ['💵 Cash In/Out', () => setShowCashLog(true)],
                 ['⚙️ Settings', () => setShowSettings(true)],
+                ['🚫 Void Order', () => setShowVoid(true)],
+                ['📊 Shift', () => setShowShift(true)],
               ].map(([label, action]) => (
                 <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}
                   style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'13px 20px', background:'none', border:'none', color:'rgba(255,255,255,0.8)', textAlign:'left', fontSize:14, fontWeight:500, cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
@@ -788,4 +788,5 @@ const S = {
   badge:     { fontSize:12, background:'rgba(255,255,255,0.15)', color:'white', padding:'4px 10px', borderRadius:20 },
   headerBtn: { fontSize:12, background:'rgba(255,255,255,0.1)', color:'white', border:'1px solid rgba(255,255,255,0.2)', padding:'7px 12px', borderRadius:8, cursor:'pointer', whiteSpace:'nowrap' },
   body:      { display:'flex', flex:1, overflow:'hidden' },
+  menuPanel: { display:'flex', flexDirection:'column', flex:1, overflow:'hidden' },
 }
