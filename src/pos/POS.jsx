@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fmt, TAX_RATE } from '../shared/constants'
+import { fmt, TAX_RATE, STAFF } from '../shared/constants'
 import useCart from './hooks/useCart'
 import useOrders from './hooks/useOrders'
 import PinLogin from './components/PinLogin'
