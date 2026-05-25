@@ -48,6 +48,27 @@ export default function POS() {
   const [showSettings, setShowSettings]   = useState(false)
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
+  const [appSettings, setAppSettings] = useState(null)
+
+  const [backofficeDiscounts, setBackofficeDiscounts] = useState([])
+
+  useEffect(() => {
+    supabase.from('app_settings').select('*').eq('id','main').maybeSingle()
+      .then(({data}) => { if (data) setAppSettings(data) })
+    supabase.from('discounts').select('*').eq('active', true).order('name')
+      .then(({data}) => { if (data) setBackofficeDiscounts(data) })
+  }, [])
+
+  const paySettings = appSettings?.payments
+  const TAX_RATE_LIVE = paySettings?.tax?.enabled
+    ? (paySettings.tax.rate || 0) / 100
+    : 0.10
+  const SERVICE_RATE = paySettings?.service?.enabled
+    ? (paySettings.service.rate || 0) / 100
+    : 0
+  const ACTIVE_PAY_METHODS = paySettings?.methods
+    ? paySettings.methods.filter(m => m.enabled)
+    : null
   const { sendReceipt, resendReceipt } = useWhatsApp()
   const [showCharge, setShowCharge]       = useState(false)
   const [showCustomer, setShowCustomer]   = useState(false)
@@ -131,7 +152,7 @@ export default function POS() {
     />
   )
 
-  const tax   = Math.round(subtotal * TAX_RATE)
+  const tax   = Math.round(subtotal * TAX_RATE_LIVE)
   const total = subtotal + tax
 
   function handleProductSelect(product) {
@@ -296,7 +317,7 @@ export default function POS() {
     if (splitLabel) {
       const now = new Date()
       const newSplitPaid = splitPaid + finalTotal
-      const billTotal = subtotal + Math.round(subtotal * 0.1) - discAmt
+      const billTotal = subtotal + Math.round(subtotal * TAX_RATE_LIVE) - discAmt
       const isFullyPaid = newSplitPaid >= billTotal
 
       if (openBillId) {

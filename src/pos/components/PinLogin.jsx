@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
 import { STAFF } from '../../shared/constants'
-
 export default function PinLogin({ onLogin }) {
   const [pin, setPin]     = useState('')
   const [error, setError] = useState('')
   const [shake, setShake] = useState(false)
+  const [staffList, setStaffList] = useState(STAFF)
+
+  useEffect(() => {
+    supabase.from('staff').select('id,name,role,pin,color,active,permissions')
+      .eq('active', true).order('name')
+      .then(({data}) => { if (data?.length) setStaffList(data) })
+  }, [])
+
 
   function handlePin(digit) {
     if (pin.length >= 4) return
     const newPin = pin + digit
     setPin(newPin)
     if (newPin.length === 4) {
-      const found = STAFF.find(s => s.pin === newPin)
+      const found = staffList.find(s => s.pin === newPin)
       if (found) {
         onLogin(found)
         setPin('')

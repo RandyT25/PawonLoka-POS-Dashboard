@@ -21,6 +21,11 @@ function load() {
   try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)||"{}") } }
   catch { return DEFAULTS }
 }
+async function loadFromDB() {
+  const { data } = await supabase.from("app_settings").select("payments").eq("id","main").maybeSingle()
+  if (data?.payments) return { ...DEFAULTS, ...data.payments }
+  return load()
+}
 
 function Toggle({ on, onToggle }) {
   return (
