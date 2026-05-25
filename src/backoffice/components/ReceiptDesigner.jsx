@@ -93,7 +93,7 @@ export default function ReceiptDesigner() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div>
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:20, alignItems:"start" }}>
+    <div className="receipt-grid" style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:20, alignItems:"start" }}>
 
       {/* Left: Settings */}
       <div>
