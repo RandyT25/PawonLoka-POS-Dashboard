@@ -51,3 +51,28 @@
   }
   .category-tabs::-webkit-scrollbar { display: none; }
 }
+
+@media (max-width: 768px) {
+  /* Fix menu panel - full width, no flex constraints */
+  .pos-menu-panel {
+    width: 100% !important;
+    flex: 1 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+  }
+
+  /* Fix cart panel - white background, full slide up */
+  .pos-cart-panel {
+    background: #fff !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix pos-body - column layout */
+  .pos-body {
+    flex-direction: column !important;
+    position: relative;
+  }
+}

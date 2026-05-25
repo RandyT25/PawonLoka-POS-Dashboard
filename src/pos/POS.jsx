@@ -509,7 +509,7 @@ export default function POS() {
       </div>
 
       <div style={S.body} className="pos-body">
-        <div className="pos-menu-panel" style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+        <div className="pos-menu-panel">
           <MenuGrid
             products={products}
             categories={categories}
