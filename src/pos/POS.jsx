@@ -47,6 +47,10 @@ export default function POS() {
   const [clockSaving,setClockSaving]     = useState(false)
   const [clockStaff, setClockStaff]       = useState(null)
   const [showSettings, setShowSettings]   = useState(false)
+  const [pwaInstallable, setPwaInstallable] = useState(false)
+  useEffect(() => {
+    window.addEventListener('pwa-installable', () => setPwaInstallable(true))
+  }, [])
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
   const [appSettings, setAppSettings] = useState(null)
@@ -484,6 +488,7 @@ export default function POS() {
             {todayAtt?.clock_in&&!todayAtt?.clock_out?"Clock Out":"Clock In"}
           </button>
           <button onClick={() => setShowShift(true)} style={S.headerBtn}>Shift</button>
+          {pwaInstallable && <button onClick={()=>window.installPWA()} style={{...S.headerBtn, background:'rgba(0,102,255,0.3)'}}>Install App</button>}
           <button onClick={() => setShowSettings(true)} style={S.headerBtn}>Settings</button>
           <button onClick={() => { setStaff(null); setShift(null) }} style={S.headerBtn}>Logout</button>
         </div>

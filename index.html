@@ -17,6 +17,19 @@
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
+    let deferredPrompt = null
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault()
+      deferredPrompt = e
+      window.dispatchEvent(new CustomEvent('pwa-installable'))
+    })
+    window.installPWA = async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt()
+        await deferredPrompt.userChoice
+        deferredPrompt = null
+      }
+    }
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js')
