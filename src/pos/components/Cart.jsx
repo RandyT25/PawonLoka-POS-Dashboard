@@ -6,7 +6,7 @@ export default function Cart({
   tableNo, onTableNoChange, customer, onShowCustomer, onRemoveCustomer,
   discount, onDiscountChange, orderType, onOrderTypeChange,
   openBillId, onManagerRemoveItem, onSplit, deliveryFee, onDeliveryFeeChange,
-  deliveryAddr, onDeliveryAddrChange
+  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts
 }) {
   const [itemDisc, setItemDisc]   = useState(null) // {key, type, value}
   const [itemNote, setItemNote]   = useState(null) // key
@@ -186,10 +186,14 @@ export default function Cart({
             </button>
             {showDisc && (
               <div style={{ display:'flex', gap:4, flexWrap:'wrap' }}>
-                {[0,5,10,15,20,25,30].map(d => (
-                  <button key={d} onClick={() => { onDiscountChange(d); setShowDisc(false) }}
-                    style={{ ...S.miniBtn, ...(discount===d?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
-                    {d===0?'None':d+'%'}
+                <button onClick={() => { onDiscountChange(0); setShowDisc(false) }}
+                  style={{ ...S.miniBtn, ...(discount===0?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
+                  None
+                </button>
+                {(backofficeDiscounts||[]).map(d => (
+                  <button key={d.id} onClick={() => { onDiscountChange(d.type==='percent'||!d.type ? d.value : 0); setShowDisc(false) }}
+                    style={{ ...S.miniBtn, ...(discount===d.value?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
+                    {d.name} {d.type==='percent'||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('id-ID')}
                   </button>
                 ))}
               </div>

@@ -39,8 +39,6 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [showMulti, setShowMulti] = useState(false)
   const [activeSplit, setActiveSplit] = useState(null)
   const [payMethod, setPayMethod] = useState('Cash')
-  const [selectedDisc, setSelectedDisc] = useState(0)
-  function onSelectDiscount(d) { setSelectedDisc(d); }
   const [cashGiven, setCashGiven] = useState('')
   const [saving, setSaving]     = useState(false)
   const [paidOrder, setPaidOrder] = useState(null)
@@ -194,20 +192,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                   color: appliedPromo ? '#16A34A' : '#6B7A8D' }}>
                 {appliedPromo ? 'Promo: ' + appliedPromo.name + ' -' + fmt(appliedPromo.disc) : '+ Promo / Voucher'}
               </button>
-            {/* Bundles */}
-            {bundles?.length > 0 && (
-              <div style={{ marginBottom:14 }}>
-                <div style={S.label}>Bundle Packages</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                  {bundles.map(b=>(
-                    <button key={b.id} onClick={()=>onOpenPromo&&onOpenPromo('bundle',b)}
-                      style={{ ...S.optBtn, padding:"6px 12px" }}>
-                      📦 {b.name} — {fmt(b.price)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+
             </div>
 
             {/* Points */}
@@ -228,24 +213,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
               </div>
             )}
 
-            {/* Backoffice Discounts */}
-            {backofficeDiscounts?.length > 0 && (
-              <div style={{ marginBottom:14 }}>
-                <div style={S.label}>Diskon</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                  <button onClick={()=>onSelectDiscount(0)}
-                    style={{ ...S.optBtn, ...(selectedDisc===0?S.optActive:{}) }}>
-                    No Discount
-                  </button>
-                  {backofficeDiscounts.map(d=>(
-                    <button key={d.id} onClick={()=>onSelectDiscount(d)}
-                      style={{ ...S.optBtn, ...(selectedDisc?.id===d.id?S.optActive:{}) }}>
-                      {d.name} {d.type==="percent"||!d.type?`${d.value}%`:`Rp ${Math.round(d.value).toLocaleString("id-ID")}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+
             {/* Payment method */}
             <div style={{ marginBottom:14 }}>
               <div style={S.label}>Metode Pembayaran</div>

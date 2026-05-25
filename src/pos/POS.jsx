@@ -507,6 +507,7 @@ export default function POS() {
           onRemoveCustomer={() => setCustomer(null)}
           discount={discount}
           onDiscountChange={setDiscount}
+          backofficeDiscounts={backofficeDiscounts}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
