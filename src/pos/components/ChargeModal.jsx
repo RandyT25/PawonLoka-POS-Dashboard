@@ -31,7 +31,7 @@ const formatReceipt = (order, customer) => {
   return lines.filter(l => l !== null).join('\n')
 }
 
-export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, customer, appliedPromo, onOpenPromo }) {
+export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate }) {
   const { sendReceipt } = useWhatsApp()
   const [tab, setTab]           = useState('pay') // pay | split
   const [orderNote, setOrderNote] = useState('')
