@@ -427,3 +427,35 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 @media (max-width: 768px) {
   .recipe-mobile-handle { display: block !important; border-bottom: 1px solid var(--surface3); background: #fff; position: sticky; top: 0; z-index: 1; }
 }
+
+/* ── RECIPE EDITOR MOBILE ─────────────────────────────────── */
+.recipe-sheet-overlay { display: none; }
+
+@media (max-width: 768px) {
+  .recipe-root { overflow: visible !important; }
+  .recipe-left { width: 100% !important; min-width: unset !important; border-right: none !important; flex-shrink: 0; }
+
+  /* Dim overlay */
+  .recipe-sheet-overlay {
+    display: block;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 298;
+  }
+
+  /* Right panel = bottom sheet */
+  .recipe-right {
+    position: fixed !important;
+    bottom: 0 !important; left: 0 !important; right: 0 !important;
+    height: 88dvh !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.2) !important;
+    z-index: 299 !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* When no item selected, hide right panel entirely */
+  .recipe-root:not(.has-selected) .recipe-right { display: none !important; }
+  .recipe-root:not(.has-selected) .recipe-sheet-overlay { display: none !important; }
+}

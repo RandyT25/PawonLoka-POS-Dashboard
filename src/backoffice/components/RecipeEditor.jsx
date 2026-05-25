@@ -328,19 +328,9 @@ export default function RecipeEditor() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink4)" }}>Loading recipes...</div>
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", minHeight:"calc(100vh - 56px)" }} className={"recipe-root"+(selected?" has-selected":"")}>
-      {/* Mobile modal - slides up when item selected */}
-      {selected && (
-        <div className="recipe-mobile-modal">
-          <div className="recipe-mobile-panel">
-            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid var(--surface3)",background:"#fff",borderRadius:"20px 20px 0 0" }}>
-              <div style={{ fontWeight:800,fontSize:15,color:"var(--ink)" }}>{selected.name}</div>
-              <button onClick={()=>setSelected(null)} style={{ background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--ink4)",lineHeight:1 }}>✕</button>
-            </div>
-            <div style={{ overflowY:"auto",flex:1,WebkitOverflowScrolling:"touch" }}>
-
+    <div style={{ display:"flex", height:"calc(100vh - 56px)", overflow:"hidden" }} className={"recipe-root"+(selected?" has-selected":"")}>
       {/* LEFT */}
-      <div style={{ width:300, minWidth:260, borderRight:"1px solid var(--surface3,#e5e7eb)", display:"flex", flexDirection:"column", background:"var(--surface,#fafafa)" }}>
+      <div className="recipe-left" style={{ width:300, minWidth:260, borderRight:"1px solid var(--surface3,#e5e7eb)", display:"flex", flexDirection:"column", background:"var(--surface,#fafafa)" }}>
         {/* Tabs */}
         <div style={{ display:"flex", padding:"10px 10px 0", gap:6, borderBottom:"1px solid var(--surface3,#e5e7eb)" }}>
           {[["dish","🍽 Dishes",products.length],["sub","🥣 Sub-recipes",subRecipes.length]].map(([t,l,cnt])=>(
@@ -399,15 +389,12 @@ export default function RecipeEditor() {
         </div>
       </div>
 
+      {/* MOBILE BOTTOM SHEET */}
+      {selected && (
+        <div className="recipe-sheet-overlay" onClick={()=>setSelected(null)} />
+      )}
       {/* RIGHT */}
-      <div className="recipe-right" style={{ flex:1, overflowY:"auto", background:"#fff", minHeight:400 }}>
-        <div className="recipe-mobile-handle">
-          <div style={{ width:40,height:4,background:"#DFE1E6",borderRadius:2,margin:"10px auto 0" }} />
-          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px 8px" }}>
-            <div style={{ fontWeight:800,fontSize:14,color:"var(--ink)" }}>{selected?.name||""}</div>
-            <button onClick={()=>setSelected(null)} style={{ background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink4)" }}>✕</button>
-          </div>
-        </div>
+      <div className="recipe-right" style={{ flex:1, overflowY:"auto", background:"#fff" }}>
         {selected ? (
           <RecipePanel
             key={selected.id+selected._type}
@@ -425,10 +412,6 @@ export default function RecipeEditor() {
           </div>
         )}
       </div>
-      </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
