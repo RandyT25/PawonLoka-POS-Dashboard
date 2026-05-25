@@ -70,8 +70,8 @@ export default function POS() {
   const SERVICE_RATE = paySettings?.service?.enabled
     ? (paySettings.service.rate || 0) / 100
     : 0
-  const ACTIVE_PAY_METHODS = paySettings?.methods
-    ? paySettings.methods.filter(m => m.enabled)
+  const ACTIVE_PAY_METHODS = paySettings?.methods?.length
+    ? paySettings.methods.filter(m => m.enabled !== false)
     : null
   const { sendReceipt, resendReceipt } = useWhatsApp()
   const [showCharge, setShowCharge]       = useState(false)
