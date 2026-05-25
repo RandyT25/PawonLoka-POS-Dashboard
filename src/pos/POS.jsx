@@ -553,7 +553,6 @@ export default function POS() {
           payMethods={ACTIVE_PAY_METHODS}
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
-          taxRate={TAX_RATE_LIVE}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
         />
@@ -597,11 +596,35 @@ export default function POS() {
               <div style={{ fontSize:17,fontWeight:800 }}>{todayAtt?.clock_in&&!todayAtt?.clock_out?"Clock Out":"Clock In"}</div>
               <button onClick={()=>setShowClock(false)} style={{ background:'none',border:'none',fontSize:20,cursor:'pointer',color:'#666' }}>✕</button>
             </div>
+            {/* Staff selector */}
+            <div style={{ marginBottom:14 }}>
+              <div style={{ fontSize:11,fontWeight:700,color:'#6B778C',marginBottom:8 }}>SELECT STAFF</div>
+              <div style={{ display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6 }}>
+                {staffList.map(s=>(
+                  <button key={s.name||s.id} onClick={async()=>{
+                    const cs=clockStaff?.name===s.name?null:s
+                    setClockStaff(cs)
+                    if(cs){
+                      const today=new Date().toISOString().slice(0,10)
+                      const attId="ATT-"+(cs.name||'').replace(/\s/g,"")+"-"+today
+                      const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
+                      setTodayAtt(data)
+                    }
+                  }} style={{ padding:'8px 4px',borderRadius:10,border:'2px solid '+(clockStaff?.name===s.name?'#0052CC':'#f0f0f0'),
+                    background:clockStaff?.name===s.name?'#EFF6FF':'#fff',cursor:'pointer',fontSize:11,fontWeight:700,
+                    color:clockStaff?.name===s.name?'#0052CC':'#42526E',textAlign:'center' }}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {clockStaff && (
             <div style={{ textAlign:'center',marginBottom:16 }}>
-              <div style={{ fontSize:14,fontWeight:700,marginBottom:2 }}>{staff.name}</div>
+              <div style={{ fontSize:14,fontWeight:700,marginBottom:2 }}>{clockStaff.name}</div>
               <div style={{ fontSize:12,color:'#888' }}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</div>
               {todayAtt?.clock_in && <div style={{ fontSize:12,color:'#059669',fontWeight:600,marginTop:4 }}>Clocked in at {new Date(todayAtt.clock_in).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})}</div>}
             </div>
+            )}
             {clockStaff && clockPhoto ? (
               <div style={{ position:'relative',marginBottom:14 }}>
                 <img src={clockPhoto} style={{ width:'100%',borderRadius:12,maxHeight:220,objectFit:'cover' }} />

@@ -96,11 +96,11 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
             </div>
           )}
 
-          {/* Auto promos */}
-          {autoPromos.length > 0 && (
+          {/* All promos - show all including code-based */}
+          {promos.length > 0 && (
             <div style={{ marginBottom:14 }}>
-              <div style={S.label}>Promo Aktif Sekarang</div>
-              {autoPromos.map(p => (
+              <div style={S.label}>Pilih Promo / Voucher</div>
+              {promos.map(p => (
                 <button key={p.id} onClick={() => applyPromo(p)}
                   style={{ ...S.promoCard, borderColor: applied?.id===p.id ? '#16A34A' : '#E2E8F0', background: applied?.id===p.id ? '#F0FDF4' : 'white' }}>
                   <div>
@@ -133,7 +133,7 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
           </div>
 
           {/* No active promos */}
-          {autoPromos.length === 0 && !applied && (
+          {promos.length === 0 && !applied && (
             <div style={{ textAlign:'center', color:'#94A3B8', fontSize:13, padding:'10px 0 16px' }}>
               Tidak ada promo aktif saat ini
             </div>
