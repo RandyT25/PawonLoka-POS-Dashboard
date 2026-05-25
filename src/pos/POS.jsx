@@ -488,7 +488,6 @@ export default function POS() {
             {todayAtt?.clock_in&&!todayAtt?.clock_out?"Clock Out":"Clock In"}
           </button>
           <button onClick={() => setShowShift(true)} style={S.headerBtn}>Shift</button>
-          {pwaInstallable && <button onClick={()=>window.installPWA()} style={{...S.headerBtn, background:'rgba(0,102,255,0.3)'}}>Install App</button>}
           <button onClick={() => setShowSettings(true)} style={S.headerBtn}>Settings</button>
           <button onClick={() => { setStaff(null); setShift(null) }} style={S.headerBtn}>Logout</button>
         </div>
@@ -688,6 +687,19 @@ export default function POS() {
                   style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'white', width:32, height:32, borderRadius:'50%', fontSize:18, cursor:'pointer' }}>x</button>
               </div>
               <div style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:16 }}>
+                <div style={{ background:'#EFF6FF', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:'#0052CC', marginBottom:6 }}>Install PawonLoka App</div>
+                  <div style={{ fontSize:12, color:'#42526E', lineHeight:1.6, marginBottom:8 }}>
+                    <b>Android:</b> Tap menu then Add to Home Screen<br/>
+                    <b>iPhone/iPad:</b> Tap Share then Add to Home Screen
+                  </div>
+                  {pwaInstallable && (
+                    <button onClick={()=>window.installPWA()}
+                      style={{ width:'100%', padding:'8px 0', borderRadius:8, border:'none', background:'#0052CC', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}>
+                      Install Now
+                    </button>
+                  )}
+                </div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#091E42', paddingBottom:8, borderBottom:'1px solid #DFE1E6' }}>Printer & Hardware</div>
                 <PrinterSettings hook={printer} />
               </div>
