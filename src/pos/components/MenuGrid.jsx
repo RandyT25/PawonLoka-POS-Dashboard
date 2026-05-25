@@ -10,7 +10,7 @@ export default function MenuGrid({ products, categories, onSelect, bundles }) {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
     return matchTab && matchSearch && p.available !== false
   })
-  const filteredBundles = activeTab === 'Bundles' || activeTab === 'All' ? (bundles||[]).filter(b => b.name.toLowerCase().includes(search.toLowerCase())) : []
+  const filteredBundles = activeTab === 'Bundles' ? (bundles||[]).filter(b => b.name.toLowerCase().includes(search.toLowerCase())) : []
 
   return (
     <div style={S.wrap}>

@@ -94,6 +94,15 @@ export default function Cart({
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                   <span style={{ fontWeight:700, fontSize:13, color:'#0A1628' }}>{item.name}</span>
+                  {item.isBundle && item.bundleItems && (
+                    <div style={{ marginTop:2 }}>
+                      {item.bundleItems.map((b,i) => (
+                        <div key={i} style={{ fontSize:11, color:'#6B778C', lineHeight:1.5 }}>
+                          {b.qty>1?b.qty+'x ':''}{b.name}{b.free?' (FREE)':''}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <span style={{ fontWeight:700, fontSize:13, flexShrink:0, marginLeft:8 }}>
                     {fmt((item.price-(item.itemDisc||0)) * item.qty)}
                   </span>
