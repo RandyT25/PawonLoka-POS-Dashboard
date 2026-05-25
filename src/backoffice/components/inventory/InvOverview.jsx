@@ -59,7 +59,7 @@ export default function InvOverview({ onNav }) {
         <MetCard ico="🔴" label="Overdue POs"   val={overduePOs.length}   sub="past due date"             color={overduePOs.length>0?"var(--red)":"var(--green)"} />
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12, marginBottom:12 }}>
         <div className="bo-card" style={{ marginBottom:0 }}>
           <div className="bo-card-title" style={{ display:"flex", justifyContent:"space-between" }}>
             ⚠️ Low Stock Alerts
@@ -111,7 +111,7 @@ export default function InvOverview({ onNav }) {
         </div>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:12 }}>
         <div className="bo-card" style={{ marginBottom:0 }}>
           <div className="bo-card-title" style={{ display:"flex", justifyContent:"space-between" }}>
             🏭 Recent Production

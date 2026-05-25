@@ -42,7 +42,7 @@ export default function Inventory({ initialTab, onNavChange }) {
 
   return (
     <div>
-      <div style={{ display:"flex", gap:4, marginBottom:20, overflowX:"auto", paddingBottom:4, flexWrap:"wrap" }}>
+      <div style={{ display:"flex", gap:4, marginBottom:20, overflowX:"auto", paddingBottom:4, flexWrap:"nowrap", WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
         {TABS.map(t => (
           <button key={t.id} onClick={()=>navigate(t.id)}
             className={"bo-btn bo-btn-sm "+(activeTab===t.id?"bo-btn-primary":"bo-btn-ghost")}
