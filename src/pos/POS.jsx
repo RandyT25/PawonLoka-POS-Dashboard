@@ -489,6 +489,7 @@ export default function POS() {
         <MenuGrid
           products={products}
           categories={categories}
+          bundles={bundles}
           onSelect={handleProductSelect}
           onCustomItem={() => setShowCustomItem(true)}
         />

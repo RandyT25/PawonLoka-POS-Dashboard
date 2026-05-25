@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { fmt } from '../../shared/constants'
 
-export default function MenuGrid({ products, categories, onSelect }) {
+export default function MenuGrid({ products, categories, onSelect, bundles }) {
   const [activeTab, setActiveTab] = useState('All')
   const [search,    setSearch]    = useState('')
 
-  const filtered = products.filter(p => {
+  const filtered = activeTab === 'Bundles' ? [] : products.filter(p => {
     const matchTab    = activeTab === 'All' || p.cat === activeTab
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase())
     return matchTab && matchSearch && p.available !== false
   })
+  const filteredBundles = activeTab === 'Bundles' || activeTab === 'All' ? (bundles||[]).filter(b => b.name.toLowerCase().includes(search.toLowerCase())) : []
 
   return (
     <div style={S.wrap}>
@@ -21,7 +22,7 @@ export default function MenuGrid({ products, categories, onSelect }) {
       />
 
       <div style={S.tabs}>
-        {['All', ...categories.map(c => c.name)].map(tab => (
+        {['All', ...categories.map(c => c.name), ...(bundles?.length?['Bundles']:[])].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -33,6 +34,15 @@ export default function MenuGrid({ products, categories, onSelect }) {
       </div>
 
       <div style={S.grid}>
+        {filteredBundles.map(b => (
+          <div key={b.id} onClick={() => onSelect({ sku:b.id, name:b.name, price:b.price, icon:'📦', cat:'Bundle', isBundle:true, bundleItems:b.items })}
+            style={{ ...S.card, border:'2px solid #0052CC' }}>
+            <div style={{ fontSize:28, marginBottom:4 }}>📦</div>
+            <div style={{ fontSize:13, fontWeight:700, color:'#0A1628', textAlign:'center', lineHeight:1.3 }}>{b.name}</div>
+            <div style={{ fontSize:11, color:'#6B778C', marginTop:2, textAlign:'center' }}>{(b.items||[]).length} items</div>
+            <div style={{ fontSize:14, fontWeight:800, color:'#0052CC', marginTop:4 }}>Rp {Math.round(b.price).toLocaleString('id-ID')}</div>
+          </div>
+        ))}
         {filtered.map(p => (
           <button key={p.sku || p.id} onClick={() => onSelect(p)} style={S.card}>
 
