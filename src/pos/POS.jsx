@@ -151,6 +151,29 @@ export default function POS() {
     }
   }
 
+  async function deductStock(items) {
+    try {
+      for (const item of items) {
+        const { data: recipes } = await supabase.from('recipes')
+          .select('*, ingredients:recipe_ingredients(ingredient_id, qty, unit)')
+          .eq('product_sku', item.sku).eq('active', true)
+        if (!recipes?.length) continue
+        const recipe = recipes[0]
+        for (const ri of recipe.ingredients || []) {
+          const deductQty = ri.qty * item.qty
+          await supabase.rpc('deduct_ingredient', { p_id: ri.ingredient_id, p_qty: deductQty })
+            .catch(() => {
+              // fallback: direct update
+              supabase.from('ingredients').select('stock').eq('id', ri.ingredient_id).single()
+                .then(({data}) => {
+                  if (data) supabase.from('ingredients').update({ stock: Math.max(0, (data.stock||0) - deductQty) }).eq('id', ri.ingredient_id)
+                })
+            })
+        }
+      }
+    } catch(e) { console.error('Stock deduction error:', e) }
+  }
+
   async function loadData() {
     const [{ data: prods }, { data: cats }, { data: mods }] = await Promise.all([
       supabase.from('products').select('*').eq('active', true),
@@ -318,7 +341,7 @@ export default function POS() {
       const orderId = 'ORD-' + Date.now()
       const order = {
         id: orderId,
-        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen' })),
+        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal, tax, discount: discAmt, total,
         pay: '-', staff: staff.name, table: tableNo || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
@@ -358,7 +381,7 @@ export default function POS() {
       const discA = discount ? Math.round(sub*discount/100) : 0
       const tx = Math.round((sub-discA)*0.1)
       await supabase.from('orders').update({
-        items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'' })),
+        items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal: sub, tax: tx, total: sub-discA+tx,
         notes: (item.notes||'') + ' | REMOVE: ' + item.name + ' - ' + reason
       }).eq('id', openBillId)
@@ -594,7 +617,7 @@ export default function POS() {
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}) } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
