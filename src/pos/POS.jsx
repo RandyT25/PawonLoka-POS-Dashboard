@@ -509,13 +509,15 @@ export default function POS() {
       </div>
 
       <div style={S.body} className="pos-body">
-        <MenuGrid
-          products={products}
-          categories={categories}
-          bundles={bundles}
-          onSelect={handleProductSelect}
-          onCustomItem={() => setShowCustomItem(true)}
-        />
+        <div className="pos-menu-panel" style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
+          <MenuGrid
+            products={products}
+            categories={categories}
+            bundles={bundles}
+            onSelect={handleProductSelect}
+            onCustomItem={() => setShowCustomItem(true)}
+          />
+        </div>
         <div className={"pos-cart-panel" + (cartOpen ? " mobile-open" : "")}>
         <Cart
           cart={cart}
