@@ -328,7 +328,17 @@ export default function RecipeEditor() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink4)" }}>Loading recipes...</div>
 
   return (
-    <div style={{ display:"flex", flexDirection:"column", minHeight:"calc(100vh - 56px)" }} className="recipe-root">
+    <div style={{ display:"flex", flexDirection:"column", minHeight:"calc(100vh - 56px)" }} className={"recipe-root"+(selected?" has-selected":"")}>
+      {/* Mobile back button - only shows when item selected on small screen */}
+      {selected && (
+        <div className="recipe-mobile-back">
+          <button onClick={()=>setSelected(null)}
+            style={{ display:"flex",alignItems:"center",gap:6,background:"none",border:"none",
+              color:"var(--brand)",fontWeight:700,fontSize:14,cursor:"pointer",padding:"10px 14px" }}>
+            ← Back to list
+          </button>
+        </div>
+      )}
       {/* LEFT */}
       <div style={{ width:300, minWidth:260, borderRight:"1px solid var(--surface3,#e5e7eb)", display:"flex", flexDirection:"column", background:"var(--surface,#fafafa)" }}>
         {/* Tabs */}

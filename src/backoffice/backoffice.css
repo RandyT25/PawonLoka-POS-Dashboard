@@ -377,3 +377,19 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
     padding-bottom: 8px;
   }
 }
+
+/* ── RECIPE EDITOR MOBILE ─────────────────────────────────── */
+.recipe-mobile-back { display: none; }
+
+@media (max-width: 768px) {
+  .recipe-root { flex-direction: column !important; height: auto !important; }
+  .recipe-mobile-back { display: block !important; background: #fff; border-bottom: 1px solid var(--surface3); }
+
+  /* When no item selected: show list, hide editor */
+  .recipe-left  { width: 100% !important; min-width: unset !important; border-right: none !important; max-height: none !important; flex: 1; }
+  .recipe-right { display: none !important; }
+
+  /* When item selected (parent has data-selected): hide list, show editor */
+  .recipe-root.has-selected .recipe-left  { display: none !important; }
+  .recipe-root.has-selected .recipe-right { display: flex !important; flex: 1; min-height: 80dvh; }
+}
