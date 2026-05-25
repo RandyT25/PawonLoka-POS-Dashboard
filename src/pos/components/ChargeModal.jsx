@@ -219,7 +219,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                 {(payMethods || PAY_METHODS).map(m => (
                   <button key={m.id} onClick={() => setPayMethod(m.id)}
                     style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
-                    {m.icon} {m.label}
+                    {m.icon} {m.name || m.label}
                   </button>
                 ))}
               </div>
