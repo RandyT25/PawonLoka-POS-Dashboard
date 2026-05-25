@@ -170,7 +170,6 @@ function BackofficeLogin({ onAuth }) {
             <button key={k+i} className="bo-pin-key" onClick={()=>press(k)}>{k==="del"?"⌫":k}</button>
           ))}
         </div>
-        <a href="/" className="bo-back-link">← Back to POS</a>
       </div>
       <style>{`@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}`}</style>
     </div>
