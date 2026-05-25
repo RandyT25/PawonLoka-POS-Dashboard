@@ -194,7 +194,17 @@ export default function POS() {
   }
 
   function handleModifierConfirm(product, modifiers, note) {
-    addItem({ ...product, note }, modifiers)
+    // Calculate extra price from modifiers
+    const mods = product._mods || modifierGroups
+    const extraPrice = Object.entries(modifiers).reduce((sum, [modId, optName]) => {
+      const mod = mods.find(m => m.id === modId)
+      const opt = mod?.options?.find(o => (o.name||o) === optName)
+      return sum + (opt?.price || 0)
+    }, 0)
+    const finalProduct = extraPrice > 0
+      ? { ...product, price: product.price + extraPrice, _basePrice: product.price }
+      : { ...product }
+    addItem({ ...finalProduct, note }, modifiers)
     setModifierItem(null)
   }
 
