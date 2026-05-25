@@ -183,12 +183,7 @@ export default function Backoffice() {
     sessionStorage.setItem("bo_active", id)
   }
 
-  useEffect(() => {
-    setTimeout(() => {
-      const el = document.querySelector(".bo-nav-item.active")
-      if (el) el.scrollIntoView({ block:"nearest", behavior:"smooth" })
-    }, 100)
-  }, [active])
+
   const [mobileSubMenu, setMobileSubMenu] = useState(null)
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
