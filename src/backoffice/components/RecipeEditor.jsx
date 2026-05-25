@@ -179,13 +179,26 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     <div style={{ padding:"24px 28px", maxWidth:780 }}>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, paddingBottom:16, borderBottom:"1px solid var(--surface3,#f0f0f0)" }}>
-        <div>
+        <div style={{ flex:1 }}>
           <div style={{ fontSize:20, fontWeight:800, color:"var(--ink,#1f2937)" }}>{item.icon||"🥣"} {item.name}</div>
           <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:4 }}>
             {itemType==="sub" ? "Semi-finished ingredient" : "Dish"} · Base unit: {item.unit||"gr"}
           </div>
+          {/* Recipe COGS inline on mobile */}
+          <div className="recipe-cogs-inline" style={{ display:"none", marginTop:10, padding:"10px 14px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:10 }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4,#6b7280)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:2 }}>Recipe COGS</div>
+            <div style={{ fontSize:22, fontWeight:900, color: totalCost>0?"var(--green,#059669)":"var(--ink4,#9ca3af)" }}>{fmtRp(totalCost)}</div>
+            {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {(totalCost/yieldBase).toFixed(2)}/{yieldUnit}</div>}
+            {margin!==null && (
+              <div style={{ marginTop:6, fontSize:12, fontWeight:700, padding:"2px 8px", borderRadius:10, display:"inline-block",
+                background:margin>=65?"#d1fae5":margin>=45?"#fef3c7":"#fee2e2",
+                color:margin>=65?"#065f46":margin>=45?"#92400e":"#991b1b" }}>
+                {margin}% margin
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ textAlign:"right", padding:"12px 16px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:12 }}>
+        <div className="recipe-cogs-desktop" style={{ textAlign:"right", padding:"12px 16px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:12 }}>
           <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4,#6b7280)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Recipe COGS</div>
           <div style={{ fontSize:24, fontWeight:900, color: totalCost>0?"var(--green,#059669)":"var(--ink4,#9ca3af)" }}>{fmtRp(totalCost)}</div>
           {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {(totalCost/yieldBase).toFixed(2)}/{yieldUnit}</div>}
