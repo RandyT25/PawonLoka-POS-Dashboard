@@ -181,11 +181,12 @@ export default function POS() {
   const total = subtotal + tax
 
   function handleProductSelect(product) {
+    const prodCatId = categories.find(c => c.name === product.cat)?.id
     const relevantMods = modifierGroups.filter(m => {
       const hasCatFilter = Array.isArray(m.linked_cats) && m.linked_cats.length > 0
       const hasProdFilter = Array.isArray(m.linked_products) && m.linked_products.length > 0
       if (!hasCatFilter && !hasProdFilter) return true
-      if (hasCatFilter && m.linked_cats.includes(product.cat)) return true
+      if (hasCatFilter && prodCatId && m.linked_cats.includes(prodCatId)) return true
       if (hasProdFilter && m.linked_products.includes(product.sku)) return true
       return false
     })
