@@ -153,7 +153,10 @@ function BackofficeLogin({ onAuth }) {
   return (
     <div className="bo-login">
       <div className="bo-login-card" style={{ animation:shake?"shake 0.4s ease":"none" }}>
-        <div className="bo-login-logo">🍳 PawonLoka</div>
+        <img src="/logo.png" alt="PawonLoka"
+          onError={e=>e.target.style.display="none"}
+          style={{ width:80, height:80, objectFit:"contain", borderRadius:16, marginBottom:8 }} />
+        <div className="bo-login-logo">PawonLoka</div>
         <div className="bo-login-sub">Back Office · Staff Access</div>
         <div className="bo-pin-dots">
           {Array.from({length:BO_PIN.length},(_,i)=>(
