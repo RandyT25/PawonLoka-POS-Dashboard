@@ -637,7 +637,21 @@ export default function POS() {
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) { try { await printer.printReceipt(receiptPrinter.id, paidOrder) } catch(e) { console.error('Print failed:', e) } } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
+                    try {
+                      const rs = appSettings?.receipt || {}
+                      const outlet = {
+                        name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
+                        address: rs.address || appSettings?.outlet?.address || '',
+                        phone: rs.phone || appSettings?.outlet?.phone || '',
+                        tagline: rs.tagline || '',
+                        thankYou: rs.footer_thank_you || 'Terima kasih!',
+                        wifi: rs.footer_wifi || '',
+                        promo: rs.footer_promo || '',
+                      }
+                      await printer.printReceipt(paidOrder, { outlet, tax: TAX_RATE_LIVE, service: SERVICE_RATE })
+                    } catch(e) { console.error('Print failed:', e) }
+                  } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
