@@ -226,3 +226,120 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .acc-tabs { overflow-x: auto !important; flex-wrap: nowrap !important; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .acc-tabs::-webkit-scrollbar { display: none; }
 }
+
+/* ─── MODULE-SPECIFIC MOBILE FIXES ───────────────────────── */
+@media (max-width: 768px) {
+
+  /* ── CUSTOMERS: 2x2 metrics, filter row ── */
+  /* Metrics already inline-styled - override via parent */
+  /* Filter pills single row scroll */
+  /* Cards single column */
+
+  /* ── PAYMENTS & TAX: stack columns ── */
+  /* The 2-col grid becomes 1-col */
+  div[style*="gridTemplateColumns:\"1fr 1fr\""] {
+    grid-template-columns: 1fr !important;
+  }
+  div[style*='gridTemplateColumns:"1fr 1fr"'] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── RECEIPT DESIGNER: hide preview, show below ── */
+  /* The 2-col grid (settings + preview) becomes 1-col */
+  div[style*="gridTemplateColumns:\"1fr 280px\""],
+  div[style*='gridTemplateColumns:"1fr 280px"'] {
+    grid-template-columns: 1fr !important;
+  }
+  /* Hide sticky receipt preview on mobile */
+  div[style*="position:\"sticky\""],
+  div[style*='position:"sticky"'] {
+    position: relative !important;
+    top: auto !important;
+  }
+
+  /* ── RECIPES & COGS: single column ── */
+  /* The flex row with left panel + right panel */
+  div[style*="height:calc(100vh - 56px)"] {
+    flex-direction: column !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* Left panel full width */
+  div[style*="width:300px"] {
+    width: 100% !important;
+    min-width: unset !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--surface3) !important;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  /* Right panel full width */
+  div[style*="flex:1,overflowY:\"auto\",background:\"#fff\""] {
+    flex: 1 !important;
+    min-height: 400px;
+  }
+
+  /* ── SCHEDULE: vertical list instead of 7-col grid ── */
+  div[style*="gridTemplateColumns:\"repeat(7,1fr)\""],
+  div[style*='gridTemplateColumns:"repeat(7,1fr)"'] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  /* ── PERFORMANCE: podium scroll ── */
+  div[style*="justifyContent:\"center\""] > div[style*="textAlign:\"center\""] {
+    min-width: 110px;
+    flex-shrink: 0;
+  }
+
+  /* ── INVENTORY OVERVIEW: 2-col cards ── */
+  div[style*="gridTemplateColumns:\"repeat(auto-fill"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* ── CUSTOMERS: 2x2 metrics ── */
+  div[style*="gridTemplateColumns:\"repeat(4,1fr)\""],
+  div[style*='gridTemplateColumns:"repeat(4,1fr)"'] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  /* ── GENERAL: any 2-col summary grid ── */
+  div[style*="gridTemplateColumns:\"1fr 1fr\",gap:16"] {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── SCHEDULE today highlight: wrap pills ── */
+  div[style*="justifyContent:\"space-between\",alignItems:\"center\",marginBottom:10"] {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  /* Performance podium: horizontal scroll */
+  div[style*="justifyContent:\"center\",marginBottom:20"] {
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Payments stack */
+  .payments-grid { grid-template-columns: 1fr !important; }
+
+  /* Receipt designer stack */
+  .receipt-grid { grid-template-columns: 1fr !important; }
+  .receipt-grid > div[style*="sticky"] { position: relative !important; top: auto !important; }
+}
+
+@media (max-width: 768px) {
+  /* Schedule: horizontal scroll week grid */
+  .schedule-week-grid {
+    grid-template-columns: repeat(7, 140px) !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+}

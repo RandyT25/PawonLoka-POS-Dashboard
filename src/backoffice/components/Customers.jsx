@@ -93,7 +93,7 @@ export default function Customers() {
   return (
     <div>
       {/* Metrics — plain white boxes */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12, marginBottom:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, marginBottom:16 }}>
         {[
           ["Total Customers", customers.length, "#0052CC"],
           ["Gold Members",    gold.length,       "#FF8B00"],
@@ -108,9 +108,9 @@ export default function Customers() {
       </div>
 
       {/* Toolbar */}
-      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, flexWrap:"wrap" }}>
-        {/* Tier filters LEFT */}
-        <div style={{ display:"flex", gap:6 }}>
+      <div style={{ marginBottom:16 }}>
+        {/* Tier filters */}
+        <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:6, scrollbarWidth:"none" }}>
           {[["all","All"],["gold","Gold"],["silver","Silver"],["bronze","Bronze"]].map(([v,l])=>(
             <button key={v} onClick={()=>setTierFilter(v)}
               style={{ padding:"7px 18px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
@@ -121,14 +121,13 @@ export default function Customers() {
             </button>
           ))}
         </div>
-        {/* Search + buttons RIGHT */}
-        <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
-          <div style={{ position:"relative" }}>
+        <div style={{ display:"flex", gap:8, alignItems:"center", marginTop:8, flexWrap:"wrap" }}>
+          <div style={{ position:"relative", flex:1, minWidth:140 }}>
             <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"#6B778C", fontSize:14 }}>⌕</span>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers..." className="bo-input" style={{ paddingLeft:30, width:220 }} />
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers..." className="bo-input" style={{ paddingLeft:30, width:"100%" }} />
           </div>
-          <button onClick={()=>setAddModal(true)} className="bo-btn bo-btn-primary">+ Add Customer</button>
-          <button className="bo-btn bo-btn-ghost" style={{ gap:4 }}>📣 Send Broadcast</button>
+          <button onClick={()=>setAddModal(true)} className="bo-btn bo-btn-primary" style={{ flexShrink:0 }}>+ Add</button>
+          <button className="bo-btn bo-btn-ghost" style={{ flexShrink:0 }}>📣</button>
         </div>
       </div>
 

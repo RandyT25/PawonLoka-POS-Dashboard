@@ -74,7 +74,7 @@ export default function Performance() {
 
       {/* Podium */}
       {data.length > 0 && (
-        <div style={{ display:"flex", gap:12, marginBottom:20, justifyContent:"center" }}>
+        <div style={{ display:"flex", gap:12, marginBottom:20, overflowX:"auto", WebkitOverflowScrolling:"touch", paddingBottom:4 }}>
           {data.slice(0,3).map((s,i) => (
             <div key={s.name} style={{ textAlign:"center", padding:"16px 20px", background:"#fff", borderRadius:16, border:"2px solid "+medals[i].border, minWidth:140, background:medals[i].bg }}>
               <div style={{ fontSize:32, marginBottom:4 }}>{medals[i].emoji}</div>

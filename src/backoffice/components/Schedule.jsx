@@ -255,7 +255,7 @@ export default function Schedule() {
           </div>
 
           {/* Weekly grid */}
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8, overflowX:"auto", WebkitOverflowScrolling:"touch" }} className="schedule-week-grid">
             {DAYS.map(day => {
               const d = days[day]||{}
               const isToday = day===todayName
