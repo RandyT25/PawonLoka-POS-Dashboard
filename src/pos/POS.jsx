@@ -639,7 +639,7 @@ export default function POS() {
                   <div style={{ fontSize:36,marginBottom:8 }}>📸</div>
                   <div style={{ fontSize:14,fontWeight:600,color:'#666' }}>Tap to take selfie</div>
                 </div>
-                <input type="file" accept="image/*;capture=camera" capture="user" style={{ display:'none' }}
+                <input type="file" accept="image/*" capture="user" style={{ display:'none' }}
                   onChange={e=>{ const f=e.target.files[0]; if(f){const r=new FileReader();r.onload=ev=>setClockPhoto(ev.target.result);r.readAsDataURL(f)} }} />
               </label>
             ) : null}
