@@ -49,24 +49,28 @@ src/backoffice/components/Shifts.jsx
 src/backoffice/components/Performance.jsx
 src/backoffice/components/Customers.jsx
 src/backoffice/components/Loyalty.jsx
-src/backoffice/components/Promotions.jsx
-src/backoffice/components/Bundles.jsx
-src/backoffice/components/Discounts.jsx
-src/backoffice/components/PaymentsTax.jsx
+src/backoffice/components/Promotions.jsx             # Saves to promos table
+src/backoffice/components/Bundles.jsx                # Saves to bundles table
+src/backoffice/components/Discounts.jsx              # Saves to discounts table
+src/backoffice/components/PaymentsTax.jsx            # Saves to app_settings.payments
 src/backoffice/components/FloorPlan.jsx
 src/backoffice/components/Settings.jsx               # Supabase-backed + reset tab
-src/backoffice/components/ReceiptDesigner.jsx        # Logo upload + B&W conversion
-src/backoffice/components/Hardware.jsx
+src/backoffice/components/ReceiptDesigner.jsx        # Logo upload + B&W
+src/backoffice/components/Hardware.jsx               # Saves to hardware_devices table
 src/backoffice/components/ImportExport.jsx
 src/backoffice/components/StaffSubmissions.jsx
 src/backoffice/components/SearchSelect.jsx
-src/pos/POS.jsx                                      # Main POS + Clock In modal with staff selector
-src/pos/components/PinLogin.jsx                      # PIN-only login (no staff name buttons)
-src/pos/components/MenuGrid.jsx                      # 160px uniform cards
+src/pos/POS.jsx                                      # Main POS
+src/pos/components/PinLogin.jsx                      # PIN login from staff table
+src/pos/components/MenuGrid.jsx                      # Products + Bundles tab
+src/pos/components/Cart.jsx                          # Cart with backoffice discounts
+src/pos/components/ChargeModal.jsx                   # Payment modal
+src/pos/components/PromoModal.jsx                    # Reads from promos table
+src/pos/components/ModifierModal.jsx                 # Reads from modifier_groups table
 src/pos/components/ShiftModal.jsx
-src/pos/components/FloorPlan.jsx                     # POS table picker (different from backoffice)
+src/pos/components/FloorPlan.jsx                     # POS table picker
 src/staff/StaffPortal.jsx                            # Mobile staff portal
-public/_redirects
+public/_redirects                                    # Cloudflare SPA routing
 public/logo.png
 
 ## 🗄 Supabase Tables
@@ -77,14 +81,26 @@ public/logo.png
 - shifts: clock_in/clock_out = "HH.mm" strings. Use date for filtering
 - tables: INTEGER PK, uses area (not section), has shape/status/active
 - staff: TEXT PK ("STAFF-xxx"), has salary/phone/join_date/permissions(jsonb)
+- promos: used by both Promotions backoffice module AND POS PromoModal
+- discounts: used by Discounts module, shown in POS Cart order discount
 
-### TABLES
+### ALL TABLES
 ingredients, products, customers, purchase_orders, suppliers
 stock_movements, stock_opname, waste_records, production_batches
 recipes, sub_recipes, sub_recipe_ingredients
-modifier_groups, vouchers, staff_submissions
-shifts, staff, schedules, attendance
+modifier_groups, promos, discounts, bundles, vouchers
+staff_submissions, shifts, staff, schedules, attendance
 tables, app_settings, expenses, kas_bon, opening_balance
+hardware_devices, audit_logs
+
+### app_settings columns
+id(main), outlet(jsonb), pos_behaviour(jsonb), regional(jsonb),
+loyalty(jsonb), stations(jsonb), receipt(jsonb), hardware(jsonb),
+payments(jsonb), updated_at
+
+### payments jsonb structure
+{ tax:{enabled,rate,type}, service:{enabled,rate},
+  rounding:{enabled,roundTo}, methods:[{id,name,icon,note,enabled,surcharge}] }
 
 ### STORAGE BUCKETS
 - logos (public) — color + B&W receipt logos
@@ -105,12 +121,35 @@ All tables: allow_all policy, anon full access
 | Yudi | Cook | 6666 | #06B6D4 | STAFF-7 |
 | Alin | Cook Snack | — | — | NOT IN DB YET |
 
+## 🔌 POS ↔ Backoffice Sync Status
+- Products/menu → products table ✅
+- Categories → categories table ✅
+- Staff PINs → staff table ✅ (PinLogin + Clock In load from DB)
+- Tables → tables table ✅
+- Modifiers → modifier_groups table ✅ (ModifierModal loads from DB)
+- Payment methods → app_settings.payments ✅
+- Tax/Service rate → app_settings.payments ✅ (0 when disabled)
+- Discounts → discounts table ✅ (shown in Cart)
+- Promos/Vouchers → promos table ✅ (PromoModal reads from promos)
+- Bundles → bundles table ✅ (shown in MenuGrid Bundles tab)
+- Receipt settings → app_settings.receipt ✅
+- Orders → orders table ✅
+- Attendance → attendance table ✅
+- Shifts → shifts table ✅
+- Customers/loyalty → customers table ✅
+- Hardware devices → hardware_devices table ✅
+
+## 📱 PWA Status
+- NOT YET ADDED (planned)
+- Previous attempt caused Cloudflare 308 redirect loop
+- Solution: NO service worker cache for navigation, only static assets
+- Need separate manifests for /, /backoffice, /staff
+
 ## 📅 Schedule Rules
 - Stations: Kasir, Bar, Bakar, Snack, Kitchen
 - OFF: Mon=2, Tue/Wed/Thu/Fri/Sun=1, Sat=0
 - Default OFF: Mon=Alin+Meldy, Tue=Nita, Wed=Aisyah, Thu=Mahes, Fri=Yudi, Sun=Oji
 - Cascade: Kasir=Nita(→Aisyah), Bar=Aisyah(→Mahes→Nita), Bakar=Yudi(→Meldy)
-- Snack pool=Mahes+Alin, Kitchen pool=Oji+Meldy
 
 ## 💡 WAC Cascade (InvPO.jsx)
 PO Paid → toBaseUnit → WAC calc → update ingredients → log stock_movements
@@ -118,25 +157,14 @@ PO Paid → toBaseUnit → WAC calc → update ingredients → log stock_movemen
 
 ## 🧾 Accounting Module
 Tabs: Overview | Laba Rugi | Pengeluaran | Arus Kas | Kas Bon
-Expense categories: Bahan Baku(auto-PO), Kitchen, Bar, Floor&Cleaning,
-  Gas&Utilities, PLN, PDAM, WiFi, IPL, Staff Meal, Gaji(auto-salary),
-  Kas Bon, Sewa, Marketing, Lain-lain
-Opening balance: per month, default Rp 300.000, stored in opening_balance table
+Expense categories (auto): Bahan Baku(PO), Gaji(salary)
+Opening balance: per month, stored in opening_balance table
 
 ## 📱 Mobile Backoffice
-- Hamburger button (☰) in topbar → slide-in LEFT sidebar (280px)
-- Sidebar shows full NAV with groups, auto-closes on item select
-- Modals: slide up from bottom, border-radius 20px top, max-height 88dvh
-- Tables: horizontal scroll, sticky last column for action buttons
-- PO modal: .po-item-row class switches to card layout on mobile
-- Inputs: font-size 16px prevents iOS zoom
+- Hamburger (☰) → slide-in LEFT sidebar 280px, auto-closes on select
+- Modals: slide up from bottom, border-radius 20px, max-height 88dvh
+- Tables: horizontal scroll, sticky last column
 - CSS breakpoint: 768px in backoffice.css
-
-## 📱 Staff Portal (/staff)
-- No login, staff picks name from grid
-- Screens: Stock Count, Waste, Production, Request, Clock In/Out
-- Clock In/Out: front camera selfie → attendance table
-- wrap: height:100dvh flex column; body: overflowY:auto
 
 ## 🐛 Critical Rules
 1. Heredoc: use quoted ENDOFFILE for JSX
@@ -148,23 +176,28 @@ Opening balance: per month, default Rp 300.000, stored in opening_balance table
 7. shifts clock_in = "HH.mm" string NOT timestamp
 8. NEVER patch InvIngredients.jsx divs — rewrite full modal or git restore
 9. Mobile fixes: CSS only, never change JSX layout for mobile
-10. Overlay: onMouseDown not onClick to prevent accidental close
-11. RecipeEditor is used (NOT Recipes.jsx) — wired in Backoffice.jsx line ~94
-12. sub_recipes IDs: "SR-ING-XXX" format, no auto-sync needed (seeded via SQL)
+10. Overlay: onMouseDown not onClick
+11. RecipeEditor used (NOT Recipes.jsx)
+12. promos table = Promotions module + POS PromoModal
+13. discounts table = Discounts module + POS Cart order discount
+14. PaymentsTax saves to app_settings.payments — POS reads on load
+15. ChargeModal: taxRate prop passed from POS, hide tax row when tax=0
+16. PWA: NO service worker navigation cache — caused 308 on Cloudflare
+17. zsh: backticks in python strings cause "bad substitution" — use /tmp files
 
 ## ✅ Completed Modules
 Dashboard, Accounting, Products, Categories, Modifiers, Recipes & COGS,
 Inventory (all 8 sub-screens), Staff Reports, Employees, Users & Access,
-Schedule, Shifts, Performance, Customers, Loyalty, Promotions, Bundles,
-Discounts, Payments & Tax, Floor Plan, Settings, Receipt Designer,
+Schedule, Shifts, Performance, Customers, Loyalty, Promotions & Vouchers,
+Bundles, Discounts, Payments & Tax, Floor Plan, Settings, Receipt Designer,
 Hardware, Import/Export
 
 ## 🔧 TODO
-- Printer Bluetooth/network/USB integration (Hardware module)
+- PWA install for POS tablet + Staff phone + Backoffice
+- Add /pos route (separate from /)
+- Printer Bluetooth/network integration
 - WhatsApp receipt resend from Orders modal
-- Email receipts (SMTP)
-- Connect POS login to staff.permissions (currently hardcoded STAFF array)
 - Add Alin to staff table in Supabase
-- PWA install for staff/POS/backoffice
-- Shift float: only ask on first open, not staff switch
+- Shift float: only ask on first open not staff switch
 - Clock in reminder on shift close
+- Audit log: wire real actions (login, void, price change)
