@@ -329,16 +329,16 @@ export default function RecipeEditor() {
 
   return (
     <div style={{ display:"flex", flexDirection:"column", minHeight:"calc(100vh - 56px)" }} className={"recipe-root"+(selected?" has-selected":"")}>
-      {/* Mobile back button - only shows when item selected on small screen */}
+      {/* Mobile modal - slides up when item selected */}
       {selected && (
-        <div className="recipe-mobile-back">
-          <button onClick={()=>setSelected(null)}
-            style={{ display:"flex",alignItems:"center",gap:6,background:"none",border:"none",
-              color:"var(--brand)",fontWeight:700,fontSize:14,cursor:"pointer",padding:"10px 14px" }}>
-            ← Back to list
-          </button>
-        </div>
-      )}
+        <div className="recipe-mobile-modal">
+          <div className="recipe-mobile-panel">
+            <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 16px",borderBottom:"1px solid var(--surface3)",background:"#fff",borderRadius:"20px 20px 0 0" }}>
+              <div style={{ fontWeight:800,fontSize:15,color:"var(--ink)" }}>{selected.name}</div>
+              <button onClick={()=>setSelected(null)} style={{ background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--ink4)",lineHeight:1 }}>✕</button>
+            </div>
+            <div style={{ overflowY:"auto",flex:1,WebkitOverflowScrolling:"touch" }}>
+
       {/* LEFT */}
       <div style={{ width:300, minWidth:260, borderRight:"1px solid var(--surface3,#e5e7eb)", display:"flex", flexDirection:"column", background:"var(--surface,#fafafa)" }}>
         {/* Tabs */}
@@ -401,6 +401,13 @@ export default function RecipeEditor() {
 
       {/* RIGHT */}
       <div className="recipe-right" style={{ flex:1, overflowY:"auto", background:"#fff", minHeight:400 }}>
+        <div className="recipe-mobile-handle">
+          <div style={{ width:40,height:4,background:"#DFE1E6",borderRadius:2,margin:"10px auto 0" }} />
+          <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 16px 8px" }}>
+            <div style={{ fontWeight:800,fontSize:14,color:"var(--ink)" }}>{selected?.name||""}</div>
+            <button onClick={()=>setSelected(null)} style={{ background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink4)" }}>✕</button>
+          </div>
+        </div>
         {selected ? (
           <RecipePanel
             key={selected.id+selected._type}
@@ -418,6 +425,10 @@ export default function RecipeEditor() {
           </div>
         )}
       </div>
+      </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
