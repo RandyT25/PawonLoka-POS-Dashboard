@@ -15,15 +15,10 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
 
   async function loadPromos() {
     const [{ data: promoData }, { data: voucherData }] = await Promise.all([
-      supabase.from('promotions').select('*').eq('active', true),
+      supabase.from('promos').select('*').eq('active', true),
       supabase.from('vouchers').select('*').eq('active', true)
     ])
-    const data = [...(promoData||[]), ...(voucherData||[]).map(v=>({
-      ...v,
-      disc: v.type==='percent' ? Math.round(subtotal * v.value/100) : v.value,
-      name: v.code || v.id,
-      min_order: v.min_order || 0,
-    }))]
+    const data = (promoData||[]).map(p=>({...p, disc: p.type==='Percentage'||p.type==='percent' ? Math.round(subtotal*p.value/100) : p.value}))
     const all = data || []
     
     const now = new Date()
@@ -66,13 +61,9 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
 
   async function applyVoucher() {
     if (!voucherCode.trim()) return
-    let { data } = await supabase.from('promotions')
+    let { data } = await supabase.from('promos')
       .select('*').eq('code', voucherCode.trim().toUpperCase()).eq('active', true).maybeSingle()
-    if (!data) {
-      const { data: vd } = await supabase.from('vouchers')
-        .select('*').eq('code', voucherCode.trim().toUpperCase()).eq('active', true).maybeSingle()
-      if (vd) data = { ...vd, disc: vd.type==='percent' ? Math.round(subtotal * vd.value/100) : vd.value, name: vd.code }
-    }
+    if (data) data = {...data, disc: data.type==='Percentage'||data.type==='percent' ? Math.round(subtotal*data.value/100) : data.value}
     if (!data) { setError('Kode voucher tidak valid'); return }
     if (data.min_spend > subtotal) { setError('Minimum belanja ' + fmt(data.min_spend)); return }
     const disc = calcDisc(data)
