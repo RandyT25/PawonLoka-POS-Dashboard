@@ -22,7 +22,7 @@ export default function MenuGrid({ products, categories, onSelect, bundles }) {
       />
 
       <div style={S.tabs}>
-        {['All', ...categories.map(c => c.name), ...(bundles?.length?['Bundles']:[])].map(tab => (
+        {['All', ...(bundles?.length?['Bundles']:[]), ...categories.map(c => c.name)].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -36,11 +36,21 @@ export default function MenuGrid({ products, categories, onSelect, bundles }) {
       <div style={S.grid}>
         {filteredBundles.map(b => (
           <div key={b.id} onClick={() => onSelect({ sku:b.id, name:b.name, price:b.price, icon:'📦', cat:'Bundle', isBundle:true, bundleItems:b.items })}
-            style={{ ...S.card, border:'2px solid #0052CC' }}>
-            <div style={{ fontSize:28, marginBottom:4 }}>📦</div>
-            <div style={{ fontSize:13, fontWeight:700, color:'#0A1628', textAlign:'center', lineHeight:1.3 }}>{b.name}</div>
-            <div style={{ fontSize:11, color:'#6B778C', marginTop:2, textAlign:'center' }}>{(b.items||[]).length} items</div>
-            <div style={{ fontSize:14, fontWeight:800, color:'#0052CC', marginTop:4 }}>Rp {Math.round(b.price).toLocaleString('id-ID')}</div>
+            style={{ ...S.card, border:'2px solid #0052CC', alignItems:'flex-start', padding:'10px 12px', minHeight:160 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:6, width:'100%' }}>
+              <span style={{ fontSize:20 }}>📦</span>
+              <span style={{ fontSize:13, fontWeight:800, color:'#0052CC', lineHeight:1.3 }}>{b.name}</span>
+            </div>
+            <div style={{ flex:1, width:'100%' }}>
+              {(b.items||[]).slice(0,4).map((item,i) => (
+                <div key={i} style={{ fontSize:10, color:'#42526E', lineHeight:1.6, display:'flex', justifyContent:'space-between' }}>
+                  <span>{item.qty>1?item.qty+'x ':''}{item.name}</span>
+                  {item.free && <span style={{ color:'#00875A', fontWeight:700 }}>FREE</span>}
+                </div>
+              ))}
+              {(b.items||[]).length > 4 && <div style={{ fontSize:10, color:'#6B778C' }}>+{b.items.length-4} more</div>}
+            </div>
+            <div style={{ fontSize:15, fontWeight:900, color:'#0052CC', marginTop:6 }}>Rp {Math.round(b.price).toLocaleString('id-ID')}</div>
           </div>
         ))}
         {filtered.map(p => (
