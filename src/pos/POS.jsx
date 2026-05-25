@@ -179,7 +179,7 @@ export default function POS() {
   const total = subtotal + tax
 
   function handleProductSelect(product) {
-    setModifierItem(product)
+    if (modifierGroups?.length) { setModifierItem(product) } else { handleModifierConfirm(product, {}, '') }
   }
 
   function handleModifierConfirm(product, modifiers, note) {

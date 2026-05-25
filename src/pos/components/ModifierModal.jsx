@@ -21,7 +21,7 @@ export default function ModifierModal({ product, onConfirm, onCancel, modifierGr
         </div>
 
         <div style={{ padding:'16px 20px', overflowY:'auto', flex:1 }}>
-          {(modifierGroups?.length ? modifierGroups.map(mod => ({ ...mod, options: mod.options?.map ? mod.options.map(o => typeof o === 'string' ? o : o.name) : mod.options })) : MODIFIERS).map(mod => (
+          {(modifierGroups||[]).map(mod => ({ ...mod, options: mod.options?.map ? mod.options.map(o => typeof o === 'string' ? o : o.name) : mod.options })).map(mod => (
             <div key={mod.id} style={{ marginBottom:16 }}>
               <div style={S.modLabel}>{mod.name}</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
