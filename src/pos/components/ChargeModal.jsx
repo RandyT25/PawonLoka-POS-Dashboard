@@ -167,7 +167,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             <div style={S.divider}/>
             <div style={S.summaryRow}><span style={S.dimTxt}>Subtotal</span><span>{fmt(subtotal)}</span></div>
             {fee > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Fee</span><span>{fmt(fee)}</span></div>}
-            <div style={S.summaryRow}><span style={S.dimTxt}>Tax (10%)</span><span>{fmt(tax)}</span></div>
+            {tax > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Tax</span><span>{fmt(tax)}</span></div>}
             {usePoints > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Points ({usePoints}pts)</span><span style={{ color:'#10B981' }}>-{fmt(usePoints*100)}</span></div>}
             {activeSplit && (
               <div style={{ ...S.summaryRow, color:'#6366F1', fontWeight:700, fontSize:12 }}>

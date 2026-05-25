@@ -172,7 +172,7 @@ export default function Cart({
         <div style={S.ft}>
           <div style={S.row}><span style={S.lbl}>Subtotal</span><span>{fmt(subtotal)}</span></div>
           {discAmt > 0 && <div style={S.row}><span style={{ ...S.lbl, color:'#10B981' }}>Diskon ({discount}%)</span><span style={{ color:'#10B981' }}>-{fmt(discAmt)}</span></div>}
-          <div style={S.row}><span style={S.lbl}>Tax (10%)</span><span>{fmt(tax)}</span></div>
+          {tax > 0 && <div style={S.row}><span style={S.lbl}>Tax</span><span>{fmt(tax)}</span></div>}
           {fee > 0 && <div style={S.row}><span style={S.lbl}>{orderType} Fee</span><span>{fmt(fee)}</span></div>}
           <div style={{ ...S.row, fontWeight:900, fontSize:16, marginTop:6, paddingTop:6, borderTop:'2px solid #E2E8F0' }}>
             <span>Total</span><span>{fmt(total)}</span>
@@ -191,9 +191,9 @@ export default function Cart({
                   None
                 </button>
                 {(backofficeDiscounts||[]).map(d => (
-                  <button key={d.id} onClick={() => { onDiscountChange(d.type==='percent'||!d.type ? d.value : 0); setShowDisc(false) }}
+                  <button key={d.id} onClick={() => { onDiscountChange(['percent','Percentage'].includes(d.type)||!d.type ? d.value : 0); setShowDisc(false) }}
                     style={{ ...S.miniBtn, ...(discount===d.value?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
-                    {d.name} {d.type==='percent'||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('id-ID')}
+                    {d.name} {['percent','Percentage'].includes(d.type)||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('id-ID')}
                   </button>
                 ))}
               </div>
