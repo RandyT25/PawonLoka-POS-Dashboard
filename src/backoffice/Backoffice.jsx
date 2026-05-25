@@ -183,7 +183,7 @@ export default function Backoffice() {
     sessionStorage.setItem("bo_active", id)
     // Scroll active item into view in sidebar
     setTimeout(() => {
-      const el = document.querySelector('.bo-nav-item.active')
+      const el = document.querySelector(".bo-nav-item.active")
       if (el) el.scrollIntoView({ block:"nearest", behavior:"smooth" })
     }, 50)
   }

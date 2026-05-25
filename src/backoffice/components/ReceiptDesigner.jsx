@@ -238,7 +238,7 @@ export default function ReceiptDesigner() {
             RECEIPT PREVIEW ({s.paper_size})
           </div>
           <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?180:280, margin:"0 auto" }}>
-            {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:8 }}><img src={s.logo_bw} style={{ width:100, height:100, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
+            {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:2 }}><img src={s.logo_bw} style={{ width:80, height:80, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
             <div style={{ textAlign:"center", fontWeight:700, fontSize:13 }}>{s.outlet_name}</div>
             {s.tagline && <div style={{ textAlign:"center", fontSize:10 }}>{s.tagline}</div>}
             {s.address && <div style={{ textAlign:"center", fontSize:10 }}>{s.address}</div>}
@@ -265,7 +265,7 @@ export default function ReceiptDesigner() {
             {s.social && <div style={{ textAlign:"center", fontSize:10 }}>{s.social}</div>}
             {s.custom_line_1 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_1}</div>}
             {s.custom_line_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_2}</div>}
-            {s.show_qr && <div style={{ textAlign:"center", marginTop:8 }}><div style={{ width:60,height:60,background:"#000",margin:"0 auto",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:2,padding:4 }}>{[1,1,0,1,0,1,0,1,1].map((v,i)=><div key={i} style={{background:v?"#fff":"#000"}}/>)}</div><div style={{fontSize:9,marginTop:4}}>{s.qr_label||"Scan to review us"}</div></div>}
+            {s.show_qr && s.qr_url && <div style={{ textAlign:"center", marginTop:6 }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(s.qr_url)}`} style={{ width:64, height:64 }} alt="QR" /><div style={{fontSize:9,marginTop:2}}>{s.qr_label||"Scan to review us"}</div></div>}
           </div>
         </div>
       </div>

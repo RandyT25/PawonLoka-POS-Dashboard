@@ -41,6 +41,20 @@ export default function Hardware() {
       .then(({data}) => { setDevices(data||[]); setLoadingDevices(false) })
   }, [])
   const [modal,   setModal]   = useState(false)
+  const [legacyDevices, setLegacyDevices] = useState(()=>{
+    try { return JSON.parse(localStorage.getItem("pl_hardware_devices")||"[]") } catch { return [] }
+  })
+
+  async function importLegacy() {
+    for (const d of legacyDevices) {
+      await supabase.from("hardware_devices").upsert(d)
+    }
+    localStorage.removeItem("pl_hardware_devices")
+    setLegacyDevices([])
+    const {data} = await supabase.from("hardware_devices").select("*").order("created_at")
+    setDevices(data||[])
+    alert("Imported "+legacyDevices.length+" devices!")
+  }
   const [form,    setForm]    = useState({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
   const [saved,   setSaved]   = useState(false)
   const [testing, setTesting] = useState(null)
@@ -78,6 +92,16 @@ export default function Hardware() {
 
   return (
     <div>
+      {/* Legacy migration banner */}
+      {legacyDevices.length > 0 && (
+        <div style={{ background:"#FFF7E6", border:"1.5px solid #FF8B00", borderRadius:12, padding:"12px 16px", marginBottom:16, display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+          <div>
+            <div style={{ fontWeight:700, fontSize:13, color:"#FF8B00" }}>Found {legacyDevices.length} devices saved locally</div>
+            <div style={{ fontSize:12, color:"#6B778C" }}>Click Import to move them to the cloud so all devices can see them.</div>
+          </div>
+          <button onClick={importLegacy} className="bo-btn bo-btn-primary" style={{ flexShrink:0 }}>Import Now</button>
+        </div>
+      )}
       {/* Header stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
         <div style={{ background:"#fff", borderRadius:12, padding:"16px 20px", border:"1px solid #f0f0f0" }}>
