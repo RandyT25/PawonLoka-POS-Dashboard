@@ -277,17 +277,37 @@ ARUS KAS
       {/* OVERVIEW */}
       {tab==="overview" && (
         <>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16 }} className="acc-metrics">
-            <StatCard label="Pendapatan Bersih" value={fmt(netRevenue)} color="#0052CC" big />
-            <StatCard label="Total COGS" value={fmt(totalCOGS)} color="#6B778C" />
-            <StatCard label="Laba Kotor" value={fmt(grossProfit)} sub={"Margin "+grossMargin+"%"} color={grossProfit>=0?"#00875A":"#DE350B"} />
-            <StatCard label="Laba Bersih" value={fmt(netProfit)} sub={"Net "+netMargin+"%"} color={netProfit>=0?"#00875A":"#DE350B"} big />
-          </div>
-          <div style={{ display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16 }} className="acc-metrics">
+          {/* Row 1: Total Orders + Cash In */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }}>
             <StatCard label="Total Orders" value={orders.length} color="#0052CC" />
+            <StatCard label="Cash In" value={fmt(cashIn+qrisIn)} color="#00875A" />
+          </div>
+          {/* Row 2: Pendapatan Bersih + Total COGS */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }} className="acc-overview-desktop">
+            <StatCard label="Pendapatan Bersih" value={fmt(netRevenue)} color="#0052CC" />
+            <StatCard label="Total COGS" value={fmt(totalCOGS)} color="#6B778C" />
+          </div>
+          <div className="acc-overview-mobile">
+            <StatCard label="Pendapatan Bersih" value={fmt(netRevenue)} color="#0052CC" />
+            <StatCard label="Total COGS" value={fmt(totalCOGS)} color="#6B778C" />
+          </div>
+          {/* Row 3: Laba Kotor + Total Beban Ops */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10 }} className="acc-overview-desktop">
+            <StatCard label="Laba Kotor" value={fmt(grossProfit)} sub={"Margin "+grossMargin+"%"} color={grossProfit>=0?"#00875A":"#DE350B"} />
             <StatCard label="Total Beban Ops" value={fmt(totalOpex)} color="#FF8B00" />
-            <StatCard label="Cash In" value={fmt(cashIn)} color="#00875A" />
-            <StatCard label="Saldo Akhir" value={fmt(netCash)} color={netCash>=0?"#00875A":"#DE350B"} />
+          </div>
+          <div className="acc-overview-mobile">
+            <StatCard label="Laba Kotor" value={fmt(grossProfit)} sub={"Margin "+grossMargin+"%"} color={grossProfit>=0?"#00875A":"#DE350B"} />
+            <StatCard label="Total Beban Ops" value={fmt(totalOpex)} color="#FF8B00" />
+          </div>
+          {/* Row 4: Laba Bersih + Saldo Akhir */}
+          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16 }} className="acc-overview-desktop">
+            <StatCard label="Laba Bersih" value={fmt(netProfit)} sub={"Net "+netMargin+"%"} color={netProfit>=0?"#00875A":"#DE350B"} big />
+            <StatCard label="Saldo Akhir" value={fmt(netCash)} color={netCash>=0?"#00875A":"#DE350B"} big />
+          </div>
+          <div className="acc-overview-mobile">
+            <StatCard label="Laba Bersih" value={fmt(netProfit)} sub={"Net "+netMargin+"%"} color={netProfit>=0?"#00875A":"#DE350B"} big />
+            <StatCard label="Saldo Akhir" value={fmt(netCash)} color={netCash>=0?"#00875A":"#DE350B"} big />
           </div>
 
           {/* P&L Summary */}

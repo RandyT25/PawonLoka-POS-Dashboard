@@ -479,3 +479,32 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .recipe-cogs-desktop { display: none !important; }
   .recipe-cogs-inline  { display: block !important; }
 }
+
+/* ── ACCOUNTING OVERVIEW LAYOUT ───────────────────────────── */
+.acc-overview-mobile { display: none; }
+.acc-overview-mobile > div { margin-bottom: 10px; }
+
+@media (max-width: 768px) {
+  /* Desktop 2-col rows hidden on mobile */
+  .acc-overview-desktop { display: none !important; }
+  /* Mobile shows each card on its own full-width row */
+  .acc-overview-mobile { display: block !important; }
+
+  /* Tab bar: clean pill style, horizontal scroll */
+  .acc-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 6px !important;
+    padding-bottom: 4px;
+  }
+  .acc-tabs::-webkit-scrollbar { display: none; }
+  .acc-tabs button {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    border-radius: 20px !important;
+  }
+}
