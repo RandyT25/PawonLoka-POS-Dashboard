@@ -45,7 +45,7 @@ export default function PaymentsTax() {
 
   return (
     <div>
-      <div style={{ display:"grid", gridTemplateColumns:"min(420px,50%) 1fr", gap:16, alignItems:"start" }}>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:16, alignItems:"start" }}>
 
         {/* LEFT: Payment Methods */}
         <div className="bo-card" style={{ marginBottom:0 }}>
