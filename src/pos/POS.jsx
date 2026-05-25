@@ -204,7 +204,16 @@ export default function POS() {
     const finalProduct = extraPrice > 0
       ? { ...product, price: product.price + extraPrice, _basePrice: product.price }
       : { ...product }
-    addItem({ ...finalProduct, note }, modifiers)
+    // Build display labels with price
+    const displayMods = Object.fromEntries(
+      Object.entries(modifiers).map(([modId, optName]) => {
+        const mod = mods.find(m => m.id === modId)
+        const opt = mod?.options?.find(o => (o.name||o) === optName)
+        const label = opt?.price > 0 ? optName + ' +Rp ' + opt.price.toLocaleString('id-ID') : optName
+        return [modId, label]
+      })
+    )
+    addItem({ ...finalProduct, note }, displayMods)
     setModifierItem(null)
   }
 
