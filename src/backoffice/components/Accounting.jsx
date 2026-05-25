@@ -492,7 +492,7 @@ ARUS KAS
       {/* CASH FLOW */}
       {tab==="cashflow" && (
         <div>
-          <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:20 }}>
+          <div style={{ display:"flex",flexDirection:"column",gap:10,marginBottom:16 }}>
             <div style={{ background:"#E3FCEF",border:"1px solid #00875A33",borderRadius:12,padding:"16px 20px" }}>
               <div style={{ fontSize:11,fontWeight:700,color:"#00875A",marginBottom:4 }}>KAS MASUK</div>
               <div style={{ fontSize:24,fontWeight:900,color:"#00875A" }}>{fmt(cashIn+qrisIn)}</div>
