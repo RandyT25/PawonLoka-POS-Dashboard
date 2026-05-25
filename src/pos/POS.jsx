@@ -49,6 +49,7 @@ export default function POS() {
   const [showSettings, setShowSettings]   = useState(false)
   const [pwaInstallable, setPwaInstallable] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
     window.addEventListener('pwa-installable', () => setPwaInstallable(true))
