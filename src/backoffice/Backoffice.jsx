@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import "./backoffice.css"
 import Dashboard      from "./components/Dashboard"
 import Products       from "./components/Products"
@@ -181,12 +181,14 @@ export default function Backoffice() {
   function navTo(id) {
     setActive(id)
     sessionStorage.setItem("bo_active", id)
-    // Scroll active item into view in sidebar
+  }
+
+  useEffect(() => {
     setTimeout(() => {
       const el = document.querySelector(".bo-nav-item.active")
       if (el) el.scrollIntoView({ block:"nearest", behavior:"smooth" })
-    }, 50)
-  }
+    }, 100)
+  }, [active])
   const [mobileSubMenu, setMobileSubMenu] = useState(null)
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
