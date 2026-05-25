@@ -4,7 +4,9 @@ import { PAY_METHODS, fmt, TAX_RATE } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
 const formatReceipt = (order, customer) => {
-  const items = order.items.map(i => i.qty + 'x ' + i.name + (i.isBundle && i.bundleItems ? ' (' + i.bundleItems.map(b => b.name).join(', ') + ')' : '') + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')).join(String.fromCharCode(10))
+  const items = order.items.map(i =>
+    i.qty + 'x ' + i.name + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')
+  ).join('\n')
   const receiptUrl = 'https://pawonloka.pages.dev/receipt/' + order.id
   const lines = [
     '*STRUK PAWONLOKA*',
@@ -37,8 +39,6 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [showMulti, setShowMulti] = useState(false)
   const [activeSplit, setActiveSplit] = useState(null)
   const [payMethod, setPayMethod] = useState('Cash')
-  const [selectedDisc, setSelectedDisc] = useState(0)
-  function onSelectDiscount(d) { setSelectedDisc(d); }
   const [cashGiven, setCashGiven] = useState('')
   const [saving, setSaving]     = useState(false)
   const [paidOrder, setPaidOrder] = useState(null)
@@ -167,7 +167,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             <div style={S.divider}/>
             <div style={S.summaryRow}><span style={S.dimTxt}>Subtotal</span><span>{fmt(subtotal)}</span></div>
             {fee > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Fee</span><span>{fmt(fee)}</span></div>}
-            {tax > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Tax</span><span>{fmt(tax)}</span></div>}
+            <div style={S.summaryRow}><span style={S.dimTxt}>Tax (10%)</span><span>{fmt(tax)}</span></div>
             {usePoints > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Points ({usePoints}pts)</span><span style={{ color:'#10B981' }}>-{fmt(usePoints*100)}</span></div>}
             {activeSplit && (
               <div style={{ ...S.summaryRow, color:'#6366F1', fontWeight:700, fontSize:12 }}>
@@ -192,19 +192,6 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                   color: appliedPromo ? '#16A34A' : '#6B7A8D' }}>
                 {appliedPromo ? 'Promo: ' + appliedPromo.name + ' -' + fmt(appliedPromo.disc) : '+ Promo / Voucher'}
               </button>
-            {/* Bundles */}
-            {bundles?.length > 0 && (
-              <div style={{ marginBottom:14 }}>
-                <div style={S.label}>Bundle Packages</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                  {bundles.map(b=>(
-                    <button key={b.id} onClick={()=>onOpenPromo&&onOpenPromo('bundle',b)}
-                      style={{ ...S.optBtn, padding:"6px 12px" }}>
-                      📦 {b.name} — {fmt(b.price)}
-                    </button>
-                  ))}
-                </div>
-              </div>
             )}
             </div>
 
@@ -226,24 +213,6 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
               </div>
             )}
 
-            {/* Backoffice Discounts */}
-            {backofficeDiscounts?.length > 0 && (
-              <div style={{ marginBottom:14 }}>
-                <div style={S.label}>Diskon</div>
-                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                  <button onClick={()=>onSelectDiscount(0)}
-                    style={{ ...S.optBtn, ...(selectedDisc===0?S.optActive:{}) }}>
-                    No Discount
-                  </button>
-                  {backofficeDiscounts.map(d=>(
-                    <button key={d.id} onClick={()=>onSelectDiscount(d)}
-                      style={{ ...S.optBtn, ...(selectedDisc?.id===d.id?S.optActive:{}) }}>
-                      {d.name} {d.type==="percent"||!d.type?`${d.value}%`:`Rp ${Math.round(d.value).toLocaleString("id-ID")}`}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
             {/* Payment method */}
             <div style={{ marginBottom:14 }}>
               <div style={S.label}>Metode Pembayaran</div>
@@ -251,7 +220,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                 {(payMethods || PAY_METHODS).map(m => (
                   <button key={m.id} onClick={() => setPayMethod(m.id)}
                     style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
-                    {m.icon} {m.name || m.label}
+                    {m.icon} {m.label}
                   </button>
                 ))}
               </div>
