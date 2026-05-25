@@ -508,3 +508,7 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
     border-radius: 20px !important;
   }
 }
+@media (max-width: 768px) {
+  .receipt-grid { grid-template-columns: 1fr !important; }
+  .receipt-preview-panel { position: relative !important; top: auto !important; }
+}

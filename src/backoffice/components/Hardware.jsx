@@ -30,37 +30,39 @@ const COMPATIBLE = [
   { name:"Customer Display (USB)",     type:"Customer Display",       icon:"🖥" },
 ]
 
-const KEY = "pl_hardware_devices"
-function loadDevices() {
-  try { return JSON.parse(localStorage.getItem(KEY)||"[]") } catch { return [] }
-}
+
 
 export default function Hardware() {
-  const [devices, setDevices] = useState(loadDevices)
+  const [devices, setDevices] = useState([])
+  const [loadingDevices, setLoadingDevices] = useState(true)
+
+  useEffect(() => {
+    supabase.from("hardware_devices").select("*").order("created_at")
+      .then(({data}) => { setDevices(data||[]); setLoadingDevices(false) })
+  }, [])
   const [modal,   setModal]   = useState(false)
   const [form,    setForm]    = useState({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
   const [saved,   setSaved]   = useState(false)
   const [testing, setTesting] = useState(null)
 
   function save() {
-    localStorage.setItem(KEY, JSON.stringify(devices))
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 
-  function addDevice() {
+  async function addDevice() {
     if (!form.name) return
-    const newDevices = [...devices, { ...form, id:"DEV-"+Date.now() }]
-    setDevices(newDevices)
-    localStorage.setItem(KEY, JSON.stringify(newDevices))
+    const newDevice = { ...form, id:"DEV-"+Date.now() }
+    const { error } = await supabase.from("hardware_devices").insert(newDevice)
+    if (error) { alert("Error: "+error.message); return }
+    setDevices(d => [...d, newDevice])
     setModal(false)
     setForm({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
   }
 
-  function removeDevice(id) {
+  async function removeDevice(id) {
     if (!confirm("Remove this device?")) return
-    const newDevices = devices.filter(d=>d.id!==id)
-    setDevices(newDevices)
-    localStorage.setItem(KEY, JSON.stringify(newDevices))
+    await supabase.from("hardware_devices").delete().eq("id", id)
+    setDevices(d => d.filter(x=>x.id!==id))
   }
 
   async function testPrint(device) {
