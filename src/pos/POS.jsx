@@ -48,8 +48,18 @@ export default function POS() {
   const [clockStaff, setClockStaff]       = useState(null)
   const [showSettings, setShowSettings]   = useState(false)
   const [pwaInstallable, setPwaInstallable] = useState(false)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+
   useEffect(() => {
     window.addEventListener('pwa-installable', () => setPwaInstallable(true))
+    const goOffline = () => setIsOffline(true)
+    const goOnline = () => setIsOffline(false)
+    window.addEventListener('offline', goOffline)
+    window.addEventListener('online', goOnline)
+    return () => {
+      window.removeEventListener('offline', goOffline)
+      window.removeEventListener('online', goOnline)
+    }
   }, [])
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
@@ -438,6 +448,11 @@ export default function POS() {
 
   return (
     <div style={S.app}>
+      {isOffline && (
+        <div style={{ background:'#FF8B00', color:'#fff', textAlign:'center', padding:'6px', fontSize:12, fontWeight:700 }}>
+          Offline Mode — Orders will sync when connected
+        </div>
+      )}
       <div style={S.header}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <span style={{ fontSize:18, fontWeight:900, color:'white' }}>PawonLoka</span>
