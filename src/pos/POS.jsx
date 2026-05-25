@@ -41,6 +41,7 @@ export default function POS() {
 
   // Modals
   const [showShift, setShowShift]         = useState(false)
+  const [shiftAsked, setShiftAsked]       = useState(false)
   const [showClock, setShowClock]         = useState(false)
   const [clockPhoto, setClockPhoto]       = useState(null)
   const [todayAtt,  setTodayAtt]         = useState(null)
@@ -144,7 +145,8 @@ export default function POS() {
     if (data) {
       setShift(data)
       setShowShift(false)
-    } else {
+    } else if (!shiftAsked) {
+      setShiftAsked(true)
       setShowShift(true)
     }
   }
@@ -171,8 +173,8 @@ export default function POS() {
     <ShiftModal
       staff={staff}
       shift={shift}
-      onOpen={s => { setShift(s); setShowShift(false) }}
-      onClose={() => { setShift(null); setShowShift(false) }}
+      onOpen={s => { setShift(s); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift dibuka! Jangan lupa Clock In ya ' + staff.name + '?')) { const today=new Date().toISOString().slice(0,10); const attId='ATT-'+staff.name.replace(/\s/g,'')+'-'+today; supabase.from('attendance').select('*').eq('id',attId).maybeSingle().then(({data})=>{ setTodayAtt(data); setClockPhoto(null); setShowClock(true) }) } },500) }}
+      onClose={() => { setShift(null); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift ditutup! Jangan lupa Clock Out ya ' + staff.name + '?')) { const today=new Date().toISOString().slice(0,10); const attId='ATT-'+staff.name.replace(/\s/g,'')+'-'+today; supabase.from('attendance').select('*').eq('id',attId).maybeSingle().then(({data})=>{ setTodayAtt(data); setClockPhoto(null); setShowClock(true) }) } },500) }}
       onLogout={() => { setStaff(null); setShift(null); setShowShift(false); clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null) }}
     />
   )
@@ -592,7 +594,7 @@ export default function POS() {
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
-          onSuccess={async () => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
