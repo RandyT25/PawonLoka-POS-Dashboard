@@ -52,6 +52,7 @@ export default function POS() {
   const [appSettings, setAppSettings] = useState(null)
 
   const [backofficeDiscounts, setBackofficeDiscounts] = useState([])
+  const [staffList, setStaffList] = useState(STAFF)
   const [bundles, setBundles] = useState([])
   const [showBundles, setShowBundles] = useState(false)
 
@@ -60,6 +61,8 @@ export default function POS() {
       .then(({data}) => { if (data) setAppSettings(data) })
     supabase.from('discounts').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) setBackofficeDiscounts(data) })
+    supabase.from('staff').select('id,name,role,pin,color,active').eq('active', true).order('name')
+      .then(({data}) => { if (data?.length) setStaffList(data) })
     supabase.from('bundles').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) setBundles(data) })
   }, [])
