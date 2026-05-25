@@ -21,16 +21,17 @@ export default function ModifierModal({ product, onConfirm, onCancel, modifierGr
         </div>
 
         <div style={{ padding:'16px 20px', overflowY:'auto', flex:1 }}>
-          {(modifierGroups||[]).map(mod => ({ ...mod, options: mod.options?.map ? mod.options.map(o => typeof o === 'string' ? o : o.name) : mod.options })).map(mod => (
+          {(modifierGroups||[]).map(mod => ({ ...mod, options: mod.options?.map ? mod.options.map(o => typeof o === 'string' ? {name:o, price:0} : o) : (mod.options||[]) })).map(mod => (
             <div key={mod.id} style={{ marginBottom:16 }}>
               <div style={S.modLabel}>{mod.name}</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
                 {mod.options.map(opt => (
                   <button
-                    key={opt}
-                    onClick={() => toggle(mod.id, opt)}
-                    style={{ ...S.optBtn, ...(selected[mod.id]===opt ? S.optActive : {}) }}
-                  >{opt}</button>
+                    key={opt.name}
+                    onClick={() => toggle(mod.id, opt.name)}
+                    style={{ ...S.optBtn, ...(selected[mod.id]===opt.name ? S.optActive : {}) }}>
+                    {opt.name}{opt.price > 0 ? ' (+'+fmt(opt.price)+')' : ''}
+                  </button>
                 ))}
               </div>
             </div>
@@ -59,7 +60,7 @@ export default function ModifierModal({ product, onConfirm, onCancel, modifierGr
 }
 
 const S = {
-  overlay:    { position:'fixed', inset:0, background:'rgba(9,30,66,0.6)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1000 },
+  overlay:    { position:'fixed', inset:0, background:'rgba(9,30,66,0.6)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 },
   modal:      { background:'white', borderRadius:'20px 20px 0 0', width:'100%', maxWidth:480, maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 -10px 40px rgba(9,30,66,0.2)' },
   hd:         { padding:'16px 20px', borderBottom:'1px solid #E2E8F0', display:'flex', justifyContent:'space-between', alignItems:'flex-start' },
   closeBtn:   { width:28, height:28, borderRadius:'50%', background:'#F1F5F9', border:'none', cursor:'pointer', fontSize:14, flexShrink:0 },

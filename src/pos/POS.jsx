@@ -181,7 +181,13 @@ export default function POS() {
   const total = subtotal + tax
 
   function handleProductSelect(product) {
-    if (modifierGroups?.length) { setModifierItem(product) } else { handleModifierConfirm(product, {}, '') }
+    const relevantMods = modifierGroups.filter(m => {
+      if (!m.linked_cats?.length && !m.linked_products?.length) return true // applies to all
+      if (m.linked_cats?.includes(product.cat)) return true
+      if (m.linked_products?.includes(product.sku)) return true
+      return false
+    })
+    if (relevantMods.length) { setModifierItem({...product, _mods: relevantMods}) } else { handleModifierConfirm(product, {}, '') }
   }
 
   function handleModifierConfirm(product, modifiers, note) {
@@ -550,7 +556,7 @@ export default function POS() {
 
       {modifierItem && (
         <ModifierModal
-          modifierGroups={modifierGroups}
+          modifierGroups={modifierItem?._mods || modifierGroups}
           product={modifierItem}
           onConfirm={handleModifierConfirm}
           onCancel={() => setModifierItem(null)}
@@ -707,8 +713,6 @@ export default function POS() {
                 }],
                 ['💵 Cash In/Out', () => setShowCashLog(true)],
                 ['⚙️ Settings', () => setShowSettings(true)],
-                ['🚫 Void Order', () => setShowVoid(true)],
-                ['📊 Shift', () => setShowShift(true)],
               ].map(([label, action]) => (
                 <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}
                   style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'13px 20px', background:'none', border:'none', color:'rgba(255,255,255,0.8)', textAlign:'left', fontSize:14, fontWeight:500, cursor:'pointer', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
