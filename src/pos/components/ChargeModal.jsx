@@ -39,6 +39,8 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [showMulti, setShowMulti] = useState(false)
   const [activeSplit, setActiveSplit] = useState(null)
   const [payMethod, setPayMethod] = useState('Cash')
+  const [selectedDisc, setSelectedDisc] = useState(0)
+  function onSelectDiscount(d) { setSelectedDisc(d); }
   const [cashGiven, setCashGiven] = useState('')
   const [saving, setSaving]     = useState(false)
   const [paidOrder, setPaidOrder] = useState(null)
@@ -212,11 +214,29 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
               </div>
             )}
 
+            {/* Backoffice Discounts */}
+            {backofficeDiscounts?.length > 0 && (
+              <div style={{ marginBottom:14 }}>
+                <div style={S.label}>Diskon</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  <button onClick={()=>onSelectDiscount(0)}
+                    style={{ ...S.optBtn, ...(selectedDisc===0?S.optActive:{}) }}>
+                    No Discount
+                  </button>
+                  {backofficeDiscounts.map(d=>(
+                    <button key={d.id} onClick={()=>onSelectDiscount(d)}
+                      style={{ ...S.optBtn, ...(selectedDisc?.id===d.id?S.optActive:{}) }}>
+                      {d.name} {d.type==="percent"?`(${d.value}%)`:`(Rp ${Math.round(d.value).toLocaleString("id-ID")})`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {/* Payment method */}
             <div style={{ marginBottom:14 }}>
               <div style={S.label}>Metode Pembayaran</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {PAY_METHODS.map(m => (
+                {(payMethods || PAY_METHODS).map(m => (
                   <button key={m.id} onClick={() => setPayMethod(m.id)}
                     style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
                     {m.icon} {m.label}

@@ -541,6 +541,10 @@ export default function POS() {
           onSuccess={async () => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
+          payMethods={ACTIVE_PAY_METHODS}
+          backofficeDiscounts={backofficeDiscounts}
+          taxRate={TAX_RATE_LIVE}
+          serviceRate={SERVICE_RATE}
         />
       )}
 
