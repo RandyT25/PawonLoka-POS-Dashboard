@@ -42,7 +42,7 @@ export default function Categories() {
     const payload = { name:form.name.trim(), icon:form.icon||"🏷", color:form.color||"#0066FF" }
     if (modal === "add") {
       const maxSort = cats.length ? Math.max(...cats.map(c=>c.sort||0)) : 0
-      await supabase.from("categories").insert({ ...payload, id:"CAT-"+Date.now(), sort:maxSort+1 })
+      await supabase.from("categories").insert({ ...payload, sort:maxSort+1 })
     } else {
       await supabase.from("categories").update(payload).eq("id", form.id)
     }
