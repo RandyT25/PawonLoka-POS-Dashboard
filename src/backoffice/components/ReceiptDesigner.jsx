@@ -93,7 +93,7 @@ export default function ReceiptDesigner() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div>
 
   return (
-    <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:20, alignItems:"start" }} className="receipt-grid">
+    <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:20, alignItems:"start" }}>
 
       {/* Left: Settings */}
       <div>
@@ -207,7 +207,7 @@ export default function ReceiptDesigner() {
       </div>
 
       {/* Right: Preview */}
-      <div style={{ position:"sticky", top:16 }}>
+      <div style={{ position:"sticky", top:16 }} className="receipt-preview-panel">
         <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
           <div style={{ padding:"8px 12px", background:"var(--surface)", borderBottom:"1px solid var(--surface3)", fontSize:12, fontWeight:700, color:"var(--ink4)" }}>
             RECEIPT PREVIEW ({s.paper_size})

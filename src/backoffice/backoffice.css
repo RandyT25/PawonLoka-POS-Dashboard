@@ -343,3 +343,37 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
     padding-bottom: 8px;
   }
 }
+
+/* ─── PROPER MOBILE FIXES USING CLASS NAMES ──────────────── */
+@media (max-width: 768px) {
+
+  /* Recipe editor: stack vertically */
+  .recipe-root {
+    flex-direction: column !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .recipe-left {
+    width: 100% !important;
+    min-width: unset !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--surface3) !important;
+    max-height: 260px !important;
+  }
+  .recipe-right {
+    width: 100% !important;
+    min-height: 300px;
+    flex: 1;
+  }
+
+  /* Receipt designer: hide preview */
+  .receipt-preview-panel { display: none !important; }
+
+  /* Schedule: scrollable week */
+  .schedule-week-grid {
+    grid-template-columns: repeat(7, 130px) !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+}

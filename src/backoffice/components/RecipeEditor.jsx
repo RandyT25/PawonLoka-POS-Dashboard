@@ -328,7 +328,7 @@ export default function RecipeEditor() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink4)" }}>Loading recipes...</div>
 
   return (
-    <div style={{ display:"flex", height:"calc(100vh - 56px)", overflow:"hidden" }}>
+    <div style={{ display:"flex", flexDirection:"column", minHeight:"calc(100vh - 56px)" }} className="recipe-root">
       {/* LEFT */}
       <div style={{ width:300, minWidth:260, borderRight:"1px solid var(--surface3,#e5e7eb)", display:"flex", flexDirection:"column", background:"var(--surface,#fafafa)" }}>
         {/* Tabs */}
@@ -390,7 +390,7 @@ export default function RecipeEditor() {
       </div>
 
       {/* RIGHT */}
-      <div style={{ flex:1, overflowY:"auto", background:"#fff" }}>
+      <div className="recipe-right" style={{ flex:1, overflowY:"auto", background:"#fff", minHeight:400 }}>
         {selected ? (
           <RecipePanel
             key={selected.id+selected._type}
