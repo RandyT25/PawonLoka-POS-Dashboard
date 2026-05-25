@@ -178,7 +178,15 @@ export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState(()=>sessionStorage.getItem("bo_active")||"dashboard")
 
-  function navTo(id) { setActive(id); sessionStorage.setItem("bo_active", id) }
+  function navTo(id) {
+    setActive(id)
+    sessionStorage.setItem("bo_active", id)
+    // Scroll active item into view in sidebar
+    setTimeout(() => {
+      const el = document.querySelector('.bo-nav-item.active')
+      if (el) el.scrollIntoView({ block:"nearest", behavior:"smooth" })
+    }, 50)
+  }
   const [mobileSubMenu, setMobileSubMenu] = useState(null)
   const [mobileSidebar, setMobileSidebar] = useState(false)
 

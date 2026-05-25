@@ -10,6 +10,7 @@ const DEFAULTS = {
   custom_line_1:"", custom_line_2:"",
   show_order_id:true, show_cashier:true, show_table:true, show_datetime:true,
   show_sku:false, show_tax:true, show_service:true, show_loyalty:true, show_qr:false,
+  qr_url:"", qr_label:"Scan to review us",
   paper_size:"80mm", print_copies:1
 }
 
@@ -197,6 +198,18 @@ export default function ReceiptDesigner() {
               </label>
             ))}
           </div>
+          {s.show_qr && (
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:14 }}>
+              <div>
+                <label className="bo-label">QR URL (Google Review / Website / WhatsApp)</label>
+                <input value={s.qr_url||""} onChange={e=>update("qr_url",e.target.value)} className="bo-input" placeholder="https://g.page/r/..." />
+              </div>
+              <div>
+                <label className="bo-label">QR Label</label>
+                <input value={s.qr_label||""} onChange={e=>update("qr_label",e.target.value)} className="bo-input" placeholder="Scan to review us" />
+              </div>
+            </div>
+          )}
           <div className="bo-form-row">
             <label className="bo-label">Paper Size</label>
             <div style={{ display:"flex", gap:8 }}>
@@ -225,7 +238,7 @@ export default function ReceiptDesigner() {
             RECEIPT PREVIEW ({s.paper_size})
           </div>
           <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?180:280, margin:"0 auto" }}>
-            {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:8 }}><img src={s.logo_bw} style={{ width:60, height:60, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
+            {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:8 }}><img src={s.logo_bw} style={{ width:100, height:100, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
             <div style={{ textAlign:"center", fontWeight:700, fontSize:13 }}>{s.outlet_name}</div>
             {s.tagline && <div style={{ textAlign:"center", fontSize:10 }}>{s.tagline}</div>}
             {s.address && <div style={{ textAlign:"center", fontSize:10 }}>{s.address}</div>}
@@ -252,7 +265,7 @@ export default function ReceiptDesigner() {
             {s.social && <div style={{ textAlign:"center", fontSize:10 }}>{s.social}</div>}
             {s.custom_line_1 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_1}</div>}
             {s.custom_line_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_2}</div>}
-            {s.show_qr && <div style={{ textAlign:"center", marginTop:8, padding:8, border:"1px solid #ccc", display:"inline-block", fontSize:9 }}>[ QR CODE ]</div>}
+            {s.show_qr && <div style={{ textAlign:"center", marginTop:8 }}><div style={{ width:60,height:60,background:"#000",margin:"0 auto",display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:2,padding:4 }}>{[1,1,0,1,0,1,0,1,1].map((v,i)=><div key={i} style={{background:v?"#fff":"#000"}}/>)}</div><div style={{fontSize:9,marginTop:4}}>{s.qr_label||"Scan to review us"}</div></div>}
           </div>
         </div>
       </div>

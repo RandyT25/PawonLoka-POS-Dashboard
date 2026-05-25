@@ -23,7 +23,17 @@ function load() {
 }
 async function loadFromDB() {
   const { data } = await supabase.from("app_settings").select("payments").eq("id","main").maybeSingle()
-  if (data?.payments) return { ...DEFAULTS, ...data.payments }
+  if (data?.payments) {
+    const loaded = { ...DEFAULTS, ...data.payments }
+    // Preserve icons from DEFAULTS - never lose them
+    if (loaded.methods) {
+      loaded.methods = loaded.methods.map(m => {
+        const def = DEFAULTS.methods.find(d=>d.id===m.id)
+        return def ? { ...m, icon: def.icon } : m
+      })
+    }
+    return loaded
+  }
   return load()
 }
 
