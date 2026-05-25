@@ -176,7 +176,9 @@ function BackofficeLogin({ onAuth }) {
 
 export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
-  const [active, setActive] = useState("dashboard")
+  const [active, setActive] = useState(()=>sessionStorage.getItem("bo_active")||"dashboard")
+
+  function navTo(id) { setActive(id); sessionStorage.setItem("bo_active", id) }
   const [mobileSubMenu, setMobileSubMenu] = useState(null)
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
@@ -198,7 +200,7 @@ export default function Backoffice() {
           {NAV.map((n,i)=>n.group
             ?<div key={i} className="bo-nav-group">{n.group}</div>
             :(
-              <button key={n.id} className={"bo-nav-item"+(active===n.id?" active":"")} onClick={()=>setActive(n.id)}>
+              <button key={n.id} className={"bo-nav-item"+(active===n.id?" active":"")} onClick={()=>navTo(n.id)}>
                 <span className="bo-nav-icon">{n.icon}</span>
                 <span>{n.label}</span>
               </button>
@@ -216,7 +218,7 @@ export default function Backoffice() {
           <div className="bo-topbar-title">{NAV.find(n=>n.id===active)?.label}</div>
           <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
         </div>
-        <div className="bo-content"><Screen onNavChange={setActive} /></div>
+        <div className="bo-content"><Screen onNavChange={navTo} /></div>
         {/* Mobile sidebar overlay */}
         {mobileSidebar && (
           <div onClick={()=>setMobileSidebar(false)}
@@ -238,7 +240,7 @@ export default function Backoffice() {
                 {NAV.map((n,i) => n.group
                   ? <div key={i} style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.25)",letterSpacing:"1.5px",textTransform:"uppercase",padding:"14px 16px 4px",marginTop:4 }}>{n.group}</div>
                   : <button key={n.id}
-                      onClick={()=>{ setActive(n.id); setMobileSidebar(false) }}
+                      onClick={()=>{ navTo(n.id); setMobileSidebar(false) }}
                       style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,
                         color:active===n.id?"#fff":"rgba(255,255,255,0.55)",
                         background:active===n.id?"rgba(0,102,255,0.25)":"none",

@@ -47,8 +47,20 @@ export default function ReceiptDesigner() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from("app_settings").select("receipt").eq("id","main").maybeSingle()
-    if (data?.receipt) setS({ ...DEFAULTS, ...data.receipt })
+    const { data } = await supabase.from("app_settings").select("receipt,outlet").eq("id","main").maybeSingle()
+    if (data?.receipt) {
+      const merged = { ...DEFAULTS, ...data.receipt }
+      // Auto-fill outlet info from outlet settings if not set in receipt
+      if (data.outlet && !data.receipt.outlet_name) {
+        merged.outlet_name = data.outlet.name || merged.outlet_name
+        merged.tagline     = data.outlet.tagline || merged.tagline
+        merged.address     = data.outlet.address || merged.address
+        merged.phone       = data.outlet.phone || merged.phone
+        merged.website     = data.outlet.website || merged.website
+        merged.social      = data.outlet.instagram || merged.social
+      }
+      setS(merged)
+    }
     setLoading(false)
   }
 
@@ -228,8 +240,11 @@ export default function ReceiptDesigner() {
             <div style={{ display:"flex", justifyContent:"space-between" }}><span>Nasi Goreng x1</span><span>Rp 25.000</span></div>
             <div style={{ display:"flex", justifyContent:"space-between" }}><span>Teh Manis x2</span><span>Rp 14.000</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
+            {s.show_sku && <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#888" }}><span>SKU: NGR-001</span><span>SKU: TEH-001</span></div>}
             {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Tax 10%</span><span>Rp 3.900</span></div>}
+            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Service</span><span>Rp 2.000</span></div>}
             <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>TOTAL</span><span>Rp 42.900</span></div>
+            {s.show_loyalty && <div style={{ display:"flex", justifyContent:"space-between", fontSize:10 }}><span>Points earned</span><span>+42 pts</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.footer_thank_you && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_thank_you}</div>}
             {s.footer_promo && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_promo}</div>}
@@ -237,6 +252,7 @@ export default function ReceiptDesigner() {
             {s.social && <div style={{ textAlign:"center", fontSize:10 }}>{s.social}</div>}
             {s.custom_line_1 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_1}</div>}
             {s.custom_line_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_2}</div>}
+            {s.show_qr && <div style={{ textAlign:"center", marginTop:8, padding:8, border:"1px solid #ccc", display:"inline-block", fontSize:9 }}>[ QR CODE ]</div>}
           </div>
         </div>
       </div>
