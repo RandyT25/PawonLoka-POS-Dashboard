@@ -366,8 +366,8 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
     flex: 1;
   }
 
-  /* Receipt designer: hide preview */
-  .receipt-preview-panel { display: none !important; }
+  /* Receipt designer: show preview below on mobile */
+  .receipt-preview-panel { position: relative !important; top: auto !important; }
 
   /* Schedule: scrollable week */
   .schedule-week-grid {
