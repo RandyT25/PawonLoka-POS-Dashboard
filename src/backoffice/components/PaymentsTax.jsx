@@ -71,7 +71,6 @@ export default function PaymentsTax() {
     await supabase.from("app_settings").upsert({ id:"main", payments:s, updated_at:new Date().toISOString() })
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
-  }
 
   function updateMethod(id, key, val) {
     setS(p=>({...p, methods:p.methods.map(m=>m.id===id?{...m,[key]:val}:m)}))
