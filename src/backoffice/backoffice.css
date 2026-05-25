@@ -459,3 +459,25 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .recipe-root:not(.has-selected) .recipe-right { display: none !important; }
   .recipe-root:not(.has-selected) .recipe-sheet-overlay { display: none !important; }
 }
+
+
+/* ── RECIPE INGREDIENT ROWS MOBILE ───────────────────────── */
+@media (max-width: 768px) {
+  /* Wrap the whole ingredients section in horizontal scroll */
+  .recipe-ing-header,
+  .recipe-ing-row {
+    min-width: 480px;
+  }
+  /* Scroll wrapper around them */
+  .recipe-right .bo-card,
+  .recipe-right > div > div {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Fix right panel header row that was cut off */
+  .recipe-right > div:first-child {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+}

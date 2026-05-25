@@ -216,7 +216,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
       )}
 
       {/* Column headers */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, marginBottom:8, padding:"0 2px" }}>
+      <div className="recipe-ing-header" style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, marginBottom:8, padding:"0 2px" }}>
         {["INGREDIENT / SUB-RECIPE","QTY","UNIT","COST",""].map((h,i)=>(
           <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4,#6b7280)", textTransform:"uppercase", letterSpacing:"0.4px" }}>{h}</div>
         ))}
@@ -228,7 +228,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
           const found = all.find(x=>x.id===row.ingredient_id)
           const cost  = found?.cost_per_unit ? (found.cost_per_unit/(UNIT_TO_BASE[found.unit]||1))*toBase(row.qty,row.unit) : 0
           return (
-            <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, alignItems:"center" }}>
+            <div key={i} className="recipe-ing-row" style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, alignItems:"center" }}>
               <IngSearch
                 value={row.ingredient_id||""}
                 onChange={o=>handleIngChange(i,o.id)}
