@@ -4,8 +4,7 @@ import { PAY_METHODS, fmt, TAX_RATE } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
 const formatReceipt = (order, customer) => {
-  const items = order.items.map(i => i.qty + 'x ' + i.name + (i.isBundle && i.bundleItems ? ' (' + i.bundleItems.map(b => b.name).join(', ') + ')' : '') + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')).join('
-')
+  const items = order.items.map(i => i.qty + 'x ' + i.name + (i.isBundle && i.bundleItems ? ' (' + i.bundleItems.map(b => b.name).join(', ') + ')' : '') + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')).join(String.fromCharCode(10))
   const receiptUrl = 'https://pawonloka.pages.dev/receipt/' + order.id
   const lines = [
     '*STRUK PAWONLOKA*',
@@ -168,7 +167,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             <div style={S.divider}/>
             <div style={S.summaryRow}><span style={S.dimTxt}>Subtotal</span><span>{fmt(subtotal)}</span></div>
             {fee > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Fee</span><span>{fmt(fee)}</span></div>}
-            <div style={S.summaryRow}><span style={S.dimTxt}>Tax (10%)</span><span>{fmt(tax)}</span></div>
+            {tax > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Tax</span><span>{fmt(tax)}</span></div>}
             {usePoints > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Points ({usePoints}pts)</span><span style={{ color:'#10B981' }}>-{fmt(usePoints*100)}</span></div>}
             {activeSplit && (
               <div style={{ ...S.summaryRow, color:'#6366F1', fontWeight:700, fontSize:12 }}>
@@ -252,7 +251,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                 {(payMethods || PAY_METHODS).map(m => (
                   <button key={m.id} onClick={() => setPayMethod(m.id)}
                     style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
-                    {m.icon} {m.label}
+                    {m.icon} {m.name || m.label}
                   </button>
                 ))}
               </div>
