@@ -29,6 +29,7 @@ export default function POS() {
   const [shift, setShift]           = useState(null)
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
+  const [modifierGroups, setModifierGroups] = useState([])
   const [loading, setLoading]       = useState(true)
   const [tableNo, setTableNo]       = useState('')
   const [customer, setCustomer]     = useState(null)
@@ -532,6 +533,7 @@ export default function POS() {
 
       {modifierItem && (
         <ModifierModal
+          modifierGroups={modifierGroups}
           product={modifierItem}
           onConfirm={handleModifierConfirm}
           onCancel={() => setModifierItem(null)}

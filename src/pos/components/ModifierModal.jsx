@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MODIFIERS, fmt } from '../../shared/constants'
 
-export default function ModifierModal({ product, onConfirm, onCancel }) {
+export default function ModifierModal({ product, onConfirm, onCancel, modifierGroups }) {
   const [selected, setSelected] = useState({})
   const [note, setNote]         = useState('')
 
@@ -21,7 +21,7 @@ export default function ModifierModal({ product, onConfirm, onCancel }) {
         </div>
 
         <div style={{ padding:'16px 20px', overflowY:'auto', flex:1 }}>
-          {MODIFIERS.map(mod => (
+          {(modifierGroups?.length ? modifierGroups.map(mod => ({ ...mod, options: mod.options?.map ? mod.options.map(o => typeof o === 'string' ? o : o.name) : mod.options })) : MODIFIERS).map(mod => (
             <div key={mod.id} style={{ marginBottom:16 }}>
               <div style={S.modLabel}>{mod.name}</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
