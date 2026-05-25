@@ -192,7 +192,6 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                   color: appliedPromo ? '#16A34A' : '#6B7A8D' }}>
                 {appliedPromo ? 'Promo: ' + appliedPromo.name + ' -' + fmt(appliedPromo.disc) : '+ Promo / Voucher'}
               </button>
-            )}
             </div>
 
             {/* Points */}
