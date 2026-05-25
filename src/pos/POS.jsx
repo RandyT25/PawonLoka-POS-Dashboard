@@ -182,9 +182,11 @@ export default function POS() {
 
   function handleProductSelect(product) {
     const relevantMods = modifierGroups.filter(m => {
-      if (!m.linked_cats?.length && !m.linked_products?.length) return true // applies to all
-      if (m.linked_cats?.includes(product.cat)) return true
-      if (m.linked_products?.includes(product.sku)) return true
+      const hasCatFilter = Array.isArray(m.linked_cats) && m.linked_cats.length > 0
+      const hasProdFilter = Array.isArray(m.linked_products) && m.linked_products.length > 0
+      if (!hasCatFilter && !hasProdFilter) return true
+      if (hasCatFilter && m.linked_cats.includes(product.cat)) return true
+      if (hasProdFilter && m.linked_products.includes(product.sku)) return true
       return false
     })
     if (relevantMods.length) { setModifierItem({...product, _mods: relevantMods}) } else { handleModifierConfirm(product, {}, '') }
