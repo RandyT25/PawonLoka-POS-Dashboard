@@ -352,7 +352,7 @@ export default function POS() {
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         staff: staff.name, customer: customer?.name || null, items: cart,
-        subtotal, tax: Math.round(subtotal*0.1), discount: discAmt,
+        subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), discount: discAmt,
         _isSplit: !isFullyPaid, splitLabel, splitPaid: newSplitPaid,
         _fullyPaid: isFullyPaid
       }
@@ -390,7 +390,7 @@ export default function POS() {
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         staff: staff.name, customer: customer?.name || null, items: cart,
-        subtotal, tax: Math.round(subtotal*0.1), discount: discAmt + promoDisc,
+        subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), discount: discAmt + promoDisc,
       }
       clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
       setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
@@ -508,12 +508,13 @@ export default function POS() {
           discount={discount}
           onDiscountChange={setDiscount}
           backofficeDiscounts={backofficeDiscounts}
+          taxRate={TAX_RATE_LIVE}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
           onManagerRemoveItem={handleManagerRemoveItem}
           onAddExtra={handleAddExtra}
-          onSplit={() => setSplitTotals({ subtotal, tax: Math.round(subtotal*0.1), total: subtotal+Math.round(subtotal*0.1) })}
+          onSplit={() => setSplitTotals({ subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), total: subtotal+Math.round(subtotal*TAX_RATE_LIVE) })}
           deliveryFee={deliveryFee}
           onDeliveryFeeChange={setDeliveryFee}
           deliveryAddr={deliveryAddr}
@@ -539,7 +540,7 @@ export default function POS() {
       {showCharge && (
         <ChargeModal
           cart={cart}
-          totals={{ subtotal, tax: Math.round(subtotal*0.1), total: subtotal+Math.round(subtotal*0.1), fee: parseFloat(deliveryFee)||0, discount, splitPaid }}
+          totals={{ subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), total: subtotal+Math.round(subtotal*TAX_RATE_LIVE), fee: parseFloat(deliveryFee)||0, discount, splitPaid }}
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
@@ -548,6 +549,7 @@ export default function POS() {
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
           backofficeDiscounts={backofficeDiscounts}
+          taxRate={TAX_RATE_LIVE}
           taxRate={TAX_RATE_LIVE}
           serviceRate={SERVICE_RATE}
           bundles={bundles}

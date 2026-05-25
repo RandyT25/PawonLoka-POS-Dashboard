@@ -6,7 +6,7 @@ export default function Cart({
   tableNo, onTableNoChange, customer, onShowCustomer, onRemoveCustomer,
   discount, onDiscountChange, orderType, onOrderTypeChange,
   openBillId, onManagerRemoveItem, onSplit, deliveryFee, onDeliveryFeeChange,
-  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts
+  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate
 }) {
   const [itemDisc, setItemDisc]   = useState(null) // {key, type, value}
   const [itemNote, setItemNote]   = useState(null) // key
@@ -19,7 +19,7 @@ export default function Cart({
   const fee       = (orderType==='Takeaway'||orderType==='Delivery') ? (parseFloat(deliveryFee)||0) : 0
   const discAmt   = discount ? Math.round(subtotal * discount / 100) : 0
   const discSub   = subtotal - discAmt
-  const tax       = Math.round(discSub * TAX_RATE)
+  const tax       = Math.round(discSub * (taxRate||0))
   const total     = discSub + tax + fee
   const newItems  = cart.filter(i => !i._sent)
 
