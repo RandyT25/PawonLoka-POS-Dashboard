@@ -116,11 +116,12 @@ export default function StaffPortal() {
 
   async function loadData() {
     const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
-      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier").order("name"),
+      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station").order("name"),
       supabase.from("sub_recipes").select("*").order("name"),
       supabase.from("sub_recipe_ingredients").select("*"),
     ])
-    setIngredients(ings||[])
+    const filtered = (ings||[]).filter(i => !i.station || i.station === "All" || i.station === station)
+    setIngredients(filtered)
     setSubRecipes(subs||[])
     setSubRecipeIngs(subIngs||[])
     setOpnameCounts((ings||[]).map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" })))
