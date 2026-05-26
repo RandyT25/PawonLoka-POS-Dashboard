@@ -51,6 +51,7 @@ export default function POS() {
   const [pwaInstallable, setPwaInstallable] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [voidAuth, setVoidAuth] = useState(null) // {orderId, reason, pin}
 
   useEffect(() => {
     window.addEventListener('pwa-installable', () => setPwaInstallable(true))
@@ -601,6 +602,7 @@ export default function POS() {
           onDiscountChange={setDiscount}
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
+          staffPerms={staff?.permissions}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
@@ -657,6 +659,7 @@ export default function POS() {
           payMethods={ACTIVE_PAY_METHODS}
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
+          staffPerms={staff?.permissions}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
         />
@@ -805,6 +808,46 @@ export default function POS() {
               <button onClick={() => { setStaff(null); setShift(null) }}
                 style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'12px 20px', background:'none', border:'none', color:'#FCA5A5', fontSize:14, fontWeight:600, cursor:'pointer' }}>
                 🚪 Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Void Auth Modal */}
+      {voidAuth !== null && (
+        <div style={{ position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:3000,display:'flex',alignItems:'center',justifyContent:'center' }}
+          onClick={e=>e.target===e.currentTarget&&setVoidAuth(null)}>
+          <div style={{ background:'#fff',borderRadius:20,padding:28,width:340,maxWidth:'90vw' }}>
+            <div style={{ fontSize:17,fontWeight:800,marginBottom:16,color:'#DC2626' }}>Void Authorization</div>
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:12,fontWeight:700,color:'#6B7A8D',marginBottom:4 }}>Reason (required)</div>
+              <input value={voidAuth.reason||''} onChange={e=>setVoidAuth(v=>({...v,reason:e.target.value}))}
+                placeholder="e.g. Wrong order, customer cancelled..."
+                style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1.5px solid #E2E8F0',fontSize:13,boxSizing:'border-box' }} />
+            </div>
+            {!staff?.permissions?.void && (
+              <div style={{ marginBottom:12 }}>
+                <div style={{ fontSize:12,fontWeight:700,color:'#6B7A8D',marginBottom:4 }}>Manager PIN</div>
+                <input type="password" maxLength={4} value={voidAuth.pin||''} onChange={e=>setVoidAuth(v=>({...v,pin:e.target.value}))}
+                  placeholder="Enter manager PIN"
+                  style={{ width:'100%',padding:'10px 12px',borderRadius:10,border:'1.5px solid #E2E8F0',fontSize:18,letterSpacing:6,boxSizing:'border-box' }} />
+              </div>
+            )}
+            <div style={{ display:'flex',gap:10,marginTop:8 }}>
+              <button onClick={()=>setVoidAuth(null)}
+                style={{ flex:1,padding:12,borderRadius:10,border:'1px solid #E2E8F0',background:'#fff',cursor:'pointer',fontSize:14 }}>Cancel</button>
+              <button onClick={async()=>{
+                if (!voidAuth.reason?.trim()) { alert('Please enter a reason'); return }
+                if (!staff?.permissions?.void) {
+                  const {data:mgr} = await supabase.from('staff').select('pin,permissions').eq('pin',voidAuth.pin).maybeSingle()
+                  if (!mgr?.permissions?.void) { alert('Invalid PIN or no void permission'); return }
+                }
+                await supabase.from('orders').update({ status:'void', void_reason:voidAuth.reason, voided_by:staff.name }).eq('id',voidAuth.orderId)
+                await supabase.from('audit_logs').insert({ action:'void', staff_name:staff.name, details:{ order_id:voidAuth.orderId, reason:voidAuth.reason }, created_at:new Date().toISOString() }).catch(()=>{})
+                setVoidAuth(null)
+                alert('Order voided')
+              }} style={{ flex:1,padding:12,borderRadius:10,border:'none',background:'#DC2626',color:'#fff',fontWeight:700,cursor:'pointer',fontSize:14 }}>
+                Confirm Void
               </button>
             </div>
           </div>

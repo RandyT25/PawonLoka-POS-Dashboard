@@ -244,6 +244,15 @@ export default function UsersAccess() {
               </div>
 
               {/* Warning for backoffice */}
+              {form.permissions.discount && (
+                <div className="bo-form-row">
+                  <label className="bo-label">Max Discount % (0 = unlimited)</label>
+                  <input type="number" min="0" max="100"
+                    value={form.permissions.max_discount||0}
+                    onChange={e=>setForm(f=>({...f,permissions:{...f.permissions,max_discount:parseInt(e.target.value)||0}}))}
+                    className="bo-input" style={{width:100}} />
+                </div>
+              )}
               {form.permissions.backoffice && (
                 <div style={{ marginTop:12, padding:"10px 14px", background:"var(--amber-lt)", borderRadius:"var(--r)", fontSize:12, color:"var(--amber)", fontWeight:600 }}>
                   This staff will have full backoffice access using their PIN

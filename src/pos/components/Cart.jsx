@@ -6,7 +6,7 @@ export default function Cart({
   tableNo, onTableNoChange, customer, onShowCustomer, onRemoveCustomer,
   discount, onDiscountChange, orderType, onOrderTypeChange,
   openBillId, onManagerRemoveItem, onSplit, deliveryFee, onDeliveryFeeChange,
-  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate
+  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate, staffPerms
 }) {
   const [itemDisc, setItemDisc]   = useState(null) // {key, type, value}
   const [itemNote, setItemNote]   = useState(null) // key
@@ -189,7 +189,7 @@ export default function Cart({
 
           {/* Order-level discount */}
           <div style={{ marginTop:8 }}>
-            <button onClick={() => setShowDisc(!showDisc)}
+            <button onClick={() => { if (staffPerms && !staffPerms.discount) { alert('No discount permission'); return } setShowDisc(!showDisc) }}
               style={{ ...S.miniBtn, marginBottom: showDisc?6:0, background: discount>0?'#ECFDF5':'white', color: discount>0?'#059669':'#6B7A8D' }}>
               Order Discount {discount > 0 ? discount+'%' : ''}
             </button>
