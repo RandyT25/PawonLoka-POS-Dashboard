@@ -87,7 +87,7 @@ export default function POS() {
   const paySettings = appSettings?.payments
   const TAX_RATE_LIVE = appSettings
     ? (paySettings?.tax?.enabled ? (paySettings.tax.rate||0)/100 : 0)
-    : 0.10  // fallback before settings load
+    : 0  // 0 until settings load (avoids wrong tax flash)
   const SERVICE_RATE = paySettings?.service?.enabled
     ? (paySettings.service.rate || 0) / 100
     : 0

@@ -46,7 +46,7 @@ const MOBILE_TABS = [
   { id:"home",    icon:"🏠", label:"Home",    items:["dashboard","reports","accounting"] },
   { id:"menu",    icon:"🍽", label:"Menu",    items:["products","categories","modifiers","recipes"] },
   { id:"stock",   icon:"📦", label:"Stock",   items:["inv-overview","inv-ingredients","inv-po","inv-suppliers","inv-production","inv-opname","inv-waste","inv-movements","staff-submissions"] },
-  { id:"people",  icon:"👥", label:"People",  items:["employees","shifts","schedule","performance","customers","loyalty"] },
+  { id:"people",  icon:"👥", label:"People",  items:["employees","shifts","orders","schedule","performance","customers","loyalty"] },
   { id:"more",    icon:"⚙️", label:"More",    items:["promotions","bundles","discounts","payments","floorplan","import-export","settings","receipt-designer","hardware","usersaccess","audit-log","integrations"] },
 ]
 
@@ -115,6 +115,7 @@ const SCREENS = {
   "import-export":      ImportExport,
   employees:         Employees,
   shifts:            Shifts,
+  orders:            Orders,
   schedule:          Schedule,
   performance:       Performance,
   customers:         Customers,

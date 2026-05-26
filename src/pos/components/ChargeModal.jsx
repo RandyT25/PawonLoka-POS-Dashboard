@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PAY_METHODS, fmt, TAX_RATE } from '../../shared/constants'
+import { PAY_METHODS, fmt } from '../../shared/constants'
 
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
