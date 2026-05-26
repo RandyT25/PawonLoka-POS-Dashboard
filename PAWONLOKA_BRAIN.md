@@ -211,18 +211,22 @@ Hardware, Import/Export
 - Modifiers from DB, filter by category, price added to item
 - Promo/Voucher from promos table, shown as buttons
 
+## ✅ COMPLETED SESSION 2026-05-26
+- White screen fix: removed seed gate from App.jsx, fixed Orders import in Backoffice.jsx
+- /pos route working, _redirects fixed (no non-trailing-slash entries)
+- Staff portal rebuilt: station picker (Kitchen/Snack/Bar/Kasir), clock in/out removed, staff name buttons per station, Kasir restricted to Request only
+- 4-printer setup: receipt/kitchen1/kitchen2/bar roles, correct category→station routing in KITCHEN_STATIONS
+- Staff permissions: max_discount cap enforced in Cart, cash permission enforced on CashInOutModal
+- WhatsApp receipt resend from Orders modal (looks up customer phone, opens WA)
+- KITCHEN_STATIONS dynamic import warning fixed (static import in OrdersModal)
+- PO void confirmed working
+
 ## 🔧 KNOWN ISSUES TO FIX NEXT SESSION
-- White screen on all routes after /pos route addition - check App.jsx routing logic
-- PO void button added but needs testing
-- printCheck uses testPrint as fallback (not real check ticket yet)
-- KITCHEN_STATIONS dynamic import warning (harmless but messy)
+- None currently known
 
 ## 🔧 TODO
-- Kitchen station printing (send order → print to kitchen printer)
-- Checker/table check print button at cashier
-- Add /pos route (separate from /)
-- WhatsApp receipt resend from Orders modal
-- Staff permissions: Head Kasir role enforcement
-- Customer display second screen
-- Email receipts (Resend.com)
-- Test printer connection end-to-end
+- Assign station to ingredients (for Staff portal filtering)
+- Add recipes for dishes (so stock deduction works on payment)
+- Orders History in Backoffice — date range filter, export, detailed view
+- Staff Schedule — auto-generate weekly schedule from brain rules
+- Test printer connection end-to-end (manual, daily)
