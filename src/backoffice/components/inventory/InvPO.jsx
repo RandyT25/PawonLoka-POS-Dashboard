@@ -196,6 +196,11 @@ export default function InvPO() {
     setBulkLoading(false)
   }
 
+  async function voidPO(po) {
+    if (!confirm('Void this PO? Stock changes will NOT be reversed automatically.')) return
+    await supabase.from('purchase_orders').update({ status:'Void' }).eq('id', po.id)
+    await load()
+  }
   async function markPaid(po) {
     if (!confirm(`Mark ${po.id} as paid?`)) return
     const { data: freshIngs } = await supabase.from("ingredients").select("*")
@@ -384,6 +389,9 @@ export default function InvPO() {
                 <button onClick={()=>deletePO(viewModal)} className="bo-btn bo-btn-danger">Delete</button>
                 <button onClick={()=>markPaid(viewModal)} className="bo-btn bo-btn-primary">✓ Mark as Paid</button>
               </>}
+              {viewModal.status==="Paid" && (
+                <button onClick={()=>{ voidPO(viewModal); setViewModal(null) }} className="bo-btn bo-btn-danger">Void PO</button>
+              )}
             </div>
           </div>
         </div>
