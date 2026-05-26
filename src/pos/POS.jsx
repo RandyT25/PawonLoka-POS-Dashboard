@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fmt, TAX_RATE, STAFF } from '../shared/constants'
+import { fmt, TAX_RATE, STAFF, KITCHEN_STATIONS } from '../shared/constants'
 import useCart from './hooks/useCart'
 import useOrders from './hooks/useOrders'
 import PinLogin from './components/PinLogin'
@@ -324,7 +324,6 @@ export default function POS() {
     }
 
     // Group new items by station
-    const { KITCHEN_STATIONS } = await import('../shared/constants')
     const stations = {}
     newItems.forEach(item => {
       const station = KITCHEN_STATIONS[item.cat] || 'Kitchen'
