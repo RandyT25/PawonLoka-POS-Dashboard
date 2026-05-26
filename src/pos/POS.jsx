@@ -618,7 +618,7 @@ export default function POS() {
           <button onClick={() => setShowCustomer(true)} style={{ ...S.headerBtn }} className="pos-hide-mobile">
             {customer ? customer.name : '+ Customer'}
           </button>
-          <button onClick={() => setShowCashLog(true)} style={S.headerBtn} className="pos-hide-mobile">Cash</button>
+          <button onClick={() => { if (staff?.permissions && !staff.permissions.cash) { alert('No cash in/out permission'); return } setShowCashLog(true) }} style={S.headerBtn} className="pos-hide-mobile">Cash</button>
           <button onClick={() => setShowVoid(true)} style={{ ...S.headerBtn, color:'#FCA5A5' }} className="pos-hide-mobile">Void</button>
           <button onClick={() => setShowShift(true)} style={S.headerBtn} className="pos-hide-mobile">Shift</button>
           <button onClick={() => setShowMobileMenu(true)} style={{ ...S.headerBtn, fontSize:20, padding:'4px 10px' }}>☰</button>
@@ -847,7 +847,7 @@ export default function POS() {
                   const {data}=await supabase.from("attendance").select("*").eq("id",attId).maybeSingle()
                   setTodayAtt(data); setClockPhoto(null); setShowClock(true)
                 }],
-                ['💵 Cash In/Out', () => setShowCashLog(true)],
+                ['💵 Cash In/Out', () => { if (staff?.permissions && !staff.permissions.cash) { alert('No cash in/out permission'); return } setShowCashLog(true) }],
                 ['⚙️ Settings', () => setShowSettings(true)],
               ].map(([label, action]) => (
                 <button key={label} onClick={()=>{ action(); setShowMobileMenu(false) }}

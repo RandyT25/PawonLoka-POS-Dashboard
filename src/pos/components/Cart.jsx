@@ -200,7 +200,12 @@ export default function Cart({
                   None
                 </button>
                 {(backofficeDiscounts||[]).map(d => (
-                  <button key={d.id} onClick={() => { onDiscountChange(['percent','Percentage'].includes(d.type)||!d.type ? d.value : 0); setShowDisc(false) }}
+                  <button key={d.id} onClick={() => {
+                    const val = ['percent','Percentage'].includes(d.type)||!d.type ? d.value : 0
+                    const maxD = staffPerms?.max_discount
+                    if (maxD && val > maxD) { alert('Max discount for your role is ' + maxD + '%'); return }
+                    onDiscountChange(val); setShowDisc(false)
+                  }}
                     style={{ ...S.miniBtn, ...(discount===d.value?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
                     {d.name} {['percent','Percentage'].includes(d.type)||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('id-ID')}
                   </button>
