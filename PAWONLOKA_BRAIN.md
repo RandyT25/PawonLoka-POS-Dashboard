@@ -192,12 +192,31 @@ Schedule, Shifts, Performance, Customers, Loyalty, Promotions & Vouchers,
 Bundles, Discounts, Payments & Tax, Floor Plan, Settings, Receipt Designer,
 Hardware, Import/Export
 
+## ✅ COMPLETED PHASE 1-3
+- PWA install banners for POS/Backoffice/Staff
+- Offline mode indicator + better SW caching
+- Alin added to staff DB (PIN: 8888)
+- Shift float only asks once per session
+- Clock in reminder on shift open, clock out on shift close
+- WhatsApp auto-send on payment (if customer has phone)
+- Add Staff via Employees UI (no SQL needed)
+- Bundles save correctly to orders table
+- Orders History module in backoffice
+- Stock deduction on payment (ready when recipes added)
+- Audit log on login + payment + void
+- Receipt designer settings used when printing
+- Auto-print receipt on payment via Bluetooth printer
+- Printer status indicator in POS header
+- Staff permissions enforced: void needs PIN+reason, discount limit
+- Modifiers from DB, filter by category, price added to item
+- Promo/Voucher from promos table, shown as buttons
+
 ## 🔧 TODO
-- PWA install for POS tablet + Staff phone + Backoffice
+- Kitchen station printing (send order → print to kitchen printer)
+- Checker/table check print button at cashier
 - Add /pos route (separate from /)
-- Printer Bluetooth/network integration
 - WhatsApp receipt resend from Orders modal
-- Add Alin to staff table in Supabase
-- Shift float: only ask on first open not staff switch
-- Clock in reminder on shift close
-- Audit log: wire real actions (login, void, price change)
+- Staff permissions: Head Kasir role enforcement
+- Customer display second screen
+- Email receipts (Resend.com)
+- Test printer connection end-to-end
