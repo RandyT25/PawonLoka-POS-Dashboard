@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { fmt } from '../../shared/constants'
+import { fmt, KITCHEN_STATIONS } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
 export default function OrdersModal({ onClose, onRecall }) {
@@ -164,7 +164,6 @@ export default function OrdersModal({ onClose, onRecall }) {
                   </div>
                 ))}
                 <button onClick={async () => {
-                  const { KITCHEN_STATIONS } = await import('../../shared/constants')
                   const items = (reprintOrder.items||[]).filter((_,idx) => reprintSelected[idx])
                   if (!items.length) { alert('Pilih item dulu'); return }
                   const stations = {}
