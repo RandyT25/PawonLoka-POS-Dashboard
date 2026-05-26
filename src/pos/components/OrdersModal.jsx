@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
+import { useWhatsApp } from '../hooks/useWhatsApp'
 
 export default function OrdersModal({ onClose, onRecall }) {
   const [orders, setOrders]               = useState([])
@@ -10,6 +11,8 @@ export default function OrdersModal({ onClose, onRecall }) {
   const [reprintSelected, setReprintSelected] = useState({})
 
   const channelRef = useRef(null)
+  const { resendReceipt } = useWhatsApp()
+  const [waSending, setWaSending] = useState(null)
 
   useEffect(() => {
     load()
@@ -41,6 +44,16 @@ export default function OrdersModal({ onClose, onRecall }) {
     load()
   }
 
+  async function handleResendWA(order) {
+    if (!order.customer_id) { alert('No customer linked to this order'); return }
+    setWaSending(order.id)
+    try {
+      const { data: cust } = await supabase.from('customers').select('*').eq('id', order.customer_id).maybeSingle()
+      if (!cust?.phone) { alert('Customer has no phone number saved'); return }
+      resendReceipt(order, cust)
+    } catch(e) { alert('Failed: ' + e.message) }
+    finally { setWaSending(null) }
+  }
   function statusColor(s) {
     if (s === 'Paid') return '#16A34A'
     if (s === 'Voided' || s === 'Refunded') return '#DC2626'
@@ -104,6 +117,12 @@ export default function OrdersModal({ onClose, onRecall }) {
                   <button onClick={() => { onRecall(o); onClose() }} style={S.recallBtn}>Buka ke Kasir</button>
                   <button onClick={() => markPaid(o)} style={S.paidBtn}>Tandai Lunas</button>
                 </>}
+                {o.status === 'Paid' && o.customer_id && (
+                  <button onClick={() => handleResendWA(o)} disabled={waSending===o.id}
+                    style={{ ...S.recallBtn, background:'#25D366', color:'#fff', border:'none' }}>
+                    {waSending===o.id ? '...' : 'WA'}
+                  </button>
+                )}
                 <button onClick={() => { setReprintOrder(o); setReprintSelected({}) }}
                   style={{ flex:1, padding:'8px 12px', background:'#FFFBEB', color:'#B45309', border:'none', borderRadius:8, fontSize:12, fontWeight:700, cursor:'pointer', minWidth:80 }}>
                   Reprint
