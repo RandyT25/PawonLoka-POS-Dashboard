@@ -364,9 +364,55 @@ export default function POS() {
       })
     }
 
+    // Print kitchen tickets
+    for (const [station, items] of Object.entries(stations)) {
+      const stationRole = station === 'Bar' ? 'kitchen2' : 'kitchen1'
+      try {
+        await printer.printKitchenTicket({
+          stationRole,
+          table: tableNo || orderType,
+          station,
+          items: items.map(i => i.qty + 'x ' + i.name + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
+          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+          orderId: openBillId || 'NEW',
+        })
+      } catch(e) { console.warn('Kitchen print failed for', station, e.message) }
+    }
     // Mark all cart items as sent
     setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen' })))
     alert('Order dikirim ke ' + Object.keys(stations).join(', ') + '!')
+  }
+
+  // Print table checker
+  async function printCheck() {
+    const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected)
+    if (!receiptPrinter) { alert('No receipt printer connected'); return }
+    const lines = [
+      { cmd:'ALIGN_C' }, { cmd:'BOLD_ON' }, { cmd:'DOUBLE_ON' },
+      { text: 'TABLE CHECK\n' },
+      { cmd:'DOUBLE_OFF' }, { cmd:'BOLD_OFF' },
+      { text: (tableNo ? 'Table: ' + tableNo : orderType) + '\n' },
+      { text: new Date().toLocaleTimeString('id-ID') + '\n' },
+      { text: '================================\n' },
+      { cmd:'ALIGN_L' },
+      ...cart.map(i => [
+        { cmd:'BOLD_ON' },
+        { text: i.qty + 'x ' + i.name + '\n' },
+        { cmd:'BOLD_OFF' },
+        ...(i.note ? [{ text: '  Note: ' + i.note + '\n' }] : []),
+        ...(i.modifiers&&Object.values(i.modifiers).length ? [{ text: '  ' + Object.values(i.modifiers).join(', ') + '\n' }] : []),
+      ]).flat(),
+      { text: '================================\n' },
+      { cmd:'ALIGN_C' },
+      { text: 'Please verify before serving\n' },
+      { text: '\n\n\n' }, { cmd:'CUT' }
+    ]
+    const { renderToBytes } = await import('./hooks/usePrinter')
+    try {
+      const bytes = renderToBytes ? renderToBytes(lines) : null
+      if (bytes) await printer.printBytes?.(receiptPrinter.id, bytes)
+      else alert('Print check not supported yet')
+    } catch(e) { alert('Print failed: ' + e.message) }
   }
 
   // Manager PIN required to remove sent item from open bill
@@ -603,6 +649,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
+          onPrintCheck={printCheck}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
@@ -660,6 +707,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
+          onPrintCheck={printCheck}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
         />

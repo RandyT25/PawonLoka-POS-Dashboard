@@ -6,7 +6,7 @@ export default function Cart({
   tableNo, onTableNoChange, customer, onShowCustomer, onRemoveCustomer,
   discount, onDiscountChange, orderType, onOrderTypeChange,
   openBillId, onManagerRemoveItem, onSplit, deliveryFee, onDeliveryFeeChange,
-  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate, staffPerms
+  deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate, staffPerms, onPrintCheck
 }) {
   const [itemDisc, setItemDisc]   = useState(null) // {key, type, value}
   const [itemNote, setItemNote]   = useState(null) // key
@@ -216,6 +216,13 @@ export default function Cart({
             </button>
           )}
 
+          {/* Print Check button */}
+          {onPrintCheck && cart.length > 0 && (
+            <button onClick={onPrintCheck}
+              style={{ width:'100%', padding:10, background:'#fff', color:'#0052CC', border:'1.5px solid #0052CC', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', marginBottom:6 }}>
+              Print Table Check
+            </button>
+          )}
           {/* Charge button */}
           {openBillId && (
             <button onClick={() => onCharge({ subtotal, tax, discAmt, total, fee, orderNote })} style={S.chargeBtn}>
