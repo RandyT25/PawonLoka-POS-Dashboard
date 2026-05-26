@@ -8,11 +8,12 @@ function App() {
   const path = window.location.pathname.replace(/\/+$/, "") || "/"
   const isBackoffice = path === "/backoffice" || path.startsWith("/backoffice/")
   const isStaff = path === "/staff" || path.startsWith("/staff/")
+  const isPos = path === "/pos" || path.startsWith("/pos/")
 
-  const [ready, setReady] = useState(isBackoffice || isStaff)
+  const [ready, setReady] = useState(isBackoffice || isStaff || isPos)
 
   useEffect(() => {
-    if (isBackoffice || isStaff) return
+    if (isBackoffice || isStaff || isPos) return
     seedDatabase().then(() => setReady(true))
   }, [])
 
@@ -24,6 +25,7 @@ function App() {
 
   if (isStaff) return <StaffPortal />
   if (isBackoffice) return <Backoffice />
+  if (isPos) return <POS />
   return <POS />
 }
 

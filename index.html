@@ -11,7 +11,11 @@
       var manifest = '/manifest.json'
       var title = 'PawonLoka POS'
       var color = '#0A1628'
-      if (path.startsWith('/backoffice')) {
+      if (path.startsWith('/pos')) {
+        manifest = '/manifest.json'
+        title = 'PawonLoka POS'
+        color = '#0A1628'
+      } else if (path.startsWith('/backoffice')) {
         manifest = '/manifest-backoffice.json'
         title = 'PawonLoka Backoffice'
         color = '#1a1a2e'

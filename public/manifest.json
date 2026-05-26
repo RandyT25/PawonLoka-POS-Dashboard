@@ -1,14 +1,22 @@
 {
   "name": "PawonLoka POS",
-  "short_name": "PawonLoka",
+  "short_name": "POS",
   "description": "PawonLoka Restaurant POS System",
-  "start_url": "/",
+  "start_url": "/pos",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0A1628",
   "theme_color": "#0A1628",
   "icons": [
-    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
   ]
 }
