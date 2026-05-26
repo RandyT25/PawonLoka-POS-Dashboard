@@ -12,9 +12,10 @@ const PERMISSIONS = [
 ]
 
 const ROLE_DEFAULTS = {
-  Owner:   { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:true,  refund:true  },
-  Manager: { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:false, refund:true  },
-  Cashier: { pos:true,  void:false, cash:true,  discount:false, reports:false, backoffice:false, refund:false },
+  Owner:      { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:true,  refund:true,  max_discount:0  },
+  Manager:    { pos:true,  void:true,  cash:true,  discount:true,  reports:true,  backoffice:false, refund:true,  max_discount:0  },
+  'Head Kasir':{ pos:true, void:true,  cash:true,  discount:true,  reports:true,  backoffice:false, refund:false, max_discount:30 },
+  Cashier:    { pos:true,  void:false, cash:true,  discount:false, reports:false, backoffice:false, refund:false, max_discount:0  },
   Waiter:  { pos:true,  void:false, cash:false, discount:false, reports:false, backoffice:false, refund:false },
   Kitchen: { pos:false, void:false, cash:false, discount:false, reports:false, backoffice:false, refund:false },
 }
