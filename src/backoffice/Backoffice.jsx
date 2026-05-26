@@ -28,6 +28,7 @@ import StaffSubmissions from "./components/StaffSubmissions"
 import ImportExport from "./components/ImportExport"
 import Schedule from "./components/Schedule"
 import Accounting from "./components/Accounting"
+import Orders from './components/Orders'
 
 function ComingSoon({ title }) {
   return (
