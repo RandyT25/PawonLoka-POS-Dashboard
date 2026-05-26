@@ -2,9 +2,10 @@
 import { useState } from "react";
 
 const ROLES = [
-  { id: "receipt",  label: "Receipt Printer" },
-  { id: "kitchen1", label: "Kitchen Station 1" },
-  { id: "kitchen2", label: "Kitchen Station 2" },
+  { id: "receipt",  label: "Cashier — Receipt Printer" },
+  { id: "kitchen1", label: "Kitchen Station" },
+  { id: "kitchen2", label: "Snack Station" },
+  { id: "bar",      label: "Bar Station" },
 ];
 
 export default function PrinterSettings({ hook }) {

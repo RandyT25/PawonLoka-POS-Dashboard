@@ -244,7 +244,7 @@ export function usePrinter() {
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";
     const printer = printers.find(p => p.role === role && p.connected)
-                 || printers.find(p => (p.role === "kitchen1" || p.role === "kitchen2") && p.connected);
+                 || printers.find(p => (p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar") && p.connected);
     if (!printer) throw new Error("No kitchen printer connected for " + role);
     await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket })));
   }, [printers, printBytes]);

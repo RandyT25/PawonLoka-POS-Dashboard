@@ -365,7 +365,7 @@ export default function POS() {
 
     // Print kitchen tickets
     for (const [station, items] of Object.entries(stations)) {
-      const stationRole = station === 'Bar' ? 'kitchen2' : 'kitchen1'
+      const stationRole = station
       try {
         await printer.printKitchenTicket({
           stationRole,
