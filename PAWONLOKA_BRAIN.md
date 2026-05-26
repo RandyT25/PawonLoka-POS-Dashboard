@@ -220,13 +220,15 @@ Hardware, Import/Export
 - WhatsApp receipt resend from Orders modal (looks up customer phone, opens WA)
 - KITCHEN_STATIONS dynamic import warning fixed (static import in OrdersModal)
 - PO void confirmed working
+- Orders History: date range filter, quick presets (Today/7D/30D), Excel export, payment breakdown in detail modal
+- Schedule: fixed Oji removed from Bakar candidates (Kitchen only)
+- Ingredients: station column added (Kitchen/Snack/Bar/Kasir/All), dropdown in backoffice, Staff portal filters by station
+- Stock deduction fixed: recipes.product_id stores sku, direct stock update without RPC fallback
 
 ## 🔧 KNOWN ISSUES TO FIX NEXT SESSION
 - None currently known
 
 ## 🔧 TODO
-- Assign station to ingredients (for Staff portal filtering)
-- Add recipes for dishes (so stock deduction works on payment)
-- Orders History in Backoffice — date range filter, export, detailed view
-- Staff Schedule — auto-generate weekly schedule from brain rules
+- Add recipes for dishes in RecipeEditor (stock deduction is ready, needs recipe data)
 - Test printer connection end-to-end (manual, daily)
+- Assign station to existing 206 ingredients (currently all default to Kitchen)
