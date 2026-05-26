@@ -211,6 +211,12 @@ Hardware, Import/Export
 - Modifiers from DB, filter by category, price added to item
 - Promo/Voucher from promos table, shown as buttons
 
+## 🔧 KNOWN ISSUES TO FIX NEXT SESSION
+- White screen on all routes after /pos route addition - check App.jsx routing logic
+- PO void button added but needs testing
+- printCheck uses testPrint as fallback (not real check ticket yet)
+- KITCHEN_STATIONS dynamic import warning (harmless but messy)
+
 ## 🔧 TODO
 - Kitchen station printing (send order → print to kitchen printer)
 - Checker/table check print button at cashier
