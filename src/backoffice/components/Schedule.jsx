@@ -34,7 +34,7 @@ function autoFillDay(day, off, staff) {
   const bar = barCandidates.find(n=>available.includes(n)&&n!==kasir) || ""
 
   // Bakar: Yudi first, then Meldy
-  const bakarCandidates = ["Yudi","Meldy","Oji"].filter(n=>available.includes(n)&&n!==kasir&&n!==bar)
+  const bakarCandidates = ["Yudi","Meldy"].filter(n=>available.includes(n)&&n!==kasir&&n!==bar)
   const bakar = bakarCandidates[0] || ""
 
   // Taken by primary roles
