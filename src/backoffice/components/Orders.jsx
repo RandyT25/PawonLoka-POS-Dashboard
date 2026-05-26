@@ -1,54 +1,97 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
+import * as XLSX from "xlsx"
 
 const fmt = n => "Rp " + Math.round(n||0).toLocaleString("id-ID")
 
 function sendWA(order) {
-  const phone = order.customer_phone || prompt('Enter customer WhatsApp number (e.g. 628123456789):')
+  const phone = order.customer_phone || prompt("Enter customer WhatsApp number (e.g. 628123456789):")
   if (!phone) return
-  const clean = phone.replace(/\D/g,'').replace(/^0/,'62')
-  const total = 'Rp ' + Math.round(order.total||0).toLocaleString('id-ID')
-  const text = 'Halo ' + (order.customer||'Kak') + '!\n\nTerima kasih sudah makan di PawonLoka!\n\n*Struk Digital*\nNo. Order : ' + order.id + '\nMeja      : ' + (order.table||'Walk-in') + '\nTotal     : ' + total + '\n\nLihat struk lengkap:\nhttps://pawonloka.pages.dev/receipt?id=' + order.id + '\n\nSampai jumpa lagi!'
-  window.open('https://wa.me/' + clean + '?text=' + encodeURIComponent(text), '_blank')
+  const clean = phone.replace(/\D/g,"").replace(/^0/,"62")
+  const total = "Rp " + Math.round(order.total||0).toLocaleString("id-ID")
+  const text = "Halo " + (order.customer||"Kak") + "!\n\nTerima kasih sudah makan di PawonLoka!\n\n*Struk Digital*\nNo. Order : " + order.id + "\nMeja      : " + (order.table||"Walk-in") + "\nTotal     : " + total + "\n\nLihat struk lengkap:\nhttps://pawonloka.pages.dev/receipt?id=" + order.id + "\n\nSampai jumpa lagi!"
+  window.open("https://wa.me/" + clean + "?text=" + encodeURIComponent(text), "_blank")
 }
 
 const STATUS_COLORS = {
-  paid: { bg:"#DCFCE7", color:"#16A34A" },
-  open: { bg:"#FEF9C3", color:"#CA8A04" },
-  void: { bg:"#FEE2E2", color:"#DC2626" },
+  paid:      { bg:"#DCFCE7", color:"#16A34A" },
+  open:      { bg:"#FEF9C3", color:"#CA8A04" },
+  void:      { bg:"#FEE2E2", color:"#DC2626" },
   cancelled: { bg:"#FEE2E2", color:"#DC2626" },
 }
 
-export default function Orders() {
-  const [orders, setOrders]     = useState([])
-  const [loading, setLoading]   = useState(true)
-  const [search, setSearch]     = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [dateFilter, setDateFilter]     = useState(() => new Date().toISOString().slice(0,10))
-  const [selected, setSelected] = useState(null)
+function todayStr() { return new Date().toISOString().slice(0,10) }
 
-  useEffect(() => { load() }, [dateFilter])
+export default function Orders() {
+  const [orders,       setOrders]       = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [search,       setSearch]       = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [dateFrom,     setDateFrom]     = useState(todayStr)
+  const [dateTo,       setDateTo]       = useState(todayStr)
+  const [selected,     setSelected]     = useState(null)
+  const [exporting,    setExporting]    = useState(false)
+
+  useEffect(() => { load() }, [dateFrom, dateTo])
 
   async function load() {
     setLoading(true)
-    let q = supabase.from("orders").select("*").order("created_at", { ascending: false })
-    if (dateFilter) q = q.gte("created_at", dateFilter + "T00:00:00+08:00").lte("created_at", dateFilter + "T23:59:59+08:00")
-    const { data } = await q
+    const { data } = await supabase
+      .from("orders").select("*")
+      .gte("created_at", dateFrom + "T00:00:00+08:00")
+      .lte("created_at", dateTo   + "T23:59:59+08:00")
+      .order("created_at", { ascending: false })
     setOrders(data || [])
     setLoading(false)
   }
 
+  function setQuick(days) {
+    const to   = new Date()
+    const from = new Date()
+    from.setDate(from.getDate() - (days - 1))
+    setDateFrom(from.toISOString().slice(0,10))
+    setDateTo(to.toISOString().slice(0,10))
+  }
+
   const filtered = orders.filter(o => {
     const matchStatus = statusFilter === "all" || o.status === statusFilter
-    const matchSearch = !search || o.id?.toLowerCase().includes(search.toLowerCase()) ||
+    const matchSearch = !search ||
+      o.id?.toLowerCase().includes(search.toLowerCase()) ||
       o.staff?.toLowerCase().includes(search.toLowerCase()) ||
       o.customer?.toLowerCase().includes(search.toLowerCase()) ||
       o.table?.toLowerCase().includes(search.toLowerCase())
     return matchStatus && matchSearch
   })
 
-  const totalRevenue = filtered.filter(o=>o.status==="paid").reduce((s,o)=>s+(o.total||0),0)
-  const totalOrders  = filtered.filter(o=>o.status==="paid").length
+  const paidOrders   = filtered.filter(o => o.status === "paid")
+  const totalRevenue = paidOrders.reduce((s,o) => s + (o.total||0), 0)
+  const totalOrders  = paidOrders.length
+  const avgOrder     = totalOrders ? totalRevenue / totalOrders : 0
+
+  function exportExcel() {
+    setExporting(true)
+    try {
+      const rows = filtered.map(o => ({
+        "Order ID":    o.id,
+        "Date":        o.created_at?.slice(0,10) || "",
+        "Time":        o.created_at ? new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) : "",
+        "Table":       o.table || o.order_type || "",
+        "Staff":       o.staff || "",
+        "Customer":    o.customer || "",
+        "Items":       (o.items||[]).map(i => i.qty + "x " + i.name).join(", "),
+        "Subtotal":    o.subtotal || 0,
+        "Discount":    o.discount || 0,
+        "Tax":         o.tax || 0,
+        "Total":       o.total || 0,
+        "Payment":     o.payment_method || "",
+        "Status":      o.status || "",
+      }))
+      const ws = XLSX.utils.json_to_sheet(rows)
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, "Orders")
+      XLSX.writeFile(wb, "orders_" + dateFrom + "_to_" + dateTo + ".xlsx")
+    } finally { setExporting(false) }
+  }
 
   return (
     <div style={{ padding:24, maxWidth:1100, margin:"0 auto" }}>
@@ -61,8 +104,8 @@ export default function Orders() {
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
         {[
           ["Total Orders", totalOrders, "#0052CC"],
-          ["Revenue", fmt(totalRevenue), "#16A34A"],
-          ["Avg Order", fmt(totalOrders ? totalRevenue/totalOrders : 0), "#7C3AED"],
+          ["Revenue",      fmt(totalRevenue), "#16A34A"],
+          ["Avg Order",    fmt(avgOrder), "#7C3AED"],
         ].map(([label, val, color]) => (
           <div key={label} style={{ background:"#fff", borderRadius:12, padding:"16px 20px", border:"1px solid #E8ECF0" }}>
             <div style={{ fontSize:12, color:"var(--ink4)", fontWeight:600, marginBottom:4 }}>{label}</div>
@@ -72,19 +115,33 @@ export default function Orders() {
       </div>
 
       {/* Filters */}
-      <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
-        <input type="date" value={dateFilter} onChange={e=>setDateFilter(e.target.value)}
-          className="bo-input" style={{ width:160 }} />
-        <input placeholder="Search order, staff, customer..." value={search}
-          onChange={e=>setSearch(e.target.value)} className="bo-input" style={{ flex:1, minWidth:200 }} />
-        <div style={{ display:"flex", gap:6 }}>
-          {["all","paid","open","void"].map(s => (
-            <button key={s} onClick={()=>setStatusFilter(s)}
-              className={"bo-btn " + (statusFilter===s?"bo-btn-primary":"bo-btn-ghost")}
-              style={{ textTransform:"capitalize", padding:"6px 14px" }}>{s}</button>
-          ))}
+      <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"14px 16px", marginBottom:16 }}>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:10 }}>
+          <div style={{ fontSize:12, fontWeight:700, color:"var(--ink4)", width:60 }}>Date Range</div>
+          <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} className="bo-input" style={{ width:150 }} />
+          <span style={{ fontSize:13, color:"var(--ink4)" }}>to</span>
+          <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} className="bo-input" style={{ width:150 }} />
+          <div style={{ display:"flex", gap:6, marginLeft:4 }}>
+            {[["Today",1],["7D",7],["30D",30]].map(([label,days]) => (
+              <button key={label} onClick={()=>setQuick(days)} className="bo-btn bo-btn-ghost" style={{ padding:"6px 12px", fontSize:12 }}>{label}</button>
+            ))}
+          </div>
         </div>
-        <button onClick={load} className="bo-btn bo-btn-ghost">Refresh</button>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+          <input placeholder="Search order, staff, customer, table..." value={search}
+            onChange={e=>setSearch(e.target.value)} className="bo-input" style={{ flex:1, minWidth:200 }} />
+          <div style={{ display:"flex", gap:6 }}>
+            {["all","paid","open","void"].map(s => (
+              <button key={s} onClick={()=>setStatusFilter(s)}
+                className={"bo-btn " + (statusFilter===s?"bo-btn-primary":"bo-btn-ghost")}
+                style={{ textTransform:"capitalize", padding:"6px 14px" }}>{s}</button>
+            ))}
+          </div>
+          <button onClick={load} className="bo-btn bo-btn-ghost">Refresh</button>
+          <button onClick={exportExcel} disabled={exporting||filtered.length===0} className="bo-btn bo-btn-ghost" style={{ color:"#16A34A", borderColor:"#16A34A" }}>
+            {exporting ? "Exporting..." : "Export Excel"}
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -92,18 +149,18 @@ export default function Orders() {
         <table style={{ width:"100%", borderCollapse:"collapse" }}>
           <thead>
             <tr style={{ background:"#F8FAFC" }}>
-              {["Order ID","Time","Table","Staff","Customer","Items","Total","Status"].map(h => (
-                <th key={h} style={{ padding:"10px 14px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
+              {["Order ID","Time","Table","Staff","Customer","Items","Total","Payment","Status"].map(h => (
+                <th key={h} style={{ padding:"10px 14px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} style={{ textAlign:"center", padding:40, color:"var(--ink4)" }}>Loading...</td></tr>
+              <tr><td colSpan={9} style={{ textAlign:"center", padding:40, color:"var(--ink4)" }}>Loading...</td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} style={{ textAlign:"center", padding:40, color:"var(--ink4)" }}>No orders found</td></tr>
+              <tr><td colSpan={9} style={{ textAlign:"center", padding:40, color:"var(--ink4)" }}>No orders found</td></tr>
             ) : filtered.map(o => {
-              const sc = STATUS_COLORS[o.status] || STATUS_COLORS.open
+              const sc   = STATUS_COLORS[o.status] || STATUS_COLORS.open
               const time = o.created_at ? new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) : "-"
               return (
                 <tr key={o.id} onClick={()=>setSelected(o)}
@@ -111,12 +168,13 @@ export default function Orders() {
                   onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
                   onMouseLeave={e=>e.currentTarget.style.background=""}>
                   <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#0052CC" }}>{o.id?.slice(-8)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{time}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12, whiteSpace:"nowrap" }}>{time}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{o.table||o.order_type||"-"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{o.staff||"-"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{o.customer||"-"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{(o.items||[]).length} items</td>
-                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700 }}>{fmt(o.total)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>{fmt(o.total)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12 }}>{o.payment_method||"-"}</td>
                   <td style={{ padding:"10px 14px" }}>
                     <span style={{ ...sc, padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{o.status}</span>
                   </td>
@@ -125,25 +183,32 @@ export default function Orders() {
             })}
           </tbody>
         </table>
+        {filtered.length > 0 && (
+          <div style={{ padding:"10px 14px", borderTop:"1px solid #E8ECF0", fontSize:12, color:"var(--ink4)", display:"flex", gap:16 }}>
+            <span>{filtered.length} orders shown</span>
+            <span style={{ color:"#16A34A", fontWeight:700 }}>Paid: {fmt(totalRevenue)}</span>
+          </div>
+        )}
       </div>
 
       {/* Order Detail Modal */}
       {selected && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setSelected(null)}>
-          <div className="bo-modal" style={{ maxWidth:520 }}>
+          <div className="bo-modal" style={{ maxWidth:540 }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Order {selected.id?.slice(-8)}</div>
-              <button className="bo-modal-close" onClick={()=>setSelected(null)}>✕</button>
+              <button className="bo-modal-close" onClick={()=>setSelected(null)}>x</button>
             </div>
             <div className="bo-modal-body">
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16 }}>
+              {/* Info grid */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:16, padding:"12px 14px", background:"#F8FAFC", borderRadius:10 }}>
                 {[
-                  ["Staff", selected.staff||"-"],
-                  ["Table", selected.table||selected.order_type||"-"],
+                  ["Staff",    selected.staff||"-"],
+                  ["Table",    selected.table||selected.order_type||"-"],
                   ["Customer", selected.customer||"-"],
-                  ["Payment", selected.payment_method||"-"],
-                  ["Date", selected.created_at?.slice(0,10)||"-"],
-                  ["Status", selected.status||"-"],
+                  ["Date",     selected.created_at ? new Date(selected.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}) : "-"],
+                  ["Status",   selected.status||"-"],
+                  ["Payment",  selected.payment_method||"-"],
                 ].map(([k,v])=>(
                   <div key={k} style={{ fontSize:12 }}>
                     <span style={{ color:"var(--ink4)", fontWeight:600 }}>{k}: </span>
@@ -151,9 +216,12 @@ export default function Orders() {
                   </div>
                 ))}
               </div>
+
+              {/* Items */}
               <div style={{ borderTop:"1px solid #E8ECF0", paddingTop:12, marginBottom:12 }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:8, textTransform:"uppercase" }}>Items</div>
                 {(selected.items||[]).map((item,i) => (
-                  <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"6px 0", borderBottom:"1px solid #F8FAFC", fontSize:13 }}>
+                  <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F8FAFC", fontSize:13 }}>
                     <div>
                       <span style={{ fontWeight:600 }}>{item.qty}x {item.name}</span>
                       {item.isBundle && item.bundleItems && (
@@ -164,11 +232,13 @@ export default function Orders() {
                       )}
                       {item.note && <div style={{ fontSize:11, color:"var(--ink4)", fontStyle:"italic" }}>{item.note}</div>}
                     </div>
-                    <span style={{ fontWeight:700 }}>{fmt(item.price * item.qty)}</span>
+                    <span style={{ fontWeight:700, whiteSpace:"nowrap" }}>{fmt(item.price * item.qty)}</span>
                   </div>
                 ))}
               </div>
-              <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+
+              {/* Totals */}
+              <div style={{ display:"flex", flexDirection:"column", gap:5, padding:"10px 14px", background:"#F8FAFC", borderRadius:10 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
                   <span style={{ color:"var(--ink4)" }}>Subtotal</span>
                   <span>{fmt(selected.subtotal)}</span>
@@ -183,17 +253,37 @@ export default function Orders() {
                     <span style={{ color:"var(--ink4)" }}>Tax</span><span>{fmt(selected.tax)}</span>
                   </div>
                 )}
+                {selected.service > 0 && (
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                    <span style={{ color:"var(--ink4)" }}>Service</span><span>{fmt(selected.service)}</span>
+                  </div>
+                )}
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:15, fontWeight:900, borderTop:"1px solid #E8ECF0", paddingTop:8, marginTop:4 }}>
                   <span>Total</span><span style={{ color:"#0052CC" }}>{fmt(selected.total)}</span>
                 </div>
+                {/* Payment breakdown */}
+                {(selected.payments||[]).length > 0 && (
+                  <div style={{ borderTop:"1px solid #E8ECF0", paddingTop:8, marginTop:4 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase" }}>Payment Breakdown</div>
+                    {(selected.payments||[]).map((p,i) => (
+                      <div key={i} style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                        <span style={{ color:"var(--ink4)" }}>{p.method}</span>
+                        <span style={{ fontWeight:600 }}>{fmt(p.amount)}</span>
+                      </div>
+                    ))}
+                    {selected.change > 0 && (
+                      <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#16A34A" }}>
+                        <span>Change</span><span>{fmt(selected.change)}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setSelected(null)} className="bo-btn bo-btn-ghost">Close</button>
               {selected.status === "paid" && (
-                <button onClick={()=>sendWA(selected)} className="bo-btn bo-btn-primary">
-                  WhatsApp Receipt
-                </button>
+                <button onClick={()=>sendWA(selected)} className="bo-btn bo-btn-primary">WA Receipt</button>
               )}
               {selected.status === "paid" && (
                 <button onClick={async()=>{
