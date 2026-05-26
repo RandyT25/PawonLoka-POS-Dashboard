@@ -19,7 +19,7 @@ import FloorPlan from './components/FloorPlan'
 import TablePicker from './components/TablePicker'
 import OrdersModal from './components/OrdersModal'
 import PrinterSettings from './components/PrinterSettings'
-import { usePrinter } from './hooks/usePrinter'
+import { usePrinter, buildReceiptData } from './hooks/usePrinter'
 import { useWhatsApp } from './hooks/useWhatsApp'
 import './pos.mobile.css'
 import OfflineBar from './components/OfflineBar'
@@ -407,11 +407,16 @@ export default function POS() {
       { text: 'Please verify before serving\n' },
       { text: '\n\n\n' }, { cmd:'CUT' }
     ]
-    const { renderToBytes } = await import('./hooks/usePrinter')
     try {
-      const bytes = renderToBytes ? renderToBytes(lines) : null
-      if (bytes) await printer.printBytes?.(receiptPrinter.id, bytes)
-      else alert('Print check not supported yet')
+      await printer.printKitchenTicket({
+        stationRole: 'receipt',
+        table: tableNo || orderType,
+        station: 'CHECK',
+        stationName: 'TABLE CHECK',
+        orderType: orderType,
+        items: cart.map(i => i.qty + 'x ' + i.name + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
+        time: new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
+      })
     } catch(e) { alert('Print failed: ' + e.message) }
   }
 

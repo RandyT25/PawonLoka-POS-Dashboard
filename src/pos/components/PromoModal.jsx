@@ -14,10 +14,7 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
   }, [])
 
   async function loadPromos() {
-    const [{ data: promoData }, { data: voucherData }] = await Promise.all([
-      supabase.from('promos').select('*').eq('active', true),
-      supabase.from('vouchers').select('*').eq('active', true)
-    ])
+    const { data: promoData } = await supabase.from('promos').select('*').eq('active', true)
     const data = (promoData||[]).map(p=>({...p, disc: p.type==='Percentage'||p.type==='percent' ? Math.round(subtotal*p.value/100) : p.value}))
     const all = data || []
     
