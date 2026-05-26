@@ -155,21 +155,20 @@ export default function POS() {
   async function deductStock(items) {
     try {
       for (const item of items) {
-        const { data: recipes } = await supabase.from('recipes')
-          .select('*, ingredients:recipe_ingredients(ingredient_id, qty, unit)')
-          .eq('product_sku', item.sku).eq('active', true)
-        if (!recipes?.length) continue
-        const recipe = recipes[0]
-        for (const ri of recipe.ingredients || []) {
-          const deductQty = ri.qty * item.qty
-          await supabase.rpc('deduct_ingredient', { p_id: ri.ingredient_id, p_qty: deductQty })
-            .catch(() => {
-              // fallback: direct update
-              supabase.from('ingredients').select('stock').eq('id', ri.ingredient_id).single()
-                .then(({data}) => {
-                  if (data) supabase.from('ingredients').update({ stock: Math.max(0, (data.stock||0) - deductQty) }).eq('id', ri.ingredient_id)
-                })
-            })
+        // recipes table: product_id stores the sku value
+        const { data: recipeRows } = await supabase.from('recipes')
+          .select('ingredient_id, qty, unit')
+          .eq('product_id', item.sku)
+        if (!recipeRows?.length) continue
+        for (const ri of recipeRows) {
+          const deductQty = (ri.qty || 0) * (item.qty || 1)
+          if (!deductQty) continue
+          const { data: ing } = await supabase.from('ingredients').select('stock').eq('id', ri.ingredient_id).maybeSingle()
+          if (ing) {
+            await supabase.from('ingredients').update({
+              stock: Math.max(0, (ing.stock || 0) - deductQty)
+            }).eq('id', ri.ingredient_id)
+          }
         }
       }
     } catch(e) { console.error('Stock deduction error:', e) }
