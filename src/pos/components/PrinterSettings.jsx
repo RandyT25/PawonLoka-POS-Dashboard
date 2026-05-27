@@ -14,6 +14,7 @@ export default function PrinterSettings({ hook }) {
   const [busyId, setBusyId] = useState(null);
   const [editName, setEditName] = useState({});
   const btSupported = !!navigator.bluetooth;
+  const isAndroid = /Android/i.test(navigator.userAgent);
 
   async function handleScan() {
     setError("");
@@ -63,6 +64,11 @@ export default function PrinterSettings({ hook }) {
       <button onClick={handleScan} disabled={!btSupported || scanning} style={s.scanBtn}>
         {scanning ? "Scanning..." : "Add Printer via Bluetooth"}
       </button>
+      {isAndroid && (
+        <div style={{ fontSize:11, color:"#6B778C", padding:"6px 10px", background:"#F4F5F7", borderRadius:8, lineHeight:1.5 }}>
+          On Android: tap Add to pair a new printer, or tap Connect to reconnect — you will need to select the printer from the list each session.
+        </div>
+      )}
 
       {error && <div style={s.error}>{error}</div>}
 

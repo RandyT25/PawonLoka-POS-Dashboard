@@ -353,4 +353,6 @@ export default function InvIngredients() {
       </div>
     )}
   )
+    </>
+  )
 }
