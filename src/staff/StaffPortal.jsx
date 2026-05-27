@@ -120,7 +120,8 @@ export default function StaffPortal() {
       supabase.from("sub_recipes").select("*").order("name"),
       supabase.from("sub_recipe_ingredients").select("*"),
     ])
-    const filtered = (ings||[]).filter(i => !i.station || i.station === "All" || i.station === station)
+    const allSameStation = (ings||[]).every(i => !i.station || i.station === "Kitchen")
+    const filtered = allSameStation ? (ings||[]) : (ings||[]).filter(i => !i.station || i.station === "All" || i.station === station)
     setIngredients(filtered)
     setSubRecipes(subs||[])
     setSubRecipeIngs(subIngs||[])
