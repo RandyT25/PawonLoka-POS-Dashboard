@@ -341,8 +341,8 @@ export default function StaffPortal() {
           <StaffPicker station={station} value={staffName} onChange={setStaffName} />
         </div>
         <div style={s.card}>
-          <label style={s.label}>Ingredient *</label>
-          <SearchableSelect options={ingredients} value={wasteForm.ingredient_id} onChange={v=>setWasteForm(f=>({...f,ingredient_id:v}))} placeholder="— Search ingredient —" />
+          <label style={s.label}>Ingredient / Sub-Recipe *</label>
+          <SearchableSelect options={[...ingredients, ...subRecipes.map(s=>({id:s.id,name:s.name,unit:s.unit||"gr",cost_per_unit:s.cost_per_unit||0}))].sort((a,b)=>a.name.localeCompare(b.name))} value={wasteForm.ingredient_id} onChange={v=>setWasteForm(f=>({...f,ingredient_id:v}))} placeholder="— Search ingredient or sub-recipe —" />
           <label style={{ ...s.label, marginTop:14 }}>Quantity *</label>
           <input type="number" inputMode="decimal" value={wasteForm.qty} onChange={e=>setWasteForm(f=>({...f,qty:e.target.value}))} style={s.input} placeholder="0" />
           {wasteForm.ingredient_id && wasteForm.qty && (

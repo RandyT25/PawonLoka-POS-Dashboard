@@ -170,7 +170,7 @@ export default function StaffSubmissions() {
         }
       }
       await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-      await load(); setViewModal(null)
+      await load(); setViewModal(null); setStatusFilter("approved")
     } catch(e) { alert("Error: "+e.message) }
     setProcessing(false)
   }
@@ -178,7 +178,7 @@ export default function StaffSubmissions() {
   async function reject(sub) {
     if (!confirm("Reject this submission?")) return
     await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-    await load(); setViewModal(null)
+    await load(); setViewModal(null); setStatusFilter("rejected")
   }
 
   async function convertToPO(sub) {
