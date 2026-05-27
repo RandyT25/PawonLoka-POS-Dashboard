@@ -36,6 +36,7 @@ import Inventory from "./components/Inventory"
 import StaffSubmissions from "./components/StaffSubmissions"
 import ImportExport from "./components/ImportExport"
 import Schedule from "./components/Schedule"
+import Attendance from "./components/Attendance"
 import Accounting from "./components/Accounting"
 import Orders from './components/Orders'
 
@@ -185,6 +186,7 @@ const NAV = [
   { id:"employees",        label:"Employees",          icon:"👤" },
   { id:"shifts",           label:"Shifts",             icon:"🕐" },
   { id:"schedule",         label:"Schedule",           icon:"📅" },
+  { id:"attendance",        label:"Attendance",         icon:"🕐" },
   { id:"performance",      label:"Performance",        icon:"📉" },
   { id:"customers",        label:"Customers",          icon:"⭐" },
   { id:"loyalty",          label:"Loyalty & Vouchers", icon:"🏆" },
@@ -227,6 +229,7 @@ const SCREENS = {
   shifts:            Shifts,
   orders:            Orders,
   schedule:          Schedule,
+  attendance:        Attendance,
   performance:       Performance,
   customers:         Customers,
   loyalty:           Loyalty,
