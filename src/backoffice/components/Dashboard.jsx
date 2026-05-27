@@ -169,44 +169,51 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* KPI Row 1 - Main */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12, marginBottom:12 }}>
-        {[
-          { label:"Total Penjualan", value:fmt(stats.sales), prev:stats.prevSales, sub: range==="today"?"MTD: "+fmt(stats.mtdSales)+" · Proyeksi: "+fmt(stats.projection) : stats.orders+" orders", color:"var(--brand)" },
-          { label:"Belum Dibayar",   value:fmt(stats.unpaidSales), prev:null, sub:"Open bills", color:"var(--amber)" },
-          { label:"Sudah Dibayar",   value:fmt(stats.sales), prev:stats.prevSales, sub:stats.orders+" transaksi", color:"var(--green)" },
-        ].map(k => {
-          const chg = k.prev > 0 ? Math.round((stats.sales - k.prev) / k.prev * 100) : null
-          return (
-            <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"16px 18px", border:"1px solid var(--surface3)" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{k.label}</div>
-              <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
-                <div style={{ fontSize:22, fontWeight:900, color:k.color }}>{k.value}</div>
-                {chg !== null && <span style={{ fontSize:12, fontWeight:700, color:chg>=0?"var(--green)":"var(--red)" }}>{chg>=0?"▲":"▼"} {Math.abs(chg)}%</span>}
-              </div>
-              <div style={{ fontSize:11, color:"var(--ink4)", marginTop:4 }}>{k.sub}</div>
-            </div>
-          )
-        })}
+      {/* Hero KPI Row */}
+      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:12, marginBottom:12 }}>
+        {/* Total Sales - Hero */}
+        <div style={{ background:"linear-gradient(135deg,#0052CC,#0066FF)", borderRadius:14, padding:"20px 24px", color:"#fff" }}>
+          <div style={{ fontSize:11, fontWeight:700, opacity:0.8, marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Total Penjualan</div>
+          <div style={{ display:"flex", alignItems:"baseline", gap:10, marginBottom:6 }}>
+            <div style={{ fontSize:28, fontWeight:900, letterSpacing:"-0.5px" }}>{fmt(stats.sales)}</div>
+            {trend !== null && <span style={{ fontSize:13, fontWeight:700, background: trend>=0?"rgba(0,255,128,0.2)":"rgba(255,80,80,0.2)", padding:"2px 8px", borderRadius:20, color: trend>=0?"#7fffc4":"#ffaaaa" }}>{trend>=0?"▲":"▼"} {Math.abs(trend)}%</span>}
+          </div>
+          <div style={{ fontSize:11, opacity:0.75 }}>
+            {range==="today" ? "MTD "+fmt(stats.mtdSales)+"  ·  Proyeksi "+fmt(stats.projection) : stats.orders+" transaksi"}
+          </div>
+        </div>
+        {/* Unpaid */}
+        <div style={{ background:"#fff", borderRadius:14, padding:"20px 20px", border:"1.5px solid #FFF0B3" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#FF8B00", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Belum Dibayar</div>
+          <div style={{ fontSize:24, fontWeight:900, color:"#FF8B00", marginBottom:6 }}>{fmt(stats.unpaidSales)}</div>
+          <div style={{ fontSize:11, color:"#FF8B00", opacity:0.7 }}>Open bills</div>
+        </div>
+        {/* Paid */}
+        <div style={{ background:"#fff", borderRadius:14, padding:"20px 20px", border:"1.5px solid #ABF5D1" }}>
+          <div style={{ fontSize:11, fontWeight:700, color:"#00875A", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Sudah Dibayar</div>
+          <div style={{ fontSize:24, fontWeight:900, color:"#00875A", marginBottom:6 }}>{fmt(stats.sales)}</div>
+          <div style={{ fontSize:11, color:"#00875A", opacity:0.7 }}>{stats.orders} transaksi</div>
+        </div>
       </div>
-      {/* KPI Row 2 - Secondary */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:16 }}>
+
+      {/* Secondary KPI Row */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:10, marginBottom:16 }}>
         {[
-          { label:"Transaksi", value:stats.orders, prev:null, sub:"orders paid", color:"#0052CC" },
-          { label:"Produk Terjual", value:stats.totalProductsSold, prev:null, sub:"total items", color:"#6554C0" },
-          { label:"Rata-rata/Order", value:fmt(stats.avgOrder), prev:stats.prevAvg, sub:"per transaksi", color:"var(--ink1)" },
-          { label:"Produk/Transaksi", value:stats.productsPerTx, prev:null, sub:"avg items per order", color:"var(--ink1)" },
-          { label:"Gross Profit", value:fmt(stats.grossProfit), prev:null, sub:"Margin "+(stats.sales>0?Math.round(stats.grossProfit/stats.sales*100):0)+"%", color:"var(--green)" },
+          { label:"Transaksi",        value:stats.orders,             sub:"orders paid",        color:"#0052CC",      prev:null },
+          { label:"Produk Terjual",   value:stats.totalProductsSold,  sub:"total items",        color:"#6554C0",      prev:null },
+          { label:"Rata-rata/Order",  value:fmt(stats.avgOrder),      sub:"per transaksi",      color:"var(--ink1)",  prev:stats.prevAvg },
+          { label:"Item/Transaksi",   value:stats.productsPerTx,      sub:"avg per order",      color:"var(--ink1)",  prev:null },
+          { label:"Gross Profit",     value:fmt(stats.grossProfit),   sub:"Margin "+(stats.sales>0?Math.round(stats.grossProfit/stats.sales*100):0)+"%", color:stats.grossProfit>0?"var(--green)":"var(--red)", prev:null },
         ].map(k => {
-          const chg = k.prev > 0 ? Math.round((k.value - k.prev) / k.prev * 100) : null
+          const chg = k.prev > 0 ? Math.round((parseFloat(String(k.value).replace(/[^0-9]/g,"")) - k.prev) / k.prev * 100) : null
           return (
             <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
-              <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{k.label}</div>
-              <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
-                <div style={{ fontSize:20, fontWeight:900, color:k.color }}>{k.value}</div>
-                {chg !== null && <span style={{ fontSize:11, fontWeight:700, color:chg>=0?"var(--green)":"var(--red)" }}>{chg>=0?"▲":"▼"} {Math.abs(chg)}%</span>}
+              <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.4px" }}>{k.label}</div>
+              <div style={{ display:"flex", alignItems:"baseline", gap:5, flexWrap:"wrap" }}>
+                <div style={{ fontSize:18, fontWeight:900, color:k.color }}>{k.value}</div>
+                {chg !== null && <span style={{ fontSize:10, fontWeight:700, color:chg>=0?"var(--green)":"var(--red)" }}>{chg>=0?"▲":"▼"}{Math.abs(chg)}%</span>}
               </div>
-              <div style={{ fontSize:11, color:"var(--ink4)", marginTop:3 }}>{k.sub}</div>
+              <div style={{ fontSize:10, color:"var(--ink5)", marginTop:4 }}>{k.sub}</div>
             </div>
           )
         })}
