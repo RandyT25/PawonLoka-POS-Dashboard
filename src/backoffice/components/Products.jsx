@@ -436,18 +436,26 @@ export default function Products() {
 
               {/* Linked Modifiers */}
               <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:14 }}>
-                <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", marginBottom:8 }}>Linked Modifiers</div>
+                <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", marginBottom:8 }}>Modifiers for this product</div>
                 {modifiers.length === 0
                   ? <div style={{ fontSize:12, color:"var(--ink5)" }}>No modifier groups yet — create in Modifiers tab</div>
                   : <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
-                      {modifiers.map(m => (
-                        <span key={m.id} style={{ fontSize:12, fontWeight:600, padding:"4px 12px", borderRadius:20, background:"var(--brand-lt)", color:"var(--brand)", border:"1px solid rgba(0,102,255,0.2)" }}>
-                          {m.name}
-                        </span>
-                      ))}
+                      {modifiers.map(m => {
+                        const linked = (form.linked_modifiers||[]).includes(m.id)
+                        return (
+                          <button key={m.id} type="button"
+                            onClick={()=>setForm(f=>({ ...f, linked_modifiers: linked ? (f.linked_modifiers||[]).filter(x=>x!==m.id) : [...(f.linked_modifiers||[]), m.id] }))}
+                            style={{ fontSize:12, fontWeight:600, padding:"5px 14px", borderRadius:20, cursor:"pointer", fontFamily:"inherit",
+                              background: linked ? "var(--brand)" : "var(--surface)",
+                              color: linked ? "#fff" : "var(--ink4)",
+                              border: linked ? "1.5px solid var(--brand)" : "1.5px solid var(--surface3)" }}>
+                            {linked ? "✓ " : ""}{m.name}
+                          </button>
+                        )
+                      })}
                     </div>
                 }
-                <div style={{ fontSize:11, color:"var(--ink5)", marginTop:6 }}>Manage modifier links in the Modifiers tab</div>
+                <div style={{ fontSize:11, color:"var(--ink5)", marginTop:6 }}>Selected modifiers will appear when this product is ordered in POS</div>
               </div>
             </div>
 
