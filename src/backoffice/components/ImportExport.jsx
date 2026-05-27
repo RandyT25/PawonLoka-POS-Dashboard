@@ -9,9 +9,9 @@ const MODULES = {
     label: "Ingredients",
     icon: "🧂",
     table: "ingredients",
-    exportCols: ["id","name","sku","unit","category","stock","min_stock","cost_per_unit","supplier"],
-    importKey: "sku",
-    headers: ["name*","sku*","unit*","category","stock","min_stock","cost_per_unit","supplier"],
+    exportCols: ["id","name","unit","category","stock","min_stock","cost_per_unit","supplier"],
+    importKey: "id",
+    headers: ["id*","name*","unit*","category","stock","min_stock","cost_per_unit","supplier"],
   },
   products: {
     label: "Products",

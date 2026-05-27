@@ -159,8 +159,10 @@ export default function Categories() {
                     {/* Products */}
                     <div style={{ display:"flex", flexWrap:"wrap", gap:4, flex:1, alignItems:"center" }}>
                       {prods.map(p => (
-                        <span key={p.sku} style={{ fontSize:11, background: p.active?"var(--surface)":"var(--surface2)", border:"1px solid var(--surface3)", borderRadius:20, padding:"3px 10px", color: p.active?"var(--ink3)":"var(--ink5)", fontWeight:500, opacity:p.active?1:0.6 }}>
+                        <span key={p.sku} style={{ fontSize:11, background: p.active?"var(--surface)":"var(--surface2)", border:"1px solid var(--surface3)", borderRadius:20, padding:"3px 10px", color: p.active?"var(--ink3)":"var(--ink5)", fontWeight:500, opacity:p.active?1:0.6, display:"inline-flex", alignItems:"center", gap:4 }}>
                           {p.icon} {p.name}
+                          <button onClick={async()=>{ if(!confirm("Remove "+p.name+" from this category?")) return; await supabase.from("products").update({ cat:"" }).eq("sku",p.sku); setProducts(prev=>prev.map(x=>x.sku===p.sku?{...x,cat:""}:x)) }}
+                            style={{ background:"none", border:"none", color:"var(--ink5)", cursor:"pointer", fontSize:12, padding:"0 0 0 2px", lineHeight:1, display:"inline-flex", alignItems:"center" }}>×</button>
                         </span>
                       ))}
                       {prods.length === 0 && <span style={{ fontSize:11, color:"var(--ink5)", fontStyle:"italic" }}>No products yet</span>}

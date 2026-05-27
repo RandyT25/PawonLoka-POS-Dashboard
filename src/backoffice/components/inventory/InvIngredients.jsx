@@ -5,6 +5,11 @@ function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
 const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion","slice"]
+const DEFAULT_ING_CATS = ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"]
+function loadIngCats() { try { const s = localStorage.getItem("pl_ing_cats"); return s ? JSON.parse(s) : DEFAULT_ING_CATS } catch { return DEFAULT_ING_CATS } }
+function saveIngCats(cats) { localStorage.setItem("pl_ing_cats", JSON.stringify(cats)) }
+let ING_CATEGORIES = loadIngCats()
+
 const EMPTY = { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"", category:"General", station:["Kitchen"], conversions:[], last_purchase_price:0, last_purchase_unit:"" }
 
 export default function InvIngredients() {
@@ -196,7 +201,7 @@ export default function InvIngredients() {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Category</label>
                   <select value={form.category||"General"} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="bo-select">
-                    {["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"].map(c=><option key={c}>{c}</option>)}
+                    {ING_CATEGORIES.map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
                 <div>
@@ -314,5 +319,38 @@ export default function InvIngredients() {
         </div>
       )}
     </div>
+
+    {/* Manage Categories Modal */}
+    {catModal && (
+      <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setCatModal(false)}>
+        <div className="bo-modal" style={{ maxWidth:400 }}>
+          <div className="bo-modal-header">
+            <div className="bo-modal-title">Manage Ingredient Categories</div>
+            <button className="bo-modal-close" onClick={()=>setCatModal(false)}>x</button>
+          </div>
+          <div className="bo-modal-body">
+            <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+              <input value={newCatInput} onChange={e=>setNewCatInput(e.target.value)}
+                onKeyDown={e=>{ if(e.key==="Enter"&&newCatInput.trim()){ const next=[...ingCats,newCatInput.trim()]; setIngCats(next); saveIngCats(next); ING_CATEGORIES=next; setNewCatInput("") }}}
+                className="bo-input" placeholder="New category name..." style={{ flex:1 }} />
+              <button onClick={()=>{ if(!newCatInput.trim()) return; const next=[...ingCats,newCatInput.trim()]; setIngCats(next); saveIngCats(next); ING_CATEGORIES=next; setNewCatInput("") }}
+                className="bo-btn bo-btn-primary">Add</button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+              {ingCats.map((cat,i) => (
+                <div key={cat} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"8px 12px", background:"var(--surface)", borderRadius:8 }}>
+                  <span style={{ fontSize:13, fontWeight:600 }}>{cat}</span>
+                  <button onClick={()=>{ if(!confirm("Remove category "+cat+"?")) return; const next=ingCats.filter(c=>c!==cat); setIngCats(next); saveIngCats(next); ING_CATEGORIES=next }}
+                    style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:16, fontWeight:700 }}>×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="bo-modal-footer">
+            <button onClick={()=>setCatModal(false)} className="bo-btn bo-btn-primary">Done</button>
+          </div>
+        </div>
+      </div>
+    )}
   )
 }
