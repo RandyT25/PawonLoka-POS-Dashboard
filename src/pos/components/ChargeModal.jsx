@@ -31,7 +31,7 @@ const formatReceipt = (order, customer) => {
   return lines.filter(l => l !== null).join('\n')
 }
 
-export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
+export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, onReprint, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
   const { sendReceipt } = useWhatsApp()
   const [tab, setTab]           = useState('pay') // pay | split
   const [orderNote, setOrderNote] = useState('')
@@ -122,6 +122,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             Total: {fmt(paidOrder.total)}
           </div>
           <button onClick={handleWhatsApp} style={S.waBtn}>Kirim Struk WhatsApp</button>
+          <button onClick={()=>{ if(onReprint) onReprint(paidOrder) }} style={{ ...S.doneBtn, background:'#374151', color:'#fff', marginBottom:8 }}>Cetak Ulang Struk</button>
           {paidOrder._isSplit && !paidOrder._fullyPaid
             ? <button onClick={() => { setPaidOrder(null); setTab('pay') }}
                 style={{ ...S.doneBtn, background:'#6366F1', color:'white' }}>

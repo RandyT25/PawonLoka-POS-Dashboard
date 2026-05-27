@@ -115,7 +115,6 @@ export default function OrdersModal({ onClose, onRecall }) {
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 {o.status === 'Open' && <>
                   <button onClick={() => { onRecall(o); onClose() }} style={S.recallBtn}>Buka ke Kasir</button>
-                  <button onClick={() => markPaid(o)} style={S.paidBtn}>Tandai Lunas</button>
                 </>}
                 {o.status === 'Paid' && o.customer_id && (
                   <button onClick={() => handleResendWA(o)} disabled={waSending===o.id}

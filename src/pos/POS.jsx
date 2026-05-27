@@ -713,6 +713,13 @@ export default function POS() {
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
+          onReprint={async (paidOrder) => {
+            try {
+              const receiptPrinter = printer.printers?.find(p=>p.role==="receipt"&&p.connected)
+              if (!receiptPrinter) { alert("No receipt printer connected"); return }
+              await printer.printReceipt(paidOrder, { outlet, tax: TAX_RATE_LIVE, service: SERVICE_RATE })
+            } catch(e) { alert("Print failed: " + e.message) }
+          }}
           onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
                     try {
                       const rs = appSettings?.receipt || {}

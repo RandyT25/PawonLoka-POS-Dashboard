@@ -120,10 +120,7 @@ export default function StaffPortal() {
       supabase.from("sub_recipes").select("*").order("name"),
       supabase.from("sub_recipe_ingredients").select("*"),
     ])
-    const stationArr = s => Array.isArray(s) ? s : (s ? [s] : ["Kitchen"])
-    const allDefault = (ings||[]).every(i => { const a = stationArr(i.station); return a.length===0 || (a.length===1 && a[0]==="Kitchen") })
-    const filtered = allDefault ? (ings||[]) : (ings||[]).filter(i => { const a = stationArr(i.station); return a.includes("All") || a.includes(station) })
-    setIngredients(filtered)
+    setIngredients((ings||[]).filter(i => !i.name.includes("(sub)")))
     setSubRecipes(subs||[])
     setSubRecipeIngs(subIngs||[])
     setOpnameCounts((ings||[]).map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" })))
