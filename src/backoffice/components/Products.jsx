@@ -15,6 +15,9 @@ export default function Products() {
   const [catFilter,   setCatFilter]   = useState("")
   const [viewMode,    setViewMode]    = useState("list") // list | grid
   const [modal,       setModal]       = useState(null)
+  const [quickEdit,   setQuickEdit]   = useState(null)
+  const [qForm,       setQForm]       = useState({})
+  const [qSaving,     setQSaving]     = useState(false)
   const [form,        setForm]        = useState(EMPTY)
   const [variants,    setVariants]    = useState([])
   const [saving,      setSaving]      = useState(false)
@@ -466,6 +469,62 @@ export default function Products() {
               )}
               <button onClick={save} disabled={saving||uploading||!form.name||!form.price} className="bo-btn bo-btn-primary">
                 {saving?"Saving...":modal==="add"?"Add Product":"Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {quickEdit && (
+        <div style={{position:"fixed",inset:0,zIndex:500,display:"flex"}}>
+          <div onClick={()=>setQuickEdit(null)} style={{flex:1,background:"rgba(0,0,0,0.3)"}} />
+          <div style={{width:320,background:"#fff",height:"100%",overflowY:"auto",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",display:"flex",flexDirection:"column"}}>
+            <div style={{padding:"16px 20px",borderBottom:"1px solid var(--surface3)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:15,fontWeight:800}}>Quick Edit</div>
+              <button onClick={()=>setQuickEdit(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--ink4)",lineHeight:1}}>x</button>
+            </div>
+            <div style={{padding:"16px 20px",flex:1,display:"flex",flexDirection:"column",gap:14}}>
+              <div>
+                <label className="bo-label">Product Name</label>
+                <input value={qForm.name||""} onChange={e=>setQForm(f=>({...f,name:e.target.value}))} className="bo-input" />
+              </div>
+              <div>
+                <label className="bo-label">Price (Rp)</label>
+                <input type="number" value={qForm.price||""} onChange={e=>setQForm(f=>({...f,price:e.target.value}))} className="bo-input" />
+              </div>
+              <div>
+                <label className="bo-label">Status</label>
+                <div style={{display:"flex",gap:8,marginTop:4}}>
+                  {[true,false].map(v => (
+                    <button key={String(v)} onClick={()=>setQForm(f=>({...f,active:v}))}
+                      style={{flex:1,padding:"8px",borderRadius:8,border:"1.5px solid "+(qForm.active===v?"var(--brand)":"var(--surface3)"),
+                        background:qForm.active===v?"var(--brand-lt)":"#fff",color:qForm.active===v?"var(--brand)":"var(--ink4)",
+                        fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                      {v ? "Active" : "Hidden"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="bo-label">Modifiers</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                  {modifiers.length === 0 && <div style={{fontSize:12,color:"var(--ink5)"}}>No modifiers yet</div>}
+                  {modifiers.map(m => {
+                    const linked = (qForm.linked_modifiers||[]).includes(m.id)
+                    return (
+                      <button key={m.id} onClick={()=>setQForm(f=>({...f,linked_modifiers:linked?(f.linked_modifiers||[]).filter(x=>x!==m.id):[...(f.linked_modifiers||[]),m.id]}))}
+                        style={{fontSize:12,fontWeight:600,padding:"5px 12px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
+                          background:linked?"var(--brand)":"var(--surface)",color:linked?"#fff":"var(--ink4)",
+                          border:linked?"1.5px solid var(--brand)":"1.5px solid var(--surface3)"}}>
+                        {linked ? "v " : ""}{m.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+            <div style={{padding:"16px 20px",borderTop:"1px solid var(--surface3)"}}>
+              <button onClick={saveQuickEdit} disabled={qSaving} className="bo-btn bo-btn-primary" style={{width:"100%"}}>
+                {qSaving ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </div>

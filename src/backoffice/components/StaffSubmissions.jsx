@@ -198,7 +198,30 @@ export default function StaffSubmissions() {
     alert("Draft PO created. Go to Purchase Orders to complete it.")
   }
 
-  const staffUrl = window.location.origin + "/staff"
+  function sendReqToSupplierWA(sub) {
+    const items = sub.data?.items || []
+    const bySupplier = {}
+    items.forEach(item => {
+      const sup = item.supplier || "Supplier Tidak Diketahui"
+      if (!bySupplier[sup]) bySupplier[sup] = []
+      bySupplier[sup].push(item)
+    })
+    if (Object.keys(bySupplier).length === 0) { alert("No items"); return }
+    const date = new Date(sub.submitted_at).toLocaleDateString("id-ID")
+    let text = "*PERMINTAAN BAHAN - PawonLoka*\n"
+    text += "Tanggal: " + date + "\n"
+    text += "Station: " + (sub.data?.station || "-") + "\n"
+    text += "Dibutuhkan: " + (sub.data?.needed_by || "Hari ini") + "\n\n"
+    Object.entries(bySupplier).forEach(([sup, its]) => {
+      text += "*" + sup + "*\n"
+      its.forEach(i => { text += "- " + i.ingredient_name + " " + i.qty + " " + i.unit + "\n" })
+      text += "\n"
+    })
+    if (sub.data?.notes) text += "Catatan: " + sub.data.notes + "\n"
+    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank")
+  }
+
+    const staffUrl = window.location.origin + "/staff"
 
   return (
     <div>
@@ -363,6 +386,7 @@ export default function StaffSubmissions() {
             <div className="bo-modal-footer">
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>
               <button onClick={()=>openEdit(viewModal)} className="bo-btn bo-btn-ghost" style={{ color:"var(--brand)" }}>Edit</button>
+              {viewModal.type==="requisition" && <button onClick={()=>sendReqToSupplierWA(viewModal)} style={{background:"#25D366",color:"#fff",border:"none",borderRadius:"var(--r)",padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>WA Supplier</button>}
               {viewModal.status==="pending" && <>
                 <button onClick={()=>reject(viewModal)} disabled={processing} className="bo-btn bo-btn-danger">Reject</button>
                 {viewModal.type==="requisition"
@@ -422,14 +446,25 @@ export default function StaffSubmissions() {
 
               {editModal.type==="requisition" && (
                 <div>
-                  <label className="bo-label" style={{ marginBottom:8, display:"block" }}>Items Requested</label>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <label className="bo-label" style={{marginBottom:0}}>Items Requested</label>
+                    <button onClick={()=>setEditData(d=>({...d,items:[...(d.items||[]),{ingredient_id:"",ingredient_name:"",qty:0,unit:""}]}))}
+                      className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
+                  </div>
                   {(editData.items||[]).map((item,i)=>(
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 80px 60px", gap:8, marginBottom:8, alignItems:"center" }}>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{item.ingredient_name}</div>
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 28px",gap:8,marginBottom:8,alignItems:"center"}}>
+                      {item.ingredient_id
+                        ? <div style={{fontSize:13,fontWeight:600}}>{item.ingredient_name}</div>
+                        : <IngSearchEdit ingredients={ingredients} onSelect={ing=>{
+                            setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,ingredient_id:ing.id,ingredient_name:ing.name,unit:ing.unit||""}:x)}))
+                          }} />
+                      }
                       <input type="number" value={item.qty} onChange={e=>{
-                        setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x) }))
-                      }} className="bo-input" style={{ fontSize:13 }} />
-                      <span style={{ fontSize:12, color:"var(--ink4)" }}>{item.unit}</span>
+                        setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x)}))
+                      }} className="bo-input" style={{fontSize:13}} />
+                      <span style={{fontSize:12,color:"var(--ink4)"}}>{item.unit}</span>
+                      <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
+                        style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
                   ))}
                 </div>

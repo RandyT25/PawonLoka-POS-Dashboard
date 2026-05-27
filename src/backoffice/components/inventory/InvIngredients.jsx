@@ -132,7 +132,7 @@ export default function InvIngredients() {
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>
-              <tr><th>Ingredient</th><th>SKU</th><th>Category</th><th>Base Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Ingredient</th><th>SKU</th><th>Category</th><th>Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {filtered.map(i => {
@@ -151,7 +151,6 @@ export default function InvIngredients() {
                     </td>
                     <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{i.sku||"—"}</td>
                     <td><span className="bo-badge bo-badge-blue">{i.category||"General"}</span></td>
-                    <td style={{ fontSize:12, color:"var(--ink4)" }}>{Array.isArray(i.station)?i.station.join(", "):(i.station||"Kitchen")}</td>
                     <td>{i.unit}</td>
                     <td style={{ fontWeight:700, color:st.color }}>{i.stock||0}</td>
                     <td style={{ color:"var(--ink5)" }}>{i.min_stock||"—"}</td>
@@ -199,26 +198,7 @@ export default function InvIngredients() {
                     {["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"].map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label className="bo-label">Station (select all that apply)</label>
-                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:4 }}>
-                    {["Kitchen","Snack","Bar","Kasir"].map(st => {
-                      const arr = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
-                      const checked = arr.includes(st)
-                      return (
-                        <label key={st} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:20, border:"1.5px solid "+(checked?"var(--brand)":"var(--surface3)"), background:checked?"var(--brand-lt)":"#fff", cursor:"pointer", fontSize:13, fontWeight:checked?700:400, color:checked?"var(--brand)":"var(--ink4)" }}>
-                          <input type="checkbox" checked={checked} style={{ display:"none" }}
-                            onChange={() => {
-                              const cur = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
-                              const next = checked ? cur.filter(s=>s!==st) : [...cur,st]
-                              setForm(f=>({...f, station: next.length ? next : ["Kitchen"]}))
-                            }} />
-                          {st}
-                        </label>
-                      )
-                    })}
-                  </div>
-                </div>
+
                 <div><label className="bo-label">Supplier</label>
                   <select value={form.supplier||""} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="bo-select">
                     <option value="">— Select supplier —</option>
