@@ -720,7 +720,7 @@ export default function POS() {
             try {
               const receiptPrinter = printer.printers?.find(p=>p.role==="receipt"&&p.connected)
               if (!receiptPrinter) { alert("No receipt printer connected"); return }
-              await printer.printReceipt(paidOrder, { outlet, tax: TAX_RATE_LIVE, service: SERVICE_RATE })
+              await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
             } catch(e) { alert("Print failed: " + e.message) }
           }}
           onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
@@ -735,7 +735,7 @@ export default function POS() {
                         wifi: rs.footer_wifi || '',
                         promo: rs.footer_promo || '',
                       }
-                      await printer.printReceipt(paidOrder, { outlet, tax: TAX_RATE_LIVE, service: SERVICE_RATE })
+                      await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
                     } catch(e) { console.error('Print failed:', e) }
                   } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}

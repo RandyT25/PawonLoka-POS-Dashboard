@@ -295,11 +295,22 @@ export function usePrinter() {
     let char = charRefs.current[printerId];
     if (!char) char = await connect(printerId);
     const CHUNK = 512;
-    for (let i = 0; i < bytes.length; i += CHUNK) {
-      const chunk = bytes.slice(i, i + CHUNK);
-      if (char.properties.writeWithoutResponse) await char.writeValueWithoutResponse(chunk);
-      else await char.writeValue(chunk);
-      await new Promise(r => setTimeout(r, 50));
+    async function writeBytes(c) {
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        const chunk = bytes.slice(i, i + CHUNK);
+        if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
+        else await c.writeValue(chunk);
+        await new Promise(r => setTimeout(r, 50));
+      }
+    }
+    try {
+      await writeBytes(char);
+    } catch(e) {
+      // GATT disconnected — reconnect and retry once
+      console.warn("Print failed, reconnecting...", e.message);
+      delete charRefs.current[printerId];
+      char = await connect(printerId);
+      await writeBytes(char);
     }
   }, [connect]);
 
