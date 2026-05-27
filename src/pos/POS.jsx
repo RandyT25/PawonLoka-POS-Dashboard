@@ -364,7 +364,8 @@ export default function POS() {
 
     // Print kitchen tickets
     for (const [station, items] of Object.entries(stations)) {
-      const stationRole = station
+      const ROLE_MAP = { Kitchen:'kitchen1', Snack:'kitchen2', Bar:'bar', Kasir:'receipt' }
+      const stationRole = ROLE_MAP[station] || 'kitchen1' 
       try {
         await printer.printKitchenTicket({
           stationRole,
@@ -385,37 +386,60 @@ export default function POS() {
   async function printCheck() {
     const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected)
     if (!receiptPrinter) { alert('No receipt printer connected'); return }
+    const w = receiptPrinter.paperSize === '80mm' ? 42 : 32
+    const fmtLine = (left, right) => {
+      const r = String(right)
+      const l = String(left).slice(0, w - r.length)
+      return l.padEnd(w - r.length, ' ') + r
+    }
+    const subtotal = cart.reduce((s,i) => s + i.price * i.qty, 0)
+    const taxAmt   = taxRate ? Math.round(subtotal * taxRate) : 0
+    const total    = subtotal + taxAmt
     const lines = [
       { cmd:'ALIGN_C' }, { cmd:'BOLD_ON' }, { cmd:'DOUBLE_ON' },
-      { text: 'TABLE CHECK\n' },
+      { text: '*** TABLE CHECK ***\n' },
       { cmd:'DOUBLE_OFF' }, { cmd:'BOLD_OFF' },
-      { text: (tableNo ? 'Table: ' + tableNo : orderType) + '\n' },
+      { text: 'Meja: ' + (tableNo || orderType) + '  |  ' + orderType + '\n' },
       { text: new Date().toLocaleTimeString('id-ID') + '\n' },
-      { text: '================================\n' },
+      { text: '='.repeat(w) + '\n' },
       { cmd:'ALIGN_L' },
-      ...cart.map(i => [
-        { cmd:'BOLD_ON' },
-        { text: i.qty + 'x ' + i.name + '\n' },
-        { cmd:'BOLD_OFF' },
-        ...(i.note ? [{ text: '  Note: ' + i.note + '\n' }] : []),
-        ...(i.modifiers&&Object.values(i.modifiers).length ? [{ text: '  ' + Object.values(i.modifiers).join(', ') + '\n' }] : []),
-      ]).flat(),
-      { text: '================================\n' },
-      { cmd:'ALIGN_C' },
-      { text: 'Please verify before serving\n' },
+      ...cart.map(i => {
+        const itemTotal = 'Rp ' + (i.price * i.qty).toLocaleString('id-ID')
+        const rows = [
+          { cmd:'BOLD_ON' },
+          { text: fmtLine(i.qty + 'x ' + i.name, itemTotal) + '\n' },
+          { cmd:'BOLD_OFF' },
+        ]
+        if (i.modifiers && Object.values(i.modifiers).length)
+          rows.push({ text: '  [' + Object.values(i.modifiers).join(', ') + ']\n' })
+        if (i.note)
+          rows.push({ text: '  * ' + i.note + '\n' })
+        return rows
+      }).flat(),
+      { text: '-'.repeat(w) + '\n' },
+      { text: fmtLine('Subtotal', 'Rp ' + subtotal.toLocaleString('id-ID')) + '\n' },
+      ...(taxAmt ? [{ text: fmtLine('Pajak', 'Rp ' + taxAmt.toLocaleString('id-ID')) + '\n' }] : []),
+      { cmd:'BOLD_ON' },
+      { text: fmtLine('TOTAL', 'Rp ' + total.toLocaleString('id-ID')) + '\n' },
+      { cmd:'BOLD_OFF' },
+      { text: '='.repeat(w) + '\n' },
       { text: '\n\n\n' }, { cmd:'CUT' }
     ]
     try {
-      await printer.printKitchenTicket({
-        stationRole: 'receipt',
-        table: tableNo || orderType,
-        station: 'CHECK',
-        stationName: 'TABLE CHECK',
-        orderType: orderType,
-        items: cart.map(i => i.qty + 'x ' + i.name + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
-        time: new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
-      })
-    } catch(e) { alert('Print failed: ' + e.message) }
+      await printer.printBytes(receiptPrinter.id, printer.renderLines(lines))
+    } catch(e) {
+      // fallback to printKitchenTicket
+      try {
+        await printer.printKitchenTicket({
+          stationRole: 'receipt',
+          table: tableNo || orderType,
+          stationName: 'TABLE CHECK',
+          orderType: orderType,
+          paperSize: receiptPrinter.paperSize,
+          items: cart.map(i => i.qty + 'x ' + i.name + ' - Rp ' + (i.price*i.qty).toLocaleString('id-ID') + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
+        })
+      } catch(e2) { alert('Print failed: ' + e2.message) }
+    }
   }
 
   // Manager PIN required to remove sent item from open bill

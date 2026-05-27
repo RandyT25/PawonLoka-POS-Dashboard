@@ -96,21 +96,22 @@ export function buildReceiptData({ order, outlet, tax, service }) {
   return lines;
 }
 
-export function buildKitchenData({ ticket, width = 42 }) {
+export function buildKitchenData({ ticket, width = 32 }) {
+  const w = ticket.paperSize === "80mm" ? 42 : 32;
   const lines = [];
   lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
   lines.push({ text: "*** " + (ticket.stationName || "KITCHEN") + " ***\n" });
   lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
   lines.push({ text: "Meja: " + ticket.table + "  |  " + ticket.orderType + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
-  lines.push({ text: "=".repeat(width) + "\n" });
+  lines.push({ text: "=".repeat(w) + "\n" });
   lines.push({ cmd: "ALIGN_L" });
   for (const item of ticket.items) {
-    lines.push({ cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
+    lines.push({ cmd: "BOLD_ON" });
     lines.push({ text: item + "\n" });
-    lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
+    lines.push({ cmd: "BOLD_OFF" });
   }
-  lines.push({ text: "=".repeat(width) + "\n" });
+  lines.push({ text: "=".repeat(w) + "\n" });
   lines.push({ text: "\n\n\n" }, { cmd: "CUT" });
   return lines;
 }
@@ -246,7 +247,7 @@ export function usePrinter() {
     const printer = printers.find(p => p.role === role && p.connected)
                  || printers.find(p => (p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar") && p.connected);
     if (!printer) throw new Error("No kitchen printer connected for " + role);
-    await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket })));
+    await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket, paperSize: printer.paperSize })));
   }, [printers, printBytes]);
 
   const testPrint = useCallback(async (printerId) => {
@@ -263,5 +264,5 @@ export function usePrinter() {
     await printBytes(printerId, renderToBytes(lines));
   }, [printBytes]);
 
-  return { printers, scanning, scanAndPair, connect, disconnect, removePrinter, updatePrinter, printReceipt, printKitchenTicket, testPrint };
+  return { printers, scanning, scanAndPair, connect, disconnect, removePrinter, updatePrinter, printReceipt, printKitchenTicket, testPrint, printBytes, renderLines: renderToBytes };
 }
