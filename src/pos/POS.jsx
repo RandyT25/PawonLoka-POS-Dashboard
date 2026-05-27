@@ -26,6 +26,7 @@ import OfflineBar from './components/OfflineBar'
 
 export default function POS() {
   const [staff, setStaff]           = useState(null)
+  const [printDebug, setPrintDebug]  = useState([])
   const [shift, setShift]           = useState(null)
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
@@ -66,6 +67,7 @@ export default function POS() {
   }, [])
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
+  function dbg(msg) { setPrintDebug(prev => [...prev.slice(-4), new Date().toLocaleTimeString('id-ID')+': '+msg]) }
   const [appSettings, setAppSettings] = useState(null)
 
   const [backofficeDiscounts, setBackofficeDiscounts] = useState([])
@@ -725,6 +727,7 @@ export default function POS() {
           }}
           onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
                     try {
+                      dbg('Starting print...')
                       const rs = appSettings?.receipt || {}
                       const outlet = {
                         name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
@@ -735,8 +738,10 @@ export default function POS() {
                         wifi: rs.footer_wifi || '',
                         promo: rs.footer_promo || '',
                       }
+                      dbg('Printer: '+(printer.printers?.find(p=>p.role==='receipt'&&p.connected)?.name||'NOT FOUND'))
                       await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
-                    } catch(e) { console.error('Print failed:', e) }
+                      dbg('Print OK!')
+                    } catch(e) { console.error('Print failed:', e); dbg('ERROR: '+e.message) }
                   } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
