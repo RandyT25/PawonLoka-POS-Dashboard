@@ -12,7 +12,7 @@ function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }
 function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("id-ID") }
 function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0 }
 
-function IngSearch({ value, onChange, ingredients, subRecipes }) {
+function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState("")
   const [cursor, setCursor] = useState(-1)
@@ -21,7 +21,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes }) {
 
   const all = [
     ...ingredients.map(i => ({ ...i, _g:"Raw" })),
-    ...subRecipes.map(s => ({ ...s, _g:"Sub" })),
+    ...(showSubs ? subRecipes.map(s => ({ ...s, _g:"Sub" })) : []),
   ]
   const filtered = q ? all.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : all
   const sel = all.find(x => x.id === value)

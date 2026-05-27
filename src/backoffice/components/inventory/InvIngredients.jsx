@@ -5,7 +5,7 @@ function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
 const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion","slice"]
-const EMPTY = { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"", category:"General", station:"Kitchen", conversions:[], last_purchase_price:0, last_purchase_unit:"" }
+const EMPTY = { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"", category:"General", station:["Kitchen"], conversions:[], last_purchase_price:0, last_purchase_unit:"" }
 
 export default function InvIngredients() {
   const [ingredients, setIngredients] = useState([])
@@ -86,7 +86,7 @@ export default function InvIngredients() {
       cost_per_unit:      wac || parseFloat(form.cost_per_unit)||0,
       supplier:           form.supplier||null,
       category:           form.category||"General",
-      station:            form.station||"Kitchen",
+      station:            Array.isArray(form.station)&&form.station.length ? form.station : ["Kitchen"],
       conversions:        convs,
       last_purchase_price:parseFloat(form.last_purchase_price)||0,
       last_purchase_unit: form.last_purchase_unit||null,
@@ -151,7 +151,7 @@ export default function InvIngredients() {
                     </td>
                     <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{i.sku||"—"}</td>
                     <td><span className="bo-badge bo-badge-blue">{i.category||"General"}</span></td>
-                    <td style={{ fontSize:12, color:"var(--ink4)" }}>{i.station||"Kitchen"}</td>
+                    <td style={{ fontSize:12, color:"var(--ink4)" }}>{Array.isArray(i.station)?i.station.join(", "):(i.station||"Kitchen")}</td>
                     <td>{i.unit}</td>
                     <td style={{ fontWeight:700, color:st.color }}>{i.stock||0}</td>
                     <td style={{ color:"var(--ink5)" }}>{i.min_stock||"—"}</td>
@@ -196,17 +196,28 @@ export default function InvIngredients() {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Category</label>
                   <select value={form.category||"General"} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="bo-select">
-                    <option>General</option><option>Semi-finished</option><option>Protein</option><option>Vegetables</option><option>Beverages</option><option>Dry Goods</option><option>Packaging</option><option>Bakery</option>
+                    {["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"].map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div><label className="bo-label">Station</label>
-                  <select value={form.station||"Kitchen"} onChange={e=>setForm(f=>({...f,station:e.target.value}))} className="bo-select">
-                    <option value="Kitchen">Kitchen</option>
-                    <option value="Snack">Snack</option>
-                    <option value="Bar">Bar</option>
-                    <option value="Kasir">Kasir</option>
-                    <option value="All">All Stations</option>
-                  </select>
+                <div>
+                  <label className="bo-label">Station (select all that apply)</label>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:4 }}>
+                    {["Kitchen","Snack","Bar","Kasir"].map(st => {
+                      const arr = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
+                      const checked = arr.includes(st)
+                      return (
+                        <label key={st} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:20, border:"1.5px solid "+(checked?"var(--brand)":"var(--surface3)"), background:checked?"var(--brand-lt)":"#fff", cursor:"pointer", fontSize:13, fontWeight:checked?700:400, color:checked?"var(--brand)":"var(--ink4)" }}>
+                          <input type="checkbox" checked={checked} style={{ display:"none" }}
+                            onChange={() => {
+                              const cur = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
+                              const next = checked ? cur.filter(s=>s!==st) : [...cur,st]
+                              setForm(f=>({...f, station: next.length ? next : ["Kitchen"]}))
+                            }} />
+                          {st}
+                        </label>
+                      )
+                    })}
+                  </div>
                 </div>
                 <div><label className="bo-label">Supplier</label>
                   <select value={form.supplier||""} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="bo-select">
