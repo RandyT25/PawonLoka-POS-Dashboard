@@ -64,13 +64,14 @@ export default function Dashboard() {
       if (range === "today") { from.setHours(0,0,0,0) }
       if (range === "week")  { from.setDate(now.getDate() - now.getDay()); from.setHours(0,0,0,0) }
       if (range === "month") { from.setDate(1); from.setHours(0,0,0,0) }
-      from = new Date(from.getTime() - 8 * 60 * 60 * 1000)
+      // Keep as local time, use +08:00 in query string
+      const fromStr = from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
 
       const { data, error } = await supabase
         .from("orders")
         .select("*")
         .eq("status", "Paid")
-        .gte("created_at", from.toISOString())
+        .gte("created_at", typeof fromStr!=="undefined" ? fromStr : from.toISOString())
         .order("created_at", { ascending: false })
 
       if (error) { console.error("Dashboard load error:", error); setLoading(false); return }
