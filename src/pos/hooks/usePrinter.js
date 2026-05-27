@@ -317,8 +317,15 @@ export function usePrinter() {
   const printReceipt = useCallback(async (order, { outlet, tax, service } = {}) => {
     const printer = printers.find(p => p.role === "receipt" && p.connected);
     if (!printer) throw new Error("No receipt printer connected");
+    // Verify GATT still connected, reconnect if needed
+    const device = deviceRefs.current[printer.id];
+    if (device && !device.gatt?.connected) {
+      console.warn("GATT dropped, reconnecting...");
+      delete charRefs.current[printer.id];
+      await connect(printer.id).catch(() => {});
+    }
     await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service })));
-  }, [printers, printBytes]);
+  }, [printers, printBytes, connect]);
 
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";

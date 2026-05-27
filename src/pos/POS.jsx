@@ -742,7 +742,7 @@ export default function POS() {
                       await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
                       dbg('Print OK!')
                     } catch(e) { console.error('Print failed:', e); dbg('ERROR: '+e.message) }
-                  } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+                  } else { dbg('No receipt printer connected') } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
