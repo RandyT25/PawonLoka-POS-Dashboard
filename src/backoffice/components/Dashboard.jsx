@@ -85,11 +85,27 @@ export default function Dashboard() {
     const periodOrders = useDummy ? orders.filter(filterDate) : orders
     const prevOrders   = useDummy ? orders.filter(o => o.created_at.slice(0,10) === yest) : []
 
-    const totalSales = periodOrders.reduce((s, o) => s + (o.total || 0), 0)
-    const totalCogs  = periodOrders.reduce((s, o) => s + (o.cogs  || 0), 0)
-    const prevSales  = prevOrders.reduce((s, o) => s + (o.total   || 0), 0)
-    const avgOrder   = periodOrders.length ? Math.round(totalSales / periodOrders.length) : 0
-    const custSet    = new Set(periodOrders.filter(o => o.customer_id).map(o => o.customer_id))
+    const paidOrders   = periodOrders.filter(o => o.status === "Paid" || !o.status || o.status === "paid")
+    const openOrders   = periodOrders.filter(o => o.status === "Open" || o.status === "open")
+    const totalSales   = paidOrders.reduce((s, o) => s + (o.total || 0), 0)
+    const unpaidSales  = openOrders.reduce((s, o) => s + (o.total || 0), 0)
+    const totalCogs    = paidOrders.reduce((s, o) => s + (o.cogs  || 0), 0)
+    const prevSalesW   = useDummy ? prevOrders.reduce((s,o) => s+(o.total||0),0) : (window._dashPrev?.sales||0)
+    const prevCountW   = useDummy ? prevOrders.length : (window._dashPrev?.orders||0)
+    const prevSales    = prevSalesW
+    const avgOrder     = paidOrders.length ? Math.round(totalSales / paidOrders.length) : 0
+    const prevAvg      = prevCountW ? Math.round(prevSalesW / prevCountW) : 0
+    const custSet      = new Set(paidOrders.filter(o => o.customer_id).map(o => o.customer_id))
+    const totalProductsSold = paidOrders.reduce((s,o) => {
+      const items = typeof o.items === "string" ? JSON.parse(o.items||"[]") : (o.items||o.items_snapshot||[])
+      return s + (items||[]).reduce((ss,i) => ss+(i.qty||1), 0)
+    }, 0)
+    const prevProductsSold = 0
+    const productsPerTx    = paidOrders.length ? Math.round(totalProductsSold / paidOrders.length * 10) / 10 : 0
+    const mtdSales = useDummy ? totalSales : (window._dashMtd || totalSales)
+    const dayOfMonth = new Date().getDate()
+    const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate()
+    const projection = dayOfMonth > 0 ? Math.round(mtdSales / dayOfMonth * daysInMonth) : 0
 
     const payMap = {}
     periodOrders.forEach(o => {
@@ -122,7 +138,7 @@ export default function Dashboard() {
     const hourArr = Object.entries(hMap).map(([h, v]) => ({ hour: h + ":00", value: v }))
     const maxHour = Math.max(...hourArr.map(h => h.value), 1)
 
-    setStats({ sales:totalSales, orders:periodOrders.length, customers:custSet.size, avgOrder, grossProfit:totalSales - totalCogs, prevSales })
+    setStats({ sales:totalSales, unpaidSales, orders:paidOrders.length, customers:custSet.size, avgOrder, prevAvg, grossProfit:totalSales - totalCogs, prevSales, totalProductsSold, productsPerTx, mtdSales, projection })
     setPayments(payArr)
     setTopItems(topArr.map(t => ({ ...t, maxQty })))
     setHourData(hourArr.map(h => ({ ...h, maxHour })))
@@ -153,33 +169,47 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="bo-metrics">
-        <div className="bo-met blue">
-          <div className="bo-met-label">Total Sales</div>
-          <div className="bo-met-val">{fmt(stats.sales)}</div>
-          <div className="bo-met-sub">
-            {range === "today" && trend !== null
-              ? <span style={{ color: trend >= 0 ? "var(--green)" : "var(--red)", fontWeight:700 }}>
-                  {trend >= 0 ? "▲" : "▼"} {Math.abs(trend)}% vs yesterday
-                </span>
-              : <span>{stats.orders} orders</span>}
-          </div>
-        </div>
-        <div className="bo-met green">
-          <div className="bo-met-label">Gross Profit</div>
-          <div className="bo-met-val">{fmt(stats.grossProfit)}</div>
-          <div className="bo-met-sub">Margin {stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0}%</div>
-        </div>
-        <div className="bo-met amber">
-          <div className="bo-met-label">Avg Order</div>
-          <div className="bo-met-val">{fmt(stats.avgOrder)}</div>
-          <div className="bo-met-sub">Per transaction</div>
-        </div>
-        <div className="bo-met blue">
-          <div className="bo-met-label">Orders</div>
-          <div className="bo-met-val">{stats.orders}</div>
-          <div className="bo-met-sub">{stats.customers} with account</div>
-        </div>
+      {/* KPI Row 1 - Main */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:12, marginBottom:12 }}>
+        {[
+          { label:"Total Penjualan", value:fmt(stats.sales), prev:stats.prevSales, sub: range==="today"?"MTD: "+fmt(stats.mtdSales)+" · Proyeksi: "+fmt(stats.projection) : stats.orders+" orders", color:"var(--brand)" },
+          { label:"Belum Dibayar",   value:fmt(stats.unpaidSales), prev:null, sub:"Open bills", color:"var(--amber)" },
+          { label:"Sudah Dibayar",   value:fmt(stats.sales), prev:stats.prevSales, sub:stats.orders+" transaksi", color:"var(--green)" },
+        ].map(k => {
+          const chg = k.prev > 0 ? Math.round((stats.sales - k.prev) / k.prev * 100) : null
+          return (
+            <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"16px 18px", border:"1px solid var(--surface3)" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{k.label}</div>
+              <div style={{ display:"flex", alignItems:"baseline", gap:8 }}>
+                <div style={{ fontSize:22, fontWeight:900, color:k.color }}>{k.value}</div>
+                {chg !== null && <span style={{ fontSize:12, fontWeight:700, color:chg>=0?"var(--green)":"var(--red)" }}>{chg>=0?"▲":"▼"} {Math.abs(chg)}%</span>}
+              </div>
+              <div style={{ fontSize:11, color:"var(--ink4)", marginTop:4 }}>{k.sub}</div>
+            </div>
+          )
+        })}
+      </div>
+      {/* KPI Row 2 - Secondary */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:16 }}>
+        {[
+          { label:"Transaksi", value:stats.orders, prev:null, sub:"orders paid", color:"#0052CC" },
+          { label:"Produk Terjual", value:stats.totalProductsSold, prev:null, sub:"total items", color:"#6554C0" },
+          { label:"Rata-rata/Order", value:fmt(stats.avgOrder), prev:stats.prevAvg, sub:"per transaksi", color:"var(--ink1)" },
+          { label:"Produk/Transaksi", value:stats.productsPerTx, prev:null, sub:"avg items per order", color:"var(--ink1)" },
+          { label:"Gross Profit", value:fmt(stats.grossProfit), prev:null, sub:"Margin "+(stats.sales>0?Math.round(stats.grossProfit/stats.sales*100):0)+"%", color:"var(--green)" },
+        ].map(k => {
+          const chg = k.prev > 0 ? Math.round((k.value - k.prev) / k.prev * 100) : null
+          return (
+            <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
+              <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{k.label}</div>
+              <div style={{ display:"flex", alignItems:"baseline", gap:6 }}>
+                <div style={{ fontSize:20, fontWeight:900, color:k.color }}>{k.value}</div>
+                {chg !== null && <span style={{ fontSize:11, fontWeight:700, color:chg>=0?"var(--green)":"var(--red)" }}>{chg>=0?"▲":"▼"} {Math.abs(chg)}%</span>}
+              </div>
+              <div style={{ fontSize:11, color:"var(--ink4)", marginTop:3 }}>{k.sub}</div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="bo-card" style={{ marginBottom:16 }}>
