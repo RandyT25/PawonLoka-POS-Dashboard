@@ -1,15 +1,5 @@
-
-import { useState, useCallback, useRef } from "react";
-
-const PRINTER_STORAGE_KEY = "pl_printers";
-
-function loadPrinters() {
-  try { return JSON.parse(localStorage.getItem(PRINTER_STORAGE_KEY) || "[]"); }
-  catch { return []; }
-}
-function savePrinters(p) {
-  localStorage.setItem(PRINTER_STORAGE_KEY, JSON.stringify(p));
-}
+import { useState, useCallback, useRef, useEffect } from "react";
+import { supabase } from "../../lib/supabase";
 
 const ESC = 0x1B, GS = 0x1D;
 
@@ -96,8 +86,8 @@ export function buildReceiptData({ order, outlet, tax, service }) {
   return lines;
 }
 
-export function buildKitchenData({ ticket, width = 32 }) {
-  const w = ticket.paperSize === "80mm" ? 42 : 32;
+export function buildKitchenData({ ticket, paperSize }) {
+  const w = paperSize === "80mm" ? 42 : 32;
   const lines = [];
   lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
   lines.push({ text: "*** " + (ticket.stationName || "KITCHEN") + " ***\n" });
@@ -116,7 +106,7 @@ export function buildKitchenData({ ticket, width = 32 }) {
   return lines;
 }
 
-function renderToBytes(lines) {
+export function renderToBytes(lines) {
   const chunks = [escpos([CMD.INIT])];
   for (const l of lines) {
     if (l.cmd && CMD[l.cmd])   chunks.push(escpos([CMD[l.cmd]]));
@@ -130,14 +120,61 @@ function renderToBytes(lines) {
 }
 
 export function usePrinter() {
-  const [printers, setPrinters] = useState(loadPrinters);
-  const [scanning, setScanning] = useState(false);
-  const deviceRefs = useRef({});
-  const charRefs   = useRef({});
+  const [printers,  setPrinters]  = useState([]);
+  const [scanning,  setScanning]  = useState(false);
+  const [loading,   setLoading]   = useState(true);
+  const deviceRefs  = useRef({});
+  const charRefs    = useRef({});
 
-  const refresh = useCallback(next => {
+  // Load printers from Supabase on mount
+  useEffect(() => {
+    loadPrinters();
+  }, []);
+
+  async function loadPrinters() {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from("hardware_devices")
+        .select("*")
+        .eq("type", "receipt_printer")
+        .order("created_at");
+      // Also load kitchen printers
+      const { data: kitchen } = await supabase
+        .from("hardware_devices")
+        .select("*")
+        .eq("type", "kitchen_printer")
+        .order("created_at");
+      const all = [...(data||[]), ...(kitchen||[])].map(d => ({
+        id:        d.id,
+        name:      d.name,
+        deviceId:  d.mac || d.deviceId || "",
+        role:      d.role || (d.type === "receipt_printer" ? "receipt" : "kitchen1"),
+        paperSize: d.paper?.includes("58") ? "58mm" : "80mm",
+        connected: false,
+        type:      d.type,
+      }));
+      setPrinters(all);
+    } finally { setLoading(false); }
+  }
+
+  async function savePrinterToDb(printer) {
+    await supabase.from("hardware_devices").upsert({
+      id:         printer.id,
+      name:       printer.name,
+      type:       printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
+      connection: "Bluetooth",
+      mac:        printer.deviceId || "",
+      role:       printer.role,
+      paper:      printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
+      deviceId:   printer.deviceId || "",
+    }, { onConflict: "id" });
+  }
+
+  const refresh = useCallback((next) => {
     setPrinters(next);
-    savePrinters(next);
+    // Save each printer to DB
+    next.forEach(p => savePrinterToDb(p).catch(() => {}));
   }, []);
 
   const scanAndPair = useCallback(async (role = "receipt") => {
@@ -160,21 +197,24 @@ export function usePrinter() {
       });
       const existing = printers.find(p => p.deviceId === device.id);
       const np = {
-        id:        existing?.id || crypto.randomUUID(),
+        id:        existing?.id || ("DEV-" + Date.now()),
         name:      device.name || "Unknown Printer",
         deviceId:  device.id,
         role,
         paperSize: "80mm",
         connected: false,
+        type:      role === "receipt" ? "receipt_printer" : "kitchen_printer",
       };
       deviceRefs.current[np.id] = device;
       const next = existing
         ? printers.map(p => p.id === existing.id ? { ...p, name: device.name || p.name } : p)
         : [...printers, np];
-      refresh(next);
+      // Save to DB immediately on pair
+      await savePrinterToDb(np);
+      setPrinters(next);
       return np;
     } finally { setScanning(false); }
-  }, [printers, refresh]);
+  }, [printers]);
 
   const connect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
@@ -206,23 +246,35 @@ export function usePrinter() {
     if (!characteristic) throw new Error("No writable characteristic found.");
     charRefs.current[printerId] = characteristic;
     device.addEventListener("gattserverdisconnected", () => {
-      refresh(printers.map(p => p.id === printerId ? { ...p, connected: false } : p));
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
       delete charRefs.current[printerId];
     });
-    refresh(printers.map(p => p.id === printerId ? { ...p, connected: true } : p));
+    setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
     return characteristic;
-  }, [printers, refresh]);
+  }, [printers]);
 
   const disconnect = useCallback(async (printerId) => {
     const device = deviceRefs.current[printerId];
     if (device?.gatt?.connected) device.gatt.disconnect();
     delete charRefs.current[printerId];
     delete deviceRefs.current[printerId];
-    refresh(printers.map(p => p.id === printerId ? { ...p, connected: false } : p));
-  }, [printers, refresh]);
+    setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
+  }, []);
 
-  const removePrinter  = useCallback(id => { disconnect(id); refresh(printers.filter(p => p.id !== id)); }, [printers, disconnect, refresh]);
-  const updatePrinter  = useCallback((id, changes) => { refresh(printers.map(p => p.id === id ? { ...p, ...changes } : p)); }, [printers, refresh]);
+  const removePrinter = useCallback(async (id) => {
+    disconnect(id);
+    await supabase.from("hardware_devices").delete().eq("id", id);
+    setPrinters(prev => prev.filter(p => p.id !== id));
+  }, [disconnect]);
+
+  const updatePrinter = useCallback(async (id, changes) => {
+    setPrinters(prev => {
+      const next = prev.map(p => p.id === id ? { ...p, ...changes } : p);
+      const updated = next.find(p => p.id === id);
+      if (updated) savePrinterToDb(updated).catch(() => {});
+      return next;
+    });
+  }, []);
 
   const printBytes = useCallback(async (printerId, bytes) => {
     let char = charRefs.current[printerId];
@@ -264,5 +316,11 @@ export function usePrinter() {
     await printBytes(printerId, renderToBytes(lines));
   }, [printBytes]);
 
-  return { printers, scanning, scanAndPair, connect, disconnect, removePrinter, updatePrinter, printReceipt, printKitchenTicket, testPrint, printBytes, renderLines: renderToBytes };
+  return {
+    printers, scanning, loading,
+    scanAndPair, connect, disconnect, removePrinter, updatePrinter,
+    printReceipt, printKitchenTicket, testPrint,
+    printBytes, renderLines: renderToBytes,
+    reloadPrinters: loadPrinters,
+  };
 }

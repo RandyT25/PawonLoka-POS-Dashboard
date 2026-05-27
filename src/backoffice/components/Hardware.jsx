@@ -57,6 +57,7 @@ export default function Hardware() {
   }
   const [form,    setForm]    = useState({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
   const [saved,   setSaved]   = useState(false)
+  const [editDevice, setEditDevice] = useState(null)
   const [testing, setTesting] = useState(null)
 
   function save() {
@@ -73,6 +74,17 @@ export default function Hardware() {
     setForm({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
   }
 
+  async function saveEditDevice() {
+    if (!editDevice) return
+    const { error } = await supabase.from("hardware_devices").update({
+      name:  editDevice.name,
+      role:  editDevice.role,
+      paper: editDevice.paper,
+    }).eq("id", editDevice.id)
+    if (error) { alert("Error: " + error.message); return }
+    setDevices(d => d.map(x => x.id === editDevice.id ? { ...x, ...editDevice } : x))
+    setEditDevice(null)
+  }
   async function removeDevice(id) {
     if (!confirm("Remove this device?")) return
     await supabase.from("hardware_devices").delete().eq("id", id)
@@ -139,13 +151,12 @@ export default function Hardware() {
                     {d.connection==="Network (IP)" && <div style={{ fontSize:11, fontFamily:"monospace", color:"#0052CC" }}>{d.ip}:{d.port}</div>}
                     {d.connection==="Bluetooth" && d.mac && <div style={{ fontSize:11, fontFamily:"monospace", color:"#6B778C" }}>{d.mac}</div>}
                     {d.type.includes("printer") && <div style={{ fontSize:11, color:"#6B778C" }}>Paper: {d.paper}</div>}
+                    {d.role && <div style={{ fontSize:11, color:"#6554C0", fontWeight:600 }}>Role: {d.role}</div>}
                     {d.station && <div style={{ fontSize:11, color:"#6554C0", fontWeight:600 }}>Station: {d.station}</div>}
                   </div>
                   <div style={{ display:"flex", gap:8, flexShrink:0 }}>
                     {d.type.includes("printer") && (
-                      <button onClick={()=>testPrint(d)} disabled={testing===d.id} className="bo-btn bo-btn-ghost bo-btn-sm">
-                        {testing===d.id?"Testing...":"Test Print"}
-                      </button>
+                      <button onClick={()=>setEditDevice({...d})} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
                     )}
                     <button onClick={()=>removeDevice(d.id)} className="bo-btn bo-btn-sm" style={{ background:"none", border:"1px solid #f0f0f0", color:"var(--red)", cursor:"pointer" }}>Remove</button>
                   </div>
@@ -153,6 +164,47 @@ export default function Hardware() {
               </div>
             )
           })}
+        </div>
+      )}
+
+      {/* Edit Printer Modal */}
+      {editDevice && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditDevice(null)}>
+          <div className="bo-modal" style={{ maxWidth:440 }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">Edit Printer — {editDevice.name}</div>
+              <button className="bo-modal-close" onClick={()=>setEditDevice(null)}>x</button>
+            </div>
+            <div className="bo-modal-body">
+              <div className="bo-form-row">
+                <label className="bo-label">Name</label>
+                <input value={editDevice.name} onChange={e=>setEditDevice(d=>({...d,name:e.target.value}))} className="bo-input" />
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Role</label>
+                <select value={editDevice.role||""} onChange={e=>setEditDevice(d=>({...d,role:e.target.value}))} className="bo-select">
+                  <option value="receipt">Cashier — Receipt Printer</option>
+                  <option value="kitchen1">Kitchen Station</option>
+                  <option value="kitchen2">Snack Station</option>
+                  <option value="bar">Bar Station</option>
+                </select>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Paper Size</label>
+                <select value={editDevice.paper||"80mm (standard)"} onChange={e=>setEditDevice(d=>({...d,paper:e.target.value}))} className="bo-select">
+                  <option value="80mm (standard)">80mm</option>
+                  <option value="58mm">58mm</option>
+                </select>
+              </div>
+              <div style={{ padding:"10px 12px", background:"#F4F5F7", borderRadius:8, fontSize:12, color:"#6B778C" }}>
+                Connect and disconnect printers from the POS settings on the cashier device.
+              </div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setEditDevice(null)} className="bo-btn bo-btn-ghost">Cancel</button>
+              <button onClick={saveEditDevice} className="bo-btn bo-btn-primary">Save Changes</button>
+            </div>
+          </div>
         </div>
       )}
 
