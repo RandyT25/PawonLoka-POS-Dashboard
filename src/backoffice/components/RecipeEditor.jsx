@@ -20,7 +20,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
   const listRef = React.useRef(null)
 
   const all = [
-    ...ingredients.map(i => ({ ...i, _g:"Raw" })),
+    ...ingredients.filter(i => i.category !== "Semi-finished").map(i => ({ ...i, _g:"Raw" })),
     ...(showSubs ? subRecipes.map(s => ({ ...s, _g:"Sub" })) : []),
   ]
   const filtered = q ? all.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : all
