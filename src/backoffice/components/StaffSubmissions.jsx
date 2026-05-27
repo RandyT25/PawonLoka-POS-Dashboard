@@ -6,6 +6,30 @@ const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", production:"var
 const TYPE_ICONS  = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
 const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", production:"Production", requisition:"Request" }
 
+function IngSearchEdit({ ingredients, onSelect }) {
+  const [q, setQ] = useState("")
+  const [open, setOpen] = useState(false)
+  const filtered = ingredients.filter(i => !q || i.name.toLowerCase().includes(q.toLowerCase())).slice(0,20)
+  return (
+    <div style={{ position:"relative" }}>
+      <input value={q} onChange={e=>{ setQ(e.target.value); setOpen(true) }} onFocus={()=>setOpen(true)}
+        className="bo-input" style={{ fontSize:12 }} placeholder="Search ingredient..." />
+      {open && filtered.length > 0 && (
+        <div style={{ position:"absolute", zIndex:999, top:"100%", left:0, right:0, background:"#fff", border:"1px solid var(--surface3)", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.12)", maxHeight:180, overflowY:"auto" }}>
+          {filtered.map(ing => (
+            <div key={ing.id} onClick={()=>{ onSelect(ing); setQ(ing.name); setOpen(false) }}
+              style={{ padding:"8px 12px", fontSize:13, cursor:"pointer", borderBottom:"1px solid var(--surface)" }}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--brand-lt)"}
+              onMouseLeave={e=>e.currentTarget.style.background=""}>
+              {ing.name} <span style={{ fontSize:11, color:"var(--ink4)" }}>{ing.unit}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function StaffSubmissions() {
   const [submissions, setSubmissions] = useState([])
   const [ingredients, setIngredients] = useState([])
@@ -242,7 +266,7 @@ export default function StaffSubmissions() {
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested"
-                  : s.data.batch_qty+" "+s.data.unit+" "+s.data.item_name
+                  : s.data.batch_qty+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
                   <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":"" }}>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:c+"22", color:c }}>{TYPE_ICONS[s.type]} {TYPE_LABELS[s.type]||s.type}</span></td>
@@ -413,26 +437,24 @@ export default function StaffSubmissions() {
 
               {editModal.type==="production" && (
                 <div style={{ display:"grid", gap:12 }}>
-                  <div><label className="bo-label">Batch Quantity</label>
-                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:parseFloat(e.target.value)||0}))} className="bo-input" /></div>
                   <div>
+                    <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity</label>
+                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:parseFloat(e.target.value)||0}))} className="bo-input" />
+                  </div>
+                  <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:12 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
-                      <label className="bo-label" style={{ marginBottom:0 }}>Ingredients Used</label>
+                      <label className="bo-label" style={{ marginBottom:0, fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Ingredients Used</label>
                       <button onClick={()=>setEditData(d=>({ ...d, ingredients_used:[...(d.ingredients_used||[]), { ingredient_id:"", name:"", qty:0, unit:"gr" }] }))}
                         className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:12 }}>+ Add Ingredient</button>
                     </div>
                     {(editData.ingredients_used||[]).map((u,i)=>(
                       <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 80px 60px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
                         {u.ingredient_id ? (
-                          <div style={{ fontSize:13, fontWeight:600 }}>{u.name}</div>
+                          <div style={{ fontSize:13, fontWeight:600, padding:"8px 4px" }}>{u.name}</div>
                         ) : (
-                          <select value={u.ingredient_id||""} onChange={e=>{
-                            const ing = ingredients.find(x=>x.id===e.target.value)
-                            setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,ingredient_id:ing?.id||"",name:ing?.name||"",unit:ing?.unit||"gr"}:x) }))
-                          }} className="bo-select" style={{ fontSize:12 }}>
-                            <option value="">— Select ingredient —</option>
-                            {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
-                          </select>
+                          <IngSearchEdit ingredients={ingredients} onSelect={ing=>{
+                            setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,ingredient_id:ing.id,name:ing.name,unit:ing.unit||"gr"}:x) }))
+                          }} />
                         )}
                         <input type="number" value={u.qty} onChange={e=>{
                           setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x) }))
