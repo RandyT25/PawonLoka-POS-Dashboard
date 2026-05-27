@@ -416,14 +416,30 @@ export default function StaffSubmissions() {
                   <div><label className="bo-label">Batch Quantity</label>
                     <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:parseFloat(e.target.value)||0}))} className="bo-input" /></div>
                   <div>
-                    <label className="bo-label" style={{ marginBottom:8, display:"block" }}>Ingredients Used</label>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
+                      <label className="bo-label" style={{ marginBottom:0 }}>Ingredients Used</label>
+                      <button onClick={()=>setEditData(d=>({ ...d, ingredients_used:[...(d.ingredients_used||[]), { ingredient_id:"", name:"", qty:0, unit:"gr" }] }))}
+                        className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:12 }}>+ Add Ingredient</button>
+                    </div>
                     {(editData.ingredients_used||[]).map((u,i)=>(
-                      <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 80px 60px", gap:8, marginBottom:8, alignItems:"center" }}>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{u.name}</div>
+                      <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 80px 60px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
+                        {u.ingredient_id ? (
+                          <div style={{ fontSize:13, fontWeight:600 }}>{u.name}</div>
+                        ) : (
+                          <select value={u.ingredient_id||""} onChange={e=>{
+                            const ing = ingredients.find(x=>x.id===e.target.value)
+                            setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,ingredient_id:ing?.id||"",name:ing?.name||"",unit:ing?.unit||"gr"}:x) }))
+                          }} className="bo-select" style={{ fontSize:12 }}>
+                            <option value="">— Select ingredient —</option>
+                            {ingredients.map(ing=><option key={ing.id} value={ing.id}>{ing.name}</option>)}
+                          </select>
+                        )}
                         <input type="number" value={u.qty} onChange={e=>{
                           setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x) }))
                         }} className="bo-input" style={{ fontSize:13 }} />
                         <span style={{ fontSize:12, color:"var(--ink4)" }}>{u.unit}</span>
+                        <button onClick={()=>setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.filter((_,idx)=>idx!==i) }))}
+                          style={{ background:"none", border:"none", color:"var(--red)", fontSize:18, cursor:"pointer", padding:0 }}>x</button>
                       </div>
                     ))}
                   </div>
