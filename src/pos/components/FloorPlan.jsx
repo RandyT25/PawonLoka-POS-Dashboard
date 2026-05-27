@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
 export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery }) {
-  const [tables, setTables]   = useState([])
-  const [area, setArea]       = useState('Indoor')
-  const [areas, setAreas]     = useState(['Indoor'])
-  const [loading, setLoading] = useState(true)
-  const [timers, setTimers]   = useState({})
+  const [tables,    setTables]    = useState([])
+  const [area,      setArea]      = useState('Indoor')
+  const [areas,     setAreas]     = useState(['Indoor'])
+  const [loading,   setLoading]   = useState(true)
+  const [timers,    setTimers]    = useState({})
+  const [actionMenu,setActionMenu]= useState(null) // { table }
+  const [mergeMode, setMergeMode] = useState(null) // source table
+  const [moveMode,  setMoveMode]  = useState(null) // source table
 
   useEffect(() => { load() }, [])
 
@@ -17,21 +20,16 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     const { data: openOrders } = await supabase
       .from('orders').select('id, table, created_at, customer, items')
       .eq('status', 'Open').eq('date', today)
-
     const occupiedMap = {}
-    ;(openOrders||[]).forEach(o => {
-      if (o.table) occupiedMap[o.table] = o
-    })
-
+    ;(openOrders||[]).forEach(o => { if (o.table) occupiedMap[o.table] = o })
     const merged = (tbls||[]).map(t => ({
       ...t,
       status: occupiedMap[t.name] ? 'Occupied' : t.status,
-      open_bill_id: occupiedMap[t.name]?.id || null,
-      open_since: occupiedMap[t.name]?.created_at || null,
-      open_customer: occupiedMap[t.name]?.customer || null,
-      open_items: occupiedMap[t.name]?.items?.length || 0,
+      open_bill_id:   occupiedMap[t.name]?.id || null,
+      open_since:     occupiedMap[t.name]?.created_at || null,
+      open_customer:  occupiedMap[t.name]?.customer || null,
+      open_items:     occupiedMap[t.name]?.items?.length || 0,
     }))
-
     setTables(merged)
     const uniqueAreas = [...new Set(merged.map(t => t.area).filter(Boolean))]
     setAreas(uniqueAreas.length ? uniqueAreas : ['Indoor'])
@@ -39,7 +37,6 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     setLoading(false)
   }
 
-  // Live timer
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now()
@@ -55,6 +52,51 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     return () => clearInterval(interval)
   }, [tables])
 
+  async function handleMerge(targetTable) {
+    const src = mergeMode
+    if (!src || !targetTable || src.id === targetTable.id) { setMergeMode(null); return }
+    if (!confirm("Merge " + src.name + " into " + targetTable.name + "? All items from " + src.name + " will move to " + targetTable.name + ".")) { setMergeMode(null); return }
+    // Move all open orders from src to target
+    const today = new Date().toISOString().slice(0,10)
+    const { data: srcOrders } = await supabase.from('orders').select('*').eq('table', src.name).eq('status','Open').eq('date',today)
+    const { data: tgtOrders } = await supabase.from('orders').select('*').eq('table', targetTable.name).eq('status','Open').eq('date',today)
+    if (srcOrders?.length) {
+      if (tgtOrders?.length) {
+        // Merge items into target order
+        const tgtOrder = tgtOrders[0]
+        const allItems = [...(tgtOrder.items||[]), ...(srcOrders.flatMap(o=>o.items||[]))]
+        const newSubtotal = allItems.reduce((s,i)=>s+(i.price*i.qty),0)
+        await supabase.from('orders').update({ items:allItems, subtotal:newSubtotal, total:newSubtotal }).eq('id',tgtOrder.id)
+        for (const o of srcOrders) await supabase.from('orders').update({ status:'Voided', table: targetTable.name }).eq('id',o.id)
+      } else {
+        for (const o of srcOrders) await supabase.from('orders').update({ table: targetTable.name }).eq('id',o.id)
+      }
+    }
+    await supabase.from('tables').update({ status:'Available', merged_with:null }).eq('id',src.id)
+    await supabase.from('tables').update({ merged_with: src.name }).eq('id',targetTable.id)
+    setMergeMode(null); await load()
+    alert(src.name + " merged into " + targetTable.name)
+  }
+
+  async function handleMove(targetTable) {
+    const src = moveMode
+    if (!src || !targetTable || src.id === targetTable.id) { setMoveMode(null); return }
+    if (targetTable.status === 'Occupied') { alert("Target table is occupied"); return }
+    if (!confirm("Move " + src.name + " to " + targetTable.name + "?")) { setMoveMode(null); return }
+    const today = new Date().toISOString().slice(0,10)
+    await supabase.from('orders').update({ table: targetTable.name }).eq('table',src.name).eq('status','Open').eq('date',today)
+    await supabase.from('tables').update({ status:'Available' }).eq('id',src.id)
+    setMoveMode(null); await load()
+    alert("Moved to " + targetTable.name)
+  }
+
+  async function handleSplit(table) {
+    // Split = mark merged table as separate again
+    if (!confirm("Split " + table.name + " back to separate tables?")) return
+    await supabase.from('tables').update({ merged_with:null }).eq('id',table.id)
+    await load()
+  }
+
   const visible = tables.filter(t => t.area === area)
   const counts = {
     available: visible.filter(t => t.status === 'Available').length,
@@ -65,12 +107,14 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     if (mins < 60) return mins + 'm'
     return Math.floor(mins/60) + 'h ' + (mins%60) + 'm'
   }
-
   function timerColor(mins) {
     if (mins < 30) return '#16A34A'
     if (mins < 60) return '#F59E0B'
     return '#DC2626'
   }
+
+  const isMergeMode = !!mergeMode
+  const isMoveMode  = !!moveMode
 
   if (loading) return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0A1628', flexDirection:'column', gap:16 }}>
@@ -81,7 +125,6 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
 
   return (
     <div style={S.wrap}>
-      {/* Header */}
       <div style={S.header}>
         <div style={{ display:'flex', alignItems:'center', gap:16 }}>
           <div>
@@ -89,14 +132,8 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
             <div style={{ fontSize:11, color:'#94A3B8' }}>{staff.name} · {staff.role}</div>
           </div>
           <div style={{ display:'flex', gap:6 }}>
-            <div style={S.statBadge}>
-              <span style={{ color:'#86EFAC' }}>{counts.available}</span>
-              <span style={{ color:'#64748B', fontSize:10 }}> tersedia</span>
-            </div>
-            <div style={S.statBadge}>
-              <span style={{ color:'#FDC07A' }}>{counts.occupied}</span>
-              <span style={{ color:'#64748B', fontSize:10 }}> terisi</span>
-            </div>
+            <div style={S.statBadge}><span style={{ color:'#86EFAC' }}>{counts.available}</span><span style={{ color:'#64748B', fontSize:10 }}> tersedia</span></div>
+            <div style={S.statBadge}><span style={{ color:'#FDC07A' }}>{counts.occupied}</span><span style={{ color:'#64748B', fontSize:10 }}> terisi</span></div>
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
@@ -106,7 +143,17 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
         </div>
       </div>
 
-      {/* Area tabs */}
+      {/* Mode banner */}
+      {(isMergeMode || isMoveMode) && (
+        <div style={{ background: isMergeMode ? '#F59E0B' : '#3B82F6', padding:'10px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div style={{ color:'#fff', fontWeight:700, fontSize:13 }}>
+            {isMergeMode ? "Select table to merge " + mergeMode.name + " into" : "Select destination for " + moveMode.name}
+          </div>
+          <button onClick={()=>{ setMergeMode(null); setMoveMode(null) }}
+            style={{ background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', borderRadius:8, padding:'5px 12px', cursor:'pointer', fontWeight:700 }}>Cancel</button>
+        </div>
+      )}
+
       {areas.length > 1 && (
         <div style={S.areaTabs}>
           {areas.map(a => (
@@ -118,74 +165,103 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
         </div>
       )}
 
-      {/* Table grid */}
       <div style={S.grid}>
         {visible.map(t => {
           const occupied = t.status === 'Occupied'
           const reserved = t.status === 'Reserved'
           const mins = timers[t.id]
+          const isMergeTarget = isMergeMode && t.id !== mergeMode?.id
+          const isMoveTarget  = isMoveMode  && t.id !== moveMode?.id && !occupied
+
+          function handleTableClick() {
+            if (isMergeMode) { handleMerge(t); return }
+            if (isMoveMode)  { handleMove(t);  return }
+            if (reserved) return
+            setActionMenu(t)
+          }
+
           return (
-            <button key={t.id} onClick={() => !reserved && onSelectTable(t)}
+            <button key={t.id} onClick={handleTableClick}
               style={{
                 ...S.card,
-                background: occupied ? '#FFF7ED' : reserved ? '#F8FAFC' : 'white',
-                border: occupied ? '2px solid #FB923C' : reserved ? '2px solid #CBD5E1' : '2px solid #E2E8F0',
-                cursor: reserved ? 'not-allowed' : 'pointer',
-                opacity: reserved ? 0.6 : 1,
+                background: isMergeTarget ? '#FEF9C3' : isMoveTarget ? '#DBEAFE' : occupied ? '#FFF7ED' : reserved ? '#F8FAFC' : 'white',
+                border: isMergeTarget ? '2px solid #F59E0B' : isMoveTarget ? '2px solid #3B82F6' : occupied ? '2px solid #FB923C' : reserved ? '2px solid #CBD5E1' : '2px solid #E2E8F0',
+                cursor: reserved && !isMergeMode && !isMoveMode ? 'not-allowed' : 'pointer',
+                opacity: reserved && !isMergeMode && !isMoveMode ? 0.6 : 1,
+                transform: (isMergeTarget || isMoveTarget) ? 'scale(1.02)' : 'scale(1)',
               }}>
-
-              {/* Status dot */}
               <div style={{ position:'absolute', top:10, right:10, width:10, height:10, borderRadius:'50%',
                 background: occupied ? '#F97316' : reserved ? '#94A3B8' : '#22C55E' }} />
-
-              {/* Table name */}
+              {t.merged_with && <div style={{ position:'absolute', top:8, left:8, fontSize:9, fontWeight:700, color:'#6366F1', background:'#EEF2FF', borderRadius:4, padding:'1px 5px' }}>MERGED</div>}
               <div style={{ fontSize:16, fontWeight:900, color:'#0A1628', marginBottom:4 }}>{t.name}</div>
-
-              {/* Capacity */}
-              <div style={{ fontSize:11, color:'#94A3B8', marginBottom:8 }}>
-                {'●'.repeat(Math.min(t.capacity, 8))} {t.capacity} seats
-              </div>
-
-              {/* Status */}
+              {t.merged_with && <div style={{ fontSize:10, color:'#6366F1', marginBottom:4 }}>+ {t.merged_with}</div>}
+              <div style={{ fontSize:11, color:'#94A3B8', marginBottom:8 }}>{"●".repeat(Math.min(t.capacity,8))} {t.capacity} seats</div>
               {occupied ? (
                 <div style={{ width:'100%' }}>
-                  {mins !== undefined && (
-                    <div style={{ fontSize:20, fontWeight:900, color:timerColor(mins), marginBottom:4 }}>
-                      {timerLabel(mins)}
-                    </div>
-                  )}
-                  {t.open_customer && (
-                    <div style={{ fontSize:11, color:'#6B7A8D', marginBottom:2 }}>{t.open_customer}</div>
-                  )}
+                  {mins !== undefined && <div style={{ fontSize:20, fontWeight:900, color:timerColor(mins), marginBottom:4 }}>{timerLabel(mins)}</div>}
+                  {t.open_customer && <div style={{ fontSize:11, color:'#6B7A8D', marginBottom:2 }}>{t.open_customer}</div>}
                   <div style={{ fontSize:11, color:'#6B7A8D' }}>{t.open_items} item(s)</div>
-                  <div style={{ marginTop:8, padding:'4px 10px', background:'#FED7AA', borderRadius:20, fontSize:11, fontWeight:700, color:'#C2410C' }}>
-                    Tap to open bill
-                  </div>
+                  <div style={{ marginTop:8, padding:'4px 10px', background:'#FED7AA', borderRadius:20, fontSize:11, fontWeight:700, color:'#C2410C' }}>Tap to open bill</div>
                 </div>
               ) : reserved ? (
                 <div style={{ fontSize:11, fontWeight:700, color:'#94A3B8' }}>Reserved</div>
               ) : (
-                <div style={{ padding:'6px 14px', background:'#DCFCE7', borderRadius:20, fontSize:12, fontWeight:700, color:'#16A34A' }}>
-                  Available
-                </div>
+                <div style={{ padding:'6px 14px', background:'#DCFCE7', borderRadius:20, fontSize:12, fontWeight:700, color:'#16A34A' }}>Available</div>
               )}
             </button>
           )
         })}
 
-        {/* Takeaway quick button */}
         <button onClick={onTakeaway} style={{ ...S.card, border:'2px dashed #CBD5E1', background:'#F8FAFC', cursor:'pointer' }}>
           <div style={{ fontSize:24, marginBottom:8 }}>🛵</div>
           <div style={{ fontSize:14, fontWeight:800, color:'#0A1628' }}>Takeaway</div>
           <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>Walk-in order</div>
         </button>
-
         <button onClick={onDelivery} style={{ ...S.card, border:'2px dashed #CBD5E1', background:'#F8FAFC', cursor:'pointer' }}>
           <div style={{ fontSize:24, marginBottom:8 }}>📦</div>
           <div style={{ fontSize:14, fontWeight:800, color:'#0A1628' }}>Delivery</div>
           <div style={{ fontSize:11, color:'#94A3B8', marginTop:4 }}>Antar ke alamat</div>
         </button>
       </div>
+
+      {/* Action Menu Modal */}
+      {actionMenu && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:100, display:'flex', alignItems:'flex-end', justifyContent:'center' }}
+          onClick={()=>setActionMenu(null)}>
+          <div onClick={e=>e.stopPropagation()}
+            style={{ background:'white', borderRadius:'20px 20px 0 0', padding:'20px 20px 36px', width:'100%', maxWidth:480 }}>
+            <div style={{ width:40, height:4, borderRadius:2, background:'#E2E8F0', margin:'0 auto 16px' }} />
+            <div style={{ fontSize:16, fontWeight:900, color:'#0A1628', marginBottom:4, textAlign:'center' }}>{actionMenu.name}</div>
+            <div style={{ fontSize:12, color:'#94A3B8', marginBottom:20, textAlign:'center' }}>
+              {actionMenu.status === 'Occupied' ? 'Open bill · ' + actionMenu.open_items + ' items' : 'Available · ' + actionMenu.capacity + ' seats'}
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {actionMenu.status === 'Occupied' && (
+                <button onClick={()=>{ setActionMenu(null); onSelectTable(actionMenu) }}
+                  style={S.menuBtn('#3B82F6')}>Open Bill</button>
+              )}
+              {actionMenu.status !== 'Occupied' && (
+                <button onClick={()=>{ setActionMenu(null); onSelectTable(actionMenu) }}
+                  style={S.menuBtn('#16A34A')}>New Order</button>
+              )}
+              {actionMenu.status === 'Occupied' && (
+                <button onClick={()=>{ setMoveMode(actionMenu); setActionMenu(null) }}
+                  style={S.menuBtn('#6366F1')}>Move Table</button>
+              )}
+              {actionMenu.status === 'Occupied' && (
+                <button onClick={()=>{ setMergeMode(actionMenu); setActionMenu(null) }}
+                  style={S.menuBtn('#F59E0B')}>Merge Table</button>
+              )}
+              {actionMenu.merged_with && (
+                <button onClick={()=>{ handleSplit(actionMenu); setActionMenu(null) }}
+                  style={S.menuBtn('#8B5CF6')}>Split Table</button>
+              )}
+              <button onClick={()=>setActionMenu(null)}
+                style={{ ...S.menuBtn('#F1F5F9'), color:'#6B7A8D' }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -200,5 +276,6 @@ const S = {
   areaBtn:    { padding:'7px 18px', borderRadius:20, border:'1.5px solid #E2E8F0', background:'white', fontSize:13, fontWeight:600, cursor:'pointer', color:'#6B7A8D' },
   areaActive: { background:'#0A1628', borderColor:'#0A1628', color:'white' },
   grid:       { flex:1, overflowY:'auto', padding:20, display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:14, alignContent:'start' },
-  card:       { position:'relative', background:'white', borderRadius:16, padding:16, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', minHeight:160, transition:'transform 0.1s, box-shadow 0.1s', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', border:'2px solid #E2E8F0' },
+  card:       { position:'relative', background:'white', borderRadius:16, padding:16, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', minHeight:160, transition:'transform 0.15s, box-shadow 0.15s', boxShadow:'0 2px 8px rgba(0,0,0,0.06)', border:'2px solid #E2E8F0' },
+  menuBtn:    (bg) => ({ width:'100%', padding:'14px', borderRadius:12, border:'none', background:bg, color:'white', fontSize:15, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }),
 }
