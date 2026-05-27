@@ -108,12 +108,15 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     const table = itemType === "sub" ? "sub_recipe_ingredients" : "recipes"
     const col   = itemType === "sub" ? "sub_recipe_id" : "product_id"
     supabase.from(table).select("*").eq(col, item.id).then(({ data }) => {
-      if (data?.length) setRows(data.map(r => ({
-        ingredient_id: r.ingredient_id,
-        name: r.ingredient_name || all.find(x=>x.id===r.ingredient_id)?.name || "",
-        qty: r.qty || 0,
-        unit: r.unit || "gr",
-      })))
+      if (data?.length) setRows(data.map(r => {
+        const found = all.find(x => x.id === r.ingredient_id)
+        return {
+          ingredient_id: r.ingredient_id,
+          name: r.ingredient_name || found?.name || "",
+          qty: r.qty || 0,
+          unit: found?.unit || r.unit || "gr",
+        }
+      }))
     })
   }, [item?.id, itemType])
 
