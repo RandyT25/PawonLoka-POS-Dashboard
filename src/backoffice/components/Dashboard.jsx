@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n || 0).toLocaleString("id-ID") }
@@ -43,6 +43,14 @@ export default function Dashboard() {
   const [recent,   setRecent]   = useState([])
 
   useEffect(() => { load() }, [range, useDummy])
+
+  useEffect(() => {
+    const channel = supabase.channel("dashboard_realtime")
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [range, useDummy])
 
   async function load() {
     setLoading(true)

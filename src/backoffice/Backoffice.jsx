@@ -1,4 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { supabase } from "../lib/supabase"
+
+// Suppress PWA install prompt on desktop
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeinstallprompt", e => {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
+    if (!isMobile) e.preventDefault()
+  })
+}
 import "./backoffice.css"
 import Dashboard      from "./components/Dashboard"
 import Products       from "./components/Products"
@@ -29,6 +38,101 @@ import ImportExport from "./components/ImportExport"
 import Schedule from "./components/Schedule"
 import Accounting from "./components/Accounting"
 import Orders from './components/Orders'
+
+function useNotifications(onNav) {
+  const [pending, setPending] = useState(0)
+  const [notes,   setNotes]   = useState([])
+  const channelRef = useRef(null)
+
+  useEffect(() => {
+    // Load initial pending count
+    supabase.from("staff_submissions").select("id,type,submitted_by,submitted_at,data")
+      .eq("status","pending").order("submitted_at",{ascending:false})
+      .then(({data}) => {
+        setPending((data||[]).length)
+        setNotes((data||[]).map(s => ({
+          id: s.id, type: s.type, by: s.submitted_by,
+          station: s.data?.station||"",
+          time: new Date(s.submitted_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+          read: false,
+        })))
+      })
+    // Realtime
+    channelRef.current = supabase.channel("bo_notif")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"staff_submissions"}, payload => {
+        const s = payload.new
+        setPending(n => n+1)
+        setNotes(prev => [{
+          id:s.id, type:s.type, by:s.submitted_by,
+          station:s.data?.station||"",
+          time:new Date(s.submitted_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+          read:false,
+        }, ...prev])
+        try {
+          const ctx = new AudioContext()
+          const o = ctx.createOscillator(); const g = ctx.createGain()
+          o.connect(g); g.connect(ctx.destination)
+          o.frequency.value=880; g.gain.value=0.2; o.start(); o.stop(ctx.currentTime+0.12)
+        } catch(e) {}
+      })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"staff_submissions"}, () => {
+        supabase.from("staff_submissions").select("id").eq("status","pending")
+          .then(({data}) => setPending((data||[]).length))
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channelRef.current) }
+  }, [])
+
+  function markRead() { setNotes(n => n.map(x=>({...x,read:true}))); setPending(0) }
+  return { pending, notes, markRead }
+}
+
+const TYPE_ICONS = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
+const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", production:"Production", requisition:"Request" }
+
+function BellMenu({ pending, notes, onNav, markRead }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div style={{ position:"relative" }}>
+      <button onClick={()=>{ setOpen(o=>!o); if(!open) markRead() }}
+        style={{ position:"relative", background:"none", border:"none", cursor:"pointer", padding:"4px 8px", borderRadius:8, color:"var(--ink)", display:"flex", alignItems:"center" }}>
+        <span style={{ fontSize:20 }}>🔔</span>
+        {pending > 0 && (
+          <span style={{ position:"absolute", top:0, right:0, background:"var(--red)", color:"#fff", borderRadius:20, fontSize:10, fontWeight:900, minWidth:16, height:16, display:"flex", alignItems:"center", justifyContent:"center", padding:"0 4px" }}>{pending}</span>
+        )}
+      </button>
+      {open && (
+        <>
+          <div onClick={()=>setOpen(false)} style={{ position:"fixed", inset:0, zIndex:998 }} />
+          <div style={{ position:"absolute", right:0, top:"calc(100% + 8px)", width:300, background:"#fff", borderRadius:12, boxShadow:"0 8px 32px rgba(0,0,0,0.15)", border:"1px solid var(--surface3)", zIndex:999, overflow:"hidden" }}>
+            <div style={{ padding:"12px 16px", borderBottom:"1px solid var(--surface3)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+              <div style={{ fontSize:13, fontWeight:800 }}>Notifications</div>
+              <button onClick={()=>{ setOpen(false); onNav("staff-submissions") }}
+                style={{ fontSize:11, color:"var(--brand)", background:"none", border:"none", cursor:"pointer", fontWeight:700 }}>View All</button>
+            </div>
+            <div style={{ maxHeight:320, overflowY:"auto" }}>
+              {notes.length === 0 ? (
+                <div style={{ padding:"24px 16px", textAlign:"center", color:"var(--ink5)", fontSize:13 }}>No pending reports</div>
+              ) : notes.slice(0,10).map(n => (
+                <div key={n.id} onClick={()=>{ setOpen(false); onNav("staff-submissions") }}
+                  style={{ padding:"10px 16px", borderBottom:"1px solid var(--surface)", cursor:"pointer", background:n.read?"#fff":"var(--brand-lt)", display:"flex", gap:10, alignItems:"flex-start" }}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--surface)"}
+                  onMouseLeave={e=>e.currentTarget.style.background=n.read?"#fff":"var(--brand-lt)"}>
+                  <span style={{ fontSize:18, flexShrink:0 }}>{TYPE_ICONS[n.type]||"📄"}</span>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:700 }}>{TYPE_LABELS[n.type]||n.type} — {n.by}</div>
+                    <div style={{ fontSize:11, color:"var(--ink4)" }}>{n.station && n.station+" · "}{n.time}</div>
+                  </div>
+                  {!n.read && <span style={{ width:8, height:8, borderRadius:"50%", background:"var(--brand)", flexShrink:0, marginTop:4 }} />}
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 function ComingSoon({ title }) {
   return (
@@ -182,6 +286,8 @@ export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState(()=>sessionStorage.getItem("bo_active")||"dashboard")
 
+  const { pending, notes, markRead } = useNotifications(navTo)
+
   function navTo(id) {
     setActive(id)
     sessionStorage.setItem("bo_active", id)
@@ -231,6 +337,7 @@ export default function Backoffice() {
           <button className="bo-hamburger" onClick={()=>setMobileSidebar(true)}>☰</button>
           <div className="bo-topbar-title">{NAV.find(n=>n.id===active)?.label}</div>
           <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+          <BellMenu pending={pending} notes={notes} onNav={navTo} markRead={markRead} />
         </div>
         <div className="bo-content"><Screen onNavChange={navTo} /></div>
         {/* Mobile sidebar overlay */}
