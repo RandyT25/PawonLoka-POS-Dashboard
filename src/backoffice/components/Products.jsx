@@ -110,6 +110,7 @@ export default function Products() {
       active:    form.active !== false,
       image_url: form.image_url || null,
       variants:  variants,
+      linked_modifiers: form.linked_modifiers || [],
     }
     if (modal === "add") {
       const sku = (form.cat||"PRD").slice(0,3).toUpperCase().replace(/\s/g,"") + Date.now().toString().slice(-6)
