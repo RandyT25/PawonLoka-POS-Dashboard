@@ -596,7 +596,7 @@ export default function POS() {
         </div>
         <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
           <div style={{ position:'relative' }}>
-            <button onClick={() => setShowTablePicker(p => !p)}
+            <button onClick={() => setShowFloorPlan(true)}
               style={{ ...S.headerBtn, background: tableNo ? '#10B981' : 'rgba(255,255,255,0.15)', color:'white', fontWeight:700 }}>
               {tableNo || 'Table'}
             </button>
