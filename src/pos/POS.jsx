@@ -70,7 +70,7 @@ export default function POS() {
 
   // Auto-close POS at configured time
   useEffect(() => {
-    const CHECK_INTERVAL = 60000 // check every minute
+    const CHECK_INTERVAL = 60000
     const interval = setInterval(() => {
       const autoCloseTime = appSettings?.pos?.auto_close_time
       if (!autoCloseTime || !shift) return
@@ -81,13 +81,12 @@ export default function POS() {
       const diff    = closeMs - nowMs
       if (diff === 5) { setAutoCloseWarn(true); setAutoCloseCount(5) }
       if (diff <= 0 && diff > -2) {
-        if (cart.length === 0) {
-          alert('POS auto-closing. Please close your shift.')
-        }
+        if (cart.length === 0) alert('POS auto-closing. Please close your shift.')
       }
     }, CHECK_INTERVAL)
     return () => clearInterval(interval)
   }, [appSettings, shift, cart])
+
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
   function dbg(msg) { setPrintDebug(prev => [...prev.slice(-4), new Date().toLocaleTimeString('id-ID')+': '+msg]) }
