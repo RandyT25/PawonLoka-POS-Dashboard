@@ -21,7 +21,7 @@ export default function InvIngredients() {
   const [qForm,       setQForm]       = useState({})
   const [qSaving,     setQSaving]     = useState(false)
   const [catModal,    setCatModal]    = useState(false)
-  const [ingCats,     setIngCats]     = useState(() => { try { const s = localStorage.getItem("pl_ing_cats"); return s ? JSON.parse(s) : ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"] } catch { return ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"] } })
+  const [ingCats,     setIngCats]     = useState(["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"])
   const [newCatName,  setNewCatName]  = useState("")
 
   useEffect(() => { load() }, [])
