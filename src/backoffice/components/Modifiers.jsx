@@ -22,6 +22,8 @@ const EMPTY_OPT = { name:"", price:0 }
 export default function Modifiers() {
   const [modifiers,  setModifiers]  = useState([])
   const [categories, setCategories] = useState([])
+  const [products,   setProducts]   = useState([])
+  const [prodSearch, setProdSearch]  = useState("")
   const [loading,    setLoading]    = useState(true)
   const [modal,      setModal]      = useState(null)
   const [form,       setForm]       = useState(EMPTY_MOD)
@@ -36,6 +38,7 @@ export default function Modifiers() {
     const [{ data:mods }, { data:cats }] = await Promise.all([
       supabase.from("modifier_groups").select("*").order("name"),
       supabase.from("categories").select("*").order("sort"),
+      supabase.from("products").select("sku,name,cat,active").eq("active",true).order("name"),
     ])
     setModifiers(mods||[])
     setCategories(cats||[])
@@ -213,6 +216,25 @@ export default function Modifiers() {
                 </div>
               </div>
             </div>
+              <div style={{borderTop:"1px solid var(--surface3)",paddingTop:14,marginTop:14}}>
+                <label className="bo-label">Link to Specific Products (optional)</label>
+                <div style={{fontSize:11,color:"var(--ink4)",marginBottom:8}}>If selected, modifier only shows for these products (overrides category link)</div>
+                <input value={prodSearch} onChange={e=>setProdSearch(e.target.value)} className="bo-input" placeholder="Search products..." style={{marginBottom:8}} />
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,maxHeight:160,overflowY:"auto"}}>
+                  {products.filter(p=>!prodSearch||p.name.toLowerCase().includes(prodSearch.toLowerCase())).map(p=>{
+                    const linked=(form.linked_products||[]).includes(p.sku)
+                    return (
+                      <button key={p.sku} onClick={()=>setForm(f=>({...f,linked_products:linked?(f.linked_products||[]).filter(x=>x!==p.sku):[...(f.linked_products||[]),p.sku]}))}
+                        style={{padding:"4px 10px",borderRadius:20,fontSize:11,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(linked?"var(--brand)":"var(--surface3)"),background:linked?"var(--brand-lt)":"#fff",color:linked?"var(--brand)":"var(--ink4)"}}>
+                        {linked?"v ":""}{p.name}
+                      </button>
+                    )
+                  })}
+                </div>
+                {(form.linked_products||[]).length>0 && (
+                  <div style={{marginTop:6,fontSize:11,color:"var(--brand)",fontWeight:600}}>{(form.linked_products||[]).length} products selected</div>
+                )}
+              </div>
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
               <button onClick={save} disabled={saving||!form.name.trim()} className="bo-btn bo-btn-primary">{saving?"Saving...":modal==="add"?"Add":"Save"}</button>
