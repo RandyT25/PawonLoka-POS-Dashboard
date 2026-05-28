@@ -35,7 +35,7 @@ export default function Modifiers() {
 
   async function load() {
     setLoading(true)
-    const [{ data:mods }, { data:cats }] = await Promise.all([
+    const [{ data:mods }, { data:cats }, { data:prods }] = await Promise.all([
       supabase.from("modifier_groups").select("*").order("name"),
       supabase.from("categories").select("*").order("sort"),
       supabase.from("products").select("sku,name,cat,active").eq("active",true).order("name"),
