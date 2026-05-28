@@ -763,6 +763,7 @@ export default function POS() {
           onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
                     try {
                       dbg('Starting print...')
+                      await new Promise(r => setTimeout(r, 800)) // wait for GATT stability
                       const rs = appSettings?.receipt || {}
                       const outlet = {
                         name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
