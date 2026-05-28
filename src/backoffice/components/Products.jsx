@@ -68,6 +68,19 @@ export default function Products() {
     setModal("edit")
   }
   function closeModal(){ setModal(null); setForm(EMPTY); setVariants([]); setPreview(null) }
+  function openQuickEdit(p) {
+    setQForm({ sku:p.sku, name:p.name, price:p.price, active:p.active??true, linked_modifiers:p.linked_modifiers||[] })
+    setQuickEdit(p)
+  }
+  async function saveQuickEdit() {
+    setQSaving(true)
+    await supabase.from("products").update({
+      name: qForm.name, price: parseFloat(qForm.price)||0,
+      active: qForm.active, linked_modifiers: qForm.linked_modifiers
+    }).eq("sku", qForm.sku)
+    setProducts(prev => prev.map(p => p.sku===qForm.sku ? {...p,...qForm,price:parseFloat(qForm.price)||0} : p))
+    setQSaving(false); setQuickEdit(null)
+  }
 
   async function handleFile(e) {
     const file = e.target.files?.[0]; if (!file) return
@@ -262,6 +275,7 @@ export default function Products() {
                     }
                   </div>
                   <div style={{ display:"flex", borderTop:"1px solid var(--surface3)" }}>
+                    <button onClick={()=>openQuickEdit(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color:"var(--brand)", background:"none", border:"none", borderRight:"1px solid var(--surface3)", cursor:"pointer" }}>Quick</button>
                     <button onClick={()=>openEdit(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color:"var(--ink4)", background:"none", border:"none", borderRight:"1px solid var(--surface3)", cursor:"pointer" }}>Edit</button>
                     <button onClick={()=>openEdit(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color:"var(--brand)", background:"none", border:"none", borderRight:"1px solid var(--surface3)", cursor:"pointer" }}>Recipe</button>
                     <button onClick={()=>toggleActive(p)} style={{ flex:1, padding:"7px 0", fontSize:11, fontWeight:600, color: p.active?"var(--amber)":"var(--green)", background:"none", border:"none", cursor:"pointer" }}>{p.active?"Hide":"Show"}</button>
@@ -334,6 +348,7 @@ export default function Products() {
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:4 }}>
+                          <button onClick={()=>openQuickEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{color:"var(--brand)"}}>Quick Edit</button>
                           <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
                           <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--brand)" }}>Recipe</button>
                           <button onClick={()=>deleteProduct(p.sku)} className="bo-btn bo-btn-danger bo-btn-sm">✕</button>
