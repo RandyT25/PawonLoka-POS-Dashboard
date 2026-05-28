@@ -106,8 +106,20 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     setYieldQty(item.yield_qty || 1)
     setYieldUnit(item.yield_unit || item.unit || "gr")
     const table = itemType === "sub" ? "sub_recipe_ingredients" : "recipes"
-    const col   = itemType === "sub" ? "sub_recipe_id" : "product_id"
-    supabase.from(table).select("*").eq(col, item.id).then(({ data }) => {
+    const loadRecipe = async () => {
+      let data = null
+      if (itemType === "sub") {
+        const res = await supabase.from(table).select("*").eq("sub_recipe_id", item.id)
+        data = res.data
+      } else {
+        // Try productSku first, fallback to product_id
+        const res1 = await supabase.from("recipes").select("*").eq("productSku", item.id)
+        data = res1.data
+        if (!data?.length) {
+          const res2 = await supabase.from("recipes").select("*").eq("product_id", item.id)
+          data = res2.data
+        }
+      }
       if (data?.length) setRows(data.map(r => {
         const found = all.find(x => x.id === r.ingredient_id)
         return {
@@ -117,7 +129,8 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
           unit: found?.unit || r.unit || "gr",
         }
       }))
-    })
+    }
+    loadRecipe()
   }, [item?.id, itemType])
 
   const totalCost = rows.reduce((sum, row) => {
