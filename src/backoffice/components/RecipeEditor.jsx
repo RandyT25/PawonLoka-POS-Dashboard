@@ -163,7 +163,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
       } else {
         const { error: d } = await supabase.from("recipes").delete().eq("product_id", item.id)
         if (d) throw d
-        const { error: ins } = await supabase.from("recipes").insert(inserts.map(r=>({...r, product_id:item.id})))
+        const { error: ins } = await supabase.from("recipes").insert(inserts.map(r=>({...r, product_id:item.id, productSku:item.id})))
         if (ins) throw ins
         await supabase.from("products").update({ cogs:Math.round(totalCost) }).eq("sku", item.id)
         setMsg({ err:false, text:`✓ Saved! COGS: ${fmtRp(totalCost)}` })
