@@ -161,7 +161,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         setMsg({ err:false, text:`✓ Saved! Cost: Rp ${costPerUnit.toFixed(2)}/${yieldUnit}` })
         onSaved({ cost_per_unit:costPerUnit, yield_qty:yieldQty, yield_unit:yieldUnit })
       } else {
-        const { error: d } = await supabase.from("recipes").delete().eq("product_id", item.id)
+        const { error: d } = await supabase.from("recipes").delete().eq("productSku", item.id)
         if (d) throw d
         const { error: ins } = await supabase.from("recipes").insert(inserts.map(r=>({...r, product_id:item.id, productSku:item.id})))
         if (ins) throw ins
@@ -185,7 +185,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         <div style={{ flex:1 }}>
           <div style={{ fontSize:20, fontWeight:800, color:"var(--ink,#1f2937)" }}>{item.icon||"🥣"} {item.name}</div>
           <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:4 }}>
-            {itemType==="sub" ? "Semi-finished ingredient" : "Dish"} · Base unit: {item.unit||"gr"}
+            {itemType==="sub" ? "Sub-recipe" : "Dish"} · Category: {item.category||item.cat||"—"}
           </div>
           {/* Recipe COGS inline on mobile */}
           <div className="recipe-cogs-inline" style={{ display:"none", marginTop:10, padding:"10px 14px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:10 }}>
