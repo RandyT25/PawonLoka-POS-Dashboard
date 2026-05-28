@@ -18,6 +18,10 @@ export default function Products() {
   const [quickEdit,   setQuickEdit]   = useState(null)
   const [qForm,       setQForm]       = useState({})
   const [qSaving,     setQSaving]     = useState(false)
+  const [selected,    setSelected]    = useState(new Set())
+  const [bulkModal,   setBulkModal]   = useState(false)
+  const [bulkMods,    setBulkMods]    = useState([])
+  const [bulkSaving,  setBulkSaving]  = useState(false)
   const [form,        setForm]        = useState(EMPTY)
   const [variants,    setVariants]    = useState([])
   const [saving,      setSaving]      = useState(false)
@@ -245,6 +249,13 @@ export default function Products() {
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Product</button>
         </div>
       </div>
+      {selected.size > 0 && (
+        <div style={{display:"flex",gap:8,alignItems:"center",padding:"8px 12px",background:"var(--brand-lt)",borderRadius:10,border:"1px solid var(--brand)",marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:700,color:"var(--brand)"}}>{selected.size} selected</span>
+          <button onClick={()=>{setBulkMods([]); setBulkModal(true)}} className="bo-btn bo-btn-primary bo-btn-sm">Assign Modifiers</button>
+          <button onClick={()=>setSelected(new Set())} className="bo-btn bo-btn-ghost bo-btn-sm">Clear</button>
+        </div>
+      )}
 
       {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
 
@@ -256,7 +267,8 @@ export default function Products() {
               const m      = margin(p)
               const recipe = hasRecipe(p)
               return (
-                <div key={p.sku} style={{ background:"#fff", border:"1.5px solid var(--surface3)", borderRadius:16, overflow:"hidden", opacity:p.active?1:0.65 }}>
+                <div key={p.sku} style={{ background:"#fff", border:"1.5px solid "+(selected.has(p.sku)?"var(--brand)":"var(--surface3)"), borderRadius:16, overflow:"hidden", opacity:p.active?1:0.65, position:"relative" }}>
+                  <input type="checkbox" checked={selected.has(p.sku)} onChange={()=>toggleSelect(p.sku)} style={{position:"absolute",top:8,left:8,width:16,height:16,accentColor:"var(--brand)",cursor:"pointer",zIndex:1}} />
                   <div style={{ height:90, background: color+"22", borderBottom:"2px solid "+color+"33", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
                     {p.image_url
                       ? <img src={p.image_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
@@ -542,6 +554,34 @@ export default function Products() {
               <button onClick={saveQuickEdit} disabled={qSaving} className="bo-btn bo-btn-primary" style={{width:"100%"}}>
                 {qSaving ? "Saving..." : "Save Changes"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {bulkModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBulkModal(false)}>
+          <div className="bo-modal" style={{maxWidth:480}}>
+            <div className="bo-modal-header">
+              <div><div className="bo-modal-title">Assign Modifiers</div><div style={{fontSize:11,color:"var(--ink5)"}}>Applies to {selected.size} selected products</div></div>
+              <button className="bo-modal-close" onClick={()=>setBulkModal(false)}>x</button>
+            </div>
+            <div className="bo-modal-body">
+              <div style={{fontSize:12,color:"var(--ink4)",marginBottom:12}}>Select modifiers. This replaces existing modifier assignments.</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                {modifiers.map(m => {
+                  const on = bulkMods.includes(m.id)
+                  return (
+                    <button key={m.id} onClick={()=>setBulkMods(prev=>on?prev.filter(x=>x!==m.id):[...prev,m.id])}
+                      style={{padding:"8px 16px",borderRadius:20,border:"1.5px solid "+(on?"var(--brand)":"var(--surface3)"),background:on?"var(--brand)":"#fff",color:on?"#fff":"var(--ink4)",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>
+                      {on?"v ":""}{m.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setBulkModal(false)} className="bo-btn bo-btn-ghost">Cancel</button>
+              <button onClick={saveBulkModifiers} disabled={bulkSaving} className="bo-btn bo-btn-primary">{bulkSaving?"Saving...":"Apply to "+selected.size+" products"}</button>
             </div>
           </div>
         </div>
