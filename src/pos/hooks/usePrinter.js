@@ -119,14 +119,12 @@ export function renderToBytes(lines) {
   return out;
 }
 
-// Module-level refs survive re-renders and Realtime subscriptions
-const _deviceRefs = {}
-const _charRefs   = {}
-
 export function usePrinter() {
   const [printers,  setPrinters]  = useState([]);
   const [scanning,  setScanning]  = useState(false);
   const [loading,   setLoading]   = useState(true);
+  const deviceRefs  = useRef({});
+  const charRefs    = useRef({});
 
   // Load printers from Supabase on mount
   useEffect(() => {
@@ -207,7 +205,7 @@ export function usePrinter() {
         connected: false,
         type:      role === "receipt" ? "receipt_printer" : "kitchen_printer",
       };
-      _deviceRefs[np.id] = device;
+      deviceRefs.current[np.id] = device;
       const next = existing
         ? printers.map(p => p.id === existing.id ? { ...p, name: device.name || p.name } : p)
         : [...printers, np];
@@ -221,7 +219,7 @@ export function usePrinter() {
   const connect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
-    let device = _deviceRefs[printerId];
+    let device = deviceRefs.current[printerId];
     if (!device) {
       // Android Chrome does not support getDevices() — must re-pair
       if (navigator.bluetooth?.getDevices) {
@@ -243,7 +241,7 @@ export function usePrinter() {
           });
         } catch(e) { throw new Error("Could not find printer. Please select it from the list."); }
       }
-      _deviceRefs[printerId] = device;
+      deviceRefs.current[printerId] = device;
     }
     const server = await device.gatt.connect();
     let characteristic;
@@ -261,20 +259,20 @@ export function usePrinter() {
       } catch { continue; }
     }
     if (!characteristic) throw new Error("No writable characteristic found.");
-    _charRefs[printerId] = characteristic;
+    charRefs.current[printerId] = characteristic;
     device.addEventListener("gattserverdisconnected", () => {
       setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
-      delete _charRefs[printerId];
+      delete charRefs.current[printerId];
     });
     setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
     return characteristic;
   }, [printers]);
 
   const disconnect = useCallback(async (printerId) => {
-    const device = _deviceRefs[printerId];
+    const device = deviceRefs.current[printerId];
     if (device?.gatt?.connected) device.gatt.disconnect();
-    delete _charRefs[printerId];
-    delete _deviceRefs[printerId];
+    delete charRefs.current[printerId];
+    delete deviceRefs.current[printerId];
     setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
   }, []);
 
@@ -294,7 +292,7 @@ export function usePrinter() {
   }, []);
 
   const printBytes = useCallback(async (printerId, bytes) => {
-    let char = _charRefs[printerId];
+    let char = charRefs.current[printerId];
     if (!char) char = await connect(printerId);
     const CHUNK = 512;
     async function writeBytes(c) {
@@ -310,7 +308,7 @@ export function usePrinter() {
     } catch(e) {
       // GATT disconnected — reconnect and retry once
       console.warn("Print failed, reconnecting...", e.message);
-      delete _charRefs[printerId];
+      delete charRefs.current[printerId];
       char = await connect(printerId);
       await writeBytes(char);
     }
@@ -320,10 +318,10 @@ export function usePrinter() {
     const printer = printers.find(p => p.role === "receipt" && p.connected);
     if (!printer) throw new Error("No receipt printer connected");
     // Verify GATT still connected, reconnect if needed
-    const device = _deviceRefs[printer.id];
+    const device = deviceRefs.current[printer.id];
     if (device && !device.gatt?.connected) {
       console.warn("GATT dropped, reconnecting...");
-      delete _charRefs[printer.id];
+      delete charRefs.current[printer.id];
       await connect(printer.id).catch(() => {});
     }
     await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service })));
