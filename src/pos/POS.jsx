@@ -50,7 +50,9 @@ export default function POS() {
   const [clockStaff, setClockStaff]       = useState(null)
   const [showSettings, setShowSettings]   = useState(false)
   const [pwaInstallable, setPwaInstallable] = useState(false)
-  const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [isOffline,     setIsOffline]     = useState(!navigator.onLine)
+  const [autoCloseWarn, setAutoCloseWarn] = useState(false)
+  const [autoCloseCount,setAutoCloseCount]= useState(0)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [voidAuth, setVoidAuth] = useState(null) // {orderId, reason, pin}
 
@@ -65,6 +67,27 @@ export default function POS() {
       window.removeEventListener('online', goOnline)
     }
   }, [])
+
+  // Auto-close POS at configured time
+  useEffect(() => {
+    const CHECK_INTERVAL = 60000 // check every minute
+    const interval = setInterval(() => {
+      const autoCloseTime = appSettings?.pos?.auto_close_time
+      if (!autoCloseTime || !shift) return
+      const now = new Date()
+      const [h, m] = autoCloseTime.split(':').map(Number)
+      const closeMs = h * 60 + m
+      const nowMs   = now.getHours() * 60 + now.getMinutes()
+      const diff    = closeMs - nowMs
+      if (diff === 5) { setAutoCloseWarn(true); setAutoCloseCount(5) }
+      if (diff <= 0 && diff > -2) {
+        if (cart.length === 0) {
+          alert('POS auto-closing. Please close your shift.')
+        }
+      }
+    }, CHECK_INTERVAL)
+    return () => clearInterval(interval)
+  }, [appSettings, shift, cart])
   const [cartOpen, setCartOpen]           = useState(false)
   const printer    = usePrinter()
   function dbg(msg) { setPrintDebug(prev => [...prev.slice(-4), new Date().toLocaleTimeString('id-ID')+': '+msg]) }
@@ -583,6 +606,12 @@ export default function POS() {
 
   return (
     <div style={S.app}>
+      {autoCloseWarn && (
+        <div style={{background:'#F59E0B',color:'#fff',padding:'8px 16px',textAlign:'center',fontSize:13,fontWeight:700,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>POS will auto-close in {autoCloseCount} minutes. Please complete transactions.</span>
+          <button onClick={()=>setAutoCloseWarn(false)} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'#fff',borderRadius:6,padding:'3px 10px',cursor:'pointer',fontSize:12}}>Dismiss</button>
+        </div>
+      )}
       {isOffline && (
         <div style={{ background:'#FF8B00', color:'#fff', textAlign:'center', padding:'6px', fontSize:12, fontWeight:700 }}>
           Offline Mode — Orders will sync when connected
@@ -624,25 +653,31 @@ export default function POS() {
           </div>
           <button onClick={() => setShowOrders(true)} style={S.headerBtn}>Orders</button>
           {(() => {
-            const rp = printer.printers?.find(p=>p.role==='receipt')
-            if (!rp) return (
-              <button onClick={()=>setShowSettings(true)}
-                style={{ ...S.headerBtn, background:'rgba(239,68,68,0.3)', color:'#FCA5A5', fontWeight:700 }}>
-                No Printer
-              </button>
-            )
-            if (!rp.connected) return (
-              <button onClick={async()=>{ try{ await printer.connect(rp.id) }catch(e){} }}
-                style={{ ...S.headerBtn, background:'rgba(234,179,8,0.3)', color:'#FCD34D', fontWeight:700 }}>
-                Reconnect
-              </button>
-            )
+            const allP = printer.printers || []
+            const rp   = allP.find(p=>p.role==='receipt')
+            const kp   = allP.filter(p=>p.role!=='receipt')
+            const rpOk = rp?.connected
+            const kpOk = kp.some(p=>p.connected)
+            const anyConnected = allP.some(p=>p.connected)
+            const label = !rp ? 'No Printer' : !rpOk ? 'Reconnect' : 'Printer OK'
+            const bg    = !rp ? 'rgba(239,68,68,0.3)' : !rpOk ? 'rgba(234,179,8,0.3)' : 'rgba(16,185,129,0.2)'
+            const col   = !rp ? '#FCA5A5' : !rpOk ? '#FCD34D' : '#6EE7B7'
             return (
-              <span style={{ ...S.headerBtn, background:'rgba(16,185,129,0.2)', color:'#6EE7B7', cursor:'default' }}>
-                Printer OK
-              </span>
+              <button onClick={()=>{ if(!rp||!rpOk){ setShowSettings(true) } else { try{ printer.testPrint(rp.id) }catch(e){} } }}
+                style={{ ...S.headerBtn, background:bg, color:col, fontWeight:700, display:'flex', alignItems:'center', gap:5 }}
+                title={allP.map(p=>p.name+': '+(p.connected?'Connected':'Disconnected')).join(' | ')}>
+                <span style={{width:7,height:7,borderRadius:'50%',background:rpOk?'#6EE7B7':'#FCA5A5',flexShrink:0,display:'inline-block'}} />
+                {label}
+                {kp.length > 0 && (
+                  <span style={{fontSize:9,opacity:0.7}}>{kp.filter(p=>p.connected).length}/{kp.length}K</span>
+                )}
+              </button>
             )
           })()}
+          <div style={{display:'flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:6,background:isOffline?'rgba(239,68,68,0.2)':'rgba(34,197,94,0.15)'}}>
+            <div style={{width:6,height:6,borderRadius:'50%',background:isOffline?'#EF4444':'#22C55E'}} />
+            <span style={{fontSize:10,fontWeight:600,color:isOffline?'#FCA5A5':'#86EFAC'}}>{isOffline?'Offline':'Online'}</span>
+          </div>
           <button onClick={() => setShowCustomer(true)} style={{ ...S.headerBtn }} className="pos-hide-mobile">
             {customer ? customer.name : '+ Customer'}
           </button>

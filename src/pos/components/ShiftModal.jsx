@@ -49,6 +49,14 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout }) 
     }
     await supabase.from('shifts').insert(s)
     onOpen(s)
+    // Non-blocking clock-in reminder
+    setTimeout(() => {
+      const toast = document.createElement('div')
+      toast.innerHTML = 'Reminder: Clock in via Staff portal to record attendance'
+      toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#0052CC;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 16px rgba(0,0,0,0.2);max-width:90vw;text-align:center'
+      document.body.appendChild(toast)
+      setTimeout(() => toast.remove(), 5000)
+    }, 1000)
     setSaving(false)
   }
 

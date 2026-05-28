@@ -17,6 +17,12 @@ export default function InvIngredients() {
   const [convs,       setConvs]       = useState([]) // [{unit, qty, sku, last_price}]
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
+  const [quickEdit,   setQuickEdit]   = useState(null)
+  const [qForm,       setQForm]       = useState({})
+  const [qSaving,     setQSaving]     = useState(false)
+  const [catModal,    setCatModal]    = useState(false)
+  const [ingCats,     setIngCats]     = useState(() => { try { const s = localStorage.getItem("pl_ing_cats"); return s ? JSON.parse(s) : ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"] } catch { return ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"] } })
+  const [newCatName,  setNewCatName]  = useState("")
 
   useEffect(() => { load() }, [])
 
@@ -52,6 +58,9 @@ export default function InvIngredients() {
   }
 
   function closeModal() { setModal(null); setForm(EMPTY); setConvs([]) }
+  function openQuickEdit(i) { setQForm({ id:i.id, name:i.name, stock:i.stock||0, min_stock:i.min_stock||0, cost_per_unit:i.cost_per_unit||0, category:i.category||"General", unit:i.unit }); setQuickEdit(i) }
+  async function saveQuickEdit() { setQSaving(true); const { error } = await supabase.from("ingredients").update({ name:qForm.name, stock:parseFloat(qForm.stock)||0, min_stock:parseFloat(qForm.min_stock)||0, cost_per_unit:parseFloat(qForm.cost_per_unit)||0, category:qForm.category }).eq("id",qForm.id); if(error){alert("Save failed: "+error.message);setQSaving(false);return} setIngredients(prev=>prev.map(i=>i.id===qForm.id?{...i,...qForm}:i)); setQSaving(false); setQuickEdit(null) }
+  function saveCats(cats) { setIngCats(cats); localStorage.setItem("pl_ing_cats",JSON.stringify(cats)) }
 
   // Conversion helpers
   function addConv()        { setConvs(c => [...c, { unit:"kg", qty:1000, sku:"", last_price:0 }]) }
@@ -124,7 +133,7 @@ export default function InvIngredients() {
             <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"var(--ink5)" }}>⌕</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" placeholder="Search..." style={{ paddingLeft:28, width:180 }} />
           </div>
-          <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Ingredient</button>
+          <button onClick={()=>setCatModal(true)} className="bo-btn bo-btn-ghost" style={{marginRight:4}}>Categories</button><button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Ingredient</button>
         </div>
       </div>
 
@@ -132,7 +141,7 @@ export default function InvIngredients() {
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>
-              <tr><th>Ingredient</th><th>SKU</th><th>Category</th><th>Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Ingredient</th><th>SKU</th><th>Category</th><th>Base Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {filtered.map(i => {
@@ -151,6 +160,7 @@ export default function InvIngredients() {
                     </td>
                     <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{i.sku||"—"}</td>
                     <td><span className="bo-badge bo-badge-blue">{i.category||"General"}</span></td>
+                    <td style={{ fontSize:12, color:"var(--ink4)" }}>{Array.isArray(i.station)?i.station.join(", "):(i.station||"Kitchen")}</td>
                     <td>{i.unit}</td>
                     <td style={{ fontWeight:700, color:st.color }}>{i.stock||0}</td>
                     <td style={{ color:"var(--ink5)" }}>{i.min_stock||"—"}</td>
@@ -165,7 +175,8 @@ export default function InvIngredients() {
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:st.color+"22", color:st.color }}>{st.label}</span></td>
                     <td>
                       <div style={{ display:"flex", gap:4 }}>
-                        <button onClick={()=>openEdit(i)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
+                        <button onClick={()=>openQuickEdit(i)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{color:"var(--brand)"}}>Quick</button>
+                      <button onClick={()=>openEdit(i)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
                         <button onClick={()=>deleteIngredient(i.id)} className="bo-btn bo-btn-danger bo-btn-sm">✕</button>
                       </div>
                     </td>
@@ -195,10 +206,29 @@ export default function InvIngredients() {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Category</label>
                   <select value={form.category||"General"} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="bo-select">
-                    {["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"].map(c=><option key={c}>{c}</option>)}
+                    {ingCats.map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
-
+                <div>
+                  <label className="bo-label">Station (select all that apply)</label>
+                  <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginTop:4 }}>
+                    {["Kitchen","Snack","Bar","Kasir"].map(st => {
+                      const arr = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
+                      const checked = arr.includes(st)
+                      return (
+                        <label key={st} style={{ display:"flex", alignItems:"center", gap:6, padding:"6px 12px", borderRadius:20, border:"1.5px solid "+(checked?"var(--brand)":"var(--surface3)"), background:checked?"var(--brand-lt)":"#fff", cursor:"pointer", fontSize:13, fontWeight:checked?700:400, color:checked?"var(--brand)":"var(--ink4)" }}>
+                          <input type="checkbox" checked={checked} style={{ display:"none" }}
+                            onChange={() => {
+                              const cur = Array.isArray(form.station) ? form.station : [form.station||"Kitchen"]
+                              const next = checked ? cur.filter(s=>s!==st) : [...cur,st]
+                              setForm(f=>({...f, station: next.length ? next : ["Kitchen"]}))
+                            }} />
+                          {st}
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
                 <div><label className="bo-label">Supplier</label>
                   <select value={form.supplier||""} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="bo-select">
                     <option value="">— Select supplier —</option>
@@ -290,6 +320,52 @@ export default function InvIngredients() {
               {modal==="edit" && <button onClick={()=>deleteIngredient(form.id)} className="bo-btn bo-btn-danger">Delete</button>}
               <button onClick={save} disabled={saving||!form.name} className="bo-btn bo-btn-primary">{saving?"Saving...":modal==="add"?"Add":"Save"}</button>
             </div>
+          </div>
+        </div>
+      )}
+      {quickEdit && (
+        <div style={{position:"fixed",inset:0,zIndex:500,display:"flex"}}>
+          <div onClick={()=>setQuickEdit(null)} style={{flex:1,background:"rgba(0,0,0,0.3)"}} />
+          <div style={{width:320,background:"#fff",height:"100%",overflowY:"auto",boxShadow:"-4px 0 24px rgba(0,0,0,0.12)",display:"flex",flexDirection:"column"}}>
+            <div style={{padding:"16px 20px",borderBottom:"1px solid var(--surface3)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:15,fontWeight:800}}>Quick Edit</div>
+              <button onClick={()=>setQuickEdit(null)} style={{background:"none",border:"none",fontSize:22,cursor:"pointer",color:"var(--ink4)",lineHeight:1}}>x</button>
+            </div>
+            <div style={{padding:"16px 20px",flex:1,display:"flex",flexDirection:"column",gap:12}}>
+              <div><label className="bo-label">Name</label><input value={qForm.name||""} onChange={e=>setQForm(f=>({...f,name:e.target.value}))} className="bo-input" /></div>
+              <div><label className="bo-label">Category</label><select value={qForm.category||"General"} onChange={e=>setQForm(f=>({...f,category:e.target.value}))} className="bo-select">{ingCats.map(c=><option key={c}>{c}</option>)}</select></div>
+              <div><label className="bo-label">Stock ({qForm.unit})</label><input type="number" value={qForm.stock||""} onChange={e=>setQForm(f=>({...f,stock:e.target.value}))} className="bo-input" /></div>
+              <div><label className="bo-label">Min Stock</label><input type="number" value={qForm.min_stock||""} onChange={e=>setQForm(f=>({...f,min_stock:e.target.value}))} className="bo-input" /></div>
+              <div><label className="bo-label">Cost/Unit (Rp)</label><input type="number" value={qForm.cost_per_unit||""} onChange={e=>setQForm(f=>({...f,cost_per_unit:e.target.value}))} className="bo-input" /></div>
+            </div>
+            <div style={{padding:"16px 20px",borderTop:"1px solid var(--surface3)"}}>
+              <button onClick={saveQuickEdit} disabled={qSaving} className="bo-btn bo-btn-primary" style={{width:"100%"}}>{qSaving?"Saving...":"Save Changes"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {catModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setCatModal(false)}>
+          <div className="bo-modal" style={{maxWidth:400}}>
+            <div className="bo-modal-header"><div className="bo-modal-title">Manage Categories</div><button className="bo-modal-close" onClick={()=>setCatModal(false)}>x</button></div>
+            <div className="bo-modal-body">
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                <input value={newCatName} onChange={e=>setNewCatName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&newCatName.trim()&&!ingCats.includes(newCatName.trim())){saveCats([...ingCats,newCatName.trim()]);setNewCatName("")}}} className="bo-input" placeholder="New category..." style={{flex:1}} />
+                <button onClick={()=>{if(!newCatName.trim()||ingCats.includes(newCatName.trim()))return;saveCats([...ingCats,newCatName.trim()]);setNewCatName("")}} className="bo-btn bo-btn-primary">Add</button>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {ingCats.map(cat=>(
+                  <div key={cat} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--surface)",borderRadius:8}}>
+                    <span style={{fontSize:13,fontWeight:600}}>{cat}</span>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <span style={{fontSize:11,color:"var(--ink5)"}}>{ingredients.filter(i=>i.category===cat).length}</span>
+                      <button onClick={()=>{const n=ingredients.filter(i=>i.category===cat).length;if(n>0){alert("Cannot remove — "+n+" ingredients use this category");return}if(!window.confirm("Remove "+cat+"?"))return;saveCats(ingCats.filter(c=>c!==cat))}} style={{background:"none",border:"none",color:"var(--red)",cursor:"pointer",fontSize:18,fontWeight:700}}>x</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="bo-modal-footer"><button onClick={()=>setCatModal(false)} className="bo-btn bo-btn-primary">Done</button></div>
           </div>
         </div>
       )}
