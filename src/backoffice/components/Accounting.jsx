@@ -142,7 +142,6 @@ function ClosingReport({ period, fmt }) {
 
 export default function Accounting() {
   const [tab,          setTab]          = useState("overview")
-  const [shifts,       setShifts]       = useState([])
   const [period,       setPeriod]       = useState("2026-05")
   const [orders,       setOrders]       = useState([])
   const [expenses,     setExpenses]     = useState([])
