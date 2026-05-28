@@ -45,7 +45,7 @@ function ClosingReport({ period, fmt }) {
   const [shifts,  setShifts]  = useState([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState(null)
-  const { supabase } = require !== undefined ? { supabase: null } : {}
+
 
   useEffect(() => { load() }, [period])
 
@@ -55,7 +55,7 @@ function ClosingReport({ period, fmt }) {
     const d    = new Date(period + "-01")
     d.setMonth(d.getMonth()+1)
     const to   = d.toISOString().slice(0,7) + "-01T00:00:00+08:00"
-    const { data: shiftsData } = await (await import("../../lib/supabase")).supabase
+    const { data: shiftsData } = await supabase
       .from("shifts").select("*").gte("opened_at", from).lt("opened_at", to).order("opened_at", { ascending:false })
     setShifts(shiftsData||[])
     setLoading(false)
