@@ -217,23 +217,50 @@ export default function Modifiers() {
               </div>
             </div>
               <div style={{borderTop:"1px solid var(--surface3)",paddingTop:14,marginTop:14}}>
-                <label className="bo-label">Link to Specific Products (optional)</label>
-                <div style={{fontSize:11,color:"var(--ink4)",marginBottom:8}}>If selected, modifier only shows for these products (overrides category link)</div>
-                <input value={prodSearch} onChange={e=>setProdSearch(e.target.value)} className="bo-input" placeholder="Search products..." style={{marginBottom:8}} />
-                <div style={{display:"flex",flexWrap:"wrap",gap:6,maxHeight:160,overflowY:"auto"}}>
-                  {products.filter(p=>!prodSearch||p.name.toLowerCase().includes(prodSearch.toLowerCase())).map(p=>{
-                    const linked=(form.linked_products||[]).includes(p.sku)
-                    return (
-                      <button key={p.sku} onClick={()=>setForm(f=>({...f,linked_products:linked?(f.linked_products||[]).filter(x=>x!==p.sku):[...(f.linked_products||[]),p.sku]}))}
-                        style={{padding:"4px 10px",borderRadius:20,fontSize:11,fontWeight:600,cursor:"pointer",border:"1.5px solid "+(linked?"var(--brand)":"var(--surface3)"),background:linked?"var(--brand-lt)":"#fff",color:linked?"var(--brand)":"var(--ink4)"}}>
-                        {linked?"v ":""}{p.name}
-                      </button>
-                    )
-                  })}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <label className="bo-label" style={{marginBottom:0}}>Link to Products</label>
+                  <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                    {(form.linked_products||[]).length>0 && <span style={{fontSize:11,fontWeight:700,color:"var(--brand)"}}>{(form.linked_products||[]).length} selected</span>}
+                    <button onClick={()=>setForm(f=>({...f,linked_products:[]}))} className="bo-btn bo-btn-ghost bo-btn-sm" style={{fontSize:11}}>Clear all</button>
+                  </div>
                 </div>
-                {(form.linked_products||[]).length>0 && (
-                  <div style={{marginTop:6,fontSize:11,color:"var(--brand)",fontWeight:600}}>{(form.linked_products||[]).length} products selected</div>
-                )}
+                <input value={prodSearch} onChange={e=>setProdSearch(e.target.value)} className="bo-input" placeholder="Search products..." style={{marginBottom:10}} />
+                <div style={{maxHeight:240,overflowY:"auto",border:"1px solid var(--surface3)",borderRadius:8}}>
+                  {(() => {
+                    const cats = [...new Set(products.map(p=>p.cat).filter(Boolean))]
+                    const filtered = products.filter(p=>!prodSearch||p.name.toLowerCase().includes(prodSearch.toLowerCase()))
+                    if(filtered.length===0) return <div style={{padding:16,textAlign:"center",color:"var(--ink5)",fontSize:12}}>No products found</div>
+                    const groups = prodSearch ? {"All Results": filtered} : cats.reduce((g,cat)=>{ g[cat]=filtered.filter(p=>p.cat===cat); return g },{})
+                    return Object.entries(groups).filter(([,ps])=>ps.length>0).map(([cat,ps])=>(
+                      <div key={cat}>
+                        <div style={{padding:"6px 12px",background:"var(--surface)",fontSize:10,fontWeight:800,color:"var(--ink4)",textTransform:"uppercase",letterSpacing:"0.5px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:"1px solid var(--surface3)"}}>
+                          <span>{cat}</span>
+                          <button onClick={()=>{
+                            const skus=ps.map(p=>p.sku)
+                            const allLinked=skus.every(s=>(form.linked_products||[]).includes(s))
+                            setForm(f=>({...f,linked_products:allLinked?(f.linked_products||[]).filter(x=>!skus.includes(x)):[...new Set([...(f.linked_products||[]),...skus])]}))
+                          }} style={{fontSize:10,fontWeight:700,color:"var(--brand)",background:"none",border:"none",cursor:"pointer"}}>
+                            {ps.every(p=>(form.linked_products||[]).includes(p.sku))?"Deselect all":"Select all"}
+                          </button>
+                        </div>
+                        {ps.map(p=>{
+                          const linked=(form.linked_products||[]).includes(p.sku)
+                          return (
+                            <div key={p.sku} onClick={()=>setForm(f=>({...f,linked_products:linked?(f.linked_products||[]).filter(x=>x!==p.sku):[...(f.linked_products||[]),p.sku]}))}
+                              style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:8,cursor:"pointer",borderBottom:"1px solid var(--surface)",background:linked?"var(--brand-lt)":"#fff"}}
+                              onMouseEnter={e=>e.currentTarget.style.background=linked?"var(--brand-lt)":"var(--surface)"}
+                              onMouseLeave={e=>e.currentTarget.style.background=linked?"var(--brand-lt)":"#fff"}>
+                              <div style={{width:16,height:16,borderRadius:4,border:"1.5px solid "+(linked?"var(--brand)":"var(--surface3)"),background:linked?"var(--brand)":"#fff",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                {linked && <span style={{color:"#fff",fontSize:10,fontWeight:900}}>v</span>}
+                              </div>
+                              <span style={{fontSize:13,fontWeight:linked?700:400,color:linked?"var(--brand)":"var(--ink)"}}>{p.name}</span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))
+                  })()}
+                </div>
               </div>
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
