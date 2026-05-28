@@ -42,6 +42,7 @@ export default function Modifiers() {
     ])
     setModifiers(mods||[])
     setCategories(cats||[])
+    setProducts(prods||[])
     setLoading(false)
   }
 
