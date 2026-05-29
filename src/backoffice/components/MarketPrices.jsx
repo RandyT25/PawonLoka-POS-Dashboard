@@ -16,7 +16,7 @@ export default function MarketPrices() {
   const [savedIds,    setSavedIds]    = useState(new Set())
   const [search,      setSearch]      = useState("")
   const [catFilter,   setCatFilter]   = useState("")
-  const [checkedBy,   setCheckedBy]   = useState("")
+  const checkedBy = "Claudy"
   const [checkedAt,   setCheckedAt]   = useState(new Date().toISOString().slice(0,10))
   const [history,     setHistory]     = useState([])
   const [showHistory, setShowHistory] = useState(false)
@@ -97,17 +97,15 @@ export default function MarketPrices() {
     })
 
     // 2. Update ingredient conversion last_price
-    const ing = ingredients.find(i => i.id === row.ingredient_id)
-    if (ing) {
-      const convs = ing.conversions || []
+    const { data: ingData } = await supabase.from("ingredients").select("conversions").eq("id", row.ingredient_id).maybeSingle()
+    if (ingData) {
+      const convs = ingData.conversions || []
       let updated = false
       const newConvs = convs.map(c => {
         if (c.unit === row.buy_unit) { updated = true; return { ...c, last_price: price, qty: parseFloat(row.conv_qty)||c.qty } }
         return c
       })
-      if (!updated) {
-        newConvs.push({ unit: row.buy_unit, qty: parseFloat(row.conv_qty)||1, last_price: price, sku:"" })
-      }
+      if (!updated) newConvs.push({ unit: row.buy_unit, qty: parseFloat(row.conv_qty)||1, last_price: price, sku:"" })
       await supabase.from("ingredients").update({ conversions: newConvs }).eq("id", row.ingredient_id)
     }
 
@@ -195,11 +193,8 @@ export default function MarketPrices() {
           <input type="date" value={checkedAt} onChange={e=>setCheckedAt(e.target.value)} className="bo-input" style={{ width:150 }} />
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <label className="bo-label" style={{ marginBottom:0, whiteSpace:"nowrap" }}>Checked by</label>
-          <select value={checkedBy} onChange={e=>setCheckedBy(e.target.value)} className="bo-select" style={{ width:140 }}>
-            <option value="">— Select —</option>
-            {STAFF_LIST.map(s => <option key={s}>{s}</option>)}
-          </select>
+          <label className="bo-label" style={{ marginBottom:0 }}>Checked by:</label>
+          <span style={{ fontSize:13, fontWeight:700, color:"var(--brand)" }}>Claudy</span>
         </div>
         <div style={{ marginLeft:"auto", fontSize:12, color:"var(--ink4)" }}>
           {filledCount} of {filtered.length} filled
