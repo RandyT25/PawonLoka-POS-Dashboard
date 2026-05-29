@@ -1,0 +1,262 @@
+import { useState, useEffect } from "react"
+import { supabase } from "../../lib/supabase"
+import * as XLSX from "xlsx"
+
+const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("id-ID")
+const fmtP = n => (Number(n||0)).toFixed(1) + "%"
+
+function statusLabel(cogsP, type) {
+  if (type === "Consignment") return { text:"Pure Profit", color:"#6554C0", bg:"#EEF2FF" }
+  if (cogsP <= 30)  return { text:"Sangat Baik", color:"var(--green)", bg:"var(--green-lt)" }
+  if (cogsP <= 35)  return { text:"On Target", color:"#00875A", bg:"#E3FCEF" }
+  if (cogsP <= 40)  return { text:"Perlu Pantau", color:"var(--amber)", bg:"#FFF7E6" }
+  if (type === "Extra" && cogsP > 50) return { text:"Too High", color:"var(--red)", bg:"var(--red-lt)" }
+  return { text:"Naik Harga!", color:"var(--red)", bg:"var(--red-lt)" }
+}
+
+export default function Profitability() {
+  const [products,   setProducts]   = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [target,     setTarget]     = useState(35)
+  const [catFilter,  setCatFilter]  = useState("")
+  const [statusFilter,setStatusFilter] = useState("")
+  const [search,     setSearch]     = useState("")
+  const [editPrices, setEditPrices] = useState({}) // sku -> new price
+  const [saving,     setSaving]     = useState(false)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    const [{ data: prods }, { data: settings }] = await Promise.all([
+      supabase.from("products").select("sku,name,cat,price,cogs,active").eq("active",true).order("cat").order("name"),
+      supabase.from("profitability_settings").select("*").eq("id","main").maybeSingle()
+    ])
+    setProducts(prods||[])
+    if (settings?.target_food_cost) setTarget(settings.target_food_cost)
+    setLoading(false)
+  }
+
+  async function saveTarget(val) {
+    setTarget(val)
+    await supabase.from("profitability_settings").upsert({ id:"main", target_food_cost: val })
+  }
+
+  async function applyPriceChanges() {
+    const entries = Object.entries(editPrices).filter(([,v]) => v && parseFloat(v) > 0)
+    if (!entries.length) { alert("No price changes to apply"); return }
+    if (!confirm("Apply " + entries.length + " price changes to products?")) return
+    setSaving(true)
+    for (const [sku, price] of entries) {
+      await supabase.from("products").update({ price: parseFloat(price) }).eq("sku", sku)
+    }
+    setEditPrices({})
+    await load()
+    setSaving(false)
+    alert("Prices updated successfully")
+  }
+
+  function exportExcel() {
+    const rows = filtered.map((p,idx) => {
+      const cpp   = p.cogs || 0
+      const price = p.price || 0
+      const cogsP = price > 0 ? (cpp / price * 100) : 0
+      const newPrice = parseFloat(editPrices[p.sku]) || price
+      const newCogsP = newPrice > 0 ? (cpp / newPrice * 100) : 0
+      const recPrice = cpp > 0 ? Math.round((cpp / (target/100)) / (cpp < 1000 ? 100 : 1000)) * (cpp < 1000 ? 100 : 1000) : 0
+      return {
+        "No": idx+1, "Nama Menu": p.name, "Category": p.cat||"",
+        "HPP (Rp)": cpp, "Harga Sekarang (Rp)": price,
+        "COGS % Sekarang": cogsP.toFixed(1)+"%",
+        "Profit Sekarang (Rp)": price - cpp,
+        "Harga Baru (Rp)": newPrice,
+        "COGS % Baru": newCogsP.toFixed(1)+"%",
+        "Delta COGS": (newCogsP - cogsP).toFixed(1)+"%",
+        "Profit Baru (Rp)": newPrice - cpp,
+        ["Recommended @ "+target+"%"]: recPrice,
+        "Status": statusLabel(cogsP, "Regular").text
+      }
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Profitability")
+    XLSX.writeFile(wb, "menu_profitability.xlsx")
+  }
+
+  const cats = [...new Set(products.map(p=>p.cat).filter(Boolean))]
+
+  const filtered = products.filter(p => {
+    const cpp   = p.cogs || 0
+    const price = p.price || 0
+    const cogsP = price > 0 ? (cpp / price * 100) : 0
+    const st    = statusLabel(cogsP, "Regular")
+    const matchCat    = !catFilter || p.cat === catFilter
+    const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase())
+    const matchStatus = !statusFilter || st.text === statusFilter
+    return matchCat && matchSearch && matchStatus
+  })
+
+  // Summary stats
+  const withCogs   = products.filter(p => p.cogs > 0)
+  const avgCogs    = withCogs.length ? withCogs.reduce((s,p) => s + (p.cogs/p.price*100), 0) / withCogs.length : 0
+  const danger     = products.filter(p => p.price > 0 && (p.cogs/p.price*100) > 40).length
+  const onTarget   = products.filter(p => p.price > 0 && (p.cogs/p.price*100) <= target).length
+  const pendingChanges = Object.values(editPrices).filter(v => v && parseFloat(v) > 0).length
+
+  return (
+    <div style={{ padding:24, maxWidth:1200, margin:"0 auto" }}>
+      <div style={{ marginBottom:20, display:"flex", justifyContent:"space-between", alignItems:"flex-start", flexWrap:"wrap", gap:12 }}>
+        <div>
+          <div style={{ fontSize:22, fontWeight:900, color:"var(--ink1)", marginBottom:4 }}>Menu Profitability Model</div>
+          <div style={{ fontSize:13, color:"var(--ink4)" }}>Analyze menu pricing, COGS, and profitability targets</div>
+        </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", background:"#fff", borderRadius:10, border:"1px solid #E8ECF0" }}>
+            <span style={{ fontSize:12, fontWeight:700, color:"var(--ink4)" }}>Target Food Cost:</span>
+            {[30,35,40,45].map(t => (
+              <button key={t} onClick={()=>saveTarget(t)}
+                className={"bo-btn bo-btn-sm "+(target===t?"bo-btn-primary":"bo-btn-ghost")}>
+                {t}%
+              </button>
+            ))}
+          </div>
+          <button onClick={exportExcel} className="bo-btn bo-btn-ghost">Export Excel</button>
+          {pendingChanges > 0 && (
+            <button onClick={applyPriceChanges} disabled={saving}
+              className="bo-btn bo-btn-primary" style={{ background:"var(--green)" }}>
+              {saving ? "Saving..." : "Apply " + pendingChanges + " Price Changes"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:12, marginBottom:20 }}>
+        {[
+          ["Total Menu", products.length, "var(--brand)"],
+          ["With COGS", withCogs.length, "#6554C0"],
+          ["Avg COGS %", fmtP(avgCogs), avgCogs > 40 ? "var(--red)" : avgCogs > 35 ? "var(--amber)" : "var(--green)"],
+          ["On Target", onTarget, "var(--green)"],
+          ["Need Attention", danger, "var(--red)"],
+        ].map(([l,v,c]) => (
+          <div key={l} style={{ background:"#fff", borderRadius:12, padding:"14px 18px", border:"1px solid #E8ECF0" }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{l}</div>
+            <div style={{ fontSize:22, fontWeight:900, color:c }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"12px 16px", marginBottom:16, display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+        <input placeholder="Search menu..." value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" style={{ flex:1, minWidth:160 }} />
+        <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{ width:180 }}>
+          <option value="">All Categories</option>
+          {cats.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select value={statusFilter} onChange={e=>setStatusFilter(e.target.value)} className="bo-select" style={{ width:180 }}>
+          <option value="">All Status</option>
+          {["Sangat Baik","On Target","Perlu Pantau","Naik Harga!","Too High","Pure Profit"].map(s => <option key={s}>{s}</option>)}
+        </select>
+        <button onClick={()=>{setSearch("");setCatFilter("");setStatusFilter("")}} className="bo-btn bo-btn-ghost bo-btn-sm">Clear</button>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+        {[["≤30% Sangat Baik","var(--green)"],["30-35% On Target","#00875A"],["35-40% Perlu Pantau","var(--amber)","var(--amber)"],[">40% Naik Harga!","var(--red)"]].map(([l,c]) => (
+          <div key={l} style={{ display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:600, color:c }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:c }} />
+            {l}
+          </div>
+        ))}
+        {pendingChanges > 0 && <span style={{ fontSize:11, fontWeight:700, color:"var(--green)", marginLeft:8 }}>{pendingChanges} unsaved price changes</span>}
+      </div>
+
+      {/* Table */}
+      {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
+        <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", overflow:"auto" }}>
+          <table style={{ width:"100%", borderCollapse:"collapse", minWidth:1000 }}>
+            <thead>
+              <tr style={{ background:"#F8FAFC" }}>
+                {["#","Menu","Cat","HPP/COGS","Harga Sekarang","COGS %","Profit","Harga Baru","COGS % Baru","Δ COGS","Profit Baru","Rec. Price @ "+target+"%","Status"].map(h => (
+                  <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontSize:10, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.length === 0 && <tr><td colSpan={13} style={{ textAlign:"center", padding:32, color:"var(--ink5)" }}>No products found</td></tr>}
+              {filtered.map((p, idx) => {
+                const cpp      = p.cogs || 0
+                const price    = p.price || 0
+                const cogsP    = price > 0 ? (cpp / price * 100) : 0
+                const profit   = price - cpp
+                const newPrice = parseFloat(editPrices[p.sku]) || price
+                const newCogsP = newPrice > 0 ? (cpp / newPrice * 100) : 0
+                const delta    = newCogsP - cogsP
+                const newProfit= newPrice - cpp
+                const recPrice = cpp > 0 ? Math.round((cpp / (target/100)) / (cpp < 1000 ? 100 : 1000)) * (cpp < 1000 ? 100 : 1000) : 0
+                const st       = statusLabel(cogsP, "Regular")
+                const rowBg    = cogsP > 40 ? "#FFF5F5" : cogsP > 35 ? "#FFFBEB" : cogsP > 0 && cogsP <= 30 ? "#F0FFF4" : "#fff"
+                const hasChange = editPrices[p.sku] && parseFloat(editPrices[p.sku]) !== price
+                return (
+                  <tr key={p.sku} style={{ borderBottom:"1px solid #F0F4F8", background: hasChange ? "#F0F7FF" : rowBg }}>
+                    <td style={{ padding:"8px 12px", fontSize:12, color:"var(--ink5)" }}>{idx+1}</td>
+                    <td style={{ padding:"8px 12px", fontWeight:700, fontSize:13 }}>{p.name}</td>
+                    <td style={{ padding:"8px 12px", fontSize:11, color:"var(--ink4)" }}>{p.cat||"—"}</td>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: cpp > 0 ? "var(--ink)" : "var(--ink5)" }}>
+                      {cpp > 0 ? fmt(cpp) : <span style={{ color:"var(--ink5)" }}>No COGS</span>}
+                    </td>
+                    <td style={{ padding:"8px 12px", fontWeight:700 }}>{fmt(price)}</td>
+                    <td style={{ padding:"8px 12px" }}>
+                      {cpp > 0 ? (
+                        <span style={{ fontSize:12, fontWeight:800, color: cogsP > 40 ? "var(--red)" : cogsP > 35 ? "var(--amber)" : "var(--green)" }}>
+                          {fmtP(cogsP)}
+                        </span>
+                      ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
+                    </td>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)" }}>{fmt(profit)}</td>
+                    <td style={{ padding:"8px 12px" }}>
+                      <input type="number" value={editPrices[p.sku]||""} onChange={e=>setEditPrices(prev=>({...prev,[p.sku]:e.target.value}))}
+                        placeholder={String(price)} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
+                    </td>
+                    <td style={{ padding:"8px 12px" }}>
+                      {cpp > 0 && newPrice > 0 ? (
+                        <span style={{ fontSize:12, fontWeight:800, color: newCogsP > 40 ? "var(--red)" : newCogsP > 35 ? "var(--amber)" : "var(--green)" }}>
+                          {fmtP(newCogsP)}
+                        </span>
+                      ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
+                    </td>
+                    <td style={{ padding:"8px 12px" }}>
+                      {hasChange && cpp > 0 ? (
+                        <span style={{ fontSize:12, fontWeight:700, color: delta < 0 ? "var(--green)" : "var(--red)" }}>
+                          {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
+                        </span>
+                      ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
+                    </td>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: newProfit > 0 ? "var(--green)" : "var(--red)" }}>
+                      {hasChange ? fmt(newProfit) : <span style={{ color:"var(--ink5)" }}>—</span>}
+                    </td>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:700, color:"var(--brand)" }}>
+                      {recPrice > 0 ? fmt(recPrice) : "—"}
+                    </td>
+                    <td style={{ padding:"8px 12px" }}>
+                      <span style={{ fontSize:11, fontWeight:700, padding:"3px 8px", borderRadius:20, background:st.bg, color:st.color, whiteSpace:"nowrap" }}>
+                        {st.text}
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+          {filtered.length > 0 && (
+            <div style={{ padding:"10px 14px", borderTop:"1px solid #E8ECF0", fontSize:12, color:"var(--ink4)", display:"flex", gap:16 }}>
+              <span>{filtered.length} items shown</span>
+              <span>Avg COGS: <strong style={{ color: avgCogs > 40 ? "var(--red)" : "var(--green)" }}>{fmtP(avgCogs)}</strong></span>
+              {pendingChanges > 0 && <span style={{ color:"var(--brand)", fontWeight:700 }}>{pendingChanges} price changes pending</span>}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

@@ -39,6 +39,8 @@ import Schedule from "./components/Schedule"
 import Attendance from "./components/Attendance"
 import Accounting from "./components/Accounting"
 import Orders from './components/Orders'
+import MarketPrices from './components/MarketPrices'
+import Profitability from './components/Profitability'
 
 function useNotifications(onNav) {
   const [pending, setPending] = useState(0)
@@ -228,6 +230,8 @@ const SCREENS = {
   employees:         Employees,
   shifts:            Shifts,
   orders:            Orders,
+  'market-prices':   MarketPrices,
+  profitability:     Profitability,
   schedule:          Schedule,
   attendance:        Attendance,
   performance:       Performance,
