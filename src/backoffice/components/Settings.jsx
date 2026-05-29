@@ -111,6 +111,13 @@ export default function Settings() {
               </div>
             </label>
           ))}
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderTop:"1px solid var(--surface2)" }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600 }}>Auto-Close POS Time</div>
+              <div style={{ fontSize:11, color:"var(--ink4)" }}>POS shows 5-min warning before this time. Leave empty to disable.</div>
+            </div>
+            <input type="time" value={settings.pos_behaviour?.auto_close_time||""} onChange={e=>update("pos_behaviour","auto_close_time",e.target.value)} className="bo-input" style={{ width:130 }} />
+          </div>
         </div>
       )}
 
