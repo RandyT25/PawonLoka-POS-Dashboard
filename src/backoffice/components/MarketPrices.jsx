@@ -109,8 +109,10 @@ export default function MarketPrices() {
       await supabase.from("ingredients").update({ conversions: newConvs }).eq("id", row.ingredient_id)
     }
 
+    if (insertErr) { alert("Save error: " + insertErr.message); setSaving(false); return }
     setSavedIds(prev => new Set([...prev, row.ingredient_id]))
     setRows(prev => prev.map(r => r.ingredient_id === row.ingredient_id ? { ...r, changed: false } : r))
+    } catch(e) { alert("Error: " + e.message) }
     setSaving(false)
   }
 
