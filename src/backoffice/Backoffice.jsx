@@ -157,7 +157,7 @@ const SESSION_KEY = "bo_auth"
 
 const MOBILE_TABS = [
   { id:"home",    icon:"🏠", label:"Home",    items:["dashboard","reports","accounting"] },
-  { id:"menu",    icon:"🍽", label:"Menu",    items:["products","categories","modifiers","recipes"] },
+  { id:"menu",    icon:"🍽", label:"Menu",    items:["products","categories","modifiers","recipes","market-prices","profitability"] },
   { id:"stock",   icon:"📦", label:"Stock",   items:["inv-overview","inv-ingredients","inv-po","inv-suppliers","inv-production","inv-opname","inv-waste","inv-movements","staff-submissions"] },
   { id:"people",  icon:"👥", label:"People",  items:["employees","shifts","orders","schedule","performance","customers","loyalty"] },
   { id:"more",    icon:"⚙️", label:"More",    items:["promotions","bundles","discounts","payments","floorplan","import-export","settings","receipt-designer","hardware","usersaccess","audit-log","integrations"] },
@@ -174,6 +174,8 @@ const NAV = [
   { id:"categories",       label:"Categories",         icon:"🏷" },
   { id:"modifiers",        label:"Modifiers",          icon:"✏️" },
   { id:"recipes",          label:"Recipes & COGS",     icon:"📒" },
+  { id:"market-prices",     label:"Market Prices",       icon:"🛒" },
+  { id:"profitability",     label:"Profitability",       icon:"📊" },
   { group:"Inventory" },
   { id:"inv-overview",     label:"Overview",           icon:"📦" },
   { id:"inv-ingredients",  label:"Ingredients",        icon:"🧂" },
