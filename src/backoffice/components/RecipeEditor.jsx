@@ -321,8 +321,24 @@ export default function RecipeEditor() {
     ]).then(async ([pRes, sRes, iRes]) => {
       const allIngs = iRes.data || []
       let subs = sRes.data || []
-      // No auto-sync — sub_recipes are managed via SQL seed only
-      // Just deduplicate by ingredient_id keeping the shorter/cleaner id
+      // Auto-sync: find Semi-finished ingredients that don't have a sub_recipe row yet
+      const semiIngs = allIngs.filter(i => i.category === "Semi-finished")
+      const existingIngIds = new Set(subs.map(s => s.ingredient_id).filter(Boolean))
+      const missing = semiIngs.filter(i => !existingIngIds.has(i.id))
+      if (missing.length > 0) {
+        const newRows = missing.map(i => ({
+          id: "SUB-" + i.id,
+          name: i.name,
+          unit: i.unit || "gr",
+          cost_per_unit: i.cost_per_unit || 0,
+          yield_qty: 1,
+          yield_unit: i.unit || "gr",
+          ingredient_id: i.id,
+        }))
+        await supabase.from("sub_recipes").upsert(newRows, { onConflict: "id" })
+        subs = [...subs, ...newRows]
+      }
+      // Deduplicate by ingredient_id
       const seen = new Set()
       subs = subs.filter(s => {
         if (!s.ingredient_id) return true

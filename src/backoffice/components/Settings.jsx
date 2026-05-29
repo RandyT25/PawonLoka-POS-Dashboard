@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 const DEFAULTS = {
   outlet: { name:"PawonLoka", tagline:"Rasa yang lahir dari dapur penuh cerita", address:"Bali, Indonesia", phone:"", email:"", website:"", instagram:"@pawonloka", wifi:"" },
-  pos_behaviour: { auto_print_receipt:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true },
+  pos_behaviour: { auto_print_receipt:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true, auto_close_time:"" },
   regional: { currency:"IDR", timezone:"WITA", date_format:"DD/MM/YYYY" },
   loyalty: { points_per_100:1, gold_threshold:5000, silver_threshold:2000 },
   stations: [{ id:"kitchen",name:"Kitchen",icon:"🍳" },{ id:"bar",name:"Bar",icon:"🍹" },{ id:"snack",name:"Snack",icon:"🍟" },{ id:"kasir",name:"Kasir",icon:"🧾" }],
