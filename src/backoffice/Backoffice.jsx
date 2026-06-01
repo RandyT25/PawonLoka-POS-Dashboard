@@ -38,6 +38,7 @@ import ImportExport from "./components/ImportExport"
 import Schedule from "./components/Schedule"
 import Attendance from "./components/Attendance"
 import Accounting from "./components/Accounting"
+import Rekonsiliasi from './components/Rekonsiliasi.jsx'
 import Orders from './components/Orders'
 import MarketPrices from './components/MarketPrices'
 import Profitability from './components/Profitability'
@@ -169,6 +170,7 @@ const NAV = [
   { id:"reports",          label:"Reports",            icon:"📈" },
   { group:"Finance" },
   { id:"accounting",       label:"Accounting",         icon:"🧾" },
+  { id:"rekonsiliasi",     label:"Rekonsiliasi",       icon:"🔄" },
   { group:"Menu" },
   { id:"products",         label:"Products",           icon:"🍽" },
   { id:"categories",       label:"Categories",         icon:"🏷" },
@@ -215,6 +217,7 @@ const SCREENS = {
   dashboard:         Dashboard,
   reports:           Reports,
   accounting:        Accounting,
+  rekonsiliasi:      Rekonsiliasi,
   products:          Products,
   categories:        Categories,
   modifiers:         Modifiers,

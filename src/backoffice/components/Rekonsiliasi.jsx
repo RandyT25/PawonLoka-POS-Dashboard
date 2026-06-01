@@ -1,0 +1,298 @@
+import { useState, useEffect } from "react"
+import { supabase } from "../../lib/supabase"
+
+const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
+const fmtDate = d => d ? new Date(d).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"
+const fmtDateShort = d => d ? new Date(d).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"
+
+const PAY_METHOD_MAP = {
+  Cash: "Kas Outlet",
+  QRIS: "Bank Transfer Qris",
+  Transfer: "Bank Transfer",
+  "Debit/Credit": "Bank Transfer Card",
+}
+
+function genReconNo(shiftId, method) {
+  const code = (shiftId||"").slice(0,6).toUpperCase().replace(/-/g,"")
+  const m = method.replace(/[^A-Z]/gi,"").slice(0,3).toUpperCase()
+  return `STL/${code}/${m}`
+}
+
+export default function Rekonsiliasi() {
+  const [records,    setRecords]    = useState([])
+  const [loading,    setLoading]    = useState(true)
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [search,     setSearch]     = useState("")
+  const [period,     setPeriod]     = useState(() => new Date().toISOString().slice(0,7))
+  const [editModal,  setEditModal]  = useState(null)
+  const [saving,     setSaving]     = useState(false)
+  const [editForm,   setEditForm]   = useState({ status:"reconciled", notes:"", bank_ref:"", reconciled_by:"Claudy" })
+
+  useEffect(() => { load() }, [period])
+
+  async function load() {
+    setLoading(true)
+    const from = period + "-01T00:00:00+08:00"
+    const d = new Date(period + "-01")
+    d.setMonth(d.getMonth()+1)
+    const to = d.toISOString().slice(0,7) + "-01T00:00:00+08:00"
+
+    // Load shifts for the period
+    const { data: shifts } = await supabase
+      .from("shifts").select("*")
+      .gte("opened_at", from).lt("opened_at", to)
+      .not("closed_at", "is", null)
+      .order("closed_at", { ascending:false })
+
+    // Load existing reconciliation records
+    const { data: recons } = await supabase
+      .from("reconciliations").select("*")
+      .gte("created_at", from).lt("created_at", to)
+
+    const reconMap = {}
+    ;(recons||[]).forEach(r => { reconMap[r.recon_no] = r })
+
+    // Build rows from shifts — one row per payment method per shift
+    const rows = []
+    for (const sh of shifts||[]) {
+      const methods = [
+        { method:"Cash",         amount: sh.cash_sales||sh.total_cash||0,  cashier: sh.staff_name||sh.cashier||"—" },
+        { method:"QRIS",         amount: sh.qris_sales||0,                  cashier: sh.staff_name||sh.cashier||"—" },
+        { method:"Debit/Credit", amount: sh.other_sales||0,                 cashier: sh.staff_name||sh.cashier||"—" },
+      ]
+      for (const m of methods) {
+        if (m.amount <= 0) continue
+        const recon_no = genReconNo(sh.id, m.method)
+        const existing = reconMap[recon_no]
+        rows.push({
+          id: existing?.id || null,
+          recon_no,
+          shift_id: sh.id,
+          shift_close_time: sh.closed_at,
+          payment_method: PAY_METHOD_MAP[m.method] || m.method,
+          cashier_name: m.cashier,
+          outlet: "PawonLoka",
+          amount: m.amount,
+          status: existing?.status || "unreconciled",
+          reconciled_at: existing?.reconciled_at || null,
+          reconciled_by: existing?.reconciled_by || null,
+          notes: existing?.notes || "",
+          bank_ref: existing?.bank_ref || "",
+          _shift: sh,
+        })
+      }
+    }
+
+    setRecords(rows)
+    setLoading(false)
+  }
+
+  async function saveRecon() {
+    if (!editModal) return
+    setSaving(true)
+    const payload = {
+      recon_no: editModal.recon_no,
+      shift_id: editModal.shift_id,
+      shift_close_time: editModal.shift_close_time,
+      payment_method: editModal.payment_method,
+      cashier_name: editModal.cashier_name,
+      outlet: editModal.outlet,
+      amount: editModal.amount,
+      status: editForm.status,
+      notes: editForm.notes,
+      bank_ref: editForm.bank_ref,
+      reconciled_by: editForm.reconciled_by,
+      reconciled_at: editForm.status === "reconciled" ? new Date().toISOString() : null,
+    }
+    if (editModal.id) {
+      await supabase.from("reconciliations").update(payload).eq("id", editModal.id)
+    } else {
+      await supabase.from("reconciliations").insert(payload)
+    }
+    setSaving(false)
+    setEditModal(null)
+    load()
+  }
+
+  const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
+  const MONTHS = Array.from({length:12},(_,i)=>`2026-${String(i+1).padStart(2,"0")}`)
+
+  const filtered = records.filter(r => {
+    const matchStatus = statusFilter === "all" || r.status === statusFilter
+    const matchSearch = !search ||
+      r.recon_no.toLowerCase().includes(search.toLowerCase()) ||
+      r.cashier_name.toLowerCase().includes(search.toLowerCase()) ||
+      r.payment_method.toLowerCase().includes(search.toLowerCase())
+    return matchStatus && matchSearch
+  })
+
+  const totalAll    = records.reduce((a,r)=>a+r.amount,0)
+  const totalRecon  = records.filter(r=>r.status==="reconciled").reduce((a,r)=>a+r.amount,0)
+  const totalUnrecon= records.filter(r=>r.status==="unreconciled").reduce((a,r)=>a+r.amount,0)
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:8 }}>
+        <div>
+          <div style={{ fontSize:18, fontWeight:900, color:"var(--ink1)", marginBottom:4 }}>Rekonsiliasi Penerimaan Penjualan</div>
+          <div style={{ fontSize:12, color:"var(--ink5)", display:"flex", alignItems:"center", gap:6 }}>
+            <span>📅</span>
+            <span>{fmtDateShort(period+"-01")} - {fmtDateShort(new Date(new Date(period+"-01").setMonth(new Date(period+"-01").getMonth()+1)-1).toISOString())}</span>
+          </div>
+        </div>
+        <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ width:140 }}>
+          {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
+        </select>
+      </div>
+
+      {/* KPI cards */}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
+        {[
+          ["Total Penerimaan", fmt(totalAll), "#0052CC", records.length+" transaksi"],
+          ["Terekonsiliasi",   fmt(totalRecon), "#00875A", records.filter(r=>r.status==="reconciled").length+" transaksi"],
+          ["Belum Rekonsiliasi", fmt(totalUnrecon), "#DE350B", records.filter(r=>r.status==="unreconciled").length+" transaksi"],
+        ].map(([l,v,c,sub])=>(
+          <div key={l} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid #E8ECF0", borderTop:`3px solid ${c}` }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4 }}>{l}</div>
+            <div style={{ fontSize:18, fontWeight:900, color:c }}>{v}</div>
+            <div style={{ fontSize:11, color:"var(--ink5)", marginTop:2 }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input"
+          placeholder="Cari ..." style={{ width:200 }} />
+        <div style={{ display:"flex", gap:4 }}>
+          {[["all","Semua"],["reconciled","Terekonsiliasi"],["unreconciled","Belum Terekonsiliasi"]].map(([v,l])=>(
+            <button key={v} onClick={()=>setStatusFilter(v)}
+              className={"bo-btn bo-btn-sm "+(statusFilter===v?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bo-card" style={{ padding:0, overflowX:"auto" }}>
+        {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
+          <table className="bo-table">
+            <thead>
+              <tr>
+                <th>NO REKONSILIASI</th>
+                <th>TANGGAL REKONSILIASI</th>
+                <th>TUTUP KASIR</th>
+                <th>METODE BAYAR</th>
+                <th>KASIR</th>
+                <th>OUTLET</th>
+                <th>JUMLAH</th>
+                <th>STATUS</th>
+                <th style={{ width:40 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r,i)=>(
+                <tr key={i}>
+                  <td style={{ fontFamily:"monospace", fontSize:12, fontWeight:700 }}>{r.recon_no}</td>
+                  <td style={{ fontSize:12 }}>{r.reconciled_at ? fmtDate(r.reconciled_at) : "—"}</td>
+                  <td style={{ fontSize:12 }}>{fmtDate(r.shift_close_time)}</td>
+                  <td style={{ fontSize:13, fontWeight:600 }}>{r.payment_method}</td>
+                  <td style={{ fontSize:13 }}>{r.cashier_name}</td>
+                  <td style={{ fontSize:12 }}>{r.outlet}</td>
+                  <td style={{ fontSize:13, fontWeight:700 }}>{fmt(r.amount)}</td>
+                  <td>
+                    <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:10, whiteSpace:"nowrap",
+                      background: r.status==="reconciled" ? "#E3FCEF" : "#FFEBE6",
+                      color: r.status==="reconciled" ? "#00875A" : "#DE350B" }}>
+                      {r.status==="reconciled" ? "Terekonsiliasi" : "Belum Terekonsiliasi"}
+                    </span>
+                  </td>
+                  <td>
+                    <button onClick={()=>{ setEditForm({ status:r.status, notes:r.notes||"", bank_ref:r.bank_ref||"", reconciled_by:r.reconciled_by||"Claudy" }); setEditModal(r) }}
+                      style={{ background:"none", border:"none", cursor:"pointer", color:"var(--brand)", fontSize:16, padding:"4px 8px" }}>
+                      ✏️
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {filtered.length===0 && (
+                <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"40px 0" }}>
+                  {loading ? "Loading..." : "Tidak ada data rekonsiliasi"}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Edit Modal */}
+      {editModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditModal(null)}>
+          <div className="bo-modal" style={{ maxWidth:500 }}>
+            <div className="bo-modal-header">
+              <div>
+                <div className="bo-modal-title">Rekonsiliasi</div>
+                <div style={{ fontSize:11, color:"var(--ink5)" }}>{editModal.recon_no}</div>
+              </div>
+              <button className="bo-modal-close" onClick={()=>setEditModal(null)}>x</button>
+            </div>
+            <div className="bo-modal-body">
+              {/* Info */}
+              <div style={{ background:"#F8FAFC", borderRadius:10, padding:"12px 14px", marginBottom:14, display:"grid", gridTemplateColumns:"120px 1fr", gap:"6px 12px", fontSize:13 }}>
+                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Tutup Kasir</span><span>{fmtDate(editModal.shift_close_time)}</span>
+                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Metode Bayar</span><span style={{ fontWeight:700 }}>{editModal.payment_method}</span>
+                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Kasir</span><span>{editModal.cashier_name}</span>
+                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Jumlah</span><span style={{ fontWeight:900, color:"var(--brand)", fontSize:15 }}>{fmt(editModal.amount)}</span>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                <label className="bo-label">Status</label>
+                <div style={{ display:"flex", gap:8 }}>
+                  {[["reconciled","Terekonsiliasi"],["unreconciled","Belum Terekonsiliasi"]].map(([v,l])=>(
+                    <label key={v} onClick={()=>setEditForm(f=>({...f,status:v}))}
+                      style={{ flex:1, display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderRadius:8, cursor:"pointer", fontSize:13,
+                        border:`1.5px solid ${editForm.status===v?"var(--brand)":"#DFE1E6"}`,
+                        background: editForm.status===v ? "var(--brand-lt)" : "#fff" }}>
+                      <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${editForm.status===v?"var(--brand)":"#DFE1E6"}`,
+                        display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {editForm.status===v && <div style={{ width:8, height:8, borderRadius:"50%", background:"var(--brand)" }} />}
+                      </div>
+                      {l}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                <label className="bo-label">Direkonsiliasi Oleh</label>
+                <select className="bo-select" value={editForm.reconciled_by} onChange={e=>setEditForm(f=>({...f,reconciled_by:e.target.value}))}>
+                  {STAFF_LIST.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom:12 }}>
+                <label className="bo-label">Referensi Bank</label>
+                <input className="bo-input" value={editForm.bank_ref}
+                  onChange={e=>setEditForm(f=>({...f,bank_ref:e.target.value}))}
+                  placeholder="No. referensi mutasi bank" />
+              </div>
+
+              <div>
+                <label className="bo-label">Catatan</label>
+                <textarea className="bo-input" rows={2} value={editForm.notes}
+                  onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))}
+                  placeholder="Catatan rekonsiliasi..." />
+              </div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setEditModal(null)} className="bo-btn bo-btn-ghost">Batal</button>
+              <button onClick={saveRecon} disabled={saving} className="bo-btn bo-btn-primary">
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
