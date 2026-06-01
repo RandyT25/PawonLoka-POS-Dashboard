@@ -126,6 +126,12 @@ export default function InvPO() {
   const [bayarConfirm,setBayarConfirm]= useState(null)
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    if (!openMenu) return
+    const handler = () => setOpenMenu(null)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
+  }, [openMenu])
 
   async function load() {
     setLoading(true)
