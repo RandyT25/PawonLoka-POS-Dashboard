@@ -161,7 +161,6 @@ export default function Accounting() {
   const [expAkunAsal,  setExpAkunAsal]  = useState("")
   const [expTransNo,   setExpTransNo]   = useState("")
   const [expTime,      setExpTime]      = useState("08:00")
-  const [coaSearch,    setCoaSearchExp] = useState("")
   const [kbForm,       setKbForm]       = useState({ staff_name:"Nita", amount:"", date:new Date().toISOString().slice(0,10), reason:"", notes:"" })
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
@@ -1153,8 +1152,8 @@ ARUS KAS
                 {/* Quick-add multiple accounts search */}
                 {(() => {
                   const expenseAccts = expCoa.filter(a=>["expense","cogs"].includes(a.type))
-                  const filtered = coaSearchExp.length > 0
-                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(coaSearchExp.toLowerCase())||a.code.toLowerCase().includes(coaSearchExp.toLowerCase()))
+                  const filtered = coaSearch.length > 0
+                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(coaSearch.toLowerCase())||a.code.toLowerCase().includes(coaSearch.toLowerCase()))
                     : []
                   const addAcct = (acct) => {
                     const already = expLines.find(l=>l.coa_id===acct.id)
@@ -1170,7 +1169,7 @@ ARUS KAS
                   return (
                     <div style={{ marginBottom:12, position:"relative" }}>
                       <input className="bo-input" style={{ fontSize:13 }}
-                        value={coaSearchExp}
+                        value={coaSearch}
                         onChange={e=>setCoaSearchExp(e.target.value)}
                         placeholder="Cari dan tambah akun pengeluaran..." />
                       {filtered.length > 0 && (
