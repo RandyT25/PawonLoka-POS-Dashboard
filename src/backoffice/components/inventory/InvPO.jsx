@@ -122,6 +122,8 @@ export default function InvPO() {
   const [saving,      setSaving]      = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
   const [loading,     setLoading]     = useState(true)
+  const [openMenu,    setOpenMenu]    = useState(null)
+  const [bayarConfirm,setBayarConfirm]= useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -281,16 +283,17 @@ export default function InvPO() {
 
   return (
     <div>
-      <div className="bo-metrics" style={{ gridTemplateColumns:"repeat(4,1fr)", marginBottom:16 }}>
-        <div className="bo-met blue"><div className="bo-met-label">Total Invoices</div><div className="bo-met-val">{pos.length}</div></div>
-        <div className="bo-met amber"><div className="bo-met-label">Unpaid</div><div className="bo-met-val">{fmt(unpaid.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{unpaid.length} invoices</div></div>
-        <div className="bo-met green"><div className="bo-met-label">Paid</div><div className="bo-met-val">{fmt(paid.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{paid.length} invoices</div></div>
-        <div className="bo-met red"><div className="bo-met-label">Overdue</div><div className="bo-met-val">{overdue.length}</div><div className="bo-met-sub">past due date</div></div>
+      <div className="bo-metrics" style={{ gridTemplateColumns:"repeat(5,1fr)", marginBottom:16 }}>
+        <div className="bo-met blue"><div className="bo-met-label">Faktur Pembelian</div><div className="bo-met-val">{fmt(pos.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{pos.length} faktur</div></div>
+        <div className="bo-met amber"><div className="bo-met-label">Belum Dibayar</div><div className="bo-met-val">{fmt(unpaid.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{unpaid.length} faktur</div></div>
+        <div className="bo-met green"><div className="bo-met-label">Sudah Dibayar</div><div className="bo-met-val">{fmt(paid.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{paid.length} faktur</div></div>
+        <div className="bo-met red"><div className="bo-met-label">Jatuh Tempo</div><div className="bo-met-val">{fmt(overdue.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{overdue.length} faktur</div></div>
+        <div className="bo-met" style={{ borderTop:"3px solid #DE350B" }}><div className="bo-met-label">Void</div><div className="bo-met-val">{fmt(voided.reduce((a,p)=>a+(p.total||0),0))}</div><div className="bo-met-sub">{voided.length} faktur</div></div>
       </div>
 
       <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
         <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-          {[["all",`All (${pos.length})`],["unpaid",`Unpaid (${unpaid.length})`],["paid",`Paid (${paid.length})`],["overdue",`Overdue (${overdue.length})`],["voided",`Voided (${voided.length})`]].map(([f,l])=>(
+          {[["all",`Semua (${pos.length})`],["unpaid",`Belum Lunas (${unpaid.length})`],["paid",`Lunas (${paid.length})`],["overdue",`Jatuh Tempo (${overdue.length})`],["voided",`Void (${voided.length})`]].map(([f,l])=>(
             <button key={f} onClick={()=>setFilter(f)} className={"bo-btn bo-btn-sm "+(filter===f?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
           ))}
         </div>
@@ -314,37 +317,58 @@ export default function InvPO() {
                 <th style={{ width:36 }}>
                   <input type="checkbox" checked={allUnpaidSelected} onChange={toggleSelectAll} style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />
                 </th>
-                <th>PO #</th><th>Invoice</th><th>Supplier</th><th>Date</th><th>Due</th><th>Total</th><th>Status</th><th>Actions</th>
+                <th>TANGGAL</th><th>NAMA PEMASOK</th><th>NO FAKTUR</th><th>JENIS PEMBELIAN</th><th>PRODUK</th><th>JUMLAH</th><th>JATUH TEMPO</th><th>STATUS</th><th style={{ width:48 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(po => {
                 const isOverdue = po.status==="Unpaid" && po.due_date && new Date(po.due_date)<new Date()
-                const statusColor = po.status==="Paid" ? "var(--green)" : po.status==="Void" ? "var(--ink5)" : isOverdue ? "var(--red)" : "var(--amber)"
                 const isUnpaid = po.status==="Unpaid"
+                const statusLabel = po.status==="Paid" ? "Lunas" : po.status==="Void" ? "Void" : isOverdue ? "Jatuh Tempo" : "Belum Lunas"
+                const statusColor = po.status==="Paid" ? "#00875A" : po.status==="Void" ? "#97A0AF" : isOverdue ? "#DE350B" : "#FF8B00"
+                const items = po.po_items || []
+                const itemNames = items.slice(0,2).map(i=>i.name).filter(Boolean)
+                const extraCount = items.length - 2
                 return (
-                  <tr key={po.id} style={{ background:selected.has(po.id)?"var(--brand-lt)":"" }}>
+                  <tr key={po.id} style={{ background:selected.has(po.id)?"var(--brand-lt)":"", position:"relative" }}>
                     <td>{isUnpaid && <input type="checkbox" checked={selected.has(po.id)} onChange={()=>toggleSelect(po.id)} style={{ width:15, height:15, accentColor:"var(--brand)", cursor:"pointer" }} />}</td>
-                    <td style={{ fontWeight:700, fontFamily:"monospace", fontSize:12 }}>{po.id}</td>
-                    <td style={{ fontSize:12, color:"var(--ink4)" }}>{po.invoice_no||"—"}</td>
-                    <td style={{ fontWeight:600 }}>{po.supplier_name}</td>
-                    <td style={{ fontSize:12 }}>{po.order_date}</td>
-                    <td style={{ fontSize:12, color:isOverdue?"var(--red)":"var(--ink4)" }}>{po.due_date||"—"}{isOverdue?" ⚠":""}</td>
+                    <td style={{ fontSize:12 }}>{po.order_date ? new Date(po.order_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
+                    <td style={{ fontWeight:600 }}>{po.supplier_name || "Tanpa Pemasok"}</td>
+                    <td style={{ fontSize:12, fontFamily:"monospace", color:"var(--ink4)" }}>{po.invoice_no || po.id?.slice(0,12) || "—"}</td>
+                    <td style={{ fontSize:12 }}>{"Barang Jual"}</td>
+                    <td style={{ fontSize:12 }}>
+                      {itemNames.map((n,i)=><div key={i}>{n}</div>)}
+                      {extraCount>0 && <div style={{ color:"var(--brand)", fontSize:11, fontWeight:600 }}>+{extraCount} Produk</div>}
+                      {itemNames.length===0 && <span style={{ color:"var(--ink5)" }}>—</span>}
+                    </td>
                     <td style={{ fontWeight:700, color:"var(--brand)" }}>{fmt(po.total)}</td>
-                    <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:statusColor+"22", color:statusColor }}>{isOverdue?"Overdue":po.status}</span></td>
+                    <td style={{ fontSize:12, color:isOverdue?"#DE350B":"var(--ink4)" }}>{po.due_date ? new Date(po.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
                     <td>
-                      <div style={{ display:"flex", gap:4 }}>
-                        <button onClick={()=>setViewModal(po)} className="bo-btn bo-btn-ghost bo-btn-sm">View</button>
-                        {isUnpaid && <button onClick={()=>openEdit(po)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>}
-                        {isUnpaid && <button onClick={()=>markPaid(po)} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>✓ Pay</button>}
-                        {isUnpaid && <button onClick={()=>deletePO(po)} className="bo-btn bo-btn-danger bo-btn-sm">Delete</button>}
-                        {isUnpaid && <button onClick={()=>voidPO(po)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--ink4)" }}>Void</button>}
-                      </div>
+                      <span style={{ fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:10, background:statusColor+"22", color:statusColor, whiteSpace:"nowrap" }}>
+                        {statusLabel}
+                      </span>
+                    </td>
+                    <td style={{ position:"relative" }}>
+                      <button
+                        onClick={e=>{e.stopPropagation(); setOpenMenu(openMenu===po.id?null:po.id)}}
+                        className="bo-btn bo-btn-ghost bo-btn-sm"
+                        style={{ padding:"4px 10px", fontWeight:700, fontSize:15, letterSpacing:1 }}
+                      >...</button>
+                      {openMenu===po.id && (
+                        <div onMouseLeave={()=>setOpenMenu(null)} style={{ position:"absolute", right:0, top:"100%", background:"#fff", border:"1px solid #E8ECF0", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.12)", zIndex:100, minWidth:160, padding:"6px 0" }}>
+                          <button onClick={()=>{setOpenMenu(null);setViewModal(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Detail</button>
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);setBayarConfirm(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Bayar Faktur</button>}
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);openEdit(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Edit</button>}
+                          <div style={{ height:1, background:"#F0F4F8", margin:"4px 0" }} />
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Void</button>}
+                          {po.status==="Paid" && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Void</button>}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )
               })}
-              {filtered.length===0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No purchase orders</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={10} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>Tidak ada faktur pembelian</td></tr>}
             </tbody>
           </table>
         )}
@@ -392,6 +416,27 @@ export default function InvPO() {
               {viewModal.status==="Paid" && (
                 <button onClick={()=>{ voidPO(viewModal); setViewModal(null) }} className="bo-btn bo-btn-danger">Void PO</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bayar Faktur confirmation */}
+      {bayarConfirm && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBayarConfirm(null)}>
+          <div className="bo-modal" style={{ maxWidth:420 }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">Bayar Faktur</div>
+              <button className="bo-modal-close" onClick={()=>setBayarConfirm(null)}>x</button>
+            </div>
+            <div className="bo-modal-body">
+              <p style={{ fontSize:14, color:"var(--ink2)", lineHeight:1.6, textAlign:"justify" }}>
+                Anda akan dialihkan ke halaman Pembayaran Faktur. Lanjutkan?
+              </p>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setBayarConfirm(null)} className="bo-btn bo-btn-ghost">Batal</button>
+              <button onClick={()=>{ markPaid(bayarConfirm); setBayarConfirm(null) }} className="bo-btn bo-btn-primary">Ya, Lanjutkan</button>
             </div>
           </div>
         </div>
