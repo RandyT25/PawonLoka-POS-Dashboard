@@ -601,21 +601,35 @@ export default function InvPO() {
               <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"18px 20px", marginBottom:16 }}>
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                   <div style={{ fontSize:14, fontWeight:800, color:"var(--ink1)" }}>Daftar Pembelian</div>
-                  <button
-                    onClick={()=>{
-                      const remaining = pos.filter(p=>p.status==="Unpaid"&&!payLines.find(l=>l.po_id===p.id))
-                      if(remaining.length===0){alert("Tidak ada faktur lain yang belum dibayar");return}
-                      const first = remaining[0]
-                      setPayLines(prev=>[...prev,{po_id:first.id,invoice_no:first.invoice_no||first.id?.slice(0,12)||"—",due_date:first.due_date||"—",billed:first.total||0,discount:0,payment:0,po_ref:first}])
-                    }}
-                    className="bo-btn bo-btn-ghost bo-btn-sm">+ Faktur Pembelian</button>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button
+                      onClick={()=>setPayLines(prev=>prev.map(l=>({...l,discount:0,payment:l.billed})))}
+                      className="bo-btn bo-btn-ghost bo-btn-sm">Bayar Semua</button>
+                    <button
+                      onClick={()=>{
+                        const remaining = pos.filter(p=>p.status==="Unpaid"&&!payLines.find(l=>l.po_id===p.id))
+                        if(remaining.length===0){alert("Tidak ada faktur lain yang belum dibayar");return}
+                        const first = remaining[0]
+                        setPayLines(prev=>[...prev,{po_id:first.id,invoice_no:first.invoice_no||first.id?.slice(0,12)||"—",due_date:first.due_date||"—",billed:first.total||0,discount:0,payment:0,po_ref:first}])
+                      }}
+                      className="bo-btn bo-btn-primary bo-btn-sm">+ Faktur Pembelian</button>
+                  </div>
                 </div>
-                <div style={{ overflowX:"auto" }}>
-                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <div>
+                  <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
                     <thead>
                       <tr style={{ background:"#F8FAFC" }}>
+                        <colgroup>
+                          <col style={{ width:"18%" }} />
+                          <col style={{ width:"18%" }} />
+                          <col style={{ width:"14%" }} />
+                          <col style={{ width:"16%" }} />
+                          <col style={{ width:"16%" }} />
+                          <col style={{ width:"16%" }} />
+                          <col style={{ width:"2%" }} />
+                        </colgroup>
                         {["TANGGAL PEMBELIAN","NO FAKTUR","JATUH TEMPO","TAGIHAN","POTONGAN","PEMBAYARAN",""].map(h=>(
-                          <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
+                          <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -629,7 +643,7 @@ export default function InvPO() {
                           <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
                           <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:110, fontSize:12 }}
+                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:12 }}
                               value={line.discount}
                               onChange={e=>{
                                 const d = parseFloat(e.target.value)||0
@@ -637,7 +651,7 @@ export default function InvPO() {
                               }} />
                           </td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:130, fontSize:12 }}
+                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:12 }}
                               value={line.payment}
                               onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
                           </td>
@@ -656,10 +670,7 @@ export default function InvPO() {
                         <td style={{ padding:"10px 12px", fontSize:13, color:"var(--brand)" }}>
                           Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
                         </td>
-                        <td>
-                          <button onClick={()=>setPayLines(prev=>prev.map(l=>({...l,discount:0,payment:l.billed})))}
-                            className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:11, whiteSpace:"nowrap" }}>Bayar Semua</button>
-                        </td>
+                        <td></td>
                       </tr>
                     </tbody>
                   </table>
