@@ -314,8 +314,9 @@ export default function RecipeEditor() {
     Promise.all([
       supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name"),
       supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name"),
+      supabase.from("sub_recipe_ingredients").select("sub_recipe_id"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit,category").order("name"),
-    ]).then(async ([pRes, sRes, iRes]) => {
+    ]).then(async ([pRes, sRes, iRes, sriRes]) => {
       const allIngs = iRes.data || []
       let subs = sRes.data || []
       // Auto-sync: find Semi-finished ingredients that don't have a sub_recipe row yet
@@ -346,7 +347,9 @@ export default function RecipeEditor() {
       // Check which products have recipes
       const { data: recipeSkus } = await supabase.from("recipes").select("productSku")
       const hasRecipeSet = new Set((recipeSkus||[]).map(r=>r.productSku).filter(Boolean))
+      const subIngSet = new Set((sriRes.data||[]).map(r=>r.sub_recipe_id))
       setProducts((pRes.data||[]).map(p=>({...p,id:p.sku,category:p.cat,_hasRecipe:hasRecipeSet.has(p.sku)})))
+      subs = subs.map(s => ({...s, _hasIngredients: subIngSet.has(s.id)}))
       setSubRecipes(subs)
       setIngredients(allIngs)
       setLoading(false)
@@ -395,7 +398,7 @@ export default function RecipeEditor() {
         <div style={{ flex:1, overflowY:"auto" }}>
           {listItems.map(item => {
             const hasCogs = (tab==="dish" ? (item.cogs||0) : (item.cost_per_unit||0)) > 0
-            const hasRecipeFlag = tab==="dish" ? item._hasRecipe : (item.yield_qty > 0)
+            const hasRecipeFlag = tab==="dish" ? item._hasRecipe : item._hasIngredients
             const margin  = tab==="dish" && item.price>0 && item.cogs>0 ? pct(item.price-item.cogs,item.price) : null
             const isSel   = selected?.id===item.id
             return (
