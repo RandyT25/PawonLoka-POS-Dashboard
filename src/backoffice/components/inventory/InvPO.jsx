@@ -632,21 +632,25 @@ export default function InvPO() {
                           </td>
                           <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace", whiteSpace:"nowrap" }}>{line.invoice_no}</td>
                           <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
-                          <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
+                          <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:13 }}
-                              value={line.discount||""}
+                            <input type="text" className="bo-input" style={{ width:"100%", fontSize:13 }}
+                              value={line.discount ? "Rp " + Number(line.discount).toLocaleString("id-ID") : ""}
                               placeholder="Rp 0"
                               onChange={e=>{
-                                const d = parseFloat(e.target.value)||0
+                                const raw = e.target.value.replace(/[^0-9]/g,"")
+                                const d = parseFloat(raw)||0
                                 setPayLines(prev=>prev.map((l,j)=>j===i?{...l,discount:d,payment:Math.max(0,l.billed-d)}:l))
                               }} />
                           </td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:13 }}
-                              value={line.payment||""}
+                            <input type="text" className="bo-input" style={{ width:"100%", fontSize:13 }}
+                              value={line.payment ? "Rp " + Number(line.payment).toLocaleString("id-ID") : ""}
                               placeholder="Rp 0"
-                              onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
+                              onChange={e=>{
+                                const raw = e.target.value.replace(/[^0-9]/g,"")
+                                setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(raw)||0}:l))
+                              }} />
                           </td>
                           <td style={{ padding:"10px 12px" }}>
                             {payLines.length > 1 && (
@@ -658,10 +662,10 @@ export default function InvPO() {
                       ))}
                       <tr style={{ background:"#F8FAFC", fontWeight:700 }}>
                         <td colSpan={3} style={{ padding:"10px 12px", fontSize:13 }}>Total</td>
-                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding:"10px 12px", fontSize:13 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0).toLocaleString("id-ID")}</td>
                         <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, color:"var(--brand)" }}>
-                          Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
+                          Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
                         </td>
                         <td></td>
                       </tr>
