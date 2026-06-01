@@ -63,6 +63,23 @@ export default function MarketPrices() {
   function updateRow(id, patch) {
     setRows(prev => prev.map(r => r.ingredient_id === id ? { ...r, ...patch, changed: true } : r))
   }
+  async function saveUnitOnly(row) {
+    // Save buy_unit and conv_qty to ingredient conversions without needing a price
+    try {
+      const { data: ingData } = await supabase.from("ingredients").select("conversions,unit").eq("id", row.ingredient_id).maybeSingle()
+      if (!ingData) return
+      const convs = ingData.conversions || []
+      let updated = false
+      const newConvs = convs.map(c => {
+        if (c.unit === row.buy_unit) { updated = true; return { ...c, qty: parseFloat(row.conv_qty)||c.qty } }
+        return c
+      })
+      if (!updated) newConvs.push({ unit: row.buy_unit, qty: parseFloat(row.conv_qty)||1, last_price: 0, sku:"" })
+      await supabase.from("ingredients").update({ conversions: newConvs }).eq("id", row.ingredient_id)
+      setRows(prev => prev.map(r => r.ingredient_id === row.ingredient_id ? { ...r, changed: false } : r))
+      setSavedIds(prev => new Set([...prev, row.ingredient_id]))
+    } catch(e) { alert("Error: " + e.message) }
+  }
 
   function costPerBase(row) {
     const price = parseFloat(row.market_price)
@@ -290,7 +307,7 @@ export default function MarketPrices() {
                     <td style={{ padding:"8px 12px" }}>
                       <div style={{ display:"flex", gap:4 }}>
                         {row.changed && (
-                          <button onClick={()=>{ if(!filled){alert("Enter a market price first");return} saveRow(row)}} disabled={saving} className="bo-btn bo-btn-primary bo-btn-sm">Save</button>
+                          <button onClick={()=>{ filled ? saveRow(row) : saveUnitOnly(row) }} disabled={saving} className="bo-btn bo-btn-primary bo-btn-sm">Save</button>
                         )}
                         {saved && !row.changed && (
                           <span style={{ fontSize:11, color:"var(--green)", fontWeight:700 }}>Saved</span>
