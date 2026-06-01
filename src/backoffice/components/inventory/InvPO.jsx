@@ -350,12 +350,12 @@ export default function InvPO() {
                     </td>
                     <td style={{ position:"relative" }}>
                       <button
-                        onClick={e=>{e.stopPropagation(); setOpenMenu(openMenu===po.id?null:po.id)}}
+                        onClick={e=>{e.stopPropagation(); setOpenMenu(prev=>prev===po.id?null:po.id)}}
                         className="bo-btn bo-btn-ghost bo-btn-sm"
                         style={{ padding:"4px 10px", fontWeight:700, fontSize:15, letterSpacing:1 }}
                       >...</button>
                       {openMenu===po.id && (
-                        <div onMouseLeave={()=>setOpenMenu(null)} style={{ position:"absolute", right:0, top:"100%", background:"#fff", border:"1px solid #E8ECF0", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.12)", zIndex:100, minWidth:160, padding:"6px 0" }}>
+                        <div onClick={e=>e.stopPropagation()} style={{ position:"absolute", right:0, top:"100%", background:"#fff", border:"1px solid #E8ECF0", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.12)", zIndex:100, minWidth:160, padding:"6px 0" }}>
                           <button onClick={()=>{setOpenMenu(null);setViewModal(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Detail</button>
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);setBayarConfirm(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Bayar Faktur</button>}
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);openEdit(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Edit</button>}
