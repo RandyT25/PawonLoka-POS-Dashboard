@@ -314,8 +314,8 @@ export default function RecipeEditor() {
     Promise.all([
       supabase.from("products").select("sku,name,icon,price,cogs,cat").order("name"),
       supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name"),
-      supabase.from("sub_recipe_ingredients").select("sub_recipe_id"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit,category").order("name"),
+      supabase.from("sub_recipe_ingredients").select("sub_recipe_id"),
     ]).then(async ([pRes, sRes, iRes, sriRes]) => {
       const allIngs = iRes.data || []
       let subs = sRes.data || []
