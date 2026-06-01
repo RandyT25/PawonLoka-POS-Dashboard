@@ -162,6 +162,9 @@ export default function Accounting() {
   const [expTransNo,   setExpTransNo]   = useState("")
   const [expTime,      setExpTime]      = useState("08:00")
   const [expCoaSearch, setExpCoaSearch] = useState("")
+  const [showCoaPicker, setShowCoaPicker] = useState(false)
+  const [coaPickerSearch, setCoaPickerSearch] = useState("")
+  const [coaPickerSelected, setCoaPickerSelected] = useState(new Set())
   const [kbForm,       setKbForm]       = useState({ staff_name:"Nita", amount:"", date:new Date().toISOString().slice(0,10), reason:"", notes:"" })
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
@@ -1148,88 +1151,46 @@ ARUS KAS
 
               {/* Detail lines */}
               <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
-                <div style={{ fontSize:13, fontWeight:800, marginBottom:12, color:"var(--ink1)" }}>Detail Pengeluaran</div>
-
-                {/* Quick-add multiple accounts search */}
-                {(() => {
-                  const expenseAccts = expCoa.filter(a=>["expense","cogs"].includes(a.type))
-                  const filtered = expCoaSearch.length > 0
-                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(expCoaSearch.toLowerCase())||a.code.toLowerCase().includes(expCoaSearch.toLowerCase()))
-                    : []
-                  const addAcct = (acct) => {
-                    const already = expLines.find(l=>l.coa_id===acct.id)
-                    if (already) return
-                    const hasEmpty = expLines.find(l=>!l.coa_id)
-                    if (hasEmpty) {
-                      setExpLines(prev=>prev.map(l=>!l.coa_id?{...l,coa_id:acct.id,coa_name:acct.name}:l))
-                    } else {
-                      setExpLines(prev=>[...prev,{coa_id:acct.id,coa_name:acct.name,description:"",amount:""}])
-                    }
-                    setCoaSearch("")
-                  }
-                  return (
-                    <div style={{ marginBottom:12, position:"relative" }}>
-                      <input className="bo-input" style={{ fontSize:13 }}
-                        value={expCoaSearch}
-                        onChange={e=>setCoaSearch(e.target.value)}
-                        placeholder="Cari dan tambah akun pengeluaran..." />
-                      {filtered.length > 0 && (
-                        <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#fff", border:"1px solid #E8ECF0", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.1)", zIndex:50, maxHeight:200, overflowY:"auto" }}>
-                          {filtered.map(a=>(
-                            <div key={a.id} onClick={()=>addAcct(a)}
-                              style={{ padding:"9px 14px", fontSize:13, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #F8FAFC" }}
-                              onMouseEnter={e=>e.currentTarget.style.background="#F0F7FF"}
-                              onMouseLeave={e=>e.currentTarget.style.background=""}>
-                              <span>{a.name}</span>
-                              <span style={{ fontSize:11, color:"var(--ink5)", fontFamily:"monospace" }}>{a.code}</span>
-                            </div>
-                          ))}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Detail Akun <span style={{ color:"red" }}>*</span></div>
+                  <button onClick={()=>{ setCoaPickerSelected(new Set(expLines.filter(l=>l.coa_id).map(l=>l.coa_id))); setCoaPickerSearch(""); setShowCoaPicker(true) }}
+                    className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--brand)", borderColor:"var(--brand)", fontWeight:700 }}>
+                    + Pilih Akun
+                  </button>
+                </div>
+                {expLines.filter(l=>l.coa_id).length === 0 ? (
+                  <div style={{ textAlign:"center", padding:"40px 0", color:"var(--ink5)" }}>
+                    <div style={{ fontSize:13, fontWeight:600 }}>Data tidak tersedia</div>
+                    <div style={{ fontSize:12, marginTop:4 }}>Klik "+ Pilih Akun" untuk menambahkan akun pengeluaran</div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 160px 32px", gap:8, marginBottom:6, padding:"0 4px" }}>
+                      {["NAMA AKUN","DESKRIPSI","JUMLAH",""].map(h=>(
+                        <div key={h} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", textTransform:"uppercase" }}>{h}</div>
+                      ))}
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {expLines.filter(l=>l.coa_id).map((line)=>(
+                        <div key={line.coa_id} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 160px 32px", gap:8, alignItems:"center" }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:"var(--ink1)", padding:"8px 0" }}>{line.coa_name}</div>
+                          <input className="bo-input" style={{ fontSize:12 }}
+                            value={line.description} placeholder="Contoh: Deskripsi"
+                            onChange={e=>setExpLines(prev=>prev.map((l)=>l.coa_id===line.coa_id?{...l,description:e.target.value}:l))} />
+                          <input type="text" className="bo-input" style={{ fontSize:12 }}
+                            value={line.amount ? "Rp "+Number(line.amount).toLocaleString("id-ID") : ""}
+                            placeholder="Rp 0"
+                            onChange={e=>{
+                              const raw = e.target.value.replace(/[^0-9]/g,"")
+                              setExpLines(prev=>prev.map((l)=>l.coa_id===line.coa_id?{...l,amount:raw}:l))
+                            }} />
+                          <button onClick={()=>setExpLines(prev=>prev.filter(l=>l.coa_id!==line.coa_id))}
+                            style={{ background:"none", border:"none", cursor:"pointer", color:"#DE350B", fontSize:18 }}>x</button>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  )
-                })()}
-
-                {/* Line headers */}
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 150px 32px", gap:8, marginBottom:6 }}>
-                  {["NAMA AKUN","DESKRIPSI","JUMLAH",""].map(h=>(
-                    <div key={h} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>
-                  ))}
-                </div>
-
-                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                  {expLines.map((line,i)=>(
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 150px 32px", gap:8, alignItems:"center" }}>
-                      <div style={{ position:"relative" }}>
-                        <select className="bo-select" style={{ fontSize:12, background: line.coa_id ? "#fff" : "#FFFBF0", borderColor: line.coa_id ? "" : "#FF8B00" }}
-                          value={line.coa_id}
-                          onChange={e=>{
-                            const acct = expCoa.find(a=>a.id===e.target.value)
-                            setExpLines(prev=>prev.map((l,j)=>j===i?{...l,coa_id:e.target.value,coa_name:acct?acct.name:""}:l))
-                          }}>
-                          <option value="">Pilih akun</option>
-                          {expCoa.filter(a=>["expense","cogs"].includes(a.type)).map(a=>(
-                            <option key={a.id} value={a.id}>{a.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <input className="bo-input" style={{ fontSize:12 }}
-                        value={line.description} placeholder="Contoh: Deskripsi"
-                        onChange={e=>setExpLines(prev=>prev.map((l,j)=>j===i?{...l,description:e.target.value}:l))} />
-                      <input type="text" className="bo-input" style={{ fontSize:12 }}
-                        value={line.amount ? "Rp "+Number(line.amount).toLocaleString("id-ID") : ""}
-                        placeholder="Rp 0"
-                        onChange={e=>{
-                          const raw = e.target.value.replace(/[^0-9]/g,"")
-                          setExpLines(prev=>prev.map((l,j)=>j===i?{...l,amount:raw}:l))
-                        }} />
-                      <button onClick={()=>expLines.length>1&&setExpLines(prev=>prev.filter((_,j)=>j!==i))}
-                        style={{ background:"none", border:"none", cursor:"pointer", color:"#DE350B", fontSize:18, opacity:expLines.length===1?0.3:1 }}>x</button>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={()=>setExpLines(prev=>[...prev,{coa_id:"",coa_name:"",description:"",amount:""}])}
-                  className="bo-btn bo-btn-ghost bo-btn-sm" style={{ marginTop:10 }}>+ Tambah Baris</button>
+                  </div>
+                )}
 
                 {/* Total */}
                 <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", marginTop:14, paddingTop:10, borderTop:"1px solid #E8ECF0" }}>
@@ -1254,6 +1215,154 @@ ARUS KAS
               <button onClick={saveExpense} disabled={saving} className="bo-btn bo-btn-primary">
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COA Picker Modal */}
+      {showCoaPicker && (
+        <div className="bo-overlay" style={{ zIndex:9999 }} onMouseDown={e=>e.target===e.currentTarget&&setShowCoaPicker(false)}>
+          <div className="bo-modal" style={{ maxWidth:640, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">Pilih Akun</div>
+              <button className="bo-modal-close" onClick={()=>setShowCoaPicker(false)}>x</button>
+            </div>
+            <div className="bo-modal-body" style={{ flex:1, overflowY:"auto" }}>
+              <input className="bo-input" style={{ marginBottom:16 }}
+                value={coaPickerSearch}
+                onChange={e=>setCoaPickerSearch(e.target.value)}
+                placeholder="Cari ..."
+                autoFocus />
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead>
+                  <tr style={{ background:"#F8FAFC" }}>
+                    <th style={{ width:40, padding:"8px 12px" }}></th>
+                    {["KODE","NAMA","KATEGORI"].map(h=>(
+                      <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {expCoa
+                    .filter(a => {
+                      const q = coaPickerSearch.toLowerCase()
+                      return !q || a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q) || (a.category||"").toLowerCase().includes(q)
+                    })
+                    .map(a=>(
+                      <tr key={a.id} onClick={()=>{ const s=new Set(coaPickerSelected); s.has(a.id)?s.delete(a.id):s.add(a.id); setCoaPickerSelected(s) }}
+                        style={{ borderBottom:"1px solid #F0F4F8", cursor:"pointer", background:coaPickerSelected.has(a.id)?"#F0F7FF":"" }}
+                        onMouseEnter={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="#F8FAFC" }}
+                        onMouseLeave={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="" }}>
+                        <td style={{ padding:"10px 12px" }}>
+                          <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${coaPickerSelected.has(a.id)?"var(--brand)":"#DFE1E6"}`,
+                            background:coaPickerSelected.has(a.id)?"var(--brand)":"#fff",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            {coaPickerSelected.has(a.id) && <div style={{ width:10, height:10, borderRadius:2, background:"#fff" }} />}
+                          </div>
+                        </td>
+                        <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace", color:"var(--ink4)" }}>{a.code}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:600 }}>{a.name}</td>
+                        <td style={{ padding:"10px 12px", fontSize:12, color:"var(--ink5)" }}>{a.category||"—"}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div className="bo-modal-footer" style={{ justifyContent:"space-between" }}>
+              <div style={{ fontSize:12, color:"var(--ink4)" }}>{coaPickerSelected.size} akun dipilih</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>setShowCoaPicker(false)} className="bo-btn bo-btn-ghost">Batal</button>
+                <button
+                  disabled={coaPickerSelected.size===0}
+                  onClick={()=>{
+                    const newLines = []
+                    coaPickerSelected.forEach(id=>{
+                      const acct = expCoa.find(a=>a.id===id)
+                      if (!acct) return
+                      const existing = expLines.find(l=>l.coa_id===id)
+                      newLines.push(existing || { coa_id:id, coa_name:acct.name, description:"", amount:"" })
+                    })
+                    setExpLines(newLines)
+                    setShowCoaPicker(false)
+                  }}
+                  className="bo-btn bo-btn-primary">Simpan</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* COA Picker Modal */}
+      {showCoaPicker && (
+        <div className="bo-overlay" style={{ zIndex:9999 }} onMouseDown={e=>e.target===e.currentTarget&&setShowCoaPicker(false)}>
+          <div className="bo-modal" style={{ maxWidth:640, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">Pilih Akun</div>
+              <button className="bo-modal-close" onClick={()=>setShowCoaPicker(false)}>x</button>
+            </div>
+            <div className="bo-modal-body" style={{ flex:1, overflowY:"auto" }}>
+              <input className="bo-input" style={{ marginBottom:16 }}
+                value={coaPickerSearch}
+                onChange={e=>setCoaPickerSearch(e.target.value)}
+                placeholder="Cari ..."
+                autoFocus />
+              <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                <thead>
+                  <tr style={{ background:"#F8FAFC" }}>
+                    <th style={{ width:40, padding:"8px 12px" }}></th>
+                    {["KODE","NAMA","KATEGORI"].map(h=>(
+                      <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {expCoa
+                    .filter(a => {
+                      const q = coaPickerSearch.toLowerCase()
+                      return !q || a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q) || (a.category||"").toLowerCase().includes(q)
+                    })
+                    .map(a=>(
+                      <tr key={a.id} onClick={()=>{ const s=new Set(coaPickerSelected); s.has(a.id)?s.delete(a.id):s.add(a.id); setCoaPickerSelected(s) }}
+                        style={{ borderBottom:"1px solid #F0F4F8", cursor:"pointer", background:coaPickerSelected.has(a.id)?"#F0F7FF":"" }}
+                        onMouseEnter={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="#F8FAFC" }}
+                        onMouseLeave={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="" }}>
+                        <td style={{ padding:"10px 12px" }}>
+                          <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${coaPickerSelected.has(a.id)?"var(--brand)":"#DFE1E6"}`,
+                            background:coaPickerSelected.has(a.id)?"var(--brand)":"#fff",
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            {coaPickerSelected.has(a.id) && <div style={{ width:10, height:10, borderRadius:2, background:"#fff" }} />}
+                          </div>
+                        </td>
+                        <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace", color:"var(--ink4)" }}>{a.code}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:600 }}>{a.name}</td>
+                        <td style={{ padding:"10px 12px", fontSize:12, color:"var(--ink5)" }}>{a.category||"—"}</td>
+                      </tr>
+                    ))
+                  }
+                </tbody>
+              </table>
+            </div>
+            <div className="bo-modal-footer" style={{ justifyContent:"space-between" }}>
+              <div style={{ fontSize:12, color:"var(--ink4)" }}>{coaPickerSelected.size} akun dipilih</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <button onClick={()=>setShowCoaPicker(false)} className="bo-btn bo-btn-ghost">Batal</button>
+                <button
+                  disabled={coaPickerSelected.size===0}
+                  onClick={()=>{
+                    const newLines = []
+                    coaPickerSelected.forEach(id=>{
+                      const acct = expCoa.find(a=>a.id===id)
+                      if (!acct) return
+                      const existing = expLines.find(l=>l.coa_id===id)
+                      newLines.push(existing || { coa_id:id, coa_name:acct.name, description:"", amount:"" })
+                    })
+                    setExpLines(newLines)
+                    setShowCoaPicker(false)
+                  }}
+                  className="bo-btn bo-btn-primary">Simpan</button>
+              </div>
             </div>
           </div>
         </div>
