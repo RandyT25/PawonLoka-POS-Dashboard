@@ -61,12 +61,6 @@ function ClosingReport({ period, fmt }) {
     setLoading(false)
   }
 
-  async function loadCoa() {
-    setCoaLoading(true)
-    const { data } = await supabase.from("chart_of_accounts").select("*").order("sort_order")
-    setCoa(data || [])
-    setCoaLoading(false)
-  }
 
   async function saveCoa() {
     setCoaSaving(true)
@@ -208,6 +202,12 @@ export default function Accounting() {
   useEffect(() => { load() }, [period])
   useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
 
+  async function loadCoa() {
+    setCoaLoading(true)
+    const { data } = await supabase.from("chart_of_accounts").select("*").order("sort_order")
+    setCoa(data || [])
+    setCoaLoading(false)
+  }
   async function load() {
     setLoading(true)
     const [y,m] = period.split("-")
