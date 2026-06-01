@@ -256,7 +256,7 @@ export default function InvPO() {
       due_date: po.due_date || "—",
       billed: po.total || 0,
       discount: 0,
-      payment: po.total || 0,
+      payment: 0,
       po_ref: po
     }])
     setBayarConfirm(po)
@@ -606,7 +606,7 @@ export default function InvPO() {
                       const remaining = pos.filter(p=>p.status==="Unpaid"&&!payLines.find(l=>l.po_id===p.id))
                       if(remaining.length===0){alert("Tidak ada faktur lain yang belum dibayar");return}
                       const first = remaining[0]
-                      setPayLines(prev=>[...prev,{po_id:first.id,invoice_no:first.invoice_no||first.id?.slice(0,12)||"—",due_date:first.due_date||"—",billed:first.total||0,discount:0,payment:first.total||0,po_ref:first}])
+                      setPayLines(prev=>[...prev,{po_id:first.id,invoice_no:first.invoice_no||first.id?.slice(0,12)||"—",due_date:first.due_date||"—",billed:first.total||0,discount:0,payment:0,po_ref:first}])
                     }}
                     className="bo-btn bo-btn-ghost bo-btn-sm">+ Faktur Pembelian</button>
                 </div>
