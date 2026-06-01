@@ -161,6 +161,7 @@ export default function Accounting() {
   const [expAkunAsal,  setExpAkunAsal]  = useState("")
   const [expTransNo,   setExpTransNo]   = useState("")
   const [expTime,      setExpTime]      = useState("08:00")
+  const [coaSearch,    setCoaSearchExp] = useState("")
   const [kbForm,       setKbForm]       = useState({ staff_name:"Nita", amount:"", date:new Date().toISOString().slice(0,10), reason:"", notes:"" })
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
@@ -1148,23 +1149,72 @@ ARUS KAS
               {/* Detail lines */}
               <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
                 <div style={{ fontSize:13, fontWeight:800, marginBottom:12, color:"var(--ink1)" }}>Detail Pengeluaran</div>
-                <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:8 }}>NAMA AKUN *</div>
+
+                {/* Quick-add multiple accounts search */}
+                {(() => {
+                  const expenseAccts = expCoa.filter(a=>["expense","cogs"].includes(a.type))
+                  const filtered = coaSearchExp.length > 0
+                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(coaSearchExp.toLowerCase())||a.code.toLowerCase().includes(coaSearchExp.toLowerCase()))
+                    : []
+                  const addAcct = (acct) => {
+                    const already = expLines.find(l=>l.coa_id===acct.id)
+                    if (already) return
+                    const hasEmpty = expLines.find(l=>!l.coa_id)
+                    if (hasEmpty) {
+                      setExpLines(prev=>prev.map(l=>!l.coa_id?{...l,coa_id:acct.id,coa_name:acct.name}:l))
+                    } else {
+                      setExpLines(prev=>[...prev,{coa_id:acct.id,coa_name:acct.name,description:"",amount:""}])
+                    }
+                    setCoaSearchExp("")
+                  }
+                  return (
+                    <div style={{ marginBottom:12, position:"relative" }}>
+                      <input className="bo-input" style={{ fontSize:13 }}
+                        value={coaSearchExp}
+                        onChange={e=>setCoaSearchExp(e.target.value)}
+                        placeholder="Cari dan tambah akun pengeluaran..." />
+                      {filtered.length > 0 && (
+                        <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#fff", border:"1px solid #E8ECF0", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.1)", zIndex:50, maxHeight:200, overflowY:"auto" }}>
+                          {filtered.map(a=>(
+                            <div key={a.id} onClick={()=>addAcct(a)}
+                              style={{ padding:"9px 14px", fontSize:13, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", borderBottom:"1px solid #F8FAFC" }}
+                              onMouseEnter={e=>e.currentTarget.style.background="#F0F7FF"}
+                              onMouseLeave={e=>e.currentTarget.style.background=""}>
+                              <span>{a.name}</span>
+                              <span style={{ fontSize:11, color:"var(--ink5)", fontFamily:"monospace" }}>{a.code}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
+                {/* Line headers */}
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 150px 32px", gap:8, marginBottom:6 }}>
+                  {["NAMA AKUN","DESKRIPSI","JUMLAH",""].map(h=>(
+                    <div key={h} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>
+                  ))}
+                </div>
+
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {expLines.map((line,i)=>(
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 140px 32px", gap:8, alignItems:"center" }}>
-                      <select className="bo-select" style={{ fontSize:12 }}
-                        value={line.coa_id}
-                        onChange={e=>{
-                          const acct = expCoa.find(a=>a.id===e.target.value)
-                          setExpLines(prev=>prev.map((l,j)=>j===i?{...l,coa_id:e.target.value,coa_name:acct?acct.name:""}:l))
-                        }}>
-                        <option value="">Pilih akun</option>
-                        {expCoa.filter(a=>["expense","cogs"].includes(a.type)).map(a=>(
-                          <option key={a.id} value={a.id}>{a.name}</option>
-                        ))}
-                      </select>
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 150px 32px", gap:8, alignItems:"center" }}>
+                      <div style={{ position:"relative" }}>
+                        <select className="bo-select" style={{ fontSize:12, background: line.coa_id ? "#fff" : "#FFFBF0", borderColor: line.coa_id ? "" : "#FF8B00" }}
+                          value={line.coa_id}
+                          onChange={e=>{
+                            const acct = expCoa.find(a=>a.id===e.target.value)
+                            setExpLines(prev=>prev.map((l,j)=>j===i?{...l,coa_id:e.target.value,coa_name:acct?acct.name:""}:l))
+                          }}>
+                          <option value="">Pilih akun</option>
+                          {expCoa.filter(a=>["expense","cogs"].includes(a.type)).map(a=>(
+                            <option key={a.id} value={a.id}>{a.name}</option>
+                          ))}
+                        </select>
+                      </div>
                       <input className="bo-input" style={{ fontSize:12 }}
-                        value={line.description} placeholder="Deskripsi"
+                        value={line.description} placeholder="Contoh: Deskripsi"
                         onChange={e=>setExpLines(prev=>prev.map((l,j)=>j===i?{...l,description:e.target.value}:l))} />
                       <input type="text" className="bo-input" style={{ fontSize:12 }}
                         value={line.amount ? "Rp "+Number(line.amount).toLocaleString("id-ID") : ""}
