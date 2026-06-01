@@ -104,7 +104,9 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     if (!item?.id) return
     setRows([]); setMsg(null)
     setYieldQty(item.yield_qty || 1)
-    setYieldUnit(item.yield_unit || item.unit || "portion")
+    // For sub-recipes, prefer stored yield_unit, fallback to ingredient unit
+    const ingUnit = itemType === "sub" ? (item.unit || "portion") : "portion"
+    setYieldUnit(item.yield_unit || ingUnit)
     const table = itemType === "sub" ? "sub_recipe_ingredients" : "recipes"
     const loadRecipe = async () => {
       let data = null
@@ -346,7 +348,10 @@ export default function RecipeEditor() {
         seen.add(s.ingredient_id)
         return true
       })
-      setProducts((pRes.data||[]).map(p=>({...p,id:p.sku,category:p.cat})))
+      // Check which products have recipes
+      const { data: recipeSkus } = await supabase.from("recipes").select("productSku")
+      const hasRecipeSet = new Set((recipeSkus||[]).map(r=>r.productSku).filter(Boolean))
+      setProducts((pRes.data||[]).map(p=>({...p,id:p.sku,category:p.cat,_hasRecipe:hasRecipeSet.has(p.sku)})))
       setSubRecipes(subs)
       setIngredients(allIngs)
       setLoading(false)
