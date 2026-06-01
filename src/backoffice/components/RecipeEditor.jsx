@@ -104,7 +104,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     if (!item?.id) return
     setRows([]); setMsg(null)
     setYieldQty(item.yield_qty || 1)
-    setYieldUnit(item.yield_unit || item.unit || "gr")
+    setYieldUnit(item.yield_unit || item.unit || "portion")
     const table = itemType === "sub" ? "sub_recipe_ingredients" : "recipes"
     const loadRecipe = async () => {
       let data = null
@@ -395,6 +395,7 @@ export default function RecipeEditor() {
         <div style={{ flex:1, overflowY:"auto" }}>
           {listItems.map(item => {
             const hasCogs = (tab==="dish" ? (item.cogs||0) : (item.cost_per_unit||0)) > 0
+            const hasRecipeFlag = tab==="dish" ? (item.cogs !== undefined && item.cogs !== null) : true
             const margin  = tab==="dish" && item.price>0 && item.cogs>0 ? pct(item.price-item.cogs,item.price) : null
             const isSel   = selected?.id===item.id
             return (

@@ -98,6 +98,10 @@ export default function InvIngredients() {
 
   async function deleteIngredient(id) {
     if (!confirm("Delete this ingredient?")) return
+    // Cascade: delete sub_recipe_ingredients, sub_recipes, recipes linked to this ingredient
+    await supabase.from("sub_recipe_ingredients").delete().eq("ingredient_id", id)
+    await supabase.from("sub_recipes").delete().eq("ingredient_id", id)
+    await supabase.from("recipes").delete().eq("ingredient_id", id)
     await supabase.from("ingredients").delete().eq("id", id)
     setIngredients(prev => prev.filter(i => i.id !== id))
     closeModal()

@@ -162,7 +162,7 @@ export default function MarketPrices() {
     return matchSearch && matchCat
   })
 
-  const changedCount = filtered.filter(r => r.changed && parseFloat(r.market_price) > 0).length
+  const changedCount = filtered.filter(r => r.changed).length
   const filledCount  = filtered.filter(r => parseFloat(r.market_price) > 0).length
 
   return (
@@ -289,8 +289,8 @@ export default function MarketPrices() {
                     {/* Actions */}
                     <td style={{ padding:"8px 12px" }}>
                       <div style={{ display:"flex", gap:4 }}>
-                        {row.changed && filled && (
-                          <button onClick={()=>saveRow(row)} disabled={saving} className="bo-btn bo-btn-primary bo-btn-sm">Save</button>
+                        {row.changed && (
+                          <button onClick={()=>{ if(!filled){alert("Enter a market price first");return} saveRow(row)}} disabled={saving} className="bo-btn bo-btn-primary bo-btn-sm">Save</button>
                         )}
                         {saved && !row.changed && (
                           <span style={{ fontSize:11, color:"var(--green)", fontWeight:700 }}>Saved</span>
