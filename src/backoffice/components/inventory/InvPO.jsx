@@ -332,8 +332,21 @@ export default function InvPO() {
     await load(); setViewModal(null)
   }
 
+  async function bulkDelete() {
+    const targets = pos.filter(p => selected.has(p.id) && p.status==="Unpaid")
+    if (!targets.length) return
+    if (!confirm(`Hapus ${targets.length} PO yang dipilih? Tindakan ini tidak dapat dibatalkan.`)) return
+    setBulkLoading(true)
+    for (const po of targets) {
+      await supabase.from("purchase_orders").delete().eq("id", po.id)
+    }
+    setSelected(new Set())
+    await load()
+    setBulkLoading(false)
+  }
+
   async function deletePO(po) {
-    if (!confirm(`Delete ${po.id}? Cannot be undone.`)) return
+    if (!confirm(`Hapus PO ini? Tindakan ini tidak dapat dibatalkan.`)) return
     await supabase.from("purchase_orders").delete().eq("id", po.id)
     await load(); setViewModal(null)
   }
@@ -413,9 +426,10 @@ export default function InvPO() {
           {selectedUnpaid.length > 0 && <>
             <span style={{ fontSize:12, color:"var(--ink4)" }}>{selectedUnpaid.length} selected</span>
             <button onClick={bulkMarkPaid} disabled={bulkLoading} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>
-              {bulkLoading?"Processing...":"✓ Pay Selected"}
+              {bulkLoading?"Memproses...":"Bayar Terpilih"}
             </button>
-            <button onClick={bulkVoid} disabled={bulkLoading} className="bo-btn bo-btn-danger bo-btn-sm">Void Selected</button>
+            <button onClick={bulkVoid} disabled={bulkLoading} className="bo-btn bo-btn-danger bo-btn-sm">Void Terpilih</button>
+            <button onClick={bulkDelete} disabled={bulkLoading} className="bo-btn bo-btn-sm" style={{ background:"#FFEBE6", color:"#DE350B", border:"none", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>Hapus Terpilih</button>
           </>}
           <button onClick={()=>setNewPO(true)} className="bo-btn bo-btn-primary">+ New PO</button>
         </div>
@@ -472,7 +486,8 @@ export default function InvPO() {
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);openBayarFaktur(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Bayar Faktur</button>}
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);openEdit(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Edit</button>}
                           <div style={{ height:1, background:"#F0F4F8", margin:"4px 0" }} />
-                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Void</button>}
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);deletePO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Hapus</button>}
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#97A0AF" }}>Void</button>}
                           {po.status==="Paid" && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Void</button>}
                         </div>
                       )}
