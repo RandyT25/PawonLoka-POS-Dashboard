@@ -48,6 +48,7 @@ function ClosingReport({ period, fmt }) {
 
 
   useEffect(() => { load() }, [period])
+  useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
 
   async function load() {
     setLoading(true)
@@ -59,6 +60,46 @@ function ClosingReport({ period, fmt }) {
       .from("shifts").select("*").gte("opened_at", from).lt("opened_at", to).order("opened_at", { ascending:false })
     setShifts(shiftsData||[])
     setLoading(false)
+  }
+
+  async function loadCoa() {
+    setCoaLoading(true)
+    const { data } = await supabase.from("chart_of_accounts").select("*").order("sort_order")
+    setCoa(data || [])
+    setCoaLoading(false)
+  }
+
+  async function saveCoa() {
+    setCoaSaving(true)
+    const payload = {
+      code: coaForm.code.trim(),
+      name: coaForm.name.trim(),
+      type: coaForm.type,
+      category: coaForm.category.trim(),
+      sort_order: parseInt(coaForm.sort_order) || 0,
+      is_active: true
+    }
+    if (coaEdit) {
+      await supabase.from("chart_of_accounts").update(payload).eq("id", coaEdit.id)
+    } else {
+      await supabase.from("chart_of_accounts").insert(payload)
+    }
+    setCoaSaving(false)
+    setCoaModal(false)
+    setCoaEdit(null)
+    setCoaForm({ code:"", name:"", type:"asset", category:"", sort_order:0 })
+    loadCoa()
+  }
+
+  async function toggleCoaActive(item) {
+    await supabase.from("chart_of_accounts").update({ is_active: !item.is_active }).eq("id", item.id)
+    loadCoa()
+  }
+
+  async function deleteCoa(id) {
+    if (!window.confirm("Hapus akun ini?")) return
+    await supabase.from("chart_of_accounts").delete().eq("id", id)
+    loadCoa()
   }
 
   const totalFloat   = shifts.reduce((s,sh)=>s+(sh.float||0),0)
@@ -157,6 +198,13 @@ export default function Accounting() {
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
   const [expSearch,    setExpSearch]    = useState("")
+  const [coa,          setCoa]          = useState([])
+  const [coaLoading,   setCoaLoading]   = useState(false)
+  const [coaModal,     setCoaModal]     = useState(false)
+  const [coaForm,      setCoaForm]      = useState({ code:"", name:"", type:"asset", category:"", sort_order:0 })
+  const [coaEdit,      setCoaEdit]      = useState(null)
+  const [coaSaving,    setCoaSaving]    = useState(false)
+  const [coaSearch,    setCoaSearch]    = useState("")
 
   useEffect(() => { load() }, [period])
 
@@ -367,7 +415,7 @@ ARUS KAS
     <div>
       {/* Top bar */}
       <div className="acc-tabs" style={{ display:"flex",gap:6,marginBottom:16,alignItems:"center" }}>
-        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"],["closing","🧾 Cashier Closing"]].map(([t,l])=>(
+        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"],["closing","🧾 Cashier Closing"],["akun","Akun"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
       </div>
@@ -810,6 +858,197 @@ ARUS KAS
           </div>
         </div>
       )}
+
+      {/* Akun / Chart of Accounts Tab */}
+      {tab === "akun" && (() => {
+        const COA_TYPES = [
+          { value:"asset",     label:"Aset" },
+          { value:"liability", label:"Kewajiban" },
+          { value:"equity",    label:"Ekuitas" },
+          { value:"income",    label:"Pendapatan" },
+          { value:"cogs",      label:"HPP" },
+          { value:"expense",   label:"Beban" },
+        ]
+        const TYPE_COLOR = {
+          asset:"#0052CC", liability:"#FF5630", equity:"#6554C0",
+          income:"#00875A", cogs:"#FF8B00", expense:"#DE350B"
+        }
+        const filtered = coa.filter(a =>
+          a.code.toLowerCase().includes(coaSearch.toLowerCase()) ||
+          a.name.toLowerCase().includes(coaSearch.toLowerCase()) ||
+          (a.category||"").toLowerCase().includes(coaSearch.toLowerCase())
+        )
+        const grouped = COA_TYPES.map(t => ({
+          ...t,
+          items: filtered.filter(a => a.type === t.value)
+        })).filter(g => g.items.length > 0)
+
+        return (
+          <div>
+            {/* Header */}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:8 }}>
+              <div style={{ fontSize:16, fontWeight:800, color:"var(--ink1)" }}>Chart of Accounts</div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input
+                  value={coaSearch}
+                  onChange={e => setCoaSearch(e.target.value)}
+                  className="bo-input"
+                  placeholder="Cari kode / nama akun..."
+                  style={{ width:220, fontSize:13 }}
+                />
+                <button
+                  onClick={() => { setCoaEdit(null); setCoaForm({ code:"", name:"", type:"asset", category:"", sort_order:0 }); setCoaModal(true) }}
+                  className="bo-btn bo-btn-primary bo-btn-sm"
+                >+ Tambah Akun</button>
+              </div>
+            </div>
+
+            {/* Summary cards */}
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))", gap:8, marginBottom:20 }}>
+              {COA_TYPES.map(t => {
+                const count = coa.filter(a => a.type === t.value).length
+                return (
+                  <div key={t.value} style={{ background:"#fff", borderRadius:10, padding:"10px 14px", border:"1px solid #E8ECF0" }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:TYPE_COLOR[t.value], marginBottom:2 }}>{t.label}</div>
+                    <div style={{ fontSize:20, fontWeight:900, color:"var(--ink1)" }}>{count}</div>
+                    <div style={{ fontSize:10, color:"var(--ink5)" }}>akun</div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {coaLoading ? (
+              <div style={{ textAlign:"center", padding:40, color:"var(--ink5)" }}>Loading...</div>
+            ) : (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {grouped.map(group => (
+                  <div key={group.value} style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", overflow:"hidden" }}>
+                    <div style={{ padding:"10px 16px", background:"#F8FAFC", borderBottom:"1px solid #E8ECF0", display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ width:10, height:10, borderRadius:"50%", background:TYPE_COLOR[group.value] }} />
+                      <span style={{ fontSize:12, fontWeight:800, color:TYPE_COLOR[group.value], textTransform:"uppercase" }}>{group.label}</span>
+                      <span style={{ fontSize:11, color:"var(--ink5)" }}>({group.items.length} akun)</span>
+                    </div>
+                    <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                      <thead>
+                        <tr style={{ background:"#FAFBFC" }}>
+                          {["Kode","Nama Akun","Kategori","Status",""].map(h => (
+                            <th key={h} style={{ padding:"8px 14px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #F0F4F8" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {group.items.map(acct => (
+                          <tr key={acct.id} style={{ borderBottom:"1px solid #F8FAFC" }}>
+                            <td style={{ padding:"9px 14px", fontSize:12, fontWeight:700, color:TYPE_COLOR[group.value], fontFamily:"monospace" }}>{acct.code}</td>
+                            <td style={{ padding:"9px 14px", fontSize:13, fontWeight:600, color:"var(--ink1)" }}>{acct.name}</td>
+                            <td style={{ padding:"9px 14px", fontSize:12, color:"var(--ink4)" }}>{acct.category || "—"}</td>
+                            <td style={{ padding:"9px 14px" }}>
+                              <span
+                                onClick={() => toggleCoaActive(acct)}
+                                style={{ cursor:"pointer", fontSize:11, fontWeight:700, padding:"2px 10px", borderRadius:10,
+                                  background:acct.is_active ? "#E3FCEF" : "#F4F5F7",
+                                  color:acct.is_active ? "#00875A" : "#97A0AF" }}
+                              >{acct.is_active ? "Aktif" : "Nonaktif"}</span>
+                            </td>
+                            <td style={{ padding:"9px 14px", textAlign:"right" }}>
+                              <div style={{ display:"flex", gap:6, justifyContent:"flex-end" }}>
+                                <button
+                                  onClick={() => { setCoaEdit(acct); setCoaForm({ code:acct.code, name:acct.name, type:acct.type, category:acct.category||"", sort_order:acct.sort_order||0 }); setCoaModal(true) }}
+                                  className="bo-btn bo-btn-ghost bo-btn-sm"
+                                  style={{ fontSize:11 }}
+                                >Edit</button>
+                                <button
+                                  onClick={() => deleteCoa(acct.id)}
+                                  className="bo-btn bo-btn-sm"
+                                  style={{ fontSize:11, background:"#FFEBE6", color:"#DE350B", border:"none" }}
+                                >Hapus</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+                {grouped.length === 0 && (
+                  <div style={{ textAlign:"center", padding:40, color:"var(--ink5)" }}>Tidak ada akun ditemukan</div>
+                )}
+              </div>
+            )}
+
+            {/* COA Modal */}
+            {coaModal && (
+              <div className="bo-overlay" onMouseDown={e => e.target === e.currentTarget && setCoaModal(false)}>
+                <div className="bo-modal" style={{ maxWidth:460 }}>
+                  <div className="bo-modal-header">
+                    <div className="bo-modal-title">{coaEdit ? "Edit Akun" : "Tambah Akun"}</div>
+                    <button className="bo-modal-close" onClick={() => setCoaModal(false)}>x</button>
+                  </div>
+                  <div className="bo-modal-body">
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+                      <div>
+                        <label className="bo-label">Kode Akun *</label>
+                        <input
+                          value={coaForm.code}
+                          onChange={e => setCoaForm(f => ({...f, code:e.target.value}))}
+                          className="bo-input"
+                          placeholder="e.g. 1-10005"
+                          style={{ fontFamily:"monospace" }}
+                        />
+                      </div>
+                      <div>
+                        <label className="bo-label">Tipe Akun *</label>
+                        <select value={coaForm.type} onChange={e => setCoaForm(f => ({...f, type:e.target.value}))} className="bo-select">
+                          {COA_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{ marginBottom:12 }}>
+                      <label className="bo-label">Nama Akun *</label>
+                      <input
+                        value={coaForm.name}
+                        onChange={e => setCoaForm(f => ({...f, name:e.target.value}))}
+                        className="bo-input"
+                        placeholder="e.g. Kas Kecil Operasional"
+                        autoFocus
+                      />
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
+                      <div>
+                        <label className="bo-label">Kategori</label>
+                        <input
+                          value={coaForm.category}
+                          onChange={e => setCoaForm(f => ({...f, category:e.target.value}))}
+                          className="bo-input"
+                          placeholder="e.g. Kas & Bank"
+                        />
+                      </div>
+                      <div>
+                        <label className="bo-label">Urutan</label>
+                        <input
+                          type="number"
+                          value={coaForm.sort_order}
+                          onChange={e => setCoaForm(f => ({...f, sort_order:e.target.value}))}
+                          className="bo-input"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bo-modal-footer">
+                    <button onClick={() => setCoaModal(false)} className="bo-btn bo-btn-ghost">Batal</button>
+                    <button
+                      onClick={saveCoa}
+                      disabled={coaSaving || !coaForm.code || !coaForm.name}
+                      className="bo-btn bo-btn-primary"
+                    >{coaSaving ? "Menyimpan..." : coaEdit ? "Simpan Perubahan" : "Tambah Akun"}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Add Expense Modal */}
       {expModal && (
