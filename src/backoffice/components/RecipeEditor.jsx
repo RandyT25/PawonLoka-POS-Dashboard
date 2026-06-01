@@ -114,13 +114,8 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         const res = await supabase.from(table).select("*").eq("sub_recipe_id", item.id)
         data = res.data
       } else {
-        // Try productSku first, fallback to product_id
         const res1 = await supabase.from("recipes").select("*").eq("productSku", item.id)
         data = res1.data
-        if (!data?.length) {
-          const res2 = await supabase.from("recipes").select("*").eq("product_id", item.id)
-          data = res2.data
-        }
       }
       if (data?.length) setRows(data.map(r => {
         const found = all.find(x => x.id === r.ingredient_id)
@@ -400,7 +395,7 @@ export default function RecipeEditor() {
         <div style={{ flex:1, overflowY:"auto" }}>
           {listItems.map(item => {
             const hasCogs = (tab==="dish" ? (item.cogs||0) : (item.cost_per_unit||0)) > 0
-            const hasRecipeFlag = tab==="dish" ? (item.cogs !== undefined && item.cogs !== null) : true
+            const hasRecipeFlag = tab==="dish" ? item._hasRecipe : (item.yield_qty > 0)
             const margin  = tab==="dish" && item.price>0 && item.cogs>0 ? pct(item.price-item.cogs,item.price) : null
             const isSel   = selected?.id===item.id
             return (
