@@ -48,7 +48,6 @@ function ClosingReport({ period, fmt }) {
 
 
   useEffect(() => { load() }, [period])
-  useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
 
   async function load() {
     setLoading(true)
@@ -207,6 +206,7 @@ export default function Accounting() {
   const [coaSearch,    setCoaSearch]    = useState("")
 
   useEffect(() => { load() }, [period])
+  useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
 
   async function load() {
     setLoading(true)
