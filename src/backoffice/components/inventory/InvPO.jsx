@@ -616,20 +616,11 @@ export default function InvPO() {
                   </div>
                 </div>
                 <div>
-                  <table style={{ width:"100%", borderCollapse:"collapse", tableLayout:"fixed" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
                     <thead>
                       <tr style={{ background:"#F8FAFC" }}>
-                        <colgroup>
-                          <col style={{ width:"18%" }} />
-                          <col style={{ width:"18%" }} />
-                          <col style={{ width:"14%" }} />
-                          <col style={{ width:"16%" }} />
-                          <col style={{ width:"16%" }} />
-                          <col style={{ width:"16%" }} />
-                          <col style={{ width:"2%" }} />
-                        </colgroup>
                         {["TANGGAL PEMBELIAN","NO FAKTUR","JATUH TEMPO","TAGIHAN","POTONGAN","PEMBAYARAN",""].map(h=>(
-                          <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
+                          <th key={h} style={{ padding:"8px 10px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -643,7 +634,7 @@ export default function InvPO() {
                           <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
                           <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:12 }}
+                            <input type="number" className="bo-input" style={{ width:120, fontSize:13 }}
                               value={line.discount}
                               onChange={e=>{
                                 const d = parseFloat(e.target.value)||0
@@ -651,7 +642,7 @@ export default function InvPO() {
                               }} />
                           </td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:"100%", fontSize:12 }}
+                            <input type="number" className="bo-input" style={{ width:120, fontSize:13 }}
                               value={line.payment}
                               onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
                           </td>
