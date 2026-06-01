@@ -634,17 +634,25 @@ export default function InvPO() {
                           <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
                           <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:120, fontSize:13 }}
-                              value={line.discount}
-                              onChange={e=>{
-                                const d = parseFloat(e.target.value)||0
-                                setPayLines(prev=>prev.map((l,j)=>j===i?{...l,discount:d,payment:Math.max(0,l.billed-d)}:l))
-                              }} />
+                            <div style={{ position:"relative" }}>
+                              <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"var(--ink4)", pointerEvents:"none" }}>Rp</span>
+                              <input type="number" className="bo-input" style={{ width:140, fontSize:13, paddingLeft:28 }}
+                                value={line.discount||""}
+                                placeholder="0"
+                                onChange={e=>{
+                                  const d = parseFloat(e.target.value)||0
+                                  setPayLines(prev=>prev.map((l,j)=>j===i?{...l,discount:d,payment:Math.max(0,l.billed-d)}:l))
+                                }} />
+                            </div>
                           </td>
                           <td style={{ padding:"10px 12px" }}>
-                            <input type="number" className="bo-input" style={{ width:120, fontSize:13 }}
-                              value={line.payment}
-                              onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
+                            <div style={{ position:"relative" }}>
+                              <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"var(--ink4)", pointerEvents:"none" }}>Rp</span>
+                              <input type="number" className="bo-input" style={{ width:160, fontSize:13, paddingLeft:28 }}
+                                value={line.payment||""}
+                                placeholder="0"
+                                onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
+                            </div>
                           </td>
                           <td style={{ padding:"10px 12px" }}>
                             {payLines.length > 1 && (
@@ -656,9 +664,9 @@ export default function InvPO() {
                       ))}
                       <tr style={{ background:"#F8FAFC", fontWeight:700 }}>
                         <td colSpan={3} style={{ padding:"10px 12px", fontSize:13 }}>Total</td>
-                        <td style={{ padding:"10px 12px", fontSize:13 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
-                        <td style={{ padding:"10px 12px", fontSize:13 }}>-</td>
-                        <td style={{ padding:"10px 12px", fontSize:13, color:"var(--brand)" }}>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, color:"var(--brand)" }}>
                           Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
                         </td>
                         <td></td>
