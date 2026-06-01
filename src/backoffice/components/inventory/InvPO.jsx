@@ -124,6 +124,16 @@ export default function InvPO() {
   const [loading,     setLoading]     = useState(true)
   const [openMenu,    setOpenMenu]    = useState(null)
   const [bayarConfirm,setBayarConfirm]= useState(null)
+  const [coaAccounts, setCoaAccounts] = useState([])
+  const [payForm,     setPayForm]     = useState({
+    payment_account_id: "",
+    payment_account_name: "",
+    transaction_type: "no_ref",
+    transaction_date: new Date().toISOString().slice(0,10),
+    transaction_no: "",
+    notes: ""
+  })
+  const [payLines,    setPayLines]    = useState([])
 
   useEffect(() => { load() }, [])
   useEffect(() => {
@@ -202,6 +212,102 @@ export default function InvPO() {
     setSelected(new Set())
     await load()
     setBulkLoading(false)
+  }
+
+  async function loadCoa() {
+    const { data } = await supabase.from("chart_of_accounts")
+      .select("*")
+      .eq("is_active", true)
+      .in("category", ["Kas & Bank", "Ayat Silang"])
+      .order("sort_order")
+    setCoaAccounts(data || [])
+  }
+
+  async function genTransactionNo() {
+    const today = new Date()
+    const yy = String(today.getFullYear()).slice(2)
+    const mm = String(today.getMonth()+1).padStart(2,"0")
+    const dd = String(today.getDate()).padStart(2,"0")
+    const prefix = `PFA/${yy}${mm}${dd}/`
+    const { data } = await supabase.from("invoice_payments")
+      .select("transaction_no")
+      .like("transaction_no", prefix+"%")
+      .order("transaction_no", { ascending:false })
+      .limit(1)
+    const last = data?.[0]?.transaction_no
+    const seq = last ? parseInt(last.split("/").pop()) + 1 : 1
+    return prefix + String(seq).padStart(4,"0")
+  }
+
+  async function openBayarFaktur(po) {
+    await loadCoa()
+    const txNo = await genTransactionNo()
+    setPayForm({
+      payment_account_id: "",
+      payment_account_name: "",
+      transaction_type: "no_ref",
+      transaction_date: new Date().toISOString().slice(0,10),
+      transaction_no: txNo,
+      notes: ""
+    })
+    setPayLines([{
+      po_id: po.id,
+      invoice_no: po.invoice_no || po.id?.slice(0,12) || "—",
+      due_date: po.due_date || "—",
+      billed: po.total || 0,
+      discount: 0,
+      payment: po.total || 0,
+      po_ref: po
+    }])
+    setBayarConfirm(po)
+  }
+
+  async function submitBayar() {
+    if (!payForm.payment_account_id) { alert("Pilih Jenis Pembayaran terlebih dahulu"); return }
+    const totalPaid = payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0)
+    if (totalPaid <= 0) { alert("Jumlah pembayaran harus lebih dari 0"); return }
+    setSaving(true)
+    try {
+      const { data: freshIngs } = await supabase.from("ingredients").select("*")
+      const ingMap = {}
+      for (const i of freshIngs||[]) ingMap[i.id] = i
+      const allUpdatedIds = []
+      for (const line of payLines) {
+        const paid = parseFloat(line.payment) || 0
+        const billed = parseFloat(line.billed) || 0
+        const newStatus = paid >= billed ? "Paid" : paid > 0 ? "Partial" : "Unpaid"
+        if (paid > 0) {
+          const updatedIds = await processPaidPO(line.po_ref, ingMap)
+          allUpdatedIds.push(...updatedIds)
+          await supabase.from("purchase_orders").update({
+            status: newStatus,
+            paid_at: new Date().toISOString(),
+            paid_amount: paid,
+            discount_amount: parseFloat(line.discount)||0
+          }).eq("id", line.po_id)
+        }
+      }
+      if (allUpdatedIds.length) await cascadeRecalc(allUpdatedIds)
+      await supabase.from("invoice_payments").insert({
+        transaction_no: payForm.transaction_no,
+        outlet: "PawonLoka",
+        payment_account_id: payForm.payment_account_id,
+        payment_account_name: payForm.payment_account_name,
+        transaction_type: payForm.transaction_type,
+        transaction_date: payForm.transaction_date,
+        invoices: payLines.map(l=>({ po_id:l.po_id, invoice_no:l.invoice_no, billed:l.billed, discount:l.discount, payment:l.payment })),
+        total_billed: payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0),
+        total_discount: payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0),
+        total_paid: totalPaid,
+        notes: payForm.notes
+      })
+      await load()
+      setBayarConfirm(null)
+      alert("Pembayaran berhasil disimpan")
+    } catch(e) {
+      alert("Error: " + e.message)
+    }
+    setSaving(false)
   }
 
   async function voidPO(po) {
@@ -363,7 +469,7 @@ export default function InvPO() {
                       {openMenu===po.id && (
                         <div onClick={e=>e.stopPropagation()} style={{ position:"fixed", right:16, background:"#fff", border:"1px solid #E8ECF0", borderRadius:10, boxShadow:"0 4px 20px rgba(0,0,0,0.15)", zIndex:9999, minWidth:180, padding:"6px 0" }}>
                           <button onClick={()=>{setOpenMenu(null);setViewModal(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Detail</button>
-                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);setBayarConfirm(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Bayar Faktur</button>}
+                          {isUnpaid && <button onClick={()=>{setOpenMenu(null);openBayarFaktur(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Bayar Faktur</button>}
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);openEdit(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"var(--ink1)" }}>Edit</button>}
                           <div style={{ height:1, background:"#F0F4F8", margin:"4px 0" }} />
                           {isUnpaid && <button onClick={()=>{setOpenMenu(null);voidPO(po)}} style={{ display:"block", width:"100%", textAlign:"left", padding:"9px 16px", fontSize:13, background:"none", border:"none", cursor:"pointer", color:"#DE350B" }}>Void</button>}
@@ -427,22 +533,153 @@ export default function InvPO() {
         </div>
       )}
 
-      {/* Bayar Faktur confirmation */}
+      {/* Bayar Faktur Modal */}
       {bayarConfirm && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBayarConfirm(null)}>
-          <div className="bo-modal" style={{ maxWidth:420 }}>
+          <div className="bo-modal" style={{ maxWidth:760, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Bayar Faktur</div>
               <button className="bo-modal-close" onClick={()=>setBayarConfirm(null)}>x</button>
             </div>
-            <div className="bo-modal-body">
-              <p style={{ fontSize:14, color:"var(--ink2)", lineHeight:1.6, textAlign:"justify" }}>
-                Anda akan dialihkan ke halaman Pembayaran Faktur. Lanjutkan?
-              </p>
+            <div className="bo-modal-body" style={{ overflowY:"auto", flex:1 }}>
+
+              {/* Section 1: Informasi Pembayaran */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"18px 20px", marginBottom:16 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:"var(--ink1)", marginBottom:16 }}>Informasi Pembayaran Faktur</div>
+                <div style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:"12px 20px", alignItems:"start" }}>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Pilih Outlet</label>
+                  <input className="bo-input" value="PawonLoka" disabled style={{ background:"#F4F5F7" }} />
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Jenis Pembayaran <span style={{ color:"red" }}>*</span></label>
+                  <select className="bo-select"
+                    value={payForm.payment_account_id}
+                    onChange={e=>{
+                      const acct = coaAccounts.find(a=>a.id===e.target.value)
+                      setPayForm(f=>({...f, payment_account_id:e.target.value, payment_account_name:acct?`${acct.code} - ${acct.name}`:""}))
+                    }}
+                    style={{ borderColor: !payForm.payment_account_id ? "var(--brand)" : "" }}
+                  >
+                    <option value="">Pilih</option>
+                    {coaAccounts.map(a=>(
+                      <option key={a.id} value={a.id}>{a.code} - {a.name}</option>
+                    ))}
+                  </select>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Jenis Transaksi</label>
+                  <div style={{ display:"flex", gap:10 }}>
+                    {[["stock_order","Pemesanan Stok"],["no_ref","Tanpa Nomor Referensi"]].map(([v,l])=>(
+                      <label key={v} onClick={()=>setPayForm(f=>({...f,transaction_type:v}))}
+                        style={{ flex:1, display:"flex", alignItems:"center", gap:8, padding:"10px 14px", borderRadius:8,
+                          border:`1.5px solid ${payForm.transaction_type===v?"var(--brand)":"#DFE1E6"}`,
+                          cursor:"pointer", fontSize:13 }}>
+                        <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${payForm.transaction_type===v?"var(--brand)":"#DFE1E6"}`,
+                          display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          {payForm.transaction_type===v && <div style={{ width:8, height:8, borderRadius:"50%", background:"var(--brand)" }} />}
+                        </div>
+                        {l}
+                      </label>
+                    ))}
+                  </div>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Tanggal Transaksi</label>
+                  <input type="date" className="bo-input" value={payForm.transaction_date}
+                    onChange={e=>setPayForm(f=>({...f,transaction_date:e.target.value}))} />
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>No Transaksi</label>
+                  <div>
+                    <input className="bo-input" value={payForm.transaction_no}
+                      onChange={e=>setPayForm(f=>({...f,transaction_no:e.target.value}))}
+                      placeholder="Contoh: PFA/260601/0001" />
+                    <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>Nomor transaksi akan terisi otomatis jika dikosongkan</div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Section 2: Daftar Pembelian */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"18px 20px", marginBottom:16 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:"var(--ink1)" }}>Daftar Pembelian</div>
+                  <button
+                    onClick={()=>{
+                      const remaining = pos.filter(p=>p.status==="Unpaid"&&!payLines.find(l=>l.po_id===p.id))
+                      if(remaining.length===0){alert("Tidak ada faktur lain yang belum dibayar");return}
+                      const first = remaining[0]
+                      setPayLines(prev=>[...prev,{po_id:first.id,invoice_no:first.invoice_no||first.id?.slice(0,12)||"—",due_date:first.due_date||"—",billed:first.total||0,discount:0,payment:first.total||0,po_ref:first}])
+                    }}
+                    className="bo-btn bo-btn-ghost bo-btn-sm">+ Faktur Pembelian</button>
+                </div>
+                <div style={{ overflowX:"auto" }}>
+                  <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                    <thead>
+                      <tr style={{ background:"#F8FAFC" }}>
+                        {["TANGGAL PEMBELIAN","NO FAKTUR","JATUH TEMPO","TAGIHAN","POTONGAN","PEMBAYARAN",""].map(h=>(
+                          <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payLines.map((line,i)=>(
+                        <tr key={i} style={{ borderBottom:"1px solid #F0F4F8" }}>
+                          <td style={{ padding:"10px 12px", fontSize:12 }}>
+                            {line.po_ref?.order_date ? new Date(line.po_ref.order_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}
+                          </td>
+                          <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace" }}>{line.invoice_no}</td>
+                          <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
+                          <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
+                          <td style={{ padding:"10px 12px" }}>
+                            <input type="number" className="bo-input" style={{ width:110, fontSize:12 }}
+                              value={line.discount}
+                              onChange={e=>{
+                                const d = parseFloat(e.target.value)||0
+                                setPayLines(prev=>prev.map((l,j)=>j===i?{...l,discount:d,payment:Math.max(0,l.billed-d)}:l))
+                              }} />
+                          </td>
+                          <td style={{ padding:"10px 12px" }}>
+                            <input type="number" className="bo-input" style={{ width:130, fontSize:12 }}
+                              value={line.payment}
+                              onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
+                          </td>
+                          <td style={{ padding:"10px 12px" }}>
+                            {payLines.length > 1 && (
+                              <button onClick={()=>setPayLines(prev=>prev.filter((_,j)=>j!==i))}
+                                style={{ background:"none", border:"none", cursor:"pointer", color:"#DE350B", fontSize:16 }}>x</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ background:"#F8FAFC", fontWeight:700 }}>
+                        <td colSpan={3} style={{ padding:"10px 12px", fontSize:13 }}>Total</td>
+                        <td style={{ padding:"10px 12px", fontSize:13 }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13 }}>-</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, color:"var(--brand)" }}>
+                          Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
+                        </td>
+                        <td>
+                          <button onClick={()=>setPayLines(prev=>prev.map(l=>({...l,discount:0,payment:l.billed})))}
+                            className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:11, whiteSpace:"nowrap" }}>Bayar Semua</button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 20px" }}>
+                <label className="bo-label">Keterangan</label>
+                <textarea className="bo-input" rows={2} value={payForm.notes}
+                  onChange={e=>setPayForm(f=>({...f,notes:e.target.value}))}
+                  placeholder="Catatan pembayaran..." />
+              </div>
+
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setBayarConfirm(null)} className="bo-btn bo-btn-ghost">Batal</button>
-              <button onClick={()=>{ markPaid(bayarConfirm); setBayarConfirm(null) }} className="bo-btn bo-btn-primary">Ya, Lanjutkan</button>
+              <button onClick={submitBayar} disabled={saving} className="bo-btn bo-btn-primary">
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
             </div>
           </div>
         </div>
