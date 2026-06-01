@@ -155,6 +155,12 @@ export default function Accounting() {
   const [expModal,     setExpModal]     = useState(false)
   const [kasBonModal,  setKasBonModal]  = useState(false)
   const [expForm,      setExpForm]      = useState({ date:new Date().toISOString().slice(0,10), category:"kitchen", description:"", amount:"", payment_method:"Cash", notes:"" })
+  const [expDetailModal, setExpDetailModal] = useState(null)
+  const [expCoa,       setExpCoa]       = useState([])
+  const [expLines,     setExpLines]     = useState([{ coa_id:"", coa_name:"", description:"", amount:"" }])
+  const [expAkunAsal,  setExpAkunAsal]  = useState("")
+  const [expTransNo,   setExpTransNo]   = useState("")
+  const [expTime,      setExpTime]      = useState("08:00")
   const [kbForm,       setKbForm]       = useState({ staff_name:"Nita", amount:"", date:new Date().toISOString().slice(0,10), reason:"", notes:"" })
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
@@ -269,17 +275,63 @@ export default function Accounting() {
     return manualExpenses.filter(e=>e.category===catId).reduce((a,e)=>a+(e.amount||0),0)
   }
 
+  async function loadExpCoa() {
+    const { data } = await supabase.from("chart_of_accounts")
+      .select("*").eq("is_active", true)
+      .order("sort_order")
+    setExpCoa(data || [])
+  }
+
+  async function genBkkNo() {
+    const prefix = "BKK-"
+    const { data } = await supabase.from("expenses")
+      .select("transaction_no")
+      .like("transaction_no", prefix+"%")
+      .order("transaction_no", { ascending:false })
+      .limit(1)
+    const last = data?.[0]?.transaction_no
+    const seq = last ? parseInt(last.replace(prefix,""))+1 : 1
+    return prefix + String(seq).padStart(5,"0")
+  }
+
+  async function openNewExpense() {
+    await loadExpCoa()
+    const txNo = await genBkkNo()
+    setExpTransNo(txNo)
+    setExpAkunAsal("")
+    setExpTime(new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}))
+    setExpLines([{ coa_id:"", coa_name:"", description:"", amount:"" }])
+    setExpForm(f=>({...f, date:new Date().toISOString().slice(0,10), notes:"" }))
+    setExpModal(true)
+  }
+
+  async function openExpDetail(e) {
+    await loadExpCoa()
+    const lines = e.lines || [{ coa_id:"", coa_name:e.category||"", description:e.description||"", amount:e.amount||0 }]
+    setExpTransNo(e.transaction_no || "—")
+    setExpAkunAsal(e.akun_asal || "")
+    setExpTime(e.time || "—")
+    setExpLines(lines)
+    setExpForm(f=>({...f, date:e.date||"", notes:e.notes||"" }))
+    setExpDetailModal(e)
+  }
+
   async function saveExpense() {
-    if (!expForm.amount || !expForm.description) return
+    const validLines = expLines.filter(l => l.amount && parseFloat(l.amount) > 0)
+    if (validLines.length === 0) { alert("Tambahkan minimal satu detail pengeluaran"); return }
     setSaving(true)
     await supabase.from("expenses").insert({
       id:"EXP-"+Date.now(),
-      date:expForm.date,
-      category:expForm.category,
-      description:expForm.description,
-      amount:parseFloat(expForm.amount)||0,
-      payment_method:expForm.payment_method,
-      notes:expForm.notes,
+      transaction_no: expTransNo,
+      date: expForm.date,
+      time: expTime,
+      akun_asal: expAkunAsal,
+      category: expLines[0]?.coa_name || expLines[0]?.coa_id || "manual",
+      description: expLines.map(l=>l.description).filter(Boolean).join(", ") || "Pengeluaran",
+      amount: expLines.reduce((a,l)=>a+(parseFloat(l.amount)||0),0),
+      payment_method: expForm.payment_method,
+      notes: expForm.notes,
+      lines: expLines.filter(l=>l.amount&&parseFloat(l.amount)>0),
     })
     setExpModal(false)
     setExpForm({ date:new Date().toISOString().slice(0,10), category:"kitchen", description:"", amount:"", payment_method:"Cash", notes:"" })
@@ -591,7 +643,7 @@ ARUS KAS
             </div>
             <div style={{ display:"flex",gap:8,marginTop:10 }}>
               <input value={expSearch} onChange={e=>setExpSearch(e.target.value)} placeholder="Search..." className="bo-input" style={{ flex:1 }} />
-              <button onClick={()=>setExpModal(true)} className="bo-btn bo-btn-primary" style={{ flexShrink:0 }}>+ Add</button>
+              <button onClick={openNewExpense} className="bo-btn bo-btn-primary" style={{ flexShrink:0 }}>+ Pengeluaran</button>
             </div>
           </div>
 
@@ -646,7 +698,7 @@ ARUS KAS
                   }) : filteredExp.map(e=>{
                   const cat = EXPENSE_CATEGORIES.find(c=>c.id===e.category)||{ icon:"📦",label:e.category }
                   return (
-                    <tr key={e.id}>
+                    <tr key={e.id} onClick={()=>openExpDetail(e)} style={{ cursor:"pointer" }} onMouseEnter={ev=>ev.currentTarget.style.background="#F8FAFC"} onMouseLeave={ev=>ev.currentTarget.style.background=""}>
                       <td style={{ fontSize:12 }}>{e.date}</td>
                       <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"var(--surface)",color:"var(--ink4)" }}>{cat.icon} {cat.label}</span></td>
                       <td style={{ fontSize:13 }}>{e.description}</td>
@@ -1052,36 +1104,173 @@ ARUS KAS
       })()}
 
       {/* Add Expense Modal */}
+      {/* Add Expense Modal - Full multi-line form */}
       {expModal && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setExpModal(false)}>
-          <div className="bo-modal" style={{ maxWidth:480 }}>
+          <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
             <div className="bo-modal-header">
-              <div className="bo-modal-title">Add Expense</div>
-              <button className="bo-modal-close" onClick={()=>setExpModal(false)}>✕</button>
+              <div className="bo-modal-title">Tambah Pengeluaran Kas & Bank</div>
+              <button className="bo-modal-close" onClick={()=>setExpModal(false)}>x</button>
             </div>
-            <div className="bo-modal-body">
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-                <div><label className="bo-label">Date</label><input type="date" value={expForm.date} onChange={e=>setExpForm(f=>({...f,date:e.target.value}))} className="bo-input" /></div>
-                <div><label className="bo-label">Category</label>
-                  <select value={expForm.category} onChange={e=>setExpForm(f=>({...f,category:e.target.value}))} className="bo-select">
-                    {EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=><option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
+            <div className="bo-modal-body" style={{ overflowY:"auto", flex:1 }}>
+
+              {/* Header info */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
+                <div style={{ fontSize:13, fontWeight:800, marginBottom:14, color:"var(--ink1)" }}>Informasi Pengeluaran Kas & Bank</div>
+                <div style={{ display:"grid", gridTemplateColumns:"130px 1fr", gap:"10px 16px", alignItems:"start" }}>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Outlet</label>
+                  <input className="bo-input" value="PawonLoka" disabled style={{ background:"#F4F5F7" }} />
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>No Transaksi</label>
+                  <div>
+                    <input className="bo-input" value={expTransNo} onChange={e=>setExpTransNo(e.target.value)} placeholder="BKK-00001" />
+                    <div style={{ fontSize:11, color:"var(--ink5)", marginTop:3 }}>Terisi otomatis jika dikosongkan</div>
+                  </div>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Akun Asal</label>
+                  <select className="bo-select" value={expAkunAsal} onChange={e=>setExpAkunAsal(e.target.value)}>
+                    <option value="">Pilih akun sumber dana</option>
+                    {expCoa.filter(a=>a.category==="Kas & Bank").map(a=>(
+                      <option key={a.id} value={a.code}>{a.code} - {a.name}</option>
+                    ))}
                   </select>
+
+                  <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Tanggal Transaksi</label>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                    <input type="date" className="bo-input" value={expForm.date} onChange={e=>setExpForm(f=>({...f,date:e.target.value}))} />
+                    <input type="time" className="bo-input" value={expTime} onChange={e=>setExpTime(e.target.value)} />
+                  </div>
+
                 </div>
               </div>
-              <div className="bo-form-row"><label className="bo-label">Deskripsi *</label><input value={expForm.description} onChange={e=>setExpForm(f=>({...f,description:e.target.value}))} className="bo-input" placeholder="e.g. Gas LPG 3kg × 5" autoFocus /></div>
-              <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14 }}>
-                <div><label className="bo-label">Jumlah (Rp) *</label><input type="number" value={expForm.amount} onChange={e=>setExpForm(f=>({...f,amount:e.target.value}))} className="bo-input" placeholder="0" /></div>
-                <div><label className="bo-label">Metode Bayar</label>
-                  <select value={expForm.payment_method} onChange={e=>setExpForm(f=>({...f,payment_method:e.target.value}))} className="bo-select">
-                    {PAY_METHODS.map(m=><option key={m}>{m}</option>)}
-                  </select>
+
+              {/* Detail lines */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
+                <div style={{ fontSize:13, fontWeight:800, marginBottom:12, color:"var(--ink1)" }}>Detail Pengeluaran</div>
+                <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:8 }}>NAMA AKUN *</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {expLines.map((line,i)=>(
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 1fr 140px 32px", gap:8, alignItems:"center" }}>
+                      <select className="bo-select" style={{ fontSize:12 }}
+                        value={line.coa_id}
+                        onChange={e=>{
+                          const acct = expCoa.find(a=>a.id===e.target.value)
+                          setExpLines(prev=>prev.map((l,j)=>j===i?{...l,coa_id:e.target.value,coa_name:acct?acct.name:""}:l))
+                        }}>
+                        <option value="">Pilih akun</option>
+                        {expCoa.filter(a=>["expense","cogs"].includes(a.type)).map(a=>(
+                          <option key={a.id} value={a.id}>{a.name}</option>
+                        ))}
+                      </select>
+                      <input className="bo-input" style={{ fontSize:12 }}
+                        value={line.description} placeholder="Deskripsi"
+                        onChange={e=>setExpLines(prev=>prev.map((l,j)=>j===i?{...l,description:e.target.value}:l))} />
+                      <input type="text" className="bo-input" style={{ fontSize:12 }}
+                        value={line.amount ? "Rp "+Number(line.amount).toLocaleString("id-ID") : ""}
+                        placeholder="Rp 0"
+                        onChange={e=>{
+                          const raw = e.target.value.replace(/[^0-9]/g,"")
+                          setExpLines(prev=>prev.map((l,j)=>j===i?{...l,amount:raw}:l))
+                        }} />
+                      <button onClick={()=>expLines.length>1&&setExpLines(prev=>prev.filter((_,j)=>j!==i))}
+                        style={{ background:"none", border:"none", cursor:"pointer", color:"#DE350B", fontSize:18, opacity:expLines.length===1?0.3:1 }}>x</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={()=>setExpLines(prev=>[...prev,{coa_id:"",coa_name:"",description:"",amount:""}])}
+                  className="bo-btn bo-btn-ghost bo-btn-sm" style={{ marginTop:10 }}>+ Tambah Baris</button>
+
+                {/* Total */}
+                <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", marginTop:14, paddingTop:10, borderTop:"1px solid #E8ECF0" }}>
+                  <span style={{ fontSize:13, fontWeight:700, marginRight:16 }}>Total</span>
+                  <span style={{ fontSize:16, fontWeight:900, color:"var(--brand)" }}>
+                    Rp {expLines.reduce((a,l)=>a+(parseFloat(l.amount)||0),0).toLocaleString("id-ID")}
+                  </span>
                 </div>
               </div>
-              <div className="bo-form-row"><label className="bo-label">Notes</label><input value={expForm.notes} onChange={e=>setExpForm(f=>({...f,notes:e.target.value}))} className="bo-input" /></div>
+
+              {/* Keterangan */}
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px" }}>
+                <label className="bo-label">Keterangan</label>
+                <textarea className="bo-input" rows={2} value={expForm.notes}
+                  onChange={e=>setExpForm(f=>({...f,notes:e.target.value}))}
+                  placeholder="Catatan tambahan..." />
+              </div>
+
             </div>
             <div className="bo-modal-footer">
-              <button onClick={()=>setExpModal(false)} className="bo-btn bo-btn-ghost">Cancel</button>
-              <button onClick={saveExpense} disabled={saving||!expForm.description||!expForm.amount} className="bo-btn bo-btn-primary">{saving?"Saving...":"Save Expense"}</button>
+              <button onClick={()=>setExpModal(false)} className="bo-btn bo-btn-ghost">Batal</button>
+              <button onClick={saveExpense} disabled={saving} className="bo-btn bo-btn-primary">
+                {saving ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Expense Detail Modal - View only */}
+      {expDetailModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setExpDetailModal(null)}>
+          <div className="bo-modal" style={{ maxWidth:700, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+            <div className="bo-modal-header">
+              <div>
+                <div className="bo-modal-title">Detail Pengeluaran</div>
+                <div style={{ fontSize:11, color:"var(--ink5)" }}>{expDetailModal.transaction_no || "—"}</div>
+              </div>
+              <button className="bo-modal-close" onClick={()=>setExpDetailModal(null)}>x</button>
+            </div>
+            <div className="bo-modal-body" style={{ overflowY:"auto", flex:1 }}>
+
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"130px 1fr", gap:"8px 16px", fontSize:13 }}>
+                  <span style={{ color:"var(--ink4)", fontWeight:600 }}>Outlet</span><span>PawonLoka</span>
+                  <span style={{ color:"var(--ink4)", fontWeight:600 }}>No Transaksi</span><span style={{ fontFamily:"monospace", fontWeight:700 }}>{expDetailModal.transaction_no||"—"}</span>
+                  <span style={{ color:"var(--ink4)", fontWeight:600 }}>Akun Asal</span><span>{expDetailModal.akun_asal||"—"}</span>
+                  <span style={{ color:"var(--ink4)", fontWeight:600 }}>Tanggal</span><span>{expDetailModal.date} {expDetailModal.time||""}</span>
+                </div>
+              </div>
+
+              <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px", marginBottom:14 }}>
+                <div style={{ fontSize:13, fontWeight:800, marginBottom:12 }}>Detail Pengeluaran</div>
+                <table style={{ width:"100%", borderCollapse:"collapse" }}>
+                  <thead>
+                    <tr style={{ background:"#F8FAFC" }}>
+                      {["NAMA AKUN","DESKRIPSI","JUMLAH"].map(h=>(
+                        <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(expDetailModal.lines||[{coa_name:expDetailModal.category,description:expDetailModal.description,amount:expDetailModal.amount}]).map((l,i)=>(
+                      <tr key={i} style={{ borderBottom:"1px solid #F0F4F8" }}>
+                        <td style={{ padding:"9px 12px", fontSize:13 }}>{l.coa_name||l.coa_id||"—"}</td>
+                        <td style={{ padding:"9px 12px", fontSize:12, color:"var(--ink4)" }}>{l.description||"—"}</td>
+                        <td style={{ padding:"9px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(l.amount||0).toLocaleString("id-ID")}</td>
+                      </tr>
+                    ))}
+                    <tr style={{ background:"#F8FAFC" }}>
+                      <td colSpan={2} style={{ padding:"10px 12px", fontSize:13, fontWeight:800 }}>Total</td>
+                      <td style={{ padding:"10px 12px", fontSize:14, fontWeight:900, color:"var(--brand)" }}>
+                        Rp {Number(expDetailModal.amount||0).toLocaleString("id-ID")}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {expDetailModal.notes && (
+                <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"16px 18px" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:"var(--ink4)", marginBottom:4 }}>Keterangan</div>
+                  <div style={{ fontSize:13 }}>{expDetailModal.notes}</div>
+                </div>
+              )}
+
+            </div>
+            <div className="bo-modal-footer" style={{ justifyContent:"space-between" }}>
+              <button onClick={()=>deleteExpense(expDetailModal.id).then(()=>setExpDetailModal(null))}
+                className="bo-btn bo-btn-sm" style={{ background:"#FFEBE6", color:"#DE350B", border:"none" }}>Hapus</button>
+              <button onClick={()=>setExpDetailModal(null)} className="bo-btn bo-btn-ghost">Tutup</button>
             </div>
           </div>
         </div>
