@@ -62,38 +62,6 @@ function ClosingReport({ period, fmt }) {
   }
 
 
-  async function saveCoa() {
-    setCoaSaving(true)
-    const payload = {
-      code: coaForm.code.trim(),
-      name: coaForm.name.trim(),
-      type: coaForm.type,
-      category: coaForm.category.trim(),
-      sort_order: parseInt(coaForm.sort_order) || 0,
-      is_active: true
-    }
-    if (coaEdit) {
-      await supabase.from("chart_of_accounts").update(payload).eq("id", coaEdit.id)
-    } else {
-      await supabase.from("chart_of_accounts").insert(payload)
-    }
-    setCoaSaving(false)
-    setCoaModal(false)
-    setCoaEdit(null)
-    setCoaForm({ code:"", name:"", type:"asset", category:"", sort_order:0 })
-    loadCoa()
-  }
-
-  async function toggleCoaActive(item) {
-    await supabase.from("chart_of_accounts").update({ is_active: !item.is_active }).eq("id", item.id)
-    loadCoa()
-  }
-
-  async function deleteCoa(id) {
-    if (!window.confirm("Hapus akun ini?")) return
-    await supabase.from("chart_of_accounts").delete().eq("id", id)
-    loadCoa()
-  }
 
   const totalFloat   = shifts.reduce((s,sh)=>s+(sh.float||0),0)
   const totalCash    = shifts.reduce((s,sh)=>s+(sh.cash_sales||sh.total_cash||0),0)
@@ -203,6 +171,38 @@ export default function Accounting() {
   useEffect(() => { load() }, [period])
   useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
 
+  async function saveCoa() {
+    setCoaSaving(true)
+    const payload = {
+      code: coaForm.code.trim(),
+      name: coaForm.name.trim(),
+      type: coaForm.type,
+      category: coaForm.category.trim(),
+      sort_order: parseInt(coaForm.sort_order) || 0,
+      is_active: true
+    }
+    if (coaEdit) {
+      await supabase.from("chart_of_accounts").update(payload).eq("id", coaEdit.id)
+    } else {
+      await supabase.from("chart_of_accounts").insert(payload)
+    }
+    setCoaSaving(false)
+    setCoaModal(false)
+    setCoaEdit(null)
+    setCoaForm({ code:"", name:"", type:"asset", category:"", sort_order:0 })
+    loadCoa()
+  }
+
+  async function toggleCoaActive(item) {
+    await supabase.from("chart_of_accounts").update({ is_active: !item.is_active }).eq("id", item.id)
+    loadCoa()
+  }
+
+  async function deleteCoa(id) {
+    if (!window.confirm("Hapus akun ini?")) return
+    await supabase.from("chart_of_accounts").delete().eq("id", id)
+    loadCoa()
+  }
   async function loadCoa() {
     setCoaLoading(true)
     const { data } = await supabase.from("chart_of_accounts").select("*").order("sort_order")
