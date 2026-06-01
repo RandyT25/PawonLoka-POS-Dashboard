@@ -362,7 +362,7 @@ export default function RecipeEditor() {
     if (patch && selected) {
       setSelected(s => s ? {...s,...patch} : s)
       // Update the list item in-place for instant left panel refresh
-      if (patch.cost_per_unit !== undefined) {
+      if (patch.cost_per_unit !== undefined || patch.yield_unit !== undefined) {
         setSubRecipes(prev => prev.map(s => s.id===selected.id ? {...s,...patch} : s))
       }
       if (patch.cogs !== undefined) {
