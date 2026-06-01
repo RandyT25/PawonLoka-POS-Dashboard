@@ -161,6 +161,7 @@ export default function Accounting() {
   const [expAkunAsal,  setExpAkunAsal]  = useState("")
   const [expTransNo,   setExpTransNo]   = useState("")
   const [expTime,      setExpTime]      = useState("08:00")
+  const [expCoaSearch, setExpCoaSearch] = useState("")
   const [kbForm,       setKbForm]       = useState({ staff_name:"Nita", amount:"", date:new Date().toISOString().slice(0,10), reason:"", notes:"" })
   const [saving,       setSaving]       = useState(false)
   const [catFilter,    setCatFilter]    = useState("all")
@@ -1152,8 +1153,8 @@ ARUS KAS
                 {/* Quick-add multiple accounts search */}
                 {(() => {
                   const expenseAccts = expCoa.filter(a=>["expense","cogs"].includes(a.type))
-                  const filtered = coaSearch.length > 0
-                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(coaSearch.toLowerCase())||a.code.toLowerCase().includes(coaSearch.toLowerCase()))
+                  const filtered = expCoaSearch.length > 0
+                    ? expenseAccts.filter(a=>a.name.toLowerCase().includes(expCoaSearch.toLowerCase())||a.code.toLowerCase().includes(expCoaSearch.toLowerCase()))
                     : []
                   const addAcct = (acct) => {
                     const already = expLines.find(l=>l.coa_id===acct.id)
@@ -1164,13 +1165,13 @@ ARUS KAS
                     } else {
                       setExpLines(prev=>[...prev,{coa_id:acct.id,coa_name:acct.name,description:"",amount:""}])
                     }
-                    setCoaSearchExp("")
+                    setCoaSearch("")
                   }
                   return (
                     <div style={{ marginBottom:12, position:"relative" }}>
                       <input className="bo-input" style={{ fontSize:13 }}
-                        value={coaSearch}
-                        onChange={e=>setCoaSearchExp(e.target.value)}
+                        value={expCoaSearch}
+                        onChange={e=>setCoaSearch(e.target.value)}
                         placeholder="Cari dan tambah akun pengeluaran..." />
                       {filtered.length > 0 && (
                         <div style={{ position:"absolute", top:"100%", left:0, right:0, background:"#fff", border:"1px solid #E8ECF0", borderRadius:8, boxShadow:"0 4px 16px rgba(0,0,0,0.1)", zIndex:50, maxHeight:200, overflowY:"auto" }}>
