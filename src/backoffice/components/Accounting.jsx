@@ -198,6 +198,7 @@ export default function Accounting() {
   const [coaEdit,      setCoaEdit]      = useState(null)
   const [coaSaving,    setCoaSaving]    = useState(false)
   const [coaSearch,    setCoaSearch]    = useState("")
+  const [showCoaLegend,setShowCoaLegend]= useState(false)
 
   useEffect(() => { load() }, [period])
   useEffect(() => { if (tab === "akun") loadCoa() }, [tab])
