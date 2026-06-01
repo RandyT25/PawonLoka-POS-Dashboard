@@ -536,7 +536,7 @@ export default function InvPO() {
       {/* Bayar Faktur Modal */}
       {bayarConfirm && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBayarConfirm(null)}>
-          <div className="bo-modal" style={{ maxWidth:760, maxHeight:"94vh", display:"flex", flexDirection:"column" }}>
+          <div className="bo-modal" style={{ maxWidth:680, maxHeight:"94vh", display:"flex", flexDirection:"column", width:"95vw" }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Bayar Faktur</div>
               <button className="bo-modal-close" onClick={()=>setBayarConfirm(null)}>x</button>
@@ -546,7 +546,7 @@ export default function InvPO() {
               {/* Section 1: Informasi Pembayaran */}
               <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", padding:"18px 20px", marginBottom:16 }}>
                 <div style={{ fontSize:14, fontWeight:800, color:"var(--ink1)", marginBottom:16 }}>Informasi Pembayaran Faktur</div>
-                <div style={{ display:"grid", gridTemplateColumns:"160px 1fr", gap:"12px 20px", alignItems:"start" }}>
+                <div style={{ display:"grid", gridTemplateColumns:"130px 1fr", gap:"10px 14px", alignItems:"start" }}>
 
                   <label style={{ fontSize:13, fontWeight:600, paddingTop:8 }}>Pilih Outlet</label>
                   <input className="bo-input" value="PawonLoka" disabled style={{ background:"#F4F5F7" }} />
@@ -636,7 +636,7 @@ export default function InvPO() {
                           <td style={{ padding:"10px 12px" }}>
                             <div style={{ position:"relative" }}>
                               <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"var(--ink4)", pointerEvents:"none" }}>Rp</span>
-                              <input type="number" className="bo-input" style={{ width:140, fontSize:13, paddingLeft:28 }}
+                              <input type="number" className="bo-input" style={{ width:"100%", fontSize:13, paddingLeft:28 }}
                                 value={line.discount||""}
                                 placeholder="0"
                                 onChange={e=>{
@@ -648,7 +648,7 @@ export default function InvPO() {
                           <td style={{ padding:"10px 12px" }}>
                             <div style={{ position:"relative" }}>
                               <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", fontSize:12, color:"var(--ink4)", pointerEvents:"none" }}>Rp</span>
-                              <input type="number" className="bo-input" style={{ width:160, fontSize:13, paddingLeft:28 }}
+                              <input type="number" className="bo-input" style={{ width:"100%", fontSize:13, paddingLeft:28 }}
                                 value={line.payment||""}
                                 placeholder="0"
                                 onChange={e=>setPayLines(prev=>prev.map((l,j)=>j===i?{...l,payment:parseFloat(e.target.value)||0}:l))} />
