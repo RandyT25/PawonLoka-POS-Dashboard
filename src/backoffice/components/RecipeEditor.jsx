@@ -414,7 +414,7 @@ export default function RecipeEditor() {
                       <div style={{ fontSize:11, marginTop:2 }}>
                         {hasCogs
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#d1fae5", color:"#065f46", fontWeight:700 }}>✓ Has recipe</span>
-                          : item._hasRecipe
+                          : hasRecipeFlag
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#fef3c7", color:"#92400e", fontWeight:700 }}>Has recipe · No price</span>
                           : <span style={{ color:"var(--ink4,#9ca3af)" }}>No recipe</span>}
                         {hasCogs && tab==="sub" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· Rp {(item.cost_per_unit||0).toFixed(2)}/{item.yield_unit||item.unit}</span>}
