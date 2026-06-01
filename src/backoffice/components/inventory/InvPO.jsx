@@ -536,7 +536,7 @@ export default function InvPO() {
       {/* Bayar Faktur Modal */}
       {bayarConfirm && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setBayarConfirm(null)}>
-          <div className="bo-modal" style={{ maxWidth:680, maxHeight:"94vh", display:"flex", flexDirection:"column", width:"95vw" }}>
+          <div className="bo-modal" style={{ maxWidth:900, maxHeight:"94vh", display:"flex", flexDirection:"column", width:"92vw" }}>
             <div className="bo-modal-header">
               <div className="bo-modal-title">Bayar Faktur</div>
               <button className="bo-modal-close" onClick={()=>setBayarConfirm(null)}>x</button>
