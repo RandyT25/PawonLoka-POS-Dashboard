@@ -118,7 +118,7 @@ export default function InvPO() {
   const [newPO,       setNewPO]       = useState(false)
   const [selected,    setSelected]    = useState(new Set())
   const [poForm,      setPOForm]      = useState({ supplier_id:"", invoice_no:"", order_date:new Date().toISOString().slice(0,10), due_date:"", notes:"" })
-  const [poItems,     setPOItems]     = useState([{ ingredient_id:"", qty:"", unit:"gr", unit_cost:"" }])
+  const [poItems,     setPOItems]     = useState([{ ingredient_id:"", qty:"", unit:"gr", total_cost:"", unit_cost:"" }])
   const [saving,      setSaving]      = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
   const [loading,     setLoading]     = useState(true)
@@ -351,7 +351,7 @@ export default function InvPO() {
     await load(); setViewModal(null)
   }
 
-  function addPOItem()     { setPOItems(items => [...items, { ingredient_id:"", qty:"", unit:"gr", unit_cost:"" }]) }
+  function addPOItem()     { setPOItems(items => [...items, { ingredient_id:"", qty:"", unit:"gr", total_cost:"", unit_cost:"" }]) }
   function removePOItem(i) { setPOItems(items => items.filter((_,idx)=>idx!==i)) }
   function updatePOItem(i,k,v) {
     setPOItems(items => items.map((x,idx) => {
@@ -359,8 +359,11 @@ export default function InvPO() {
       const updated = {...x,[k]:v}
       if (k==="ingredient_id") {
         const ing = ingredients.find(ing=>ing.id===v)
-        if (ing) { updated.unit=ing.unit; updated.unit_cost=String(ing.cost_per_unit||0) }
+        if (ing) { updated.unit=ing.unit }
       }
+      const qty   = parseFloat(updated.qty)        || 0
+      const total = parseFloat(updated.total_cost) || 0
+      updated.unit_cost = qty > 0 && total > 0 ? String(total / qty) : ""
       return updated
     }))
   }
@@ -369,7 +372,7 @@ export default function InvPO() {
     if (!ing) return UNITS
     return [ing.unit, ...(ing.conversions||[]).map(c=>c.unit).filter(u=>u!==ing.unit)]
   }
-  const grandTotal = poItems.reduce((a,item) => a+(parseFloat(item.qty)||0)*(parseFloat(item.unit_cost)||0), 0)
+  const grandTotal = poItems.reduce((a,item) => a+(parseFloat(item.total_cost)||0), 0)
 
   async function submitPO(isEdit=false) {
     const sup = suppliers.find(s=>s.id===poForm.supplier_id)
@@ -379,7 +382,10 @@ export default function InvPO() {
     setSaving(true)
     const poItems_json = validItems.map(item => {
       const ing = ingredients.find(i=>i.id===item.ingredient_id)
-      return { ingredient_id:item.ingredient_id, name:ing?.name||"", qty:parseFloat(item.qty), unit:item.unit, unit_cost:parseFloat(item.unit_cost)||0, total_cost:(parseFloat(item.qty)||0)*(parseFloat(item.unit_cost)||0) }
+      const qty        = parseFloat(item.qty)        || 0
+      const total_cost = parseFloat(item.total_cost) || 0
+      const unit_cost  = qty > 0 ? total_cost / qty : 0
+      return { ingredient_id:item.ingredient_id, name:ing?.name||"", qty, unit:item.unit, unit_cost, total_cost }
     })
     const payload = {
       supplierId:sup.id, supplierName:sup.name,
@@ -395,13 +401,18 @@ export default function InvPO() {
     await load()
     setNewPO(false); setEditModal(null)
     setPOForm({ supplier_id:"", invoice_no:"", order_date:new Date().toISOString().slice(0,10), due_date:"", notes:"" })
-    setPOItems([{ ingredient_id:"", qty:"", unit:"gr", unit_cost:"" }])
+    setPOItems([{ ingredient_id:"", qty:"", unit:"gr", total_cost:"", unit_cost:"" }])
     setSaving(false)
   }
 
   function openEdit(po) {
     setPOForm({ supplier_id:po.supplier_id||"", invoice_no:po.invoice_no||"", order_date:po.order_date||"", due_date:po.due_date||"", notes:po.notes||"" })
-    setPOItems((po.po_items||[]).map(i=>({ ingredient_id:i.ingredient_id, qty:String(i.qty), unit:i.unit, unit_cost:String(i.unit_cost) })))
+    setPOItems((po.po_items||[]).map(i=>{
+      const qty       = parseFloat(i.qty)       || 0
+      const unit_cost = parseFloat(i.unit_cost) || 0
+      const total_cost = i.total_cost != null ? parseFloat(i.total_cost) : qty * unit_cost
+      return { ingredient_id:i.ingredient_id, qty:String(i.qty), unit:i.unit, total_cost:String(total_cost), unit_cost:String(unit_cost) }
+    }))
     setEditModal(po)
   }
 
@@ -708,8 +719,8 @@ export default function InvPO() {
         </div>
       )}
 
-      {newPO && <POFormModal title="Create Purchase Order" onSubmit={()=>submitPO(false)} onClose={()=>{setNewPO(false);setPOItems([{ingredient_id:"",qty:"",unit:"gr",unit_cost:""}])}} suppliers={suppliers} ingredients={ingredients} poForm={poForm} setPOForm={setPOForm} poItems={poItems} addPOItem={addPOItem} removePOItem={removePOItem} updatePOItem={updatePOItem} getUnits={getUnits} grandTotal={grandTotal} saving={saving} />}
-      {editModal && <POFormModal title="Save Changes" onSubmit={()=>submitPO(true)} onClose={()=>{setEditModal(null);setPOItems([{ingredient_id:"",qty:"",unit:"gr",unit_cost:""}])}} suppliers={suppliers} ingredients={ingredients} poForm={poForm} setPOForm={setPOForm} poItems={poItems} addPOItem={addPOItem} removePOItem={removePOItem} updatePOItem={updatePOItem} getUnits={getUnits} grandTotal={grandTotal} saving={saving} />}
+      {newPO && <POFormModal title="Create Purchase Order" onSubmit={()=>submitPO(false)} onClose={()=>{setNewPO(false);setPOItems([{ingredient_id:"",qty:"",unit:"gr",total_cost:"",unit_cost:""}])}} suppliers={suppliers} ingredients={ingredients} poForm={poForm} setPOForm={setPOForm} poItems={poItems} addPOItem={addPOItem} removePOItem={removePOItem} updatePOItem={updatePOItem} getUnits={getUnits} grandTotal={grandTotal} saving={saving} />}
+      {editModal && <POFormModal title="Save Changes" onSubmit={()=>submitPO(true)} onClose={()=>{setEditModal(null);setPOItems([{ingredient_id:"",qty:"",unit:"gr",total_cost:"",unit_cost:""}])}} suppliers={suppliers} ingredients={ingredients} poForm={poForm} setPOForm={setPOForm} poItems={poItems} addPOItem={addPOItem} removePOItem={removePOItem} updatePOItem={updatePOItem} getUnits={getUnits} grandTotal={grandTotal} saving={saving} />}
     </div>
   )
 }
@@ -745,11 +756,11 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
               <label className="bo-label" style={{ marginBottom:0 }}>Items *</label>
               <button onClick={addPOItem} className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
             </div>
-            <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:6 }} className="po-items-header">
-              {["INGREDIENT","QTY","UNIT","UNIT COST",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
+            <div style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 130px 36px", gap:6, marginBottom:6 }} className="po-items-header">
+              {["INGREDIENT","QTY","UNIT","TOTAL HARGA","HARGA/UNIT",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)" }}>{h}</div>)}
             </div>
             {poItems.map((item,i) => (
-              <div key={i} className="po-item-row" style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 36px", gap:6, marginBottom:8 }}>
+              <div key={i} className="po-item-row" style={{ display:"grid", gridTemplateColumns:"2fr 80px 100px 130px 130px 36px", gap:6, marginBottom:8 }}>
                 <SearchSelect
                   options={ingredients}
                   value={item.ingredient_id}
@@ -762,7 +773,10 @@ function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm,
                 <select value={item.unit} onChange={e=>updatePOItem(i,"unit",e.target.value)} className="bo-select">
                   {getUnits(item.ingredient_id).map(u=><option key={u}>{u}</option>)}
                 </select>
-                <input type="number" value={item.unit_cost} onChange={e=>updatePOItem(i,"unit_cost",e.target.value)} className="bo-input" placeholder="Price/unit" />
+                <input type="number" value={item.total_cost} onChange={e=>updatePOItem(i,"total_cost",e.target.value)} className="bo-input" placeholder="Total harga" />
+                <div style={{ display:"flex", alignItems:"center", padding:"0 10px", background:"#F4F5F7", borderRadius:"var(--r)", fontSize:12, color:"var(--ink3)", fontStyle:"italic", minWidth:0 }}>
+                  {item.unit_cost ? fmt2(parseFloat(item.unit_cost)) + "/" + (item.unit||"unit") : "—"}
+                </div>
                 <button onClick={()=>removePOItem(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
               </div>
             ))}
