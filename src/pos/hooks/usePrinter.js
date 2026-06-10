@@ -159,15 +159,20 @@ export function usePrinter() {
   }
 
   async function savePrinterToDb(printer) {
-    const { error } = await supabase.from("hardware_devices").upsert({
-      id:    printer.id,
+    const payload = {
       name:  printer.name,
       type:  printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
       mac:   printer.deviceId || "",
       role:  printer.role,
       paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
-    }, { onConflict: "id" });
-    if (error) console.error("[usePrinter] savePrinterToDb error:", error.code, error.message, error.details, error.hint);
+    };
+    const { data: existing } = await supabase
+      .from("hardware_devices").select("id").eq("id", printer.id).maybeSingle();
+    if (existing) {
+      await supabase.from("hardware_devices").update(payload).eq("id", printer.id);
+    } else {
+      await supabase.from("hardware_devices").insert({ id: printer.id, ...payload });
+    }
   }
 
   const refresh = useCallback((next) => {
