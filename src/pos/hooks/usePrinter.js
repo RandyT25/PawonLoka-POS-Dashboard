@@ -163,7 +163,6 @@ export function usePrinter() {
       name:  printer.name,
       type:  printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
       mac:   printer.deviceId || "",
-      role:  printer.role,
       paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
     };
     const { data: existing } = await supabase
