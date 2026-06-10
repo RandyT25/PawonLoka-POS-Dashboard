@@ -167,7 +167,6 @@ export function usePrinter() {
       mac:        printer.deviceId || "",
       role:       printer.role,
       paper:      printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
-      deviceId:   printer.deviceId || "",
     }, { onConflict: "id" });
   }
 
