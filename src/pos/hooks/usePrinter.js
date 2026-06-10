@@ -160,13 +160,12 @@ export function usePrinter() {
 
   async function savePrinterToDb(printer) {
     await supabase.from("hardware_devices").upsert({
-      id:         printer.id,
-      name:       printer.name,
-      type:       printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
-      connection: "Bluetooth",
-      mac:        printer.deviceId || "",
-      role:       printer.role,
-      paper:      printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
+      id:    printer.id,
+      name:  printer.name,
+      type:  printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
+      mac:   printer.deviceId || "",
+      role:  printer.role,
+      paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
     }, { onConflict: "id" });
   }
 
@@ -196,7 +195,7 @@ export function usePrinter() {
       });
       const existing = printers.find(p => p.deviceId === device.id);
       const np = {
-        id:        existing?.id || ("DEV-" + Date.now()),
+        id:        existing?.id || crypto.randomUUID(),
         name:      device.name || "Unknown Printer",
         deviceId:  device.id,
         role,
