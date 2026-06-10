@@ -167,7 +167,7 @@ export function usePrinter() {
       role:  printer.role,
       paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
     }, { onConflict: "id" });
-    if (error) console.error("[usePrinter] savePrinterToDb error:", JSON.stringify(error));
+    if (error) console.error("[usePrinter] savePrinterToDb error:", error.code, error.message, error.details, error.hint);
   }
 
   const refresh = useCallback((next) => {
