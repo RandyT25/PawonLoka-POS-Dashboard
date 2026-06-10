@@ -159,7 +159,7 @@ export function usePrinter() {
   }
 
   async function savePrinterToDb(printer) {
-    await supabase.from("hardware_devices").upsert({
+    const { error } = await supabase.from("hardware_devices").upsert({
       id:    printer.id,
       name:  printer.name,
       type:  printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
@@ -167,6 +167,7 @@ export function usePrinter() {
       role:  printer.role,
       paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
     }, { onConflict: "id" });
+    if (error) console.error("[usePrinter] savePrinterToDb error:", JSON.stringify(error));
   }
 
   const refresh = useCallback((next) => {
