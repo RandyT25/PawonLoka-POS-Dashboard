@@ -101,14 +101,10 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     lines.push({ raw: logoBytes });
     lines.push({ text: "\n" });
   }
-  // Use DOUBLE only if outlet name fits in half the paper width
   const outletName = outlet?.name || "PawonLoka";
-  const useDouble  = outletName.length <= Math.floor(w / 2);
-  if (useDouble) lines.push({ cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
-  else           lines.push({ cmd: "BOLD_ON" });
+  lines.push({ cmd: "BOLD_ON" });
   lines.push({ text: outletName + "\n" });
-  if (useDouble) lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
-  else           lines.push({ cmd: "BOLD_OFF" });
+  lines.push({ cmd: "BOLD_OFF" });
   if (outlet?.address) lines.push({ text: outlet.address + "\n" });
   if (outlet?.phone)   lines.push({ text: outlet.phone  + "\n" });
   if (outlet?.tagline) lines.push({ text: outlet.tagline + "\n" });
@@ -178,9 +174,9 @@ export function buildKitchenData({ ticket, paperSize }) {
   const HR = "-".repeat(w);
   const lines = [];
   lines.push({ text: EQ + "\n" });
-  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
+  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" });
   lines.push({ text: (ticket.stationName || "KITCHEN") + "\n" });
-  lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
+  lines.push({ cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
   lines.push({ text: "Meja: " + (ticket.table || "-") + "  |  " + (ticket.orderType || "") + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
