@@ -29,6 +29,57 @@ const CMD = {
   DRAWER:    [ESC, 0x70, 0x00, 0x19, 0xFA],
 };
 
+// Fetch a logo URL and return ESC/POS GS v 0 raster bitmap bytes, centered on paper.
+async function logoToEscpos(url, paperSize = "80mm") {
+  const maxW         = paperSize === "58mm" ? 384 : 576;
+  const bytesPerLine = maxW / 8;
+  try {
+    const blob   = await fetch(url).then(r => r.blob());
+    const objUrl = URL.createObjectURL(blob);
+    return await new Promise(resolve => {
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(objUrl);
+        const scale  = Math.min(1, maxW / img.width, 240 / img.height);
+        const w      = Math.round(img.width  * scale);
+        const h      = Math.round(img.height * scale);
+        const wBytes = Math.ceil(w / 8);
+        const canvas = document.createElement("canvas");
+        canvas.width  = wBytes * 8;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#fff";
+        ctx.fillRect(0, 0, canvas.width, h);
+        ctx.drawImage(img, Math.floor((canvas.width - w) / 2), 0, w, h);
+        const px      = ctx.getImageData(0, 0, canvas.width, h).data;
+        const padLeft = Math.max(0, Math.floor((bytesPerLine - wBytes) / 2));
+        const bmp     = new Uint8Array(bytesPerLine * h);
+        for (let y = 0; y < h; y++) {
+          for (let bx = 0; bx < wBytes && (padLeft + bx) < bytesPerLine; bx++) {
+            let byte = 0;
+            for (let bit = 0; bit < 8; bit++) {
+              const x = bx * 8 + bit;
+              const i = (y * canvas.width + x) * 4;
+              if (px[i+3] > 128 && (px[i]*0.299 + px[i+1]*0.587 + px[i+2]*0.114) < 128)
+                byte |= (0x80 >> bit);
+            }
+            bmp[y * bytesPerLine + padLeft + bx] = byte;
+          }
+        }
+        const xL = bytesPerLine & 0xFF, xH = (bytesPerLine >> 8) & 0xFF;
+        const yL = h & 0xFF,           yH = (h >> 8) & 0xFF;
+        const out = new Uint8Array(8 + bmp.length);
+        out[0]=0x1D; out[1]=0x76; out[2]=0x30; out[3]=0x00;
+        out[4]=xL;   out[5]=xH;   out[6]=yL;   out[7]=yH;
+        out.set(bmp, 8);
+        resolve(out);
+      };
+      img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(new Uint8Array(0)); };
+      img.src = objUrl;
+    });
+  } catch { return new Uint8Array(0); }
+}
+
 function line(left, right, width = 42) {
   const r = String(right ?? "");
   const l = String(left ?? "").slice(0, width - r.length);
@@ -36,11 +87,16 @@ function line(left, right, width = 42) {
 }
 function divider(char = "-", width = 42) { return char.repeat(width); }
 
-export function buildReceiptData({ order, outlet, tax, service }) {
+export function buildReceiptData({ order, outlet, tax, service, logoBytes }) {
   const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
   const w = 42;
   const lines = [];
-  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
+  lines.push({ cmd: "ALIGN_C" });
+  if (logoBytes && logoBytes.length > 0) {
+    lines.push({ raw: logoBytes });
+    lines.push({ text: "\n" });
+  }
+  lines.push({ cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
   lines.push({ text: (outlet?.name || "PawonLoka") + "\n" });
   lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
   if (outlet?.address) lines.push({ text: outlet.address + "\n" });
@@ -110,6 +166,7 @@ export function renderToBytes(lines) {
   const chunks = [escpos([CMD.INIT])];
   for (const l of lines) {
     if (l.cmd && CMD[l.cmd])   chunks.push(escpos([CMD[l.cmd]]));
+    else if (l.raw)            chunks.push(l.raw);
     else if (l.text)           chunks.push(escpos([l.text]));
   }
   const total = chunks.reduce((s, c) => s + c.length, 0);
@@ -328,7 +385,10 @@ export function usePrinter() {
       delete charRefs.current[printer.id];
       await connect(printer.id).catch(() => {});
     }
-    await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service })));
+    const logoBytes = outlet?.logo
+      ? await logoToEscpos(outlet.logo, printer.paperSize).catch(() => null)
+      : null;
+    await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service, logoBytes })));
   }, [printers, printBytes, connect]);
 
   const printKitchenTicket = useCallback(async (ticket) => {
