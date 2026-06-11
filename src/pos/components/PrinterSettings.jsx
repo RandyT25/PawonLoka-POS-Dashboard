@@ -119,10 +119,14 @@ export default function PrinterSettings({ hook }) {
             {/* Paper */}
             <div style={s.fieldRow}>
               <label style={s.label}>Paper size</label>
-              <select value={p.paperSize} onChange={e => updatePrinter(p.id, { paperSize: e.target.value })} style={s.select}>
-                <option value="80mm">80mm</option>
-                <option value="58mm">58mm</option>
-              </select>
+              <div style={{ display:"flex", gap:6, flex:1 }}>
+                {["80mm","58mm"].map(sz => (
+                  <button key={sz} onClick={() => updatePrinter(p.id, { paperSize: sz })}
+                    style={{ ...s.sizeBtn, ...(p.paperSize===sz ? s.sizeBtnActive : {}) }}>
+                    {sz}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Actions */}
@@ -161,4 +165,6 @@ const s = {
   ghostBtn:   { padding:"7px 14px", background:"#fff", color:"#091E42", border:"1px solid #DFE1E6", borderRadius:7, fontSize:12, fontWeight:600, cursor:"pointer" },
   saveBtn:    { padding:"6px 12px", background:"#00875A", color:"#fff", border:"none", borderRadius:7, fontSize:12, fontWeight:600, cursor:"pointer" },
   editBtn:    { padding:"4px 10px", background:"#fff", color:"#0066FF", border:"1px solid #DFE1E6", borderRadius:6, fontSize:11, fontWeight:600, cursor:"pointer" },
+  sizeBtn:      { flex:1, padding:"6px 0", background:"#fff", color:"#42526E", border:"1.5px solid #DFE1E6", borderRadius:7, fontSize:13, fontWeight:600, cursor:"pointer", textAlign:"center" },
+  sizeBtnActive:{ background:"#0A1628", color:"#fff", borderColor:"#0A1628" },
 };

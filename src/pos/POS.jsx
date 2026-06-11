@@ -384,64 +384,28 @@ export default function POS() {
     alert('Order dikirim ke ' + Object.keys(stations).join(', ') + '!')
   }
 
-  // Print table checker
+  // Print table checker — items only, no pricing
   async function printCheck() {
-    const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected)
-    if (!receiptPrinter) { alert('No receipt printer connected'); return }
-    const w = receiptPrinter.paperSize === '80mm' ? 42 : 32
-    const fmtLine = (left, right) => {
-      const r = String(right)
-      const l = String(left).slice(0, w - r.length)
-      return l.padEnd(w - r.length, ' ') + r
-    }
-    const subtotal = cart.reduce((s,i) => s + i.price * i.qty, 0)
-    const taxAmt   = TAX_RATE_LIVE ? Math.round(subtotal * TAX_RATE_LIVE) : 0
-    const total    = subtotal + taxAmt
-    const lines = [
-      { cmd:'ALIGN_C' }, { cmd:'BOLD_ON' }, { cmd:'DOUBLE_ON' },
-      { text: '*** TABLE CHECK ***\n' },
-      { cmd:'DOUBLE_OFF' }, { cmd:'BOLD_OFF' },
-      { text: 'Meja: ' + (tableNo || orderType) + '  |  ' + orderType + '\n' },
-      { text: new Date().toLocaleTimeString('id-ID') + '\n' },
-      { text: '='.repeat(w) + '\n' },
-      { cmd:'ALIGN_L' },
-      ...cart.map(i => {
-        const itemTotal = 'Rp ' + (i.price * i.qty).toLocaleString('id-ID')
-        const rows = [
-          { cmd:'BOLD_ON' },
-          { text: fmtLine(i.qty + 'x ' + i.name, itemTotal) + '\n' },
-          { cmd:'BOLD_OFF' },
-        ]
-        if (i.modifiers && Object.values(i.modifiers).length)
-          rows.push({ text: '  [' + Object.values(i.modifiers).join(', ') + ']\n' })
-        if (i.note)
-          rows.push({ text: '  * ' + i.note + '\n' })
-        return rows
-      }).flat(),
-      { text: '-'.repeat(w) + '\n' },
-      { text: fmtLine('Subtotal', 'Rp ' + subtotal.toLocaleString('id-ID')) + '\n' },
-      ...(taxAmt ? [{ text: fmtLine('Pajak', 'Rp ' + taxAmt.toLocaleString('id-ID')) + '\n' }] : []),
-      { cmd:'BOLD_ON' },
-      { text: fmtLine('TOTAL', 'Rp ' + total.toLocaleString('id-ID')) + '\n' },
-      { cmd:'BOLD_OFF' },
-      { text: '='.repeat(w) + '\n' },
-      { text: '\n\n\n' }, { cmd:'CUT' }
-    ]
+    const receiptPrinter = printer.printers?.find(p=>p.role==='receipt')
+    if (!receiptPrinter) { alert('No receipt printer configured'); return }
+    const items = cart.map(i => {
+      let line = i.qty + 'x ' + i.name
+      if (i.modifiers && Object.values(i.modifiers).length)
+        line += '  [' + Object.values(i.modifiers).join(', ') + ']'
+      if (i.note)
+        line += '\n  * ' + i.note
+      return line
+    })
     try {
-      await printer.printBytes(receiptPrinter.id, printer.renderLines(lines))
-    } catch(e) {
-      // fallback to printKitchenTicket
-      try {
-        await printer.printKitchenTicket({
-          stationRole: 'receipt',
-          table: tableNo || orderType,
-          stationName: 'TABLE CHECK',
-          orderType: orderType,
-          paperSize: receiptPrinter.paperSize,
-          items: cart.map(i => i.qty + 'x ' + i.name + ' - Rp ' + (i.price*i.qty).toLocaleString('id-ID') + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
-        })
-      } catch(e2) { alert('Print failed: ' + e2.message) }
-    }
+      await printer.printKitchenTicket({
+        stationRole: 'receipt',
+        table: tableNo || orderType,
+        stationName: 'CHECKER',
+        orderType,
+        paperSize: receiptPrinter.paperSize,
+        items,
+      })
+    } catch(e) { alert('Print failed: ' + e.message) }
   }
 
   // Manager PIN required to remove sent item from open bill
@@ -537,10 +501,14 @@ export default function POS() {
       const fakeOrder = {
         id: openBillId, total: finalTotal, pay: payMethod,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : 0,
+        created_at: now.toISOString(),
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
-        staff: staff.name, customer: customer?.name || null, items: cart,
+        cashier: staff.name, staff: staff.name,
+        table: tableNo || null,
+        customer: customer?.name || null, items: cart,
         subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), discount: discAmt + promoDisc,
+        payments: [{ method: payMethod, amount: finalTotal }],
       }
       clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
       setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
@@ -717,8 +685,6 @@ export default function POS() {
           onClose={() => setShowCharge(false)}
           onReprint={async (paidOrder) => {
             try {
-              const receiptPrinter = printer.printers?.find(p=>p.role==="receipt"&&p.connected)
-              if (!receiptPrinter) { alert("No receipt printer connected"); return }
               const rs = appSettings?.receipt || {}
               const reprOutlet = {
                 name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
@@ -733,8 +699,7 @@ export default function POS() {
               await printer.printReceipt(paidOrder, { outlet: reprOutlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
             } catch(e) { alert("Print failed: " + e.message) }
           }}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); const receiptPrinter = printer.printers?.find(p=>p.role==='receipt'&&p.connected); if (receiptPrinter) {
-                    try {
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); try {
                       dbg('Starting print...')
                       const rs = appSettings?.receipt || {}
                       const outlet = {
@@ -747,11 +712,9 @@ export default function POS() {
                         promo: rs.footer_promo || '',
                         logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
                       }
-                      dbg('Printer: '+(printer.printers?.find(p=>p.role==='receipt'&&p.connected)?.name||'NOT FOUND'))
                       await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
                       dbg('Print OK!')
-                    } catch(e) { console.error('Print failed:', e); dbg('ERROR: '+e.message) }
-                  } else { dbg('No receipt printer connected') } } if (paidOrder && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+                    } catch(e) { console.error('Print failed:', e); dbg('ERROR: '+e.message) } } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}

@@ -128,7 +128,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                 style={{ ...S.doneBtn, background:'#6366F1', color:'white' }}>
                 Lanjut Split — Sisa {fmt(grossTotal - (paidOrder.splitPaid||0))}
               </button>
-            : <button onClick={onSuccess || onClose} style={S.doneBtn}>Selesai</button>
+            : <button onClick={() => (onSuccess || onClose)(paidOrder)} style={S.doneBtn}>Selesai</button>
           }
         </div>
       </div>

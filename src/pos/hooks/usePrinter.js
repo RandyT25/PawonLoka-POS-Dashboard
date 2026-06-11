@@ -87,12 +87,17 @@ function line(left, right, width = 42) {
 }
 function divider(char = "-", width = 42) { return char.repeat(width); }
 
-export function buildReceiptData({ order, outlet, tax, service, logoBytes }) {
+export function buildReceiptData({ order, outlet, tax, service, logoBytes, paperSize = "80mm" }) {
   const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
-  const w = 42;
+  const w   = paperSize === "58mm" ? 32 : 42;
+  const EQ  = "=".repeat(w);
+  const HR  = "-".repeat(w);
+  const L   = (left, right) => line(left, right, w);
   const lines = [];
+
+  // ── Header ──────────────────────────────────────────
   lines.push({ cmd: "ALIGN_C" });
-  if (logoBytes && logoBytes.length > 0) {
+  if (logoBytes?.length > 0) {
     lines.push({ raw: logoBytes });
     lines.push({ text: "\n" });
   }
@@ -100,64 +105,84 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes }) {
   lines.push({ text: (outlet?.name || "PawonLoka") + "\n" });
   lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
   if (outlet?.address) lines.push({ text: outlet.address + "\n" });
-  if (outlet?.phone)   lines.push({ text: outlet.phone + "\n" });
-  lines.push({ text: divider() + "\n" });
+  if (outlet?.phone)   lines.push({ text: outlet.phone  + "\n" });
+  if (outlet?.tagline) lines.push({ text: outlet.tagline + "\n" });
+  lines.push({ text: EQ + "\n" });
+
+  // ── Order info ──────────────────────────────────────
   lines.push({ cmd: "ALIGN_L" });
-  lines.push({ text: "Order : " + (order.code || order.id) + "\n" });
-  lines.push({ text: "Meja  : " + (order.table || "Walk-in") + "\n" });
+  lines.push({ text: "Order : " + (order.code || order.id || "-") + "\n" });
+  lines.push({ text: "Meja  : " + (order.table  || "Walk-in") + "\n" });
   lines.push({ text: "Kasir : " + (order.cashier || "-") + "\n" });
-  lines.push({ text: "Waktu : " + new Date(order.created_at).toLocaleString("id-ID") + "\n" });
-  lines.push({ text: divider() + "\n" });
+  lines.push({ text: "Waktu : " + (order.created_at ? new Date(order.created_at).toLocaleString("id-ID") : "-") + "\n" });
+  lines.push({ text: HR + "\n" });
+
+  // ── Items ───────────────────────────────────────────
   for (const item of (order.items || [])) {
     lines.push({ cmd: "BOLD_ON" });
     lines.push({ text: item.name + "\n" });
     lines.push({ cmd: "BOLD_OFF" });
-    lines.push({ text: line("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price), w) + "\n" });
+    if (item.modifiers && Object.values(item.modifiers).length)
+      lines.push({ text: "  [" + Object.values(item.modifiers).join(", ") + "]\n" });
+    lines.push({ text: L("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price)) + "\n" });
     if (item.note)     lines.push({ text: "  * " + item.note + "\n" });
-    if (item.discount) lines.push({ text: line("  Diskon", "-" + fmt(item.discount), w) + "\n" });
+    if (item.discount) lines.push({ text: L("  Diskon", "-" + fmt(item.discount)) + "\n" });
   }
-  lines.push({ text: divider() + "\n" });
+
+  // ── Totals ──────────────────────────────────────────
+  lines.push({ text: HR + "\n" });
   const subtotal = (order.items || []).reduce((s, i) => s + (i.qty * i.price) - (i.discount || 0), 0);
   const taxAmt   = tax?.enabled     ? Math.round(subtotal * (tax.rate / 100))     : 0;
   const svcAmt   = service?.enabled ? Math.round(subtotal * (service.rate / 100)) : 0;
   const total    = subtotal + taxAmt + svcAmt - (order.discount || 0);
-  lines.push({ text: line("Subtotal", fmt(subtotal), w) + "\n" });
-  if (taxAmt) lines.push({ text: line((tax.label || "PPN") + " " + tax.rate + "%", fmt(taxAmt), w) + "\n" });
-  if (svcAmt) lines.push({ text: line("Service " + service.rate + "%", fmt(svcAmt), w) + "\n" });
-  if (order.discount) lines.push({ text: line("Diskon", "-" + fmt(order.discount), w) + "\n" });
+  lines.push({ text: L("Subtotal", fmt(subtotal)) + "\n" });
+  if (taxAmt) lines.push({ text: L((tax.label || "PPN") + " " + tax.rate + "%", fmt(taxAmt)) + "\n" });
+  if (svcAmt) lines.push({ text: L("Service " + service.rate + "%", fmt(svcAmt)) + "\n" });
+  if (order.discount) lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
+  lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "BOLD_ON" });
-  lines.push({ text: line("TOTAL", fmt(total), w) + "\n" });
+  lines.push({ text: L("TOTAL", fmt(total)) + "\n" });
   lines.push({ cmd: "BOLD_OFF" });
-  lines.push({ text: divider() + "\n" });
+  lines.push({ text: EQ + "\n" });
+
+  // ── Payment ─────────────────────────────────────────
   for (const pay of (order.payments || [])) {
-    lines.push({ text: line(pay.method, fmt(pay.amount), w) + "\n" });
+    lines.push({ text: L(pay.method, fmt(pay.amount)) + "\n" });
   }
-  if (order.change > 0) lines.push({ text: line("Kembali", fmt(order.change), w) + "\n" });
-  lines.push({ text: divider() + "\n" });
+  if (order.change > 0) lines.push({ text: L("Kembali", fmt(order.change)) + "\n" });
+  if ((order.payments || []).length > 0 || order.change > 0)
+    lines.push({ text: HR + "\n" });
+
+  // ── Footer ──────────────────────────────────────────
   lines.push({ cmd: "ALIGN_C" });
   lines.push({ text: (outlet?.thankYou || "Terima kasih!") + "\n" });
-  if (outlet?.wifi) lines.push({ text: "WiFi: " + outlet.wifi + "\n" });
+  if (outlet?.wifi)  lines.push({ text: "WiFi: " + outlet.wifi + "\n" });
+  if (outlet?.promo) lines.push({ text: outlet.promo + "\n" });
   lines.push({ text: "\n\n\n" });
   lines.push({ cmd: "CUT" });
   return lines;
 }
 
 export function buildKitchenData({ ticket, paperSize }) {
-  const w = paperSize === "80mm" ? 42 : 32;
+  const w  = paperSize === "80mm" ? 42 : 32;
+  const EQ = "=".repeat(w);
+  const HR = "-".repeat(w);
   const lines = [];
+  lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
-  lines.push({ text: "*** " + (ticket.stationName || "KITCHEN") + " ***\n" });
+  lines.push({ text: (ticket.stationName || "KITCHEN") + "\n" });
   lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
+  lines.push({ text: EQ + "\n" });
   lines.push({ text: "Meja: " + (ticket.table || "-") + "  |  " + (ticket.orderType || "") + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
-  lines.push({ text: "=".repeat(w) + "\n" });
+  lines.push({ text: HR + "\n" });
   lines.push({ cmd: "ALIGN_L" });
   for (const item of ticket.items) {
     lines.push({ cmd: "BOLD_ON" });
     lines.push({ text: item + "\n" });
     lines.push({ cmd: "BOLD_OFF" });
   }
-  lines.push({ text: "=".repeat(w) + "\n" });
+  lines.push({ text: EQ + "\n" });
   lines.push({ text: "\n\n\n" }, { cmd: "CUT" });
   return lines;
 }
@@ -376,26 +401,19 @@ export function usePrinter() {
   }, [connect]);
 
   const printReceipt = useCallback(async (order, { outlet, tax, service } = {}) => {
-    const printer = printers.find(p => p.role === "receipt" && p.connected);
-    if (!printer) throw new Error("No receipt printer connected");
-    // Verify GATT still connected, reconnect if needed
-    const device = deviceRefs.current[printer.id];
-    if (device && !device.gatt?.connected) {
-      console.warn("GATT dropped, reconnecting...");
-      delete charRefs.current[printer.id];
-      await connect(printer.id).catch(() => {});
-    }
+    const printer = printers.find(p => p.role === "receipt");
+    if (!printer) throw new Error("No receipt printer configured");
     const logoBytes = outlet?.logo
       ? await logoToEscpos(outlet.logo, printer.paperSize).catch(() => null)
       : null;
-    await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service, logoBytes })));
-  }, [printers, printBytes, connect]);
+    await printBytes(printer.id, renderToBytes(buildReceiptData({ order, outlet, tax, service, logoBytes, paperSize: printer.paperSize })));
+  }, [printers, printBytes]);
 
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";
-    const printer = printers.find(p => p.role === role && p.connected)
-                 || printers.find(p => (p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar") && p.connected);
-    if (!printer) throw new Error("No kitchen printer connected for " + role);
+    const printer = printers.find(p => p.role === role)
+                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar");
+    if (!printer) throw new Error("No kitchen printer configured for " + role);
     await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket, paperSize: printer.paperSize })));
   }, [printers, printBytes]);
 
