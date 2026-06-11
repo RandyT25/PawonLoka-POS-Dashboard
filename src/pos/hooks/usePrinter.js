@@ -101,20 +101,29 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     lines.push({ raw: logoBytes });
     lines.push({ text: "\n" });
   }
-  lines.push({ cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
-  lines.push({ text: (outlet?.name || "PawonLoka") + "\n" });
-  lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
+  // Use DOUBLE only if outlet name fits in half the paper width
+  const outletName = outlet?.name || "PawonLoka";
+  const useDouble  = outletName.length <= Math.floor(w / 2);
+  if (useDouble) lines.push({ cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
+  else           lines.push({ cmd: "BOLD_ON" });
+  lines.push({ text: outletName + "\n" });
+  if (useDouble) lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
+  else           lines.push({ cmd: "BOLD_OFF" });
   if (outlet?.address) lines.push({ text: outlet.address + "\n" });
   if (outlet?.phone)   lines.push({ text: outlet.phone  + "\n" });
   if (outlet?.tagline) lines.push({ text: outlet.tagline + "\n" });
   lines.push({ text: EQ + "\n" });
 
   // ── Order info ──────────────────────────────────────
+  const orderId  = (order.code || order.id || "-").slice(-Math.max(w - 9, 12));
+  const waktu    = order.created_at
+    ? new Date(order.created_at).toLocaleString("id-ID", { dateStyle:"short", timeStyle:"short" })
+    : "-";
   lines.push({ cmd: "ALIGN_L" });
-  lines.push({ text: "Order : " + (order.code || order.id || "-") + "\n" });
+  lines.push({ text: "Order : " + orderId + "\n" });
   lines.push({ text: "Meja  : " + (order.table  || "Walk-in") + "\n" });
   lines.push({ text: "Kasir : " + (order.cashier || "-") + "\n" });
-  lines.push({ text: "Waktu : " + (order.created_at ? new Date(order.created_at).toLocaleString("id-ID") : "-") + "\n" });
+  lines.push({ text: "Waktu : " + waktu + "\n" });
   lines.push({ text: HR + "\n" });
 
   // ── Items ───────────────────────────────────────────
