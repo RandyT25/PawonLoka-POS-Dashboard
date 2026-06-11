@@ -92,7 +92,7 @@ export function buildKitchenData({ ticket, paperSize }) {
   lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" });
   lines.push({ text: "*** " + (ticket.stationName || "KITCHEN") + " ***\n" });
   lines.push({ cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" });
-  lines.push({ text: "Meja: " + ticket.table + "  |  " + ticket.orderType + "\n" });
+  lines.push({ text: "Meja: " + (ticket.table || "-") + "  |  " + (ticket.orderType || "") + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
   lines.push({ text: "=".repeat(w) + "\n" });
   lines.push({ cmd: "ALIGN_L" });
@@ -164,6 +164,7 @@ export function usePrinter() {
       type:  printer.role === "receipt" ? "receipt_printer" : "kitchen_printer",
       mac:   printer.deviceId || "",
       paper: printer.paperSize === "58mm" ? "58mm" : "80mm (standard)",
+      role:  printer.role,
     };
     const { data: existing } = await supabase
       .from("hardware_devices").select("id").eq("id", printer.id).maybeSingle();

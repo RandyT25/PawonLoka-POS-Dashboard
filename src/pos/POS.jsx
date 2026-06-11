@@ -370,8 +370,9 @@ export default function POS() {
       try {
         await printer.printKitchenTicket({
           stationRole,
-          table: tableNo || orderType,
-          station,
+          stationName: station,
+          table: tableNo || '-',
+          orderType,
           items: items.map(i => i.qty + 'x ' + i.name + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
           orderId: openBillId || 'NEW',
