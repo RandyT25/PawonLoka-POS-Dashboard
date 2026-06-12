@@ -38,17 +38,24 @@ const BLE_SERVICES = [
 ];
 
 // Connect GATT and return the first writable characteristic found.
+// Races against a 10-second timeout to avoid blocking the print chain indefinitely.
 async function gattGetChar(device) {
-  const server = await device.gatt.connect();
-  for (const uuid of BLE_SERVICES) {
-    try {
-      const svc   = await server.getPrimaryService(uuid);
-      const chars = await svc.getCharacteristics();
-      const char  = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
-      if (char) return char;
-    } catch { continue; }
-  }
-  throw new Error("No writable characteristic found on this device.");
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("BLE connection timeout (10s) — printer out of range?")), 10000)
+  );
+  const connect = async () => {
+    const server = await device.gatt.connect();
+    for (const uuid of BLE_SERVICES) {
+      try {
+        const svc   = await server.getPrimaryService(uuid);
+        const chars = await svc.getCharacteristics();
+        const char  = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+        if (char) return char;
+      } catch { continue; }
+    }
+    throw new Error("No writable characteristic found on this device.");
+  };
+  return Promise.race([connect(), timeout]);
 }
 
 // Fetch a logo URL and return ESC/POS GS v 0 raster bitmap bytes, centered on paper.
@@ -261,7 +268,7 @@ export function usePrinter() {
   const [loading,   setLoading]   = useState(true);
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
-  const printChain           = useRef(Promise.resolve()); // serializes all BLE writes
+  const printerChains        = useRef({});                 // per-printer queue — all printers print concurrently
   const listenersAdded       = useRef(new Set());          // prevent duplicate gattserverdisconnected listeners
   const reconnectTimers      = useRef({});                 // per-printer reconnect timeout handles
   const intentionalDisconnects = useRef(new Set());        // skip auto-reconnect after post-print disconnect
@@ -294,9 +301,9 @@ export function usePrinter() {
         type:      d.type,
       }));
       setPrinters(all);
-      // Note: no background auto-connect on startup.
-      // Connecting all 4 printers at once exhausts Android's GATT slot limit (typically 3-4).
-      // Instead, we connect on demand per print job and disconnect immediately after.
+      // Pre-populate deviceRefs so batch prints never hit requestDevice() (requires user gesture).
+      // getDevices() is gesture-free and safe to call on page load.
+      warmDeviceRefs(all);
     } finally { setLoading(false); }
   }
 
@@ -353,6 +360,27 @@ export function usePrinter() {
           setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
         })
         .catch(() => {}); // silent — device may be out of range, auto-reconnects when back
+    }
+  }
+
+  // Populate deviceRefs from previously-permitted BLE devices (no user gesture needed).
+  // Must run before any batch print so connect() skips requestDevice() entirely.
+  async function warmDeviceRefs(loadedPrinters) {
+    if (!navigator.bluetooth?.getDevices) return;
+    try {
+      const permitted = await navigator.bluetooth.getDevices();
+      for (const printer of loadedPrinters) {
+        if (!printer.deviceId || deviceRefs.current[printer.id]) continue;
+        const device = permitted.find(d => d.id === printer.deviceId);
+        if (device) {
+          deviceRefs.current[printer.id] = device;
+          console.log("[BLE] warm deviceRef:", printer.name || printer.id);
+        } else {
+          console.warn("[BLE] not in getDevices():", printer.name || printer.id, printer.deviceId);
+        }
+      }
+    } catch (e) {
+      console.warn("[BLE] warmDeviceRefs failed:", e.message);
     }
   }
 
@@ -439,13 +467,9 @@ export function usePrinter() {
         } catch { device = null; }
       }
       if (!device) {
-        // Fall back to manual picker
-        try {
-          device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: BLE_SERVICES,
-          });
-        } catch { throw new Error("Could not find printer. Please select it from the list."); }
+        // Do NOT call requestDevice() here — it shows a blocking dialog that freezes the print chain.
+        // requestDevice() is only for scanAndPair (explicit user action in settings).
+        throw new Error("Printer '" + (printer.name || printerId) + "' belum di-pair di perangkat ini. Buka Pengaturan > Hardware > Add Printer.");
       }
       deviceRefs.current[printerId] = device;
     }
@@ -483,7 +507,8 @@ export function usePrinter() {
   }, []);
 
   const printBytes = useCallback((printerId, bytes) => {
-    const job = printChain.current.then(async () => {
+    if (!printerChains.current[printerId]) printerChains.current[printerId] = Promise.resolve();
+    const job = printerChains.current[printerId].then(async () => {
       // Always fresh-connect: ensures only ONE GATT connection is active at a time.
       // Android limits simultaneous GATT connections to 3-4; with 4 printers a cached
       // multi-connection model causes the 3rd/4th printer to silently fail.
@@ -510,10 +535,12 @@ export function usePrinter() {
         const device = deviceRefs.current[printerId];
         if (device?.gatt?.connected) device.gatt.disconnect();
         delete charRefs.current[printerId];
+        // Give the BLE radio stack 200ms to fully release before the next printer connects
+        await new Promise(r => setTimeout(r, 200));
       }
     });
-    // keep the chain alive even if this job errors
-    printChain.current = job.catch(() => {});
+    // keep this printer's chain alive even if this job errors
+    printerChains.current[printerId] = job.catch(() => {});
     return job;
   }, [connect]);
 

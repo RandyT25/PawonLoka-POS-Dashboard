@@ -10,15 +10,16 @@ const ROLES = [
 
 export default function PrinterSettings({ hook }) {
   const { printers, scanning, scanAndPair, connect, disconnect, removePrinter, updatePrinter, testPrint } = hook;
-  const [error, setError]   = useState("");
-  const [busyId, setBusyId] = useState(null);
+  const [error, setError]     = useState("");
+  const [busyId, setBusyId]   = useState(null);
   const [editName, setEditName] = useState({});
+  const [newRole, setNewRole]  = useState("kitchen1");
   const btSupported = !!navigator.bluetooth;
   const isAndroid = /Android/i.test(navigator.userAgent);
 
   async function handleScan() {
     setError("");
-    try { await scanAndPair("receipt"); }
+    try { await scanAndPair(newRole); }
     catch (e) { setError(e.message); }
   }
 
@@ -61,9 +62,16 @@ export default function PrinterSettings({ hook }) {
         </div>
       )}
 
-      <button onClick={handleScan} disabled={!btSupported || scanning} style={s.scanBtn}>
-        {scanning ? "Scanning..." : "Add Printer via Bluetooth"}
-      </button>
+      <div style={{ display:"flex", gap:8 }}>
+        <select value={newRole} onChange={e => setNewRole(e.target.value)}
+          style={{ flex:1, padding:"10px 8px", border:"1.5px solid #DFE1E6", borderRadius:8, fontSize:13, color:"#091E42", background:"#fff" }}>
+          {ROLES.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
+        <button onClick={handleScan} disabled={!btSupported || scanning}
+          style={{ ...s.scanBtn, flex:"none", padding:"10px 16px", width:"auto" }}>
+          {scanning ? "Scanning..." : "Add Printer"}
+        </button>
+      </div>
       {isAndroid && (
         <div style={{ fontSize:11, color:"#6B778C", padding:"6px 10px", background:"#F4F5F7", borderRadius:8, lineHeight:1.5 }}>
           On Android: tap Add to pair a new printer, or tap Connect to reconnect — you will need to select the printer from the list each session.

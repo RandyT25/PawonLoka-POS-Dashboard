@@ -386,7 +386,10 @@ export default function POS() {
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
           orderId: openBillId || 'NEW',
         })
-      } catch(e) { console.warn('Kitchen print failed for', station, e.message) }
+      } catch(e) {
+        console.error('[print] failed for station', station, e);
+        alert('Gagal cetak ke ' + station + ':\n' + e.message + '\n\nPastikan printer sudah di-pair di Pengaturan > Hardware.')
+      }
     }
     // Mark all cart items as sent
     setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) })))
