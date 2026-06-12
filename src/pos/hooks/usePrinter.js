@@ -305,6 +305,7 @@ export function usePrinter() {
       const device = await navigator.bluetooth.requestDevice({
         filters: [
           { services: ["000018f0-0000-1000-8000-00805f9b34fb"] },
+          { namePrefix: "VSC" }, { namePrefix: "H-58" },
           { namePrefix: "Epson" }, { namePrefix: "Star" },
           { namePrefix: "MUNBYN" }, { namePrefix: "Rongta" },
           { namePrefix: "RPP" }, { namePrefix: "MTP" },
@@ -322,7 +323,7 @@ export function usePrinter() {
         name:      device.name || "Unknown Printer",
         deviceId:  device.id,
         role,
-        paperSize: "80mm",
+        paperSize: /58/i.test(device.name || "") ? "58mm" : "80mm",
         connected: false,
         type:      role === "receipt" ? "receipt_printer" : "kitchen_printer",
       };
@@ -416,13 +417,14 @@ export function usePrinter() {
     const job = printChain.current.then(async () => {
       let char = charRefs.current[printerId];
       if (!char) char = await connect(printerId);
-      const CHUNK = 100;
+      const CHUNK = 20; // H-58BT & similar cheap BLE 4.0 printers: 20-byte ATT payload max
+      const DELAY = 20;
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
           const chunk = bytes.slice(i, i + CHUNK);
           if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
           else await c.writeValue(chunk);
-          await new Promise(r => setTimeout(r, 100));
+          await new Promise(r => setTimeout(r, DELAY));
         }
       }
       try {
