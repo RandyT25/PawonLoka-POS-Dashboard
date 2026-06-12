@@ -161,9 +161,12 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   // ── Footer ──────────────────────────────────────────
   lines.push({ cmd: "ALIGN_C" });
   lines.push({ text: (outlet?.thankYou || "Terima kasih!") + "\n" });
-  if (outlet?.wifi)  lines.push({ text: "WiFi: " + outlet.wifi + "\n" });
-  if (outlet?.promo) lines.push({ text: outlet.promo + "\n" });
-  lines.push({ text: "\n\n\n" });
+  if (outlet?.wifi)          lines.push({ text: "WiFi: " + outlet.wifi + "\n" });
+  if (outlet?.promo)         lines.push({ text: outlet.promo + "\n" });
+  if (outlet?.social)        lines.push({ text: outlet.social + "\n" });
+  if (outlet?.custom_line_1) lines.push({ text: outlet.custom_line_1 + "\n" });
+  if (outlet?.custom_line_2) lines.push({ text: outlet.custom_line_2 + "\n" });
+  lines.push({ text: "\n\n" });
   lines.push({ cmd: "CUT" });
   return lines;
 }
@@ -183,12 +186,16 @@ export function buildKitchenData({ ticket, paperSize }) {
   lines.push({ text: HR + "\n" });
   lines.push({ cmd: "ALIGN_L" });
   for (const item of ticket.items) {
+    const parts = (typeof item === "string" ? item : "").split("\n");
     lines.push({ cmd: "BOLD_ON" });
-    lines.push({ text: item + "\n" });
+    lines.push({ text: parts[0] + "\n" });
     lines.push({ cmd: "BOLD_OFF" });
+    for (let i = 1; i < parts.length; i++) {
+      lines.push({ text: parts[i] + "\n" });
+    }
   }
   lines.push({ text: EQ + "\n" });
-  lines.push({ text: "\n\n\n" }, { cmd: "CUT" });
+  lines.push({ text: "\n\n" }, { cmd: "CUT" });
   return lines;
 }
 

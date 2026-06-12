@@ -389,12 +389,12 @@ export default function POS() {
     const receiptPrinter = printer.printers?.find(p=>p.role==='receipt')
     if (!receiptPrinter) { alert('No receipt printer configured'); return }
     const items = cart.map(i => {
-      let line = i.qty + 'x ' + i.name
+      const parts = [i.qty + 'x ' + i.name]
       if (i.modifiers && Object.values(i.modifiers).length)
-        line += '  [' + Object.values(i.modifiers).join(', ') + ']'
+        parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
       if (i.note)
-        line += '\n  * ' + i.note
-      return line
+        parts.push('  * ' + i.note)
+      return parts.join('\n')
     })
     try {
       await printer.printKitchenTicket({
@@ -694,6 +694,9 @@ export default function POS() {
                 thankYou: rs.footer_thank_you || 'Terima kasih!',
                 wifi: rs.footer_wifi || '',
                 promo: rs.footer_promo || '',
+                social: rs.social || '',
+                custom_line_1: rs.custom_line_1 || '',
+                custom_line_2: rs.custom_line_2 || '',
                 logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
               }
               await printer.printReceipt(paidOrder, { outlet: reprOutlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })

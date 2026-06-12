@@ -59,8 +59,9 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [splitChecked, setSplitChecked] = useState({})
 
   const { subtotal, tax, total, fee } = totals
-  const promoDisc = appliedPromo ? appliedPromo.disc : 0
-  const grossTotal = (total || (subtotal + tax + (fee||0))) - promoDisc
+  const discAmt    = totals.discount ? Math.round(subtotal * totals.discount / 100) : 0
+  const promoDisc  = appliedPromo ? appliedPromo.disc : 0
+  const grossTotal = (total || (subtotal + tax + (fee||0))) - discAmt - promoDisc
   const alreadyPaid = totals.splitPaid || 0
   const actualTotal = grossTotal - alreadyPaid
   const maxPoints = customer ? Math.min(customer.points || 0, Math.floor(actualTotal / 100)) : 0
@@ -178,6 +179,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             <div style={S.summaryRow}><span style={S.dimTxt}>Subtotal</span><span>{fmt(subtotal)}</span></div>
             {fee > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Fee</span><span>{fmt(fee)}</span></div>}
             {tax > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Tax</span><span>{fmt(tax)}</span></div>}
+            {discAmt > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Diskon ({totals.discount}%)</span><span style={{ color:'#10B981' }}>-{fmt(discAmt)}</span></div>}
             {usePoints > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Points ({usePoints}pts)</span><span style={{ color:'#10B981' }}>-{fmt(usePoints*100)}</span></div>}
             {activeSplit && (
               <div style={{ ...S.summaryRow, color:'#6366F1', fontWeight:700, fontSize:12 }}>
