@@ -373,7 +373,13 @@ export default function POS() {
           stationName: station,
           table: tableNo || '-',
           orderType,
-          items: items.map(i => i.qty + 'x ' + i.name + (i.note?' ('+i.note+')':'') + (i.modifiers&&Object.values(i.modifiers).length?' ['+Object.values(i.modifiers).join(', ')+']':'')),
+          items: items.map(i => {
+            const parts = [i.qty + 'x ' + i.name]
+            if (i.modifiers && Object.values(i.modifiers).length)
+              parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
+            if (i.note) parts.push('  * ' + i.note)
+            return parts.join('\n')
+          }),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
           orderId: openBillId || 'NEW',
         })
@@ -690,6 +696,7 @@ export default function POS() {
                 name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
                 address: rs.address || appSettings?.outlet?.address || '',
                 phone: rs.phone || appSettings?.outlet?.phone || '',
+                website: rs.website || '',
                 tagline: rs.tagline || '',
                 thankYou: rs.footer_thank_you || 'Terima kasih!',
                 wifi: rs.footer_wifi || '',
@@ -698,6 +705,14 @@ export default function POS() {
                 custom_line_1: rs.custom_line_1 || '',
                 custom_line_2: rs.custom_line_2 || '',
                 logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
+                showOrderId:  rs.show_order_id  !== false,
+                showTable:    rs.show_table     !== false,
+                showCashier:  rs.show_cashier   !== false,
+                showDatetime: rs.show_datetime  !== false,
+                showTax:      rs.show_tax       !== false,
+                showService:  rs.show_service   !== false,
+                showLoyalty:  rs.show_loyalty   !== false,
+                showSku:      rs.show_sku       === true,
               }
               await printer.printReceipt(paidOrder, { outlet: reprOutlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
             } catch(e) { alert("Print failed: " + e.message) }

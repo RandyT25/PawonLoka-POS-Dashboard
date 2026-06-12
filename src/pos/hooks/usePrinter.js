@@ -23,6 +23,8 @@ const CMD = {
   BOLD_OFF:  [ESC, 0x45, 0x00],
   DOUBLE_ON: [GS,  0x21, 0x11],
   DOUBLE_OFF:[GS,  0x21, 0x00],
+  TALL_ON:   [GS,  0x21, 0x10],  // double height only — no width artifacts
+  TALL_OFF:  [GS,  0x21, 0x00],
   LF:        [0x0A],
   CUT:       [GS,  0x56, 0x41, 0x03],
   BEEP:      [ESC, 0x42, 0x03, 0x02],
@@ -95,11 +97,21 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   const L   = (left, right) => line(left, right, w);
   const lines = [];
 
+  // toggles — default ON if not explicitly false
+  const showOrderId  = outlet?.showOrderId  !== false;
+  const showTable    = outlet?.showTable    !== false;
+  const showCashier  = outlet?.showCashier  !== false;
+  const showDatetime = outlet?.showDatetime !== false;
+  const showTax      = outlet?.showTax      !== false;
+  const showService  = outlet?.showService  !== false;
+  const showLoyalty  = outlet?.showLoyalty  !== false;
+  const showSku      = outlet?.showSku      === true;
+
   // ── Header ──────────────────────────────────────────
   lines.push({ cmd: "ALIGN_C" });
   if (logoBytes?.length > 0) {
     lines.push({ raw: logoBytes });
-    lines.push({ text: "\n" });
+    // no extra \n — keep gap tight
   }
   const outletName = outlet?.name || "PawonLoka";
   lines.push({ cmd: "BOLD_ON" });
@@ -107,6 +119,7 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   lines.push({ cmd: "BOLD_OFF" });
   if (outlet?.address) lines.push({ text: outlet.address + "\n" });
   if (outlet?.phone)   lines.push({ text: outlet.phone  + "\n" });
+  if (outlet?.website) lines.push({ text: outlet.website + "\n" });
   if (outlet?.tagline) lines.push({ text: outlet.tagline + "\n" });
   lines.push({ text: EQ + "\n" });
 
@@ -116,10 +129,10 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     ? new Date(order.created_at).toLocaleString("id-ID", { dateStyle:"short", timeStyle:"short" })
     : "-";
   lines.push({ cmd: "ALIGN_L" });
-  lines.push({ text: "Order : " + orderId + "\n" });
-  lines.push({ text: "Meja  : " + (order.table  || "Walk-in") + "\n" });
-  lines.push({ text: "Kasir : " + (order.cashier || "-") + "\n" });
-  lines.push({ text: "Waktu : " + waktu + "\n" });
+  if (showOrderId)  lines.push({ text: "Order : " + orderId + "\n" });
+  if (showTable)    lines.push({ text: "Meja  : " + (order.table  || "Walk-in") + "\n" });
+  if (showCashier)  lines.push({ text: "Kasir : " + (order.cashier || "-") + "\n" });
+  if (showDatetime) lines.push({ text: "Waktu : " + waktu + "\n" });
   lines.push({ text: HR + "\n" });
 
   // ── Items ───────────────────────────────────────────
@@ -127,6 +140,7 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     lines.push({ cmd: "BOLD_ON" });
     lines.push({ text: item.name + "\n" });
     lines.push({ cmd: "BOLD_OFF" });
+    if (showSku && item.sku) lines.push({ text: "  SKU: " + item.sku + "\n" });
     if (item.modifiers && Object.values(item.modifiers).length)
       lines.push({ text: "  [" + Object.values(item.modifiers).join(", ") + "]\n" });
     lines.push({ text: L("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price)) + "\n" });
@@ -141,14 +155,20 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   const svcAmt   = service?.enabled ? Math.round(subtotal * (service.rate / 100)) : 0;
   const total    = subtotal + taxAmt + svcAmt - (order.discount || 0);
   lines.push({ text: L("Subtotal", fmt(subtotal)) + "\n" });
-  if (taxAmt) lines.push({ text: L((tax.label || "PPN") + " " + tax.rate + "%", fmt(taxAmt)) + "\n" });
-  if (svcAmt) lines.push({ text: L("Service " + service.rate + "%", fmt(svcAmt)) + "\n" });
-  if (order.discount) lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
+  if (taxAmt && showTax)     lines.push({ text: L((tax.label || "PPN") + " " + tax.rate + "%", fmt(taxAmt)) + "\n" });
+  if (svcAmt && showService) lines.push({ text: L("Service " + service.rate + "%", fmt(svcAmt)) + "\n" });
+  if (order.discount)        lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
   lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "BOLD_ON" });
   lines.push({ text: L("TOTAL", fmt(total)) + "\n" });
   lines.push({ cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
+
+  // ── Points earned ────────────────────────────────────
+  if (showLoyalty && total > 0) {
+    const pts = Math.floor(total / 100);
+    if (pts > 0) lines.push({ text: L("Points earned", "+" + pts + " pts") + "\n" });
+  }
 
   // ── Payment ─────────────────────────────────────────
   for (const pay of (order.payments || [])) {
@@ -177,9 +197,9 @@ export function buildKitchenData({ ticket, paperSize }) {
   const HR = "-".repeat(w);
   const lines = [];
   lines.push({ text: EQ + "\n" });
-  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" });
+  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "TALL_ON" });
   lines.push({ text: (ticket.stationName || "KITCHEN") + "\n" });
-  lines.push({ cmd: "BOLD_OFF" });
+  lines.push({ cmd: "TALL_OFF" }, { cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
   lines.push({ text: "Meja: " + (ticket.table || "-") + "  |  " + (ticket.orderType || "") + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
