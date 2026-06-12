@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { PAY_METHODS, fmt } from '../../shared/constants'
 
 import { useWhatsApp } from '../hooks/useWhatsApp'
@@ -43,6 +43,15 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [saving, setSaving]     = useState(false)
   const [paidOrder, setPaidOrder] = useState(null)
   const [usePoints, setUsePoints] = useState(0)
+  const autoPrintedRef = useRef(false)
+
+  // Auto-print once as soon as the success screen appears
+  useEffect(() => {
+    if (paidOrder && !autoPrintedRef.current) {
+      autoPrintedRef.current = true
+      onReprint?.(paidOrder)
+    }
+  }, [paidOrder]) // eslint-disable-line react-hooks/exhaustive-deps
   // Split state
   const [splitMode, setSplitMode] = useState('equal')
   const [splitParts, setSplitParts] = useState(2)

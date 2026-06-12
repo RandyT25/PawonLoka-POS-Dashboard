@@ -212,6 +212,7 @@ export function usePrinter() {
   const [loading,   setLoading]   = useState(true);
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
+  const printChain  = useRef(Promise.resolve()); // serializes all BLE writes
 
   // Load printers from Supabase on mount
   useEffect(() => {
@@ -382,27 +383,31 @@ export function usePrinter() {
     });
   }, []);
 
-  const printBytes = useCallback(async (printerId, bytes) => {
-    let char = charRefs.current[printerId];
-    if (!char) char = await connect(printerId);
-    const CHUNK = 512;
-    async function writeBytes(c) {
-      for (let i = 0; i < bytes.length; i += CHUNK) {
-        const chunk = bytes.slice(i, i + CHUNK);
-        if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
-        else await c.writeValue(chunk);
-        await new Promise(r => setTimeout(r, 50));
+  const printBytes = useCallback((printerId, bytes) => {
+    const job = printChain.current.then(async () => {
+      let char = charRefs.current[printerId];
+      if (!char) char = await connect(printerId);
+      const CHUNK = 512;
+      async function writeBytes(c) {
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          const chunk = bytes.slice(i, i + CHUNK);
+          if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
+          else await c.writeValue(chunk);
+          await new Promise(r => setTimeout(r, 100));
+        }
       }
-    }
-    try {
-      await writeBytes(char);
-    } catch(e) {
-      // GATT disconnected — reconnect and retry once
-      console.warn("Print failed, reconnecting...", e.message);
-      delete charRefs.current[printerId];
-      char = await connect(printerId);
-      await writeBytes(char);
-    }
+      try {
+        await writeBytes(char);
+      } catch(e) {
+        console.warn("Print failed, reconnecting...", e.message);
+        delete charRefs.current[printerId];
+        char = await connect(printerId);
+        await writeBytes(char);
+      }
+    });
+    // keep the chain alive even if this job errors
+    printChain.current = job.catch(() => {});
+    return job;
   }, [connect]);
 
   const printReceipt = useCallback(async (order, { outlet, tax, service } = {}) => {

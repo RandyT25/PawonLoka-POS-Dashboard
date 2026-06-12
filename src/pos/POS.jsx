@@ -699,22 +699,7 @@ export default function POS() {
               await printer.printReceipt(paidOrder, { outlet: reprOutlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
             } catch(e) { alert("Print failed: " + e.message) }
           }}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); try {
-                      dbg('Starting print...')
-                      const rs = appSettings?.receipt || {}
-                      const outlet = {
-                        name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
-                        address: rs.address || appSettings?.outlet?.address || '',
-                        phone: rs.phone || appSettings?.outlet?.phone || '',
-                        tagline: rs.tagline || '',
-                        thankYou: rs.footer_thank_you || 'Terima kasih!',
-                        wifi: rs.footer_wifi || '',
-                        promo: rs.footer_promo || '',
-                        logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
-                      }
-                      await printer.printReceipt(paidOrder, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
-                      dbg('Print OK!')
-                    } catch(e) { console.error('Print failed:', e); dbg('ERROR: '+e.message) } } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
