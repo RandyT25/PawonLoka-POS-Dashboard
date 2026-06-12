@@ -453,16 +453,17 @@ export function usePrinter() {
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";
     const printer = printers.find(p => p.role === role)
-                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar");
-    if (!printer) throw new Error("No kitchen printer configured for " + role);
+                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar")
+                 || printers.find(p => p.role === "receipt"); // single-printer fallback
+    if (!printer) throw new Error("No printer configured. Add a printer in Hardware settings.");
     await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket, paperSize: printer.paperSize })));
   }, [printers, printBytes]);
 
   const testPrint = useCallback(async (printerId) => {
     const lines = [
-      { cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "DOUBLE_ON" },
+      { cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "TALL_ON" },
       { text: "PawonLoka POS\n" },
-      { cmd: "DOUBLE_OFF" }, { cmd: "BOLD_OFF" },
+      { cmd: "TALL_OFF" }, { cmd: "BOLD_OFF" },
       { text: "Test Print\n" },
       { text: new Date().toLocaleString("id-ID") + "\n" },
       { text: "-------------------------------\n" },

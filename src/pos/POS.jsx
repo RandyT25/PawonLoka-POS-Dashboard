@@ -753,6 +753,7 @@ export default function POS() {
         <OrdersModal
           onClose={() => setShowOrders(false)}
           onRecall={recallFromOrder}
+          onPrintKitchen={async (ticket) => { await printer.printKitchenTicket(ticket) }}
         />
       )}
 

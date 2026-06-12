@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { fmt, KITCHEN_STATIONS } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
-export default function OrdersModal({ onClose, onRecall }) {
+export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
   const [orders, setOrders]               = useState([])
   const [loading, setLoading]             = useState(true)
   const [tab, setTab]                     = useState('open')
@@ -165,9 +165,12 @@ export default function OrdersModal({ onClose, onRecall }) {
                 <button onClick={async () => {
                   const items = (reprintOrder.items||[]).filter((_,idx) => reprintSelected[idx])
                   if (!items.length) { alert('Pilih item dulu'); return }
+                  const catRouting = (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
+                  const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
+                  const ROLE_MAP = { Kitchen:'kitchen1', Snack:'kitchen2', Bar:'bar', Kasir:'receipt' }
                   const stations = {}
                   items.forEach(i => {
-                    const st = KITCHEN_STATIONS[i.cat] || 'Kitchen'
+                    const st = getStation(i.cat)
                     if (!stations[st]) stations[st] = []
                     stations[st].push(i)
                   })
@@ -180,8 +183,26 @@ export default function OrdersModal({ onClose, onRecall }) {
                       time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
                       status: 'New', station,
                     })
+                    if (onPrintKitchen) {
+                      try {
+                        await onPrintKitchen({
+                          stationRole: ROLE_MAP[station] || 'kitchen1',
+                          stationName: station,
+                          table: reprintOrder.table || '-',
+                          orderType: reprintOrder.table ? 'Dine-in' : 'Takeaway',
+                          items: sitems.map(i => {
+                            const parts = [i.qty + 'x ' + i.name]
+                            if (i.modifiers && Object.values(i.modifiers).length)
+                              parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
+                            if (i.note) parts.push('  * ' + i.note)
+                            return parts.join('\n')
+                          }),
+                          time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
+                          orderId: reprintOrder.id,
+                        })
+                      } catch(e) { console.warn('Reprint print failed:', e.message) }
+                    }
                   }
-                  alert('Reprint ke: ' + Object.keys(stations).join(', '))
                   setReprintOrder(null)
                 }} style={{ width:'100%', padding:13, background:'#0A1628', color:'white', border:'none', borderRadius:10, fontSize:14, fontWeight:800, cursor:'pointer', marginTop:8 }}>
                   Reprint {Object.values(reprintSelected).filter(Boolean).length} Item
