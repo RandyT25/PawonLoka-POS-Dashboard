@@ -323,10 +323,13 @@ export default function POS() {
       return
     }
 
-    // Group new items by station
+    // Group new items by station — read dynamic routing from backoffice first
+    const catRouting = (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
+    const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
+
     const stations = {}
     newItems.forEach(item => {
-      const station = KITCHEN_STATIONS[item.cat] || 'Kitchen'
+      const station = getStation(item.cat)
       if (!stations[station]) stations[station] = []
       stations[station].push(item)
     })
@@ -334,14 +337,14 @@ export default function POS() {
     if (openBillId) {
       // Add to existing open bill
       const { data: existing } = await supabase.from('orders').select('items').eq('id', openBillId).single()
-      const allItems = [...(existing?.items || []), ...newItems.map(i => ({ ...i, _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen' }))]
+      const allItems = [...(existing?.items || []), ...newItems.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) }))]
       await supabase.from('orders').update({ items: allItems, subtotal, tax, discount: discAmt, total }).eq('id', openBillId)
     } else {
       // Create new open bill
       const orderId = 'ORD-' + Date.now()
       const order = {
         id: orderId,
-        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
+        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal, tax, discount: discAmt, total,
         pay: '-', staff: staff.name, table: tableNo || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
@@ -386,7 +389,7 @@ export default function POS() {
       } catch(e) { console.warn('Kitchen print failed for', station, e.message) }
     }
     // Mark all cart items as sent
-    setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: KITCHEN_STATIONS[i.cat]||'Kitchen' })))
+    setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) })))
     alert('Order dikirim ke ' + Object.keys(stations).join(', ') + '!')
   }
 

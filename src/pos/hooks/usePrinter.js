@@ -144,13 +144,14 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     if (item.modifiers && Object.values(item.modifiers).length)
       lines.push({ text: "  [" + Object.values(item.modifiers).join(", ") + "]\n" });
     lines.push({ text: L("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price)) + "\n" });
-    if (item.note)     lines.push({ text: "  * " + item.note + "\n" });
-    if (item.discount) lines.push({ text: L("  Diskon", "-" + fmt(item.discount)) + "\n" });
+    if (item.note) lines.push({ text: "  * " + item.note + "\n" });
+    const itemDiscAmt = item.itemDisc || item.discount || 0;
+    if (itemDiscAmt > 0) lines.push({ text: L("  Diskon", "-" + fmt(itemDiscAmt * item.qty)) + "\n" });
   }
 
   // ── Totals ──────────────────────────────────────────
   lines.push({ text: HR + "\n" });
-  const subtotal = (order.items || []).reduce((s, i) => s + (i.qty * i.price) - (i.discount || 0), 0);
+  const subtotal = (order.items || []).reduce((s, i) => s + (i.qty * i.price) - (i.qty * (i.itemDisc || i.discount || 0)), 0);
   const taxAmt   = tax?.enabled     ? Math.round(subtotal * (tax.rate / 100))     : 0;
   const svcAmt   = service?.enabled ? Math.round(subtotal * (service.rate / 100)) : 0;
   const total    = subtotal + taxAmt + svcAmt - (order.discount || 0);
