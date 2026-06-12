@@ -261,9 +261,10 @@ export function usePrinter() {
   const [loading,   setLoading]   = useState(true);
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
-  const printChain      = useRef(Promise.resolve()); // serializes all BLE writes
-  const listenersAdded  = useRef(new Set());          // prevent duplicate gattserverdisconnected listeners
-  const reconnectTimers = useRef({});                 // per-printer reconnect timeout handles
+  const printChain           = useRef(Promise.resolve()); // serializes all BLE writes
+  const listenersAdded       = useRef(new Set());          // prevent duplicate gattserverdisconnected listeners
+  const reconnectTimers      = useRef({});                 // per-printer reconnect timeout handles
+  const intentionalDisconnects = useRef(new Set());        // skip auto-reconnect after post-print disconnect
 
   // Load printers from Supabase on mount
   useEffect(() => {
@@ -293,7 +294,9 @@ export function usePrinter() {
         type:      d.type,
       }));
       setPrinters(all);
-      autoConnectAll(all); // silently reconnect all known printers on startup
+      // Note: no background auto-connect on startup.
+      // Connecting all 4 printers at once exhausts Android's GATT slot limit (typically 3-4).
+      // Instead, we connect on demand per print job and disconnect immediately after.
     } finally { setLoading(false); }
   }
 
@@ -318,8 +321,14 @@ export function usePrinter() {
       }
     };
     device.addEventListener("gattserverdisconnected", () => {
-      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
       delete charRefs.current[printerId];
+      // If we disconnected on purpose (post-print), don't auto-reconnect
+      if (intentionalDisconnects.current.has(printerId)) {
+        intentionalDisconnects.current.delete(printerId);
+        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
+        return;
+      }
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
       retries = 0;
       clearTimeout(reconnectTimers.current[printerId]);
       reconnectTimers.current[printerId] = setTimeout(tryReconnect, 3000);
@@ -475,9 +484,11 @@ export function usePrinter() {
 
   const printBytes = useCallback((printerId, bytes) => {
     const job = printChain.current.then(async () => {
-      let char = charRefs.current[printerId];
-      if (!char) char = await connect(printerId);
-      const CHUNK = 20; // H-58BT & similar cheap BLE 4.0 printers: 20-byte ATT payload max
+      // Always fresh-connect: ensures only ONE GATT connection is active at a time.
+      // Android limits simultaneous GATT connections to 3-4; with 4 printers a cached
+      // multi-connection model causes the 3rd/4th printer to silently fail.
+      const char = await connect(printerId);
+      const CHUNK = 20; // H-58BT BLE 4.0: 20-byte ATT payload max
       const DELAY = 20;
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -491,9 +502,14 @@ export function usePrinter() {
         await writeBytes(char);
       } catch(e) {
         console.warn("Print failed, reconnecting...", e.message);
+        const char2 = await connect(printerId);
+        await writeBytes(char2);
+      } finally {
+        // Release GATT slot immediately so next printer can connect
+        intentionalDisconnects.current.add(printerId);
+        const device = deviceRefs.current[printerId];
+        if (device?.gatt?.connected) device.gatt.disconnect();
         delete charRefs.current[printerId];
-        char = await connect(printerId);
-        await writeBytes(char);
       }
     });
     // keep the chain alive even if this job errors
