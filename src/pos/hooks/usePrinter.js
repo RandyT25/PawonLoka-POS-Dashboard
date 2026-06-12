@@ -31,6 +31,26 @@ const CMD = {
   DRAWER:    [ESC, 0x70, 0x00, 0x19, 0xFA],
 };
 
+const BLE_SERVICES = [
+  "000018f0-0000-1000-8000-00805f9b34fb",
+  "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
+  "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+];
+
+// Connect GATT and return the first writable characteristic found.
+async function gattGetChar(device) {
+  const server = await device.gatt.connect();
+  for (const uuid of BLE_SERVICES) {
+    try {
+      const svc   = await server.getPrimaryService(uuid);
+      const chars = await svc.getCharacteristics();
+      const char  = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+      if (char) return char;
+    } catch { continue; }
+  }
+  throw new Error("No writable characteristic found on this device.");
+}
+
 // Fetch a logo URL and return ESC/POS GS v 0 raster bitmap bytes, centered on paper.
 async function logoToEscpos(url, paperSize = "80mm") {
   const maxW         = paperSize === "58mm" ? 384 : 576;
@@ -241,7 +261,9 @@ export function usePrinter() {
   const [loading,   setLoading]   = useState(true);
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
-  const printChain  = useRef(Promise.resolve()); // serializes all BLE writes
+  const printChain      = useRef(Promise.resolve()); // serializes all BLE writes
+  const listenersAdded  = useRef(new Set());          // prevent duplicate gattserverdisconnected listeners
+  const reconnectTimers = useRef({});                 // per-printer reconnect timeout handles
 
   // Load printers from Supabase on mount
   useEffect(() => {
@@ -256,7 +278,6 @@ export function usePrinter() {
         .select("*")
         .eq("type", "receipt_printer")
         .order("created_at");
-      // Also load kitchen printers
       const { data: kitchen } = await supabase
         .from("hardware_devices")
         .select("*")
@@ -272,7 +293,58 @@ export function usePrinter() {
         type:      d.type,
       }));
       setPrinters(all);
+      autoConnectAll(all); // silently reconnect all known printers on startup
     } finally { setLoading(false); }
+  }
+
+  // Attach gattserverdisconnected handler exactly once per printer.
+  // On disconnect: marks printer offline and retries with exponential backoff.
+  function attachAutoReconnect(printerId, device) {
+    if (listenersAdded.current.has(printerId)) return;
+    listenersAdded.current.add(printerId);
+    let retries = 0;
+    const tryReconnect = async () => {
+      if (!deviceRefs.current[printerId]) return; // printer was removed
+      try {
+        const char = await gattGetChar(device);
+        charRefs.current[printerId] = char;
+        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+        retries = 0;
+      } catch {
+        if (retries < 6) {
+          retries++;
+          reconnectTimers.current[printerId] = setTimeout(tryReconnect, Math.min(3000 * retries, 30000));
+        }
+      }
+    };
+    device.addEventListener("gattserverdisconnected", () => {
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
+      delete charRefs.current[printerId];
+      retries = 0;
+      clearTimeout(reconnectTimers.current[printerId]);
+      reconnectTimers.current[printerId] = setTimeout(tryReconnect, 3000);
+    });
+  }
+
+  // Auto-connect all stored printers silently on startup using getDevices().
+  // getDevices() returns previously-permitted devices with no user dialog (Chrome 85+).
+  async function autoConnectAll(loadedPrinters) {
+    if (!navigator.bluetooth?.getDevices) return;
+    let permitted;
+    try { permitted = await navigator.bluetooth.getDevices(); } catch { return; }
+    for (const printer of loadedPrinters) {
+      if (!printer.deviceId) continue;
+      const device = permitted.find(d => d.id === printer.deviceId);
+      if (!device) continue;
+      deviceRefs.current[printer.id] = device;
+      attachAutoReconnect(printer.id, device);
+      gattGetChar(device)
+        .then(char => {
+          charRefs.current[printer.id] = char;
+          setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
+        })
+        .catch(() => {}); // silent — device may be out of range, auto-reconnects when back
+    }
   }
 
   async function savePrinterToDb(printer) {
@@ -331,9 +403,16 @@ export function usePrinter() {
       const next = existing
         ? printers.map(p => p.id === existing.id ? { ...p, name: device.name || p.name } : p)
         : [...printers, np];
-      // Save to DB immediately on pair
       await savePrinterToDb(np);
       setPrinters(next);
+      // Immediately connect after pairing — no second tap needed
+      attachAutoReconnect(np.id, device);
+      gattGetChar(device)
+        .then(char => {
+          charRefs.current[np.id] = char;
+          setPrinters(prev => prev.map(p => p.id === np.id ? { ...p, connected: true } : p));
+        })
+        .catch(() => {});
       return np;
     } finally { setScanning(false); }
   }, [printers]);
@@ -343,54 +422,35 @@ export function usePrinter() {
     if (!printer) throw new Error("Printer not found");
     let device = deviceRefs.current[printerId];
     if (!device) {
-      // Android Chrome does not support getDevices() — must re-pair
+      // Try previously-permitted devices first (no dialog)
       if (navigator.bluetooth?.getDevices) {
         try {
           const devs = await navigator.bluetooth.getDevices();
           device = devs.find(d => d.id === printer.deviceId);
-        } catch(e) { device = null; }
+        } catch { device = null; }
       }
       if (!device) {
-        // Re-pair via requestDevice
+        // Fall back to manual picker
         try {
           device = await navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: [
-              "000018f0-0000-1000-8000-00805f9b34fb",
-              "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
-              "49535343-fe7d-4ae5-8fa9-9fafd205e455",
-            ],
+            optionalServices: BLE_SERVICES,
           });
-        } catch(e) { throw new Error("Could not find printer. Please select it from the list."); }
+        } catch { throw new Error("Could not find printer. Please select it from the list."); }
       }
       deviceRefs.current[printerId] = device;
     }
-    const server = await device.gatt.connect();
-    let characteristic;
-    const uuids = [
-      "000018f0-0000-1000-8000-00805f9b34fb",
-      "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
-      "49535343-fe7d-4ae5-8fa9-9fafd205e455",
-    ];
-    for (const uuid of uuids) {
-      try {
-        const svc  = await server.getPrimaryService(uuid);
-        const chars = await svc.getCharacteristics();
-        characteristic = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
-        if (characteristic) break;
-      } catch { continue; }
-    }
-    if (!characteristic) throw new Error("No writable characteristic found.");
-    charRefs.current[printerId] = characteristic;
-    device.addEventListener("gattserverdisconnected", () => {
-      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
-      delete charRefs.current[printerId];
-    });
+    const char = await gattGetChar(device);
+    charRefs.current[printerId] = char;
+    attachAutoReconnect(printerId, device);
     setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
-    return characteristic;
+    return char;
   }, [printers]);
 
   const disconnect = useCallback(async (printerId) => {
+    clearTimeout(reconnectTimers.current[printerId]);
+    delete reconnectTimers.current[printerId];
+    listenersAdded.current.delete(printerId); // allow re-attach on next pair
     const device = deviceRefs.current[printerId];
     if (device?.gatt?.connected) device.gatt.disconnect();
     delete charRefs.current[printerId];
