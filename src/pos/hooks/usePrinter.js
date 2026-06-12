@@ -202,7 +202,8 @@ export function buildKitchenData({ ticket, paperSize }) {
   lines.push({ text: (ticket.stationName || "KITCHEN") + "\n" });
   lines.push({ cmd: "TALL_OFF" }, { cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
-  lines.push({ text: "Meja: " + (ticket.table || "-") + "  |  " + (ticket.orderType || "") + "\n" });
+  const tableLabel = ticket.table && ticket.table !== ticket.orderType ? ticket.table : (ticket.orderType || "-");
+  lines.push({ text: "Meja: " + tableLabel + "\n" });
   lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
   lines.push({ text: HR + "\n" });
   lines.push({ cmd: "ALIGN_L" });
@@ -415,7 +416,7 @@ export function usePrinter() {
     const job = printChain.current.then(async () => {
       let char = charRefs.current[printerId];
       if (!char) char = await connect(printerId);
-      const CHUNK = 512;
+      const CHUNK = 100;
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
           const chunk = bytes.slice(i, i + CHUNK);
