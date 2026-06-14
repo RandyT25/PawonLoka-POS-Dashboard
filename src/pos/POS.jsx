@@ -359,7 +359,8 @@ export default function POS() {
         status: 'Open', date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
       }
-      await supabase.from('orders').insert(order)
+      const { error: insertErr } = await supabase.from('orders').insert(order)
+      if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return }
       setOpenBillId(orderId)
     }
 
@@ -431,7 +432,8 @@ export default function POS() {
   // Manager PIN required to remove sent item from open bill
   async function handleManagerRemoveItem(item) {
     const pin = prompt('Masukkan PIN Manager untuk hapus item:')
-    if (pin !== '9999') { alert('PIN salah'); return }
+    const managerPin = appSettings?.pos_behaviour?.manager_pin || '9999'
+    if (pin !== managerPin) { alert('PIN salah'); return }
     const reason = prompt('Alasan hapus item ' + item.name + ':')
     if (!reason) return
     const newCart = cart.filter(i => i._key !== item._key)
@@ -786,7 +788,7 @@ export default function POS() {
       )}
 
       {showVoid && (
-        <VoidModal onClose={() => setShowVoid(false)} />
+        <VoidModal onClose={() => setShowVoid(false)} managerPin={appSettings?.pos_behaviour?.manager_pin || '9999'} />
       )}
 
       {showCashLog && (

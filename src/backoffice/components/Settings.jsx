@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 const DEFAULTS = {
   outlet: { name:"PawonLoka", tagline:"Rasa yang lahir dari dapur penuh cerita", address:"Bali, Indonesia", phone:"", email:"", website:"", instagram:"@pawonloka", wifi:"" },
-  pos_behaviour: { auto_print_receipt:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true, auto_close_time:"" },
+  pos_behaviour: { auto_print_receipt:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true, auto_close_time:"", manager_pin:"9999" },
   regional: { currency:"IDR", timezone:"WITA", date_format:"DD/MM/YYYY" },
   loyalty: { points_per_100:1, gold_threshold:5000, silver_threshold:2000 },
   stations: [{ id:"kitchen",name:"Kitchen",icon:"🍳" },{ id:"bar",name:"Bar",icon:"🍹" },{ id:"snack",name:"Snack",icon:"🍟" },{ id:"kasir",name:"Kasir",icon:"🧾" }],
@@ -117,6 +117,13 @@ export default function Settings() {
               <div style={{ fontSize:11, color:"var(--ink4)" }}>POS shows 5-min warning before this time. Leave empty to disable.</div>
             </div>
             <input type="time" value={settings.pos_behaviour?.auto_close_time||""} onChange={e=>update("pos_behaviour","auto_close_time",e.target.value)} className="bo-input" style={{ width:130 }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"10px 0", borderTop:"1px solid var(--surface2)" }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600 }}>Manager PIN</div>
+              <div style={{ fontSize:11, color:"var(--ink4)" }}>Required to void orders and remove sent items.</div>
+            </div>
+            <input type="password" value={settings.pos_behaviour?.manager_pin||""} onChange={e=>update("pos_behaviour","manager_pin",e.target.value)} className="bo-input" style={{ width:130, textAlign:"center", letterSpacing:6 }} maxLength={8} placeholder="PIN" />
           </div>
         </div>
       )}

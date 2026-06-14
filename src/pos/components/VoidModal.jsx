@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
 
-const MANAGER_PIN = '9999'
-
-export default function VoidModal({ onClose }) {
+export default function VoidModal({ onClose, managerPin = '9999' }) {
   const [step, setStep] = useState('search')
   const [query, setQuery] = useState('')
   const [orders, setOrders] = useState([])
@@ -49,7 +47,7 @@ export default function VoidModal({ onClose }) {
   }
 
   function checkPin() {
-    if (pin === MANAGER_PIN) { setStep('confirm'); setError('') }
+    if (pin === managerPin) { setStep('confirm'); setError('') }
     else { setError('PIN salah'); setPin('') }
   }
 
