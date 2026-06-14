@@ -257,7 +257,7 @@ export default function POS() {
     setTableNo(order.table || '')
     setOpenBillId(order.id)
     if (order.customer_id) {
-      const { data: cust } = await supabase.from('customers').select('*').eq('id', order.customer_id).single()
+      const { data: cust } = await supabase.from('customers').select('*').eq('id', order.customer_id).maybeSingle()
       setCustomer(cust || (order.customer ? { name: order.customer, id: order.customer_id } : null))
     } else if (order.customer) {
       setCustomer({ name: order.customer, id: null })
@@ -279,7 +279,7 @@ export default function POS() {
   function handleTableSelect(table) {
     if (table.status === 'Reserved') return
     if (table.status === 'Occupied' && table.open_bill_id) {
-      supabase.from('orders').select('*').eq('id', table.open_bill_id).single().then(({ data }) => {
+      supabase.from('orders').select('*').eq('id', table.open_bill_id).maybeSingle().then(({ data }) => {
         if (data) { recallFromOrder(data); setOrderType('Dine-in'); setShowFloorPlan(false) }
       })
     } else {
@@ -344,7 +344,7 @@ export default function POS() {
 
     if (openBillId) {
       // Add to existing open bill
-      const { data: existing } = await supabase.from('orders').select('items').eq('id', openBillId).single()
+      const { data: existing } = await supabase.from('orders').select('items').eq('id', openBillId).maybeSingle()
       const allItems = [...(existing?.items || []), ...newItems.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) }))]
       await supabase.from('orders').update({ items: allItems, subtotal, tax, discount: discAmt, total }).eq('id', openBillId)
     } else {
@@ -461,7 +461,7 @@ export default function POS() {
       const isFullyPaid = newSplitPaid >= billTotal
 
       if (openBillId) {
-        const { data: existing } = await supabase.from('orders').select('notes').eq('id', openBillId).single()
+        const { data: existing } = await supabase.from('orders').select('notes').eq('id', openBillId).maybeSingle()
         const prevNotes = existing?.notes || ''
         const newNote = (prevNotes ? prevNotes + ' | ' : '') + 'SPLIT: ' + payMethod + ' Rp' + finalTotal
         if (isFullyPaid) {
@@ -618,7 +618,7 @@ export default function POS() {
                   setTableNo(t); setOrderType('Dine-in')
                 }}
                 onSelectOccupied={async t => {
-                  const { data } = await supabase.from('orders').select('*').eq('id', t.open_bill_id).single()
+                  const { data } = await supabase.from('orders').select('*').eq('id', t.open_bill_id).maybeSingle()
                   if (data) await recallFromOrder(data)
                   setOrderType('Dine-in')
                 }}

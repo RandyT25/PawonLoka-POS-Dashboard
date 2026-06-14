@@ -1,11 +1,11 @@
 export const STAFF = [
-  { id:1, name:'Claudy', role:'Owner',      pin:'7777', color:'#6366F1' },
-  { id:2, name:'Nita',   role:'Head Kasir', pin:'4444', color:'#F59E0B' },
-  { id:3, name:'Aisyah', role:'Bar',        pin:'1111', color:'#10B981' },
-  { id:4, name:'Mahes',  role:'Cook',       pin:'2222', color:'#3B82F6' },
-  { id:5, name:'Meldy',  role:'Head Cook',  pin:'3333', color:'#8B5CF6' },
-  { id:6, name:'Oji',    role:'Cook',       pin:'5555', color:'#EF4444' },
-  { id:7, name:'Yudi',   role:'Cook',       pin:'6666', color:'#06B6D4' },
+  { id:1, name:'Claudy', role:'Owner',      color:'#6366F1' },
+  { id:2, name:'Nita',   role:'Head Kasir', color:'#F59E0B' },
+  { id:3, name:'Aisyah', role:'Bar',        color:'#10B981' },
+  { id:4, name:'Mahes',  role:'Cook',       color:'#3B82F6' },
+  { id:5, name:'Meldy',  role:'Head Cook',  color:'#8B5CF6' },
+  { id:6, name:'Oji',    role:'Cook',       color:'#EF4444' },
+  { id:7, name:'Yudi',   role:'Cook',       color:'#06B6D4' },
 ]
 
 export const PAY_METHODS = [

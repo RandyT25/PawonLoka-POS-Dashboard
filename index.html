@@ -25,7 +25,7 @@
         title = 'PawonLoka Staff'
         color = '#0052CC'
       }
-      document.write('<link rel="manifest" href="' + manifest + '" />')
+      var lnk = document.createElement('link'); lnk.rel = 'manifest'; lnk.href = manifest; document.head.appendChild(lnk)
       document.title = title
       var meta = document.createElement('meta')
       meta.name = 'theme-color'
