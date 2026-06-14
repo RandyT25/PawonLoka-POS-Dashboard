@@ -64,6 +64,19 @@ export default function Products() {
     return pct(p.price - p.cogs, p.price)
   }
 
+  function toggleSelect(sku) {
+    setSelected(prev => { const next = new Set(prev); next.has(sku) ? next.delete(sku) : next.add(sku); return next })
+  }
+
+  async function saveBulkModifiers() {
+    setBulkSaving(true)
+    await Promise.all([...selected].map(sku =>
+      supabase.from("products").update({ linked_modifiers: bulkMods }).eq("sku", sku)
+    ))
+    setProducts(prev => prev.map(p => selected.has(p.sku) ? { ...p, linked_modifiers: bulkMods } : p))
+    setBulkSaving(false); setBulkModal(false); setSelected(new Set())
+  }
+
   function openAdd()   { setForm(EMPTY); setVariants([]); setPreview(null); setModal("add") }
   function openEdit(p) {
     setForm({ ...p, price: String(p.price), cogs: String(p.cogs||0) })

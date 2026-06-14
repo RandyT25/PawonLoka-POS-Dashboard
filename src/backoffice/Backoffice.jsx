@@ -44,7 +44,7 @@ const Orders          = lazy(() => import("./components/Orders"))
 const MarketPrices    = lazy(() => import("./components/MarketPrices"))
 const Profitability   = lazy(() => import("./components/Profitability"))
 
-function useNotifications(onNav) {
+function useNotifications() {
   const [pending, setPending] = useState(0)
   const [notes,   setNotes]   = useState([])
   const channelRef = useRef(null)
@@ -78,7 +78,7 @@ function useNotifications(onNav) {
           const o = ctx.createOscillator(); const g = ctx.createGain()
           o.connect(g); g.connect(ctx.destination)
           o.frequency.value=880; g.gain.value=0.2; o.start(); o.stop(ctx.currentTime+0.12)
-        } catch(e) {}
+        } catch {}
       })
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"staff_submissions"}, () => {
         supabase.from("staff_submissions").select("id").eq("status","pending")
@@ -144,26 +144,10 @@ function BellMenu({ pending, notes, onNav, markRead }) {
   )
 }
 
-function ComingSoon({ title }) {
-  return (
-    <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", height:"60vh", gap:12 }}>
-      <div style={{ fontSize:48 }}>🚧</div>
-      <div style={{ fontSize:18, fontWeight:800, color:"var(--ink)" }}>{title}</div>
-      <div style={{ fontSize:13, color:"var(--ink5)" }}>This module is coming soon</div>
-    </div>
-  )
-}
 
 const BO_PIN      = "1999"
 const SESSION_KEY = "bo_auth"
 
-const MOBILE_TABS = [
-  { id:"home",    icon:"🏠", label:"Home",    items:["dashboard","reports","accounting"] },
-  { id:"menu",    icon:"🍽", label:"Menu",    items:["products","categories","modifiers","recipes","market-prices","profitability"] },
-  { id:"stock",   icon:"📦", label:"Stock",   items:["inv-overview","inv-ingredients","inv-po","inv-suppliers","inv-production","inv-opname","inv-waste","inv-movements","staff-submissions"] },
-  { id:"people",  icon:"👥", label:"People",  items:["employees","shifts","orders","schedule","performance","customers","loyalty"] },
-  { id:"more",    icon:"⚙️", label:"More",    items:["promotions","bundles","discounts","payments","floorplan","import-export","settings","receipt-designer","hardware","usersaccess","audit-log","integrations"] },
-]
 
 const NAV = [
   { group:"Overview" },
@@ -317,7 +301,6 @@ export default function Backoffice() {
   }, [])
 
 
-  const [mobileSubMenu, setMobileSubMenu] = useState(null)
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
   function logout() { sessionStorage.removeItem(SESSION_KEY); setAuthed(false) }

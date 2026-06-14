@@ -1,9 +1,7 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
-const fmtDate = d => d ? new Date(d).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"
-
 const EXPENSE_CATEGORIES = [
   { id:"bahan_baku",      label:"Bahan Baku",        icon:"🥩", auto:true  },
   { id:"kitchen",         label:"Kitchen Supplies",   icon:"🍳", auto:false },
@@ -22,23 +20,9 @@ const EXPENSE_CATEGORIES = [
   { id:"lain",            label:"Lain-lain",           icon:"📦", auto:false },
 ]
 
-const PAY_METHODS = ["Cash","Transfer","QRIS","Debit/Credit"]
 const STAFF_LIST  = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
 
 const MONTHS = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"]
-
-function Toggle({ on, onToggle }) {
-  return (
-    <div onClick={onToggle} style={{ width:44,height:24,borderRadius:12,background:on?"var(--brand)":"#DFE1E6",position:"relative",cursor:"pointer",transition:"background 0.2s",flexShrink:0 }}>
-      <div style={{ width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:on?22:2,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
-
-      {tab==="closing" && (
-        <ClosingReport period={period} fmt={fmt} />
-      )}
-
-    </div>
-  )
-}
 
 
 function ClosingReport({ period, fmt }) {
