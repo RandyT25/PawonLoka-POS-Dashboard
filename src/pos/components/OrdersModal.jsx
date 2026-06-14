@@ -177,7 +177,7 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
                   const now = new Date()
                   for (const [station, sitems] of Object.entries(stations)) {
                     await supabase.from('kitchen_tickets').insert({
-                      id: 'KT-RPT-' + Date.now() + '-' + station,
+                      id: 'KT-RPT-' + crypto.randomUUID(),
                       table: reprintOrder.table || 'Takeaway',
                       items: sitems.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
                       time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),

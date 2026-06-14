@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { supabase } from "../lib/supabase"
 
 // Suppress PWA install prompt on desktop
@@ -9,39 +9,40 @@ if (typeof window !== "undefined") {
   })
 }
 import "./backoffice.css"
-import Dashboard      from "./components/Dashboard"
-import Products       from "./components/Products"
-import Categories     from "./components/Categories"
-import Modifiers      from "./components/Modifiers"
-import Recipes        from "./components/RecipeEditor"
-import Employees      from "./components/Employees"
-import Shifts         from "./components/Shifts"
-import Performance    from "./components/Performance"
-import Customers      from "./components/Customers"
-import Loyalty        from "./components/Loyalty"
-import Reports        from "./components/Reports"
-import Settings       from "./components/Settings"
-import PaymentsTax    from "./components/PaymentsTax"
-import Promotions     from "./components/Promotions"
-import Bundles        from "./components/Bundles"
-import Discounts      from "./components/Discounts"
-import FloorPlan      from "./components/FloorPlan"
-import ReceiptDesigner from "./components/ReceiptDesigner"
-import Hardware       from "./components/Hardware"
-import UsersAccess    from "./components/UsersAccess"
-import AuditLog       from "./components/AuditLog"
-import Integrations   from "./components/Integrations"
 
-import Inventory from "./components/Inventory"
-import StaffSubmissions from "./components/StaffSubmissions"
-import ImportExport from "./components/ImportExport"
-import Schedule from "./components/Schedule"
-import Attendance from "./components/Attendance"
-import Accounting from "./components/Accounting"
-import Rekonsiliasi from './components/Rekonsiliasi.jsx'
-import Orders from './components/Orders'
-import MarketPrices from './components/MarketPrices'
-import Profitability from './components/Profitability'
+// Lazy-load all tab components — only the active tab is downloaded
+const Dashboard       = lazy(() => import("./components/Dashboard"))
+const Products        = lazy(() => import("./components/Products"))
+const Categories      = lazy(() => import("./components/Categories"))
+const Modifiers       = lazy(() => import("./components/Modifiers"))
+const Recipes         = lazy(() => import("./components/RecipeEditor"))
+const Employees       = lazy(() => import("./components/Employees"))
+const Shifts          = lazy(() => import("./components/Shifts"))
+const Performance     = lazy(() => import("./components/Performance"))
+const Customers       = lazy(() => import("./components/Customers"))
+const Loyalty         = lazy(() => import("./components/Loyalty"))
+const Reports         = lazy(() => import("./components/Reports"))
+const Settings        = lazy(() => import("./components/Settings"))
+const PaymentsTax     = lazy(() => import("./components/PaymentsTax"))
+const Promotions      = lazy(() => import("./components/Promotions"))
+const Bundles         = lazy(() => import("./components/Bundles"))
+const Discounts       = lazy(() => import("./components/Discounts"))
+const FloorPlan       = lazy(() => import("./components/FloorPlan"))
+const ReceiptDesigner = lazy(() => import("./components/ReceiptDesigner"))
+const Hardware        = lazy(() => import("./components/Hardware"))
+const UsersAccess     = lazy(() => import("./components/UsersAccess"))
+const AuditLog        = lazy(() => import("./components/AuditLog"))
+const Integrations    = lazy(() => import("./components/Integrations"))
+const Inventory       = lazy(() => import("./components/Inventory"))
+const StaffSubmissions= lazy(() => import("./components/StaffSubmissions"))
+const ImportExport    = lazy(() => import("./components/ImportExport"))
+const Schedule        = lazy(() => import("./components/Schedule"))
+const Attendance      = lazy(() => import("./components/Attendance"))
+const Accounting      = lazy(() => import("./components/Accounting"))
+const Rekonsiliasi    = lazy(() => import("./components/Rekonsiliasi"))
+const Orders          = lazy(() => import("./components/Orders"))
+const MarketPrices    = lazy(() => import("./components/MarketPrices"))
+const Profitability   = lazy(() => import("./components/Profitability"))
 
 function useNotifications(onNav) {
   const [pending, setPending] = useState(0)
@@ -358,7 +359,11 @@ export default function Backoffice() {
             <BellMenu pending={pending} notes={notes} onNav={navTo} markRead={markRead} />
           </div>
         </div>
-        <div className="bo-content"><Screen onNavChange={navTo} /></div>
+        <div className="bo-content">
+          <Suspense fallback={<div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"60vh",color:"#6B778C",fontSize:14}}>Loading...</div>}>
+            <Screen onNavChange={navTo} />
+          </Suspense>
+        </div>
         {/* Mobile sidebar overlay */}
         {mobileSidebar && (
           <div onClick={()=>setMobileSidebar(false)}

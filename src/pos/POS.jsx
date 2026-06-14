@@ -19,14 +19,13 @@ import FloorPlan from './components/FloorPlan'
 import TablePicker from './components/TablePicker'
 import OrdersModal from './components/OrdersModal'
 import PrinterSettings from './components/PrinterSettings'
-import { usePrinter, buildReceiptData } from './hooks/usePrinter'
+import { usePrinter } from './hooks/usePrinter'
 import { useWhatsApp } from './hooks/useWhatsApp'
 import './pos.mobile.css'
 import OfflineBar from './components/OfflineBar'
 
 export default function POS() {
   const [staff, setStaff]           = useState(null)
-  const [printDebug, setPrintDebug]  = useState([])
   const [shift, setShift]           = useState(null)
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
@@ -66,8 +65,8 @@ export default function POS() {
     }
   }, [])
   const [cartOpen, setCartOpen]           = useState(false)
+  const [heldBills, setHeldBills]         = useState([])
   const printer    = usePrinter()
-  function dbg(msg) { setPrintDebug(prev => [...prev.slice(-4), new Date().toLocaleTimeString('id-ID')+': '+msg]) }
   const [appSettings, setAppSettings] = useState(null)
 
   const [backofficeDiscounts, setBackofficeDiscounts] = useState([])
@@ -115,7 +114,7 @@ export default function POS() {
 
 
   const { cart, setCart, addItem, updateQty, clearCart, subtotal } = useCart()
-  const { saveOrder, lastOrder, setLastOrder, saving } = useOrders()
+  useOrders() // subscribes to realtime order changes
 
   useEffect(() => {
     if (staff) {
@@ -140,7 +139,7 @@ export default function POS() {
       .is('clock_out', null)
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
+      .maybeSingle()
     if (data) {
       setShift(data)
       setShowShift(false)
@@ -152,23 +151,32 @@ export default function POS() {
 
   async function deductStock(items) {
     try {
+      const skus = [...new Set(items.map(i => i.sku).filter(Boolean))]
+      if (!skus.length) return
+      // Batch fetch all recipes for all SKUs in one query
+      const { data: allRecipes } = await supabase.from('recipes')
+        .select('product_id, ingredient_id, qty, unit')
+        .in('product_id', skus)
+      if (!allRecipes?.length) return
+      // Accumulate total deductions per ingredient
+      const deductions = {}
       for (const item of items) {
-        // recipes table: product_id stores the sku value
-        const { data: recipeRows } = await supabase.from('recipes')
-          .select('ingredient_id, qty, unit')
-          .eq('product_id', item.sku)
-        if (!recipeRows?.length) continue
-        for (const ri of recipeRows) {
-          const deductQty = (ri.qty || 0) * (item.qty || 1)
-          if (!deductQty) continue
-          const { data: ing } = await supabase.from('ingredients').select('stock').eq('id', ri.ingredient_id).maybeSingle()
-          if (ing) {
-            await supabase.from('ingredients').update({
-              stock: Math.max(0, (ing.stock || 0) - deductQty)
-            }).eq('id', ri.ingredient_id)
-          }
+        const rows = allRecipes.filter(r => r.product_id === item.sku)
+        for (const ri of rows) {
+          const qty = (ri.qty || 0) * (item.qty || 1)
+          if (qty) deductions[ri.ingredient_id] = (deductions[ri.ingredient_id] || 0) + qty
         }
       }
+      if (!Object.keys(deductions).length) return
+      // Batch fetch current stock for all affected ingredients
+      const ingIds = Object.keys(deductions)
+      const { data: ings } = await supabase.from('ingredients').select('id, stock').in('id', ingIds)
+      // Parallel updates
+      await Promise.all((ings || []).map(ing =>
+        supabase.from('ingredients').update({
+          stock: Math.max(0, (ing.stock || 0) - (deductions[ing.id] || 0))
+        }).eq('id', ing.id)
+      ))
     } catch(e) { console.error('Stock deduction error:', e) }
   }
 
@@ -355,16 +363,16 @@ export default function POS() {
       setOpenBillId(orderId)
     }
 
-    // Send kitchen tickets per station
-    for (const [station, items] of Object.entries(stations)) {
-      await supabase.from('kitchen_tickets').insert({
-        id: 'KT-' + Date.now() + '-' + station,
+    // Send kitchen tickets per station — parallel, unique IDs
+    await Promise.all(Object.entries(stations).map(([station, items]) =>
+      supabase.from('kitchen_tickets').insert({
+        id: 'KT-' + crypto.randomUUID(),
         table: tableNo || orderType,
         items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
         time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
         status: 'New', station,
       })
-    }
+    ))
 
     // Print kitchen tickets
     for (const [station, items] of Object.entries(stations)) {
@@ -431,7 +439,7 @@ export default function POS() {
     if (openBillId) {
       const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
       const discA = discount ? Math.round(sub*discount/100) : 0
-      const tx = Math.round((sub-discA)*0.1)
+      const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
       await supabase.from('orders').update({
         items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal: sub, tax: tx, total: sub-discA+tx,
@@ -528,18 +536,35 @@ export default function POS() {
       return fakeOrder
     }
 
-    // NO OPEN BILL — create new order
-    const order = await saveOrder({
-      cart, subtotal, payMethod, cashGiven,
-      staff, tableNo, customer, discount: discAmt + promoDisc,
-      orderNote, promoName, usePoints, finalTotal
-    })
-    if (order) {
-      clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
-      setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
-      setDeliveryAddr(''); setAppliedPromo(null); setSplitPaid(0)
+    // NO OPEN BILL — create and immediately close a new order
+    const now2 = new Date()
+    const newOrderId = 'ORD-' + Date.now()
+    const newOrder = {
+      id: newOrderId,
+      items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0 })),
+      subtotal, tax: Math.round(subtotal * TAX_RATE_LIVE),
+      discount: discAmt + promoDisc, total: finalTotal,
+      pay: payMethod, staff: staff.name,
+      table: tableNo || null,
+      customer: customer?.name || null, customer_id: customer?.id || null,
+      notes: [orderNote, promoName].filter(Boolean).join(' | ') || null,
+      status: 'Paid', date: now2.toISOString().slice(0,10),
+      time: now2.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+      payments: [{ method: payMethod, amount: finalTotal }],
+      change: payMethod === 'Cash' ? Math.max(0, (parseInt(cashGiven)||0) - finalTotal) : 0,
+      cogs: 0,
     }
-    return order
+    const { error: insertErr } = await supabase.from('orders').insert(newOrder)
+    if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return null }
+    if (customer?.id) {
+      const pts = usePoints ? 0 : Math.floor(finalTotal / 100)
+      await supabase.from('customers').update({ points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }).eq('id', customer.id)
+    }
+    await deductStock(cart)
+    clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
+    setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
+    setDeliveryAddr(''); setAppliedPromo(null); setSplitPaid(0)
+    return newOrder
   }
 
   if (showFloorPlan) return (

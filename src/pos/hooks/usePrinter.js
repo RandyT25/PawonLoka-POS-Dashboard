@@ -58,8 +58,12 @@ async function gattGetChar(device) {
   return Promise.race([connect(), timeout]);
 }
 
+const logoCache = new Map(); // url+paperSize → Uint8Array, persists for the session
+
 // Fetch a logo URL and return ESC/POS GS v 0 raster bitmap bytes, centered on paper.
 async function logoToEscpos(url, paperSize = "80mm") {
+  const cacheKey = url + "|" + paperSize;
+  if (logoCache.has(cacheKey)) return logoCache.get(cacheKey);
   const maxW         = paperSize === "58mm" ? 384 : 576;
   const bytesPerLine = maxW / 8;
   try {
@@ -69,7 +73,7 @@ async function logoToEscpos(url, paperSize = "80mm") {
       const img = new Image();
       img.onload = () => {
         URL.revokeObjectURL(objUrl);
-        const scale  = Math.min(1, maxW / img.width, 240 / img.height);
+        const scale  = Math.min(1, maxW / img.width, 96 / img.height);
         const w      = Math.round(img.width  * scale);
         const h      = Math.round(img.height * scale);
         const wBytes = Math.ceil(w / 8);
@@ -101,6 +105,7 @@ async function logoToEscpos(url, paperSize = "80mm") {
         out[0]=0x1D; out[1]=0x76; out[2]=0x30; out[3]=0x00;
         out[4]=xL;   out[5]=xH;   out[6]=yL;   out[7]=yH;
         out.set(bmp, 8);
+        logoCache.set(cacheKey, out);
         resolve(out);
       };
       img.onerror = () => { URL.revokeObjectURL(objUrl); resolve(new Uint8Array(0)); };
@@ -513,14 +518,23 @@ export function usePrinter() {
       // Android limits simultaneous GATT connections to 3-4; with 4 printers a cached
       // multi-connection model causes the 3rd/4th printer to silently fail.
       const char = await connect(printerId);
-      const CHUNK = 20; // H-58BT BLE 4.0: 20-byte ATT payload max
-      const DELAY = 20;
+      const CHUNK = 20; // H-58BT ATT payload max
+      // No fixed delay — writeValueWithoutResponse resolves when data is queued locally,
+      // not when the printer receives it. The BLE stack handles over-air pacing.
+      // Only back off when the stack signals congestion (caught exception).
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
           const chunk = bytes.slice(i, i + CHUNK);
-          if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
-          else await c.writeValue(chunk);
-          await new Promise(r => setTimeout(r, DELAY));
+          for (let attempt = 0; ; attempt++) {
+            try {
+              if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
+              else await c.writeValue(chunk);
+              break;
+            } catch {
+              if (attempt >= 4) throw new Error("BLE write congestion — printer not responding");
+              await new Promise(r => setTimeout(r, 10 * (attempt + 1)));
+            }
+          }
         }
       }
       try {
@@ -535,8 +549,7 @@ export function usePrinter() {
         const device = deviceRefs.current[printerId];
         if (device?.gatt?.connected) device.gatt.disconnect();
         delete charRefs.current[printerId];
-        // Give the BLE radio stack 200ms to fully release before the next printer connects
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 50));
       }
     });
     // keep this printer's chain alive even if this job errors
@@ -556,9 +569,8 @@ export function usePrinter() {
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";
     const printer = printers.find(p => p.role === role)
-                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar")
-                 || printers.find(p => p.role === "receipt"); // single-printer fallback
-    if (!printer) throw new Error("No printer configured. Add a printer in Hardware settings.");
+                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar");
+    if (!printer) throw new Error("No kitchen printer configured for " + (ticket.stationName || role) + ". Check Hardware settings.");
     await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket, paperSize: printer.paperSize })));
   }, [printers, printBytes]);
 
