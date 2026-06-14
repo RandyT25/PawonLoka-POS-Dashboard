@@ -121,6 +121,10 @@ function line(left, right, width = 42) {
 }
 function divider(char = "-", width = 42) { return char.repeat(width); }
 
+export function prefetchLogo(url, paperSize = "80mm") {
+  if (url) logoToEscpos(url, paperSize).catch(() => {});
+}
+
 export function buildReceiptData({ order, outlet, tax, service, logoBytes, paperSize = "80mm" }) {
   const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
   const w   = paperSize === "58mm" ? 32 : 42;

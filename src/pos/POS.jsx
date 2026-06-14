@@ -19,7 +19,7 @@ import FloorPlan from './components/FloorPlan'
 import TablePicker from './components/TablePicker'
 import OrdersModal from './components/OrdersModal'
 import PrinterSettings from './components/PrinterSettings'
-import { usePrinter } from './hooks/usePrinter'
+import { usePrinter, prefetchLogo } from './hooks/usePrinter'
 import { useWhatsApp } from './hooks/useWhatsApp'
 import './pos.mobile.css'
 import OfflineBar from './components/OfflineBar'
@@ -76,7 +76,12 @@ export default function POS() {
 
   useEffect(() => {
     supabase.from('app_settings').select('*').eq('id','main').maybeSingle()
-      .then(({data}) => { if (data) setAppSettings(data) })
+      .then(({data}) => {
+        if (data) {
+          setAppSettings(data)
+          if (data.outlet?.logo) prefetchLogo(data.outlet.logo, '80mm')
+        }
+      })
     supabase.from('discounts').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) setBackofficeDiscounts(data) })
     supabase.from('staff').select('id,name,role,pin,color,active').eq('active', true).order('name')
