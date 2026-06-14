@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
+import ClosingReport from "./ClosingReport"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const EXPENSE_CATEGORIES = [
@@ -24,104 +25,12 @@ const STAFF_LIST  = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin
 
 const MONTHS = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"]
 
-
-function ClosingReport({ period, fmt }) {
-  const [shifts,  setShifts]  = useState([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState(null)
-
-
-  useEffect(() => { load() }, [period])
-
-  async function load() {
-    setLoading(true)
-    const from = period + "-01T00:00:00+08:00"
-    const d    = new Date(period + "-01")
-    d.setMonth(d.getMonth()+1)
-    const to   = d.toISOString().slice(0,7) + "-01T00:00:00+08:00"
-    const { data: shiftsData } = await supabase
-      .from("shifts").select("*").gte("opened_at", from).lt("opened_at", to).order("opened_at", { ascending:false })
-    setShifts(shiftsData||[])
-    setLoading(false)
-  }
-
-
-
-  const totalFloat   = shifts.reduce((s,sh)=>s+(sh.float||0),0)
-  const totalCash    = shifts.reduce((s,sh)=>s+(sh.cash_sales||sh.total_cash||0),0)
-  const totalSales   = shifts.reduce((s,sh)=>s+(sh.total_sales||0),0)
-  const totalOrders  = shifts.reduce((s,sh)=>s+(sh.total_orders||0),0)
-
+function StatCard({label,value,sub,color="#0052CC",big=false}) {
   return (
-    <div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:10, marginBottom:16 }}>
-        {[["Shifts",shifts.length,"#0052CC"],["Total Sales",fmt(totalSales),"#00875A"],["Cash",fmt(totalCash),"#F59E0B"],["Orders",totalOrders,"#6554C0"]].map(([l,v,c])=>(
-          <div key={l} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid #E8ECF0" }}>
-            <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:4, textTransform:"uppercase" }}>{l}</div>
-            <div style={{ fontSize:20, fontWeight:900, color:c }}>{v}</div>
-          </div>
-        ))}
-      </div>
-      {loading ? <div style={{ padding:32, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
-        <div style={{ background:"#fff", borderRadius:12, border:"1px solid #E8ECF0", overflow:"hidden" }}>
-          <table style={{ width:"100%", borderCollapse:"collapse" }}>
-            <thead>
-              <tr style={{ background:"#F8FAFC" }}>
-                {["Date","Staff","Float","Cash Sales","Total Sales","Orders","Status"].map(h=>(
-                  <th key={h} style={{ padding:"10px 14px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {shifts.length === 0 && <tr><td colSpan={7} style={{ textAlign:"center", padding:32, color:"var(--ink5)" }}>No shifts found for this period</td></tr>}
-              {shifts.map(sh => (
-                <tr key={sh.id} onClick={()=>setSelected(selected?.id===sh.id?null:sh)}
-                  style={{ borderBottom:"1px solid #F0F4F8", cursor:"pointer", background:selected?.id===sh.id?"#F0F7FF":"" }}
-                  onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
-                  onMouseLeave={e=>e.currentTarget.style.background=selected?.id===sh.id?"#F0F7FF":""}>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.opened_at?.slice(0,10)||"—"}</td>
-                  <td style={{ padding:"10px 14px", fontWeight:600 }}>{sh.staff_name||sh.cashier||"—"}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{fmt(sh.float||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#00875A" }}>{fmt(sh.cash_sales||sh.total_cash||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700 }}>{fmt(sh.total_sales||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.total_orders||0}</td>
-                  <td style={{ padding:"10px 14px" }}>
-                    <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10,
-                      background:sh.closed_at?"#E3FCEF":"#FFF0B3", color:sh.closed_at?"#00875A":"#FF8B00" }}>
-                      {sh.closed_at?"Closed":"Open"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {selected && (
-            <div style={{ padding:"16px 20px", borderTop:"1px solid #E8ECF0", background:"#F8FAFC" }}>
-              <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>Shift Detail — {selected.staff_name||selected.cashier}</div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:8 }}>
-                {[
-                  ["Opened",  selected.opened_at ? new Date(selected.opened_at).toLocaleString("id-ID") : "—"],
-                  ["Closed",  selected.closed_at ? new Date(selected.closed_at).toLocaleString("id-ID") : "Still open"],
-                  ["Float",   fmt(selected.float||0)],
-                  ["Cash Sales", fmt(selected.cash_sales||selected.total_cash||0)],
-                  ["QRIS",    fmt(selected.qris_sales||0)],
-                  ["Other",   fmt(selected.other_sales||0)],
-                  ["Total",   fmt(selected.total_sales||0)],
-                  ["Orders",  selected.total_orders||0],
-                  ["Cash In", fmt(selected.cash_in||0)],
-                  ["Cash Out",fmt(selected.cash_out||0)],
-                ].map(([k,v])=>(
-                  <div key={k} style={{ fontSize:12 }}>
-                    <span style={{ color:"var(--ink4)", fontWeight:600 }}>{k}: </span>
-                    <span style={{ fontWeight:700 }}>{v}</span>
-                  </div>
-                ))}
-              </div>
-              {selected.notes && <div style={{ marginTop:8, fontSize:12, color:"var(--ink4)" }}>Notes: {selected.notes}</div>}
-            </div>
-          )}
-        </div>
-      )}
+    <div style={{ background:"#fff",borderRadius:12,padding:"16px 20px",border:"1px solid #f0f0f0",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
+      <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6 }}>{label}</div>
+      <div style={{ fontSize:big?28:22,fontWeight:900,color,letterSpacing:"-0.5px" }}>{value}</div>
+      {sub&&<div style={{ fontSize:11,color:"#6B778C",marginTop:4 }}>{sub}</div>}
     </div>
   )
 }
@@ -441,14 +350,6 @@ ARUS KAS
     const matchSearch = !expSearch||e.description?.toLowerCase().includes(expSearch.toLowerCase())
     return matchCat&&matchSearch
   })
-
-  const StatCard = ({label,value,sub,color="#0052CC",big=false}) => (
-    <div style={{ background:"#fff",borderRadius:12,padding:"16px 20px",border:"1px solid #f0f0f0",boxShadow:"0 1px 3px rgba(0,0,0,0.06)" }}>
-      <div style={{ fontSize:11,fontWeight:700,color:"#6B778C",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:6 }}>{label}</div>
-      <div style={{ fontSize:big?28:22,fontWeight:900,color,letterSpacing:"-0.5px" }}>{value}</div>
-      {sub&&<div style={{ fontSize:11,color:"#6B778C",marginTop:4 }}>{sub}</div>}
-    </div>
-  )
 
   if (loading) return <div style={{ padding:40,textAlign:"center",color:"var(--ink5)" }}>Loading...</div>
 
@@ -900,6 +801,9 @@ ARUS KAS
         </div>
       )}
 
+      {/* CLOSING REPORT */}
+      {tab==="closing" && <ClosingReport period={period} />}
+
       {/* Akun / Chart of Accounts Tab */}
       {tab === "akun" && (() => {
         const COA_TYPES = [
@@ -1199,80 +1103,6 @@ ARUS KAS
               <button onClick={saveExpense} disabled={saving} className="bo-btn bo-btn-primary">
                 {saving ? "Menyimpan..." : "Simpan"}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* COA Picker Modal */}
-      {showCoaPicker && (
-        <div className="bo-overlay" style={{ zIndex:9999 }} onMouseDown={e=>e.target===e.currentTarget&&setShowCoaPicker(false)}>
-          <div className="bo-modal" style={{ maxWidth:640, maxHeight:"85vh", display:"flex", flexDirection:"column" }}>
-            <div className="bo-modal-header">
-              <div className="bo-modal-title">Pilih Akun</div>
-              <button className="bo-modal-close" onClick={()=>setShowCoaPicker(false)}>x</button>
-            </div>
-            <div className="bo-modal-body" style={{ flex:1, overflowY:"auto" }}>
-              <input className="bo-input" style={{ marginBottom:16 }}
-                value={coaPickerSearch}
-                onChange={e=>setCoaPickerSearch(e.target.value)}
-                placeholder="Cari ..."
-                autoFocus />
-              <table style={{ width:"100%", borderCollapse:"collapse" }}>
-                <thead>
-                  <tr style={{ background:"#F8FAFC" }}>
-                    <th style={{ width:40, padding:"8px 12px" }}></th>
-                    {["KODE","NAMA","KATEGORI"].map(h=>(
-                      <th key={h} style={{ padding:"8px 12px", textAlign:"left", fontSize:11, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {expCoa
-                    .filter(a => {
-                      const q = coaPickerSearch.toLowerCase()
-                      return !q || a.name.toLowerCase().includes(q) || a.code.toLowerCase().includes(q) || (a.category||"").toLowerCase().includes(q)
-                    })
-                    .map(a=>(
-                      <tr key={a.id} onClick={()=>{ const s=new Set(coaPickerSelected); s.has(a.id)?s.delete(a.id):s.add(a.id); setCoaPickerSelected(s) }}
-                        style={{ borderBottom:"1px solid #F0F4F8", cursor:"pointer", background:coaPickerSelected.has(a.id)?"#F0F7FF":"" }}
-                        onMouseEnter={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="#F8FAFC" }}
-                        onMouseLeave={e=>{ if(!coaPickerSelected.has(a.id)) e.currentTarget.style.background="" }}>
-                        <td style={{ padding:"10px 12px" }}>
-                          <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${coaPickerSelected.has(a.id)?"var(--brand)":"#DFE1E6"}`,
-                            background:coaPickerSelected.has(a.id)?"var(--brand)":"#fff",
-                            display:"flex", alignItems:"center", justifyContent:"center" }}>
-                            {coaPickerSelected.has(a.id) && <div style={{ width:10, height:10, borderRadius:2, background:"#fff" }} />}
-                          </div>
-                        </td>
-                        <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace", color:"var(--ink4)" }}>{a.code}</td>
-                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:600 }}>{a.name}</td>
-                        <td style={{ padding:"10px 12px", fontSize:12, color:"var(--ink5)" }}>{a.category||"—"}</td>
-                      </tr>
-                    ))
-                  }
-                </tbody>
-              </table>
-            </div>
-            <div className="bo-modal-footer" style={{ justifyContent:"space-between" }}>
-              <div style={{ fontSize:12, color:"var(--ink4)" }}>{coaPickerSelected.size} akun dipilih</div>
-              <div style={{ display:"flex", gap:8 }}>
-                <button onClick={()=>setShowCoaPicker(false)} className="bo-btn bo-btn-ghost">Batal</button>
-                <button
-                  disabled={coaPickerSelected.size===0}
-                  onClick={()=>{
-                    const newLines = []
-                    coaPickerSelected.forEach(id=>{
-                      const acct = expCoa.find(a=>a.id===id)
-                      if (!acct) return
-                      const existing = expLines.find(l=>l.coa_id===id)
-                      newLines.push(existing || { coa_id:id, coa_name:acct.name, description:"", amount:"" })
-                    })
-                    setExpLines(newLines)
-                    setShowCoaPicker(false)
-                  }}
-                  className="bo-btn bo-btn-primary">Simpan</button>
-              </div>
             </div>
           </div>
         </div>
