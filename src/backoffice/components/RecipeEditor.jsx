@@ -56,7 +56,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
         className="bo-select"
         style={{ cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 10px", userSelect:"none" }}>
         <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:13, color:sel?"var(--ink)":"var(--ink4)" }}>
-          {sel ? `${sel.name}${sel.cost_per_unit>0?` · Rp ${Math.round(sel.cost_per_unit).toLocaleString("id-ID")}/${sel.unit}`:""}` : "— Select ingredient or sub-recipe —"}
+          {sel ? `${sel.name}${(sel.cost_per_unit||sel.market_cost)>0?` · Rp ${Math.round(sel.cost_per_unit||sel.market_cost).toLocaleString("id-ID")}/${sel.unit}`+(sel.cost_per_unit===0&&sel.market_cost>0?" (est.)":""):""}` : "— Select ingredient or sub-recipe —"}
         </span>
         <span style={{ fontSize:9, color:"var(--ink4)", flexShrink:0, marginLeft:4 }}>▼</span>
       </div>
@@ -80,7 +80,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
                     borderLeft: i===cursor ? "3px solid var(--brand,#2563eb)" : "3px solid transparent" }}>
                   {o.name}
                   {o._g==="Sub" && <span style={{ fontSize:10, color:"#7c3aed", marginLeft:4 }}>(sub)</span>}
-                  {o.cost_per_unit>0 && <span style={{ fontSize:10, color:"var(--ink4)", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit).toLocaleString("id-ID")}/{o.unit}</span>}
+                  {(o.cost_per_unit||o.market_cost)>0 && <span style={{ fontSize:10, color:o.cost_per_unit>0?"var(--ink4)":"#92400e", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit||o.market_cost).toLocaleString("id-ID")}/{o.unit}{o.cost_per_unit===0&&o.market_cost>0?" (est.)":""}</span>}
                 </div>
               ))
             }
@@ -132,8 +132,9 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
 
   const totalCost = rows.reduce((sum, row) => {
     const found = all.find(x => x.id === row.ingredient_id)
-    if (!found?.cost_per_unit) return sum
-    return sum + (found.cost_per_unit / (UNIT_TO_BASE[found.unit]||1)) * toBase(row.qty, row.unit)
+    const effectiveCost = found?.cost_per_unit || found?.market_cost || 0
+    if (!effectiveCost) return sum
+    return sum + (effectiveCost / (UNIT_TO_BASE[found.unit]||1)) * toBase(row.qty, row.unit)
   }, 0)
 
   const yieldBase   = toBase(yieldQty, yieldUnit)
@@ -252,7 +253,9 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:14 }}>
         {rows.map((row,i) => {
           const found = all.find(x=>x.id===row.ingredient_id)
-          const cost  = found?.cost_per_unit ? (found.cost_per_unit/(UNIT_TO_BASE[found.unit]||1))*toBase(row.qty,row.unit) : 0
+          const effectiveCost = found?.cost_per_unit || found?.market_cost || 0
+          const cost  = effectiveCost ? (effectiveCost/(UNIT_TO_BASE[found.unit]||1))*toBase(row.qty,row.unit) : 0
+          const isEst = cost > 0 && !found?.cost_per_unit && found?.market_cost > 0
           return (
             <div key={i} className="recipe-ing-row" style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, alignItems:"center" }}>
               <IngSearch
@@ -268,8 +271,8 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
                 className="bo-select" style={{ fontSize:13 }}>
                 {UNITS.map(u=><option key={u}>{u}</option>)}
               </select>
-              <div style={{ fontSize:13, fontWeight:700, color:cost>0?"var(--ink,#1f2937)":"var(--ink4,#9ca3af)", textAlign:"right" }}>
-                {cost>0?fmtRp(cost):"—"}
+              <div style={{ fontSize:13, fontWeight:700, color:cost>0?(isEst?"#92400e":"var(--ink,#1f2937)"):"var(--ink4,#9ca3af)", textAlign:"right" }} title={isEst?"Estimated from market price":"WAC cost"}>
+                {cost>0?fmtRp(cost)+(isEst?"*":""):"—"}
               </div>
               <button onClick={()=>removeRow(i)} style={{ background:"none", border:"none", cursor:"pointer", color:"var(--red,#ef4444)", fontSize:16, padding:0, lineHeight:1 }}>✕</button>
             </div>
@@ -316,8 +319,17 @@ export default function RecipeEditor() {
       supabase.from("sub_recipes").select("id,name,unit,cost_per_unit,yield_qty,yield_unit,ingredient_id").order("name"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit,category").order("name"),
       supabase.from("sub_recipe_ingredients").select("sub_recipe_id"),
-    ]).then(async ([pRes, sRes, iRes, sriRes]) => {
-      const allIngs = iRes.data || []
+      supabase.from("market_prices").select("ingredient_id,price,conv_qty").order("checked_at", { ascending: false }),
+    ]).then(async ([pRes, sRes, iRes, sriRes, mpRes]) => {
+      // Build market-price cost map: latest price per ingredient (price / conv_qty = cost per base unit)
+      const mpMap = {}
+      ;(mpRes.data || []).forEach(p => {
+        if (!mpMap[p.ingredient_id]) mpMap[p.ingredient_id] = p.price / (p.conv_qty || 1)
+      })
+      const allIngs = (iRes.data || []).map(i => ({
+        ...i,
+        market_cost: mpMap[i.id] || 0,
+      }))
       let subs = sRes.data || []
       // Auto-sync: find Semi-finished ingredients that don't have a sub_recipe row yet
       const semiIngs = allIngs.filter(i => i.category === "Semi-finished")
