@@ -112,7 +112,7 @@ export default function MarketPrices() {
         notes:           row.notes,
       })
       if (error) throw new Error(error.message)
-      const { data: ingData } = await supabase.from("ingredients").select("conversions").eq("id", row.ingredient_id).maybeSingle()
+      const { data: ingData } = await supabase.from("ingredients").select("conversions,cost_per_unit").eq("id", row.ingredient_id).maybeSingle()
       if (ingData) {
         const convs = ingData.conversions || []
         let updated = false
@@ -121,7 +121,12 @@ export default function MarketPrices() {
           return c
         })
         if (!updated) newConvs.push({ unit: row.buy_unit, qty: parseFloat(row.conv_qty)||1, last_price: price, sku:"" })
-        await supabase.from("ingredients").update({ conversions: newConvs }).eq("id", row.ingredient_id)
+        const patch = { conversions: newConvs }
+        // Seed cost_per_unit from market price when ingredient has never been costed
+        if (!ingData.cost_per_unit || ingData.cost_per_unit === 0) {
+          patch.cost_per_unit = Math.round((price / (parseFloat(row.conv_qty) || 1)) * 100) / 100
+        }
+        await supabase.from("ingredients").update(patch).eq("id", row.ingredient_id)
       }
       setSavedIds(prev => new Set([...prev, row.ingredient_id]))
       setRows(prev => prev.map(r => r.ingredient_id === row.ingredient_id ? { ...r, changed: false } : r))

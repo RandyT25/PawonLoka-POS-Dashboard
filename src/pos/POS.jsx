@@ -128,16 +128,15 @@ export default function POS() {
 
   async function restoreShift() {
     const today = new Date().toISOString().slice(0, 10)
-    // Close any stale open shifts from previous days
+    // Close any stale open shifts from previous days (all staff)
     await supabase.from('shifts')
       .update({ clock_out: 'auto-closed' })
-      .eq('staff', staff.name)
       .is('clock_out', null)
       .neq('date', today)
+    // Find the single active shift for today (shared across all staff)
     const { data } = await supabase
       .from('shifts')
       .select('*')
-      .eq('staff', staff.name)
       .eq('date', today)
       .is('clock_out', null)
       .order('created_at', { ascending: false })
@@ -205,8 +204,9 @@ export default function POS() {
     <ShiftModal
       staff={staff}
       shift={shift}
-      onOpen={s => { setShift(s); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift dibuka! Jangan lupa Clock In ya ' + staff.name + '?')) { const today=new Date().toISOString().slice(0,10); const attId='ATT-'+staff.name.replace(/\s/g,'')+'-'+today; supabase.from('attendance').select('*').eq('id',attId).maybeSingle().then(({data})=>{ setTodayAtt(data); setClockPhoto(null); setShowClock(true) }) } },500) }}
-      onClose={() => { setShift(null); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift ditutup! Jangan lupa Clock Out ya ' + staff.name + '?')) { const today=new Date().toISOString().slice(0,10); const attId='ATT-'+staff.name.replace(/\s/g,'')+'-'+today; supabase.from('attendance').select('*').eq('id',attId).maybeSingle().then(({data})=>{ setTodayAtt(data); setClockPhoto(null); setShowClock(true) }) } },500) }}
+      printer={printer}
+      onOpen={s => { setShift(s); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift dibuka! Jangan lupa Clock In ya ' + staff.name + '?')) { setShowClock(true) } },500) }}
+      onClose={() => { setShift(null); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift ditutup! Jangan lupa Clock Out ya ' + staff.name + '?')) { setShowClock(true) } },500) }}
       onLogout={() => { setStaff(null); setShift(null); setShowShift(false); clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null) }}
     />
   )
@@ -578,6 +578,7 @@ export default function POS() {
       onSelectTable={handleTableSelect}
       onTakeaway={() => { clearCart(); setOrderType('Takeaway'); setTableNo(''); setShowFloorPlan(false) }}
       onDelivery={() => { clearCart(); setOrderType('Delivery'); setTableNo(''); setShowFloorPlan(false) }}
+      onBack={() => setShowFloorPlan(false)}
     />
   )
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 
-export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery }) {
+export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery, onBack }) {
   const [tables,    setTables]    = useState([])
   const [area,      setArea]      = useState('Indoor')
   const [areas,     setAreas]     = useState(['Indoor'])
@@ -137,6 +137,7 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
           </div>
         </div>
         <div style={{ display:'flex', gap:8 }}>
+          {onBack && <button onClick={onBack} style={{ ...S.refreshBtn, paddingLeft:10 }}>← Kembali</button>}
           <button onClick={load} style={S.refreshBtn}>Refresh</button>
           <button onClick={onTakeaway} style={S.actionBtn}>Takeaway</button>
           <button onClick={onDelivery} style={{ ...S.actionBtn, background:'#10B981' }}>Delivery</button>

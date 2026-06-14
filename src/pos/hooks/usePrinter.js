@@ -257,6 +257,68 @@ export function buildKitchenData({ ticket, paperSize }) {
   return lines;
 }
 
+export function buildShiftReport({ shift, report, paperSize = "80mm" }) {
+  const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
+  const w   = paperSize === "58mm" ? 32 : 42
+  const EQ  = "=".repeat(w)
+  const HR  = "-".repeat(w)
+  const L   = (left, right) => {
+    const gap = w - left.length - right.length
+    return left + " ".repeat(Math.max(1, gap)) + right
+  }
+  const lines = []
+  const now = new Date()
+  const dateStr = now.toLocaleDateString("id-ID", { weekday:"long", day:"numeric", month:"long", year:"numeric" })
+  const timeStr = now.toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit" })
+
+  lines.push({ cmd: "ALIGN_C" })
+  lines.push({ cmd: "BOLD_ON" })
+  lines.push({ text: "LAPORAN SHIFT\n" })
+  lines.push({ cmd: "BOLD_OFF" })
+  lines.push({ text: EQ + "\n" })
+  lines.push({ cmd: "ALIGN_L" })
+  lines.push({ text: "Kasir   : " + (shift.staff || "-") + "\n" })
+  lines.push({ text: "Tanggal : " + (shift.date || dateStr) + "\n" })
+  lines.push({ text: "Buka    : " + (shift.clock_in || "-") + "\n" })
+  lines.push({ text: "Tutup   : " + timeStr + "\n" })
+  lines.push({ text: EQ + "\n" })
+
+  if (report) {
+    lines.push({ cmd: "BOLD_ON" })
+    lines.push({ text: "RINGKASAN PENJUALAN\n" })
+    lines.push({ cmd: "BOLD_OFF" })
+    lines.push({ text: L("Total Order", String(report.orderCount || 0)) + "\n" })
+    Object.entries(report.sales || {}).forEach(([pay, amt]) => {
+      lines.push({ text: L("  " + pay, fmt(amt)) + "\n" })
+    })
+    lines.push({ text: HR + "\n" })
+    lines.push({ cmd: "BOLD_ON" })
+    lines.push({ text: L("Total Penjualan", fmt(report.totalSales || 0)) + "\n" })
+    lines.push({ cmd: "BOLD_OFF" })
+    lines.push({ text: EQ + "\n" })
+
+    lines.push({ cmd: "BOLD_ON" })
+    lines.push({ text: "ARUS KAS\n" })
+    lines.push({ cmd: "BOLD_OFF" })
+    lines.push({ text: L("Modal Awal", fmt(shift.float_open || 0)) + "\n" })
+    lines.push({ text: L("+ Cash Penjualan", fmt(report.cashSales || 0)) + "\n" })
+    if (report.topups > 0)    lines.push({ text: L("+ Top-up Float", fmt(report.topups)) + "\n" })
+    if (report.expenses > 0)  lines.push({ text: L("- Pengeluaran", fmt(report.expenses)) + "\n" })
+    if (report.returns > 0)   lines.push({ text: L("+ Kembalian Belanja", fmt(report.returns)) + "\n" })
+    lines.push({ text: HR + "\n" })
+    lines.push({ cmd: "BOLD_ON" })
+    lines.push({ text: L("Ekspektasi Kas", fmt(report.expectedCash || 0)) + "\n" })
+    lines.push({ cmd: "BOLD_OFF" })
+    lines.push({ text: EQ + "\n" })
+  }
+
+  lines.push({ cmd: "ALIGN_C" })
+  lines.push({ text: "Dicetak: " + dateStr + " " + timeStr + "\n" })
+  lines.push({ text: "\n\n" })
+  lines.push({ cmd: "CUT" })
+  return lines
+}
+
 export function renderToBytes(lines) {
   const chunks = [escpos([CMD.INIT])];
   for (const l of lines) {

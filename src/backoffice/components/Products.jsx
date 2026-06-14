@@ -107,7 +107,12 @@ export default function Products() {
       const ext  = file.name.split(".").pop()
       const path = `products/${Date.now()}.${ext}`
       const { error } = await supabase.storage.from("product-images").upload(path, file, { upsert:true, contentType:file.type })
-      if (error) throw error
+      if (error) {
+        if (error.message?.includes('Bucket not found') || error.statusCode === '404' || error.error === 'Bucket not found') {
+          throw new Error('Storage bucket belum dibuat. Jalankan migrasi SQL berikut di Supabase:\nINSERT INTO storage.buckets (id, name, public) VALUES (\'product-images\', \'product-images\', true);')
+        }
+        throw error
+      }
       const { data: { publicUrl } } = supabase.storage.from("product-images").getPublicUrl(path)
       setForm(f => ({ ...f, image_url: publicUrl }))
     } catch (err) { alert("Upload failed: " + err.message); setPreview(form.image_url||null) }

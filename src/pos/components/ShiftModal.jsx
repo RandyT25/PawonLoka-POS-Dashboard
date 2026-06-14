@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
+import { buildShiftReport, renderToBytes } from '../hooks/usePrinter'
 
-export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout }) {
+export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
   const [float, setFloat]     = useState('')
   const [saving, setSaving]   = useState(false)
   const [report, setReport]   = useState(null)
@@ -69,6 +70,16 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout }) 
       sales:        report?.totalSales || 0,
       notes:        note || null,
     }).eq('id', shift.id)
+    // Print shift closing report if printer is connected
+    if (printer) {
+      try {
+        const rp = printer.printers?.find(p => p.role === 'receipt')
+        if (rp) {
+          const bytes = renderToBytes(buildShiftReport({ shift, report, paperSize: rp.paperSize }))
+          await printer.printBytes(rp.id, bytes)
+        }
+      } catch (_) { /* print failure should not block logout */ }
+    }
     onLogout()
     setSaving(false)
   }

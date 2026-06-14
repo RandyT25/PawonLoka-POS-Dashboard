@@ -74,10 +74,12 @@ self.addEventListener('fetch', e => {
 // Listen for messages to cache data
 self.addEventListener('message', e => {
   if (e.data?.type === 'CACHE_DATA') {
-    caches.open(DATA_CACHE).then(c => {
-      c.put(e.data.url, new Response(JSON.stringify(e.data.data), {
-        headers: { 'Content-Type': 'application/json' }
-      }))
-    })
+    e.waitUntil(
+      caches.open(DATA_CACHE).then(c =>
+        c.put(e.data.url, new Response(JSON.stringify(e.data.data), {
+          headers: { 'Content-Type': 'application/json' }
+        }))
+      )
+    )
   }
 })
