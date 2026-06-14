@@ -10,6 +10,7 @@ const UNIT_TO_BASE = {
 const UNITS = Object.keys(UNIT_TO_BASE)
 function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }
 function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("id-ID") }
+function fmtUnit(n) { if (!n || isNaN(n)) return "0"; return Number(n.toFixed(2)).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }
 function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0 }
 
 function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }) {
@@ -169,7 +170,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         if (item.ingredient_id) {
           await supabase.from("ingredients").update({ cost_per_unit:costPerUnit }).eq("id", item.ingredient_id)
         }
-        setMsg({ err:false, text:`✓ Saved! Cost: Rp ${costPerUnit.toFixed(2)}/${yieldUnit}` })
+        setMsg({ err:false, text:`✓ Saved! Cost: Rp ${fmtUnit(costPerUnit)}/${yieldUnit}` })
         onSaved({ cost_per_unit:costPerUnit, yield_qty:yieldQty, yield_unit:yieldUnit })
       } else {
         const { error: d } = await supabase.from("recipes").delete().eq("productSku", item.id)
@@ -202,7 +203,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
           <div className="recipe-cogs-inline" style={{ display:"none", marginTop:10, padding:"10px 14px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:10 }}>
             <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4,#6b7280)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:2 }}>Recipe COGS</div>
             <div style={{ fontSize:22, fontWeight:900, color: totalCost>0?"var(--green,#059669)":"var(--ink4,#9ca3af)" }}>{fmtRp(totalCost)}</div>
-            {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {(totalCost/yieldBase).toFixed(2)}/{yieldUnit}</div>}
+            {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {fmtUnit(totalCost/yieldBase)}/{yieldUnit}</div>}
             {margin!==null && (
               <div style={{ marginTop:6, fontSize:12, fontWeight:700, padding:"2px 8px", borderRadius:10, display:"inline-block",
                 background:margin>=65?"#d1fae5":margin>=45?"#fef3c7":"#fee2e2",
@@ -215,7 +216,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         <div className="recipe-cogs-desktop" style={{ textAlign:"right", padding:"12px 16px", border:"1.5px solid var(--surface3,#e5e7eb)", borderRadius:12 }}>
           <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4,#6b7280)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Recipe COGS</div>
           <div style={{ fontSize:24, fontWeight:900, color: totalCost>0?"var(--green,#059669)":"var(--ink4,#9ca3af)" }}>{fmtRp(totalCost)}</div>
-          {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {(totalCost/yieldBase).toFixed(2)}/{yieldUnit}</div>}
+          {itemType==="sub" && yieldBase>0 && <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:2 }}>Rp {fmtUnit(totalCost/yieldBase)}/{yieldUnit}</div>}
           {margin!==null && (
             <div style={{ marginTop:6, fontSize:12, fontWeight:700, padding:"2px 8px", borderRadius:10, display:"inline-block",
               background:margin>=65?"#d1fae5":margin>=45?"#fef3c7":"#fee2e2",
@@ -237,7 +238,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
             {UNITS.map(u=><option key={u}>{u}</option>)}
           </select>
           {totalCost>0 && yieldBase>0 && (
-            <span style={{ fontSize:13, color:"#2563eb", fontWeight:600 }}>→ cost per {yieldUnit}: Rp {(totalCost/yieldBase).toFixed(2)}</span>
+            <span style={{ fontSize:13, color:"#2563eb", fontWeight:600 }}>→ cost per {yieldUnit}: Rp {fmtUnit(totalCost/yieldBase)}</span>
           )}
         </div>
       )}
@@ -432,7 +433,7 @@ export default function RecipeEditor() {
                           : hasRecipeFlag
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#fef3c7", color:"#92400e", fontWeight:700 }}>Has recipe · No price</span>
                           : <span style={{ color:"var(--ink4,#9ca3af)" }}>No recipe</span>}
-                        {hasCogs && tab==="sub" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· Rp {(item.cost_per_unit||0).toFixed(2)}/{item.yield_unit||item.unit}</span>}
+                        {hasCogs && tab==="sub" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· Rp {fmtUnit(item.cost_per_unit||0)}/{item.yield_unit||item.unit}</span>}
                         {hasCogs && tab==="dish" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
                       </div>
                     </div>
