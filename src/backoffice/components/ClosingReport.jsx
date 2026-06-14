@@ -16,7 +16,7 @@ export default function ClosingReport({ period }) {
     d.setMonth(d.getMonth()+1)
     const to   = d.toISOString().slice(0,7) + "-01T00:00:00+08:00"
     const { data: shiftsData } = await supabase
-      .from("shifts").select("*").gte("opened_at", from).lt("opened_at", to).order("opened_at", { ascending:false })
+      .from("shifts").select("*").gte("created_at", from).lt("created_at", to).order("created_at", { ascending:false })
     setShifts(shiftsData||[])
     setLoading(false)
   }
@@ -53,16 +53,17 @@ export default function ClosingReport({ period }) {
                   style={{ borderBottom:"1px solid #F0F4F8", cursor:"pointer", background:selected?.id===sh.id?"#F0F7FF":"" }}
                   onMouseEnter={e=>e.currentTarget.style.background="#F8FAFC"}
                   onMouseLeave={e=>e.currentTarget.style.background=selected?.id===sh.id?"#F0F7FF":""}>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.opened_at?.slice(0,10)||"—"}</td>
-                  <td style={{ padding:"10px 14px", fontWeight:600 }}>{sh.staff_name||sh.cashier||"—"}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{fmt(sh.float||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#00875A" }}>{fmt(sh.cash_sales||sh.total_cash||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700 }}>{fmt(sh.total_sales||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.total_orders||0}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.date||sh.created_at?.slice(0,10)||"—"}</td>
+                  <td style={{ padding:"10px 14px", fontWeight:600 }}>{sh.staff||sh.staff_name||"—"}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12 }}>{fmt(sh.float_open||sh.float||0)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#00875A" }}>{fmt(sh.sales||sh.total_sales||0)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700 }}>{fmt(sh.sales||sh.total_sales||0)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12 }}>—</td>
                   <td style={{ padding:"10px 14px" }}>
                     <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10,
-                      background:sh.closed_at?"#E3FCEF":"#FFF0B3", color:sh.closed_at?"#00875A":"#FF8B00" }}>
-                      {sh.closed_at?"Closed":"Open"}
+                      background:sh.clock_out&&sh.clock_out!=="auto-closed"?"#E3FCEF":sh.clock_out==="auto-closed"?"#F3F4F6":"#FFF0B3",
+                      color:sh.clock_out&&sh.clock_out!=="auto-closed"?"#00875A":sh.clock_out==="auto-closed"?"#6B778C":"#FF8B00" }}>
+                      {sh.clock_out&&sh.clock_out!=="auto-closed"?"Closed":sh.clock_out==="auto-closed"?"Auto-closed":"Open"}
                     </span>
                   </td>
                 </tr>
@@ -71,12 +72,12 @@ export default function ClosingReport({ period }) {
           </table>
           {selected && (
             <div style={{ padding:"16px 20px", borderTop:"1px solid #E8ECF0", background:"#F8FAFC" }}>
-              <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>Shift Detail — {selected.staff_name||selected.cashier}</div>
+              <div style={{ fontSize:13, fontWeight:800, marginBottom:10 }}>Shift Detail — {selected.staff||selected.staff_name||"—"}</div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:8 }}>
                 {[
-                  ["Opened",  selected.opened_at ? new Date(selected.opened_at).toLocaleString("id-ID") : "—"],
-                  ["Closed",  selected.closed_at ? new Date(selected.closed_at).toLocaleString("id-ID") : "Still open"],
-                  ["Float",   fmt(selected.float||0)],
+                  ["Opened",  selected.created_at ? new Date(selected.created_at).toLocaleString("id-ID") : "—"],
+                  ["Closed",  selected.clock_out && selected.clock_out !== "auto-closed" ? selected.clock_out : selected.clock_out === "auto-closed" ? "Auto-closed" : "Still open"],
+                  ["Float",   fmt(selected.float_open||selected.float||0)],
                   ["Cash Sales", fmt(selected.cash_sales||selected.total_cash||0)],
                   ["QRIS",    fmt(selected.qris_sales||0)],
                   ["Other",   fmt(selected.other_sales||0)],
