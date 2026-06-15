@@ -63,7 +63,8 @@ export default function Profitability() {
       const cogsP = price > 0 ? (cpp / price * 100) : 0
       const newPrice = parseFloat(editPrices[p.sku]) || price
       const newCogsP = newPrice > 0 ? (cpp / newPrice * 100) : 0
-      const recPrice = cpp > 0 ? Math.round((cpp / (target/100)) / (cpp < 1000 ? 100 : 1000)) * (cpp < 1000 ? 100 : 1000) : 0
+      const roundTo  = cpp < 2000 ? 500 : cpp < 10000 ? 1000 : 5000
+      const recPrice = cpp > 0 && cogsP > target ? Math.ceil((cpp / (target / 100)) / roundTo) * roundTo : 0
       return {
         "No": idx+1, "Nama Menu": p.name, "Category": p.cat||"",
         "HPP (Rp)": cpp, "Harga Sekarang (Rp)": price,
@@ -193,7 +194,12 @@ export default function Profitability() {
                 const newCogsP = newPrice > 0 ? (cpp / newPrice * 100) : 0
                 const delta    = newCogsP - cogsP
                 const newProfit= newPrice - cpp
-                const recPrice = cpp > 0 ? Math.round((cpp / (target/100)) / (cpp < 1000 ? 100 : 1000)) * (cpp < 1000 ? 100 : 1000) : 0
+                // Only recommend a new price when COGS % is above target
+                // Round UP (ceil) so the recommended price always achieves the target
+                const roundTo  = cpp < 2000 ? 500 : cpp < 10000 ? 1000 : 5000
+                const recPrice = cpp > 0 && cogsP > target
+                  ? Math.ceil((cpp / (target / 100)) / roundTo) * roundTo
+                  : 0
                 const st       = statusLabel(cogsP, "Regular")
                 const rowBg    = cogsP > 40 ? "#FFF5F5" : cogsP > 35 ? "#FFFBEB" : cogsP > 0 && cogsP <= 30 ? "#F0FFF4" : "#fff"
                 const hasChange = editPrices[p.sku] && parseFloat(editPrices[p.sku]) !== price
@@ -216,7 +222,7 @@ export default function Profitability() {
                     <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)" }}>{fmt(profit)}</td>
                     <td style={{ padding:"8px 12px" }}>
                       <input type="number" value={editPrices[p.sku]||""} onChange={e=>setEditPrices(prev=>({...prev,[p.sku]:e.target.value}))}
-                        placeholder={String(price)} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
+                        placeholder={price.toLocaleString("id-ID")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
                     </td>
                     <td style={{ padding:"8px 12px" }}>
                       {cpp > 0 && newPrice > 0 ? (
