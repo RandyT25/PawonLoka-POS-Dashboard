@@ -14,6 +14,14 @@ function statusLabel(cogsP, type) {
   return { text:"Naik Harga!", color:"var(--red)", bg:"var(--red-lt)" }
 }
 
+const UNIT_TO_BASE = {
+  gr:1,g:1,kg:1000,ml:1,mL:1,L:1000,Galon:19000,
+  pcs:1,butir:1,biji:1,buah:1,lembar:1,ekor:1,Ekor:1,
+  tsp:5,tbsp:15,cup:240,portion:1,porsi:1,slice:1,
+  bungkus:1,pack:1,sachet:1,ikat:1,botol:1,
+}
+const toBase = (qty, unit) => (Number(qty)||0) * (UNIT_TO_BASE[unit]||1)
+
 export default function Profitability() {
   const [products,   setProducts]   = useState([])
   const [loading,    setLoading]    = useState(true)
@@ -23,6 +31,7 @@ export default function Profitability() {
   const [search,     setSearch]     = useState("")
   const [editPrices, setEditPrices] = useState({}) // sku -> new price
   const [saving,     setSaving]     = useState(false)
+  const [syncing,    setSyncing]    = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -54,6 +63,38 @@ export default function Profitability() {
     await load()
     setSaving(false)
     alert("Prices updated successfully")
+  }
+
+  async function syncCogs() {
+    if (!confirm("Recalculate COGS for all products from their recipes? This will overwrite existing COGS values.")) return
+    setSyncing(true)
+    const [{ data: recipes }, { data: ingredients }, { data: subRecipes }, { data: mps }] = await Promise.all([
+      supabase.from("recipes").select("productSku,ingredient_id,qty,unit"),
+      supabase.from("ingredients").select("id,unit,cost_per_unit"),
+      supabase.from("sub_recipes").select("id,unit,cost_per_unit"),
+      supabase.from("market_prices").select("ingredient_id,price,conv_qty").order("checked_at", { ascending: false }),
+    ])
+    const mpMap = {}
+    ;(mps||[]).forEach(p => { if (!mpMap[p.ingredient_id]) mpMap[p.ingredient_id] = p.price / (p.conv_qty||1) })
+    const lookup = {}
+    ;(ingredients||[]).forEach(i => { lookup[i.id] = { unit:i.unit||"gr", cost_per_unit:i.cost_per_unit||0, market_cost:mpMap[i.id]||0 } })
+    ;(subRecipes||[]).forEach(s => { lookup[s.id] = { unit:s.unit||"gr", cost_per_unit:s.cost_per_unit||0, market_cost:0 } })
+    const byProduct = {}
+    ;(recipes||[]).forEach(r => { if (r.productSku && r.ingredient_id) { if (!byProduct[r.productSku]) byProduct[r.productSku]=[]; byProduct[r.productSku].push(r) } })
+    let updated = 0
+    for (const [sku, lines] of Object.entries(byProduct)) {
+      const cogs = lines.reduce((sum, row) => {
+        const ing = lookup[row.ingredient_id]
+        const c = ing?.cost_per_unit || ing?.market_cost || 0
+        if (!c) return sum
+        return sum + (c / (UNIT_TO_BASE[ing.unit]||1)) * toBase(row.qty, row.unit)
+      }, 0)
+      const rounded = Math.round(cogs)
+      if (rounded > 0) { await supabase.from("products").update({ cogs: rounded }).eq("sku", sku); updated++ }
+    }
+    await load()
+    setSyncing(false)
+    alert(`COGS synced for ${updated} products`)
   }
 
   function exportExcel() {
@@ -121,6 +162,7 @@ export default function Profitability() {
               </button>
             ))}
           </div>
+          <button onClick={syncCogs} disabled={syncing} className="bo-btn bo-btn-ghost">{syncing ? "Syncing..." : "Sync COGS"}</button>
           <button onClick={exportExcel} className="bo-btn bo-btn-ghost">Export Excel</button>
           {pendingChanges > 0 && (
             <button onClick={applyPriceChanges} disabled={saving}
