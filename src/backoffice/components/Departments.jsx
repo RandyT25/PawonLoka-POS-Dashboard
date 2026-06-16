@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
 const DEPT_COLORS = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899","#DC2626","#0EA5E9","#00875A"]
-const DEPT_EMPTY  = { name:"", color:"#6366F1" }
+const DEPT_EMPTY  = { name:"", color:"#6366F1", is_owner:false }
 
 export default function Departments() {
   const [depts,     setDepts]     = useState([])
@@ -29,9 +29,9 @@ export default function Departments() {
     if (!form.name.trim()) return
     setSaving(true)
     if (modal==="add") {
-      await supabase.from("departments").insert({ id:"DEPT-"+Date.now(), name:form.name.trim(), color:form.color, sort_order:depts.length+1 })
+      await supabase.from("departments").insert({ id:"DEPT-"+Date.now(), name:form.name.trim(), color:form.color, is_owner:form.is_owner||false, sort_order:depts.length+1 })
     } else {
-      await supabase.from("departments").update({ name:form.name.trim(), color:form.color }).eq("id", modal.id)
+      await supabase.from("departments").update({ name:form.name.trim(), color:form.color, is_owner:form.is_owner||false }).eq("id", modal.id)
     }
     await load()
     setModal(null); setForm(DEPT_EMPTY); setSaving(false)
@@ -68,7 +68,10 @@ export default function Departments() {
                 <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:10 }}>
                   <div style={{ width:44, height:44, borderRadius:12, background:d.color, flexShrink:0 }} />
                   <div>
-                    <div style={{ fontSize:16, fontWeight:800 }}>{d.name}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ fontSize:16, fontWeight:800 }}>{d.name}</div>
+                      {d.is_owner && <span style={{ fontSize:10, fontWeight:800, background:d.color, color:"#fff", padding:"2px 7px", borderRadius:8 }}>OWNER</span>}
+                    </div>
                     <div style={{ fontSize:12, color:d.color, fontWeight:700 }}>{members.length} staff member{members.length!==1?"s":""}</div>
                   </div>
                 </div>
@@ -81,7 +84,7 @@ export default function Departments() {
                 )}
               </div>
               <div style={{ display:"flex" }}>
-                <button onClick={()=>{ setForm({name:d.name,color:d.color}); setModal(d) }}
+                <button onClick={()=>{ setForm({name:d.name,color:d.color,is_owner:d.is_owner||false}); setModal(d) }}
                   style={{ flex:1, padding:"11px", border:"none", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
                 <button onClick={()=>deleteDept(d)}
                   style={{ flex:1, padding:"11px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--red)" }}>Delete</button>
@@ -118,6 +121,15 @@ export default function Departments() {
                         border:form.color===c?"3px solid #0A1628":"3px solid transparent", boxSizing:"border-box" }} />
                   ))}
                 </div>
+              </div>
+              <div className="bo-form-row" style={{ marginTop:12 }}>
+                <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+                  <input type="checkbox" checked={form.is_owner||false} onChange={e=>setForm(f=>({...f,is_owner:e.target.checked}))} style={{ width:16,height:16,accentColor:"var(--brand)" }} />
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:700 }}>Owner role</div>
+                    <div style={{ fontSize:11, color:"var(--ink4)" }}>Excluded from schedule and staff rotation</div>
+                  </div>
+                </label>
               </div>
               {/* Live preview */}
               <div style={{ marginTop:14, padding:"14px 16px", borderRadius:12, background:form.color+"15", border:"1.5px solid "+form.color+"33", display:"flex", alignItems:"center", gap:12 }}>

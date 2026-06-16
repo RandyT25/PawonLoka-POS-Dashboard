@@ -112,11 +112,12 @@ export default function Schedule() {
       if (sched.staff_list) setStaff(sched.staff_list)
     }
     setAttendance(att||[])
+    if (deptData?.length) setDepts(deptData)
     if (staffData?.length) {
       setStaffRows(staffData)
-      setStaff(staffData.filter(s=>s.active!==false).map(s=>s.name))
+      const ownerRoles = new Set((deptData||[]).filter(d=>d.is_owner).map(d=>d.name))
+      setStaff(staffData.filter(s=>s.active!==false && !ownerRoles.has(s.role)).map(s=>s.name))
     }
-    if (deptData?.length) setDepts(deptData)
     setLoading(false)
   }
 

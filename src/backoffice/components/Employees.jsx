@@ -106,9 +106,12 @@ export default function Employees() {
   }
 
   // ── Derived ─────────────────────────────────────────────────────
-  const active  = staff.filter(s=>s.active!==false)
-  const flagged = staff.filter(s=>s.flagged)
-  const filtered = staff.filter(s => {
+  const ownerRoles = new Set(depts.filter(d=>d.is_owner).map(d=>d.name))
+  const owners  = staff.filter(s=>ownerRoles.has(s.role))
+  const nonOwners = staff.filter(s=>!ownerRoles.has(s.role))
+  const active  = nonOwners.filter(s=>s.active!==false)
+  const flagged = nonOwners.filter(s=>s.flagged)
+  const filtered = nonOwners.filter(s => {
     const matchFilter = filter==="all" || (filter==="active"&&s.active!==false)
     const matchSearch = !search || s.name?.toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
@@ -162,46 +165,83 @@ export default function Employees() {
 
         {/* ── Staff tab ── */}
         {tab==="staff" && (
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
-            {filtered.map(s => {
-              const color = deptColor(s.role) !== "#6B778C" ? deptColor(s.role) : (s.color||"#0066FF")
-              const cardColor = s.color||"#0066FF"
-              const p = perms(s)
-              return (
-                <div key={s.id} style={{ background:"#fff", borderRadius:16, overflow:"hidden", border:"1.5px solid #f0f0f0", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", opacity:s.active===false?0.55:1 }}>
-                  <div style={{ background:cardColor+"18", padding:"16px 16px 12px", borderBottom:"1px solid "+cardColor+"22", display:"flex", alignItems:"center", gap:12, position:"relative" }}>
-                    <div style={{ width:46, height:46, borderRadius:"50%", background:cardColor, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
-                      {initials(s.name)}
-                    </div>
-                    <div>
-                      <div style={{ fontSize:15, fontWeight:800, color:"#0A1628" }}>{s.name}</div>
-                      <div style={{ fontSize:12, fontWeight:700, color:deptColor(s.role) }}>{s.role||"—"}</div>
-                    </div>
-                    <div style={{ position:"absolute", top:14, right:14, width:8, height:8, borderRadius:"50%", background:s.active!==false?"#36B37E":"#DFE1E6" }} />
-                  </div>
-                  <div style={{ padding:"12px 16px", fontSize:13, color:"#42526E" }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}><span>📞</span><span>{s.phone||"—"}</span></div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}><span>📅</span><span>Since {s.join_date||s.created_at?.slice(0,10)||"—"}</span></div>
-                    <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}><span>💰</span><span>{fmt(s.salary||0)}/mo</span></div>
-                    <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                      <span>🔑</span>
-                      <span style={{ fontFamily:"monospace", letterSpacing:2 }}>PIN: ••••</span>
-                      {p.map(label=>(
-                        <span key={label} style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6,
-                          background:label==="Void"?"#FFEBE6":label==="Back Office"?"#E8F0FF":"#E3FCEF",
-                          color:label==="Void"?"#DE350B":label==="Back Office"?"#0052CC":"#00875A" }}>{label}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ display:"flex", borderTop:"1px solid #f0f0f0" }}>
-                    <button onClick={()=>openEdit(s)} style={{ flex:1, padding:"10px", border:"none", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Edit</button>
-                    <button onClick={()=>setDetail(s)} style={{ flex:1, padding:"10px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Detail</button>
-                    <button onClick={()=>clockIn(s)} style={{ flex:1, padding:"10px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:700, cursor:"pointer", color:"#00875A" }}>Clock In</button>
-                  </div>
+          <div>
+            {/* Owners section */}
+            {owners.length > 0 && (
+              <div style={{ marginBottom:24 }}>
+                <div style={{ fontSize:11, fontWeight:800, color:"#6B778C", letterSpacing:"1.2px", textTransform:"uppercase", marginBottom:10 }}>Owners</div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
+                  {owners.map(s => {
+                    const cardColor = s.color||"#0EA5E9"
+                    return (
+                      <div key={s.id} style={{ background:"#fff", borderRadius:16, overflow:"hidden", border:"2px solid "+cardColor+"44", boxShadow:"0 1px 4px rgba(0,0,0,0.06)" }}>
+                        <div style={{ background:cardColor+"18", padding:"16px 16px 12px", borderBottom:"1px solid "+cardColor+"22", display:"flex", alignItems:"center", gap:12, position:"relative" }}>
+                          <div style={{ width:46, height:46, borderRadius:"50%", background:cardColor, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
+                            {initials(s.name)}
+                          </div>
+                          <div>
+                            <div style={{ fontSize:15, fontWeight:800, color:"#0A1628" }}>{s.name}</div>
+                            <div style={{ fontSize:12, fontWeight:700, color:cardColor }}>{s.role||"Owner"}</div>
+                          </div>
+                          <span style={{ position:"absolute", top:12, right:12, fontSize:10, fontWeight:800, background:cardColor, color:"#fff", padding:"2px 8px", borderRadius:8, letterSpacing:"0.5px" }}>OWNER</span>
+                        </div>
+                        <div style={{ padding:"12px 16px", fontSize:13, color:"#42526E" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}><span>📞</span><span>{s.phone||"—"}</span></div>
+                          <div style={{ display:"flex", alignItems:"center", gap:8 }}><span>📅</span><span>Since {s.join_date||s.created_at?.slice(0,10)||"—"}</span></div>
+                        </div>
+                        <div style={{ display:"flex", borderTop:"1px solid #f0f0f0" }}>
+                          <button onClick={()=>openEdit(s)} style={{ flex:1, padding:"10px", border:"none", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Edit</button>
+                          <button onClick={()=>setDetail(s)} style={{ flex:1, padding:"10px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Detail</button>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-              )
-            })}
-            {filtered.length===0 && <div style={{ gridColumn:"1/-1", textAlign:"center", color:"var(--ink5)", padding:48 }}>No staff found</div>}
+              </div>
+            )}
+
+            {/* Staff section */}
+            <div style={{ fontSize:11, fontWeight:800, color:"#6B778C", letterSpacing:"1.2px", textTransform:"uppercase", marginBottom:10 }}>Staff</div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:14 }}>
+              {filtered.map(s => {
+                const cardColor = s.color||"#0066FF"
+                const p = perms(s)
+                return (
+                  <div key={s.id} style={{ background:"#fff", borderRadius:16, overflow:"hidden", border:"1.5px solid #f0f0f0", boxShadow:"0 1px 4px rgba(0,0,0,0.06)", opacity:s.active===false?0.55:1 }}>
+                    <div style={{ background:cardColor+"18", padding:"16px 16px 12px", borderBottom:"1px solid "+cardColor+"22", display:"flex", alignItems:"center", gap:12, position:"relative" }}>
+                      <div style={{ width:46, height:46, borderRadius:"50%", background:cardColor, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, fontWeight:800, color:"#fff", flexShrink:0 }}>
+                        {initials(s.name)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:15, fontWeight:800, color:"#0A1628" }}>{s.name}</div>
+                        <div style={{ fontSize:12, fontWeight:700, color:deptColor(s.role) }}>{s.role||"—"}</div>
+                      </div>
+                      <div style={{ position:"absolute", top:14, right:14, width:8, height:8, borderRadius:"50%", background:s.active!==false?"#36B37E":"#DFE1E6" }} />
+                    </div>
+                    <div style={{ padding:"12px 16px", fontSize:13, color:"#42526E" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}><span>📞</span><span>{s.phone||"—"}</span></div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}><span>📅</span><span>Since {s.join_date||s.created_at?.slice(0,10)||"—"}</span></div>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}><span>💰</span><span>{fmt(s.salary||0)}/mo</span></div>
+                      <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                        <span>🔑</span>
+                        <span style={{ fontFamily:"monospace", letterSpacing:2 }}>PIN: ••••</span>
+                        {p.map(label=>(
+                          <span key={label} style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:6,
+                            background:label==="Void"?"#FFEBE6":label==="Back Office"?"#E8F0FF":"#E3FCEF",
+                            color:label==="Void"?"#DE350B":label==="Back Office"?"#0052CC":"#00875A" }}>{label}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ display:"flex", borderTop:"1px solid #f0f0f0" }}>
+                      <button onClick={()=>openEdit(s)} style={{ flex:1, padding:"10px", border:"none", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Edit</button>
+                      <button onClick={()=>setDetail(s)} style={{ flex:1, padding:"10px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"#42526E" }}>Detail</button>
+                      <button onClick={()=>clockIn(s)} style={{ flex:1, padding:"10px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:700, cursor:"pointer", color:"#00875A" }}>Clock In</button>
+                    </div>
+                  </div>
+                )
+              })}
+              {filtered.length===0 && <div style={{ gridColumn:"1/-1", textAlign:"center", color:"var(--ink5)", padding:48 }}>No staff found</div>}
+            </div>
           </div>
         )}
 
