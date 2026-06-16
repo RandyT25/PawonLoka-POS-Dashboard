@@ -1,5 +1,5 @@
-const CACHE_VERSION = 'pawonloka-v5'
-const DATA_CACHE = 'pawonloka-data-v5'
+const CACHE_VERSION = 'pawonloka-v6'
+const DATA_CACHE = 'pawonloka-data-v6'
 
 // These get cached on install
 const PRECACHE = [
@@ -37,8 +37,22 @@ self.addEventListener('fetch', e => {
   // Never intercept non-GET
   if (e.request.method !== 'GET') return
 
-  // JS/CSS/images - cache first, then network
-  if (url.pathname.match(/\.(js|css|png|jpg|ico|svg|woff2?)$/)) {
+  // JS/CSS - network first so deploys always deliver fresh code
+  if (url.pathname.match(/\.(js|css)$/)) {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone()
+          caches.open(CACHE_VERSION).then(c => c.put(e.request, clone))
+        }
+        return res
+      }).catch(() => caches.match(e.request))
+    )
+    return
+  }
+
+  // Images - cache first (rarely change)
+  if (url.pathname.match(/\.(png|jpg|ico|svg|woff2?)$/)) {
     e.respondWith(
       caches.match(e.request).then(cached => {
         if (cached) return cached
