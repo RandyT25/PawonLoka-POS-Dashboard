@@ -5,9 +5,10 @@ const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sun
 const DAY_SHORT = { Monday:"Mon",Tuesday:"Tue",Wednesday:"Wed",Thursday:"Thu",Friday:"Fri",Saturday:"Sat",Sunday:"Sun" }
 const STATIONS = ["Kasir","Bar","Bakar","Snack","Kitchen"]
 const STATION_COLORS = { Kasir:"var(--brand)",Bar:"var(--green)",Bakar:"var(--red)",Snack:"var(--amber)",Kitchen:"#6554C0" }
-const STAFF_ROLES = ["Kasir","Bar","Snack","Cook","Head Cook","Head Kasir","Owner"]
 const STAFF_COLORS = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899"]
-const STAFF_EMPTY = { name:"", role:"Cook", color:"#3B82F6", pin:"", active:true }
+const STAFF_EMPTY = { name:"", role:"", color:"#3B82F6", pin:"", active:true }
+const DEPT_COLORS  = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899","#DC2626","#0EA5E9"]
+const DEPT_EMPTY   = { name:"", color:"#6366F1" }
 
 // Default staff — can be overridden by shuffle
 const DEFAULT_STAFF = ["Nita","Uti","Mahes","Alin","Yudi","Meldy","Oji"]
@@ -85,19 +86,24 @@ export default function Schedule() {
   const [editForm,   setEditForm]   = useState({})
   const [showShuffle,setShowShuffle]= useState(false)
   const [shuffleMap, setShuffleMap] = useState({})
-  const [staffModal, setStaffModal] = useState(null) // null | "add" | staffRow
+  const [staffModal, setStaffModal] = useState(null)
   const [staffForm,  setStaffForm]  = useState(STAFF_EMPTY)
   const [staffSaving,setStaffSaving]= useState(false)
   const [showPin,    setShowPin]    = useState(false)
+  const [depts,      setDepts]      = useState([])
+  const [deptModal,  setDeptModal]  = useState(null)
+  const [deptForm,   setDeptForm]   = useState(DEPT_EMPTY)
+  const [deptSaving, setDeptSaving] = useState(false)
 
   useEffect(() => { load() }, [])
 
   async function load() {
     setLoading(true)
-    const [{ data:sched }, { data:att }, { data:staffData }] = await Promise.all([
+    const [{ data:sched }, { data:att }, { data:staffData }, { data:deptData }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id","weekly-template").maybeSingle(),
       supabase.from("attendance").select("*").order("date",{ascending:false}).limit(200),
       supabase.from("staff").select("*").order("name"),
+      supabase.from("departments").select("*").order("sort_order"),
     ])
     if (sched) {
       setDays(sched.days||{})
@@ -110,6 +116,7 @@ export default function Schedule() {
       setStaffRows(staffData)
       setStaff(staffData.filter(s=>s.active!==false).map(s=>s.name))
     }
+    if (deptData?.length) setDepts(deptData)
     setLoading(false)
   }
 
@@ -147,6 +154,27 @@ export default function Schedule() {
     await supabase.from("staff").delete().eq("id", s.id)
     await load()
     setStaffModal(null)
+  }
+
+  async function saveDept() {
+    if (!deptForm.name.trim()) return
+    setDeptSaving(true)
+    if (deptModal==="add") {
+      await supabase.from("departments").insert({ id:"DEPT-"+Date.now(), name:deptForm.name.trim(), color:deptForm.color, sort_order:depts.length+1 })
+    } else {
+      await supabase.from("departments").update({ name:deptForm.name.trim(), color:deptForm.color }).eq("id", deptModal.id)
+    }
+    await load()
+    setDeptModal(null)
+    setDeptForm(DEPT_EMPTY)
+    setDeptSaving(false)
+  }
+
+  async function deleteDept(d) {
+    if (!confirm(`Delete department "${d.name}"? Staff with this role will keep the name.`)) return
+    await supabase.from("departments").delete().eq("id", d.id)
+    await load()
+    setDeptModal(null)
   }
 
   function autoFillWeek() {
@@ -242,7 +270,7 @@ export default function Schedule() {
     <div>
       {/* Top bar */}
       <div style={{ display:"flex", gap:8, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
-        {[["schedule","Schedule"],["attendance","Attendance"],["staff","Staff"]].map(([t,l])=>(
+        {[["schedule","Schedule"],["attendance","Attendance"],["staff","Staff"],["depts","Departments"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
         {tab==="schedule" && <>
@@ -408,6 +436,30 @@ export default function Schedule() {
         </div>
       )}
 
+      {tab==="depts" && (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+            <div style={{ fontSize:13, color:"var(--ink4)" }}>{depts.length} departments · used as staff roles across the system</div>
+            <button onClick={()=>{ setDeptForm(DEPT_EMPTY); setDeptModal("add") }} className="bo-btn bo-btn-primary bo-btn-sm">+ Add Department</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))", gap:10 }}>
+            {depts.map(d=>(
+              <div key={d.id} style={{ background:"#fff", border:"1.5px solid var(--surface3)", borderRadius:12, overflow:"hidden" }}>
+                <div style={{ background:d.color+"18", borderBottom:"1px solid "+d.color+"22", padding:"14px 16px", display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:32, height:32, borderRadius:8, background:d.color, flexShrink:0 }} />
+                  <div style={{ fontSize:14, fontWeight:800 }}>{d.name}</div>
+                </div>
+                <div style={{ display:"flex", borderTop:"1px solid var(--surface3)" }}>
+                  <button onClick={()=>{ setDeptForm({name:d.name,color:d.color}); setDeptModal(d) }} style={{ flex:1, padding:"9px", border:"none", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
+                  <button onClick={()=>deleteDept(d)} style={{ flex:1, padding:"9px", border:"none", borderLeft:"1px solid var(--surface3)", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--red)" }}>Delete</button>
+                </div>
+              </div>
+            ))}
+            {depts.length===0&&<div style={{ gridColumn:"1/-1", textAlign:"center", color:"var(--ink5)", padding:40 }}>No departments yet</div>}
+          </div>
+        </div>
+      )}
+
       {/* Edit Day Modal */}
       {editDay && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditDay(null)}>
@@ -520,9 +572,10 @@ export default function Schedule() {
                 <input value={staffForm.name} onChange={e=>setStaffForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus placeholder="Full name" />
               </div>
               <div className="bo-form-row">
-                <label className="bo-label">Role</label>
+                <label className="bo-label">Department</label>
                 <select value={staffForm.role} onChange={e=>setStaffForm(f=>({...f,role:e.target.value}))} className="bo-select">
-                  {STAFF_ROLES.map(r=><option key={r}>{r}</option>)}
+                  <option value="">— Select —</option>
+                  {depts.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}
                 </select>
               </div>
               <div className="bo-form-row">
@@ -558,6 +611,45 @@ export default function Schedule() {
               {staffModal!=="add" && <button onClick={()=>deleteStaff(staffModal)} className="bo-btn bo-btn-danger">Delete</button>}
               <button onClick={saveStaff} disabled={staffSaving||!staffForm.name.trim()} className="bo-btn bo-btn-primary">
                 {staffSaving?"Saving...":staffModal==="add"?"Add":"Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Department Add/Edit Modal */}
+      {deptModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setDeptModal(null)}>
+          <div className="bo-modal" style={{ maxWidth:380 }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">{deptModal==="add"?"Add Department":"Edit — "+deptModal.name}</div>
+              <button className="bo-modal-close" onClick={()=>setDeptModal(null)}>✕</button>
+            </div>
+            <div className="bo-modal-body">
+              <div className="bo-form-row">
+                <label className="bo-label">Department Name *</label>
+                <input value={deptForm.name} onChange={e=>setDeptForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus placeholder="e.g. Snack, Bar, Kasir" />
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Color</label>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {DEPT_COLORS.map(c=>(
+                    <div key={c} onClick={()=>setDeptForm(f=>({...f,color:c}))}
+                      style={{ width:28, height:28, borderRadius:8, background:c, cursor:"pointer",
+                        border:deptForm.color===c?"3px solid #0A1628":"3px solid transparent", boxSizing:"border-box" }} />
+                  ))}
+                </div>
+                <div style={{ marginTop:10, display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:40, height:40, borderRadius:10, background:deptForm.color }} />
+                  <span style={{ fontSize:13, fontWeight:700, color:deptForm.color }}>{deptForm.name||"Preview"}</span>
+                </div>
+              </div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setDeptModal(null)} className="bo-btn bo-btn-ghost">Cancel</button>
+              {deptModal!=="add" && <button onClick={()=>deleteDept(deptModal)} className="bo-btn bo-btn-danger">Delete</button>}
+              <button onClick={saveDept} disabled={deptSaving||!deptForm.name.trim()} className="bo-btn bo-btn-primary">
+                {deptSaving?"Saving...":deptModal==="add"?"Add":"Save"}
               </button>
             </div>
           </div>

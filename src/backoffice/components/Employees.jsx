@@ -3,14 +3,15 @@ import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
-const ROLES  = ["Cashier","Manager","Waiter","Kitchen","Bar","Cook","Head Cook","Head Kasir","Owner"]
+const ROLES_FALLBACK = ["Kasir","Bar","Snack","Kitchen","Cook","Head Cook","Head Kasir","Owner"]
 const COLORS = ["#0066FF","#00875A","#FF8B00","#6554C0","#DE350B","#00B8D9","#10B981","#F59E0B","#EF4444"]
-const EMPTY  = { name:"", role:"Cashier", pin:"", salary:0, color:"#0066FF", phone:"", active:true }
+const EMPTY  = { name:"", role:"", pin:"", salary:0, color:"#0066FF", phone:"", active:true }
 
 const PERM_LABELS = { pos:"POS", backoffice:"Back Office", reports:"Reports", void:"Void", discount:"Discounts", cash:"Cash" }
 
 export default function Employees() {
   const [staff,   setStaff]   = useState([])
+  const [roles,   setRoles]   = useState(ROLES_FALLBACK)
   const [modal,   setModal]   = useState(false)
   const [form,    setForm]    = useState(EMPTY)
   const [saving,  setSaving]  = useState(false)
@@ -24,8 +25,12 @@ export default function Employees() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from("staff").select("*").order("name")
+    const [{ data }, { data:deptData }] = await Promise.all([
+      supabase.from("staff").select("*").order("name"),
+      supabase.from("departments").select("name").order("sort_order"),
+    ])
     setStaff(data||[])
+    if (deptData?.length) setRoles(deptData.map(d=>d.name))
     setLoading(false)
   }
 
@@ -192,7 +197,8 @@ export default function Employees() {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Role</label>
                   <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} className="bo-select">
-                    {ROLES.map(r=><option key={r}>{r}</option>)}
+                    <option value="">— Select —</option>
+                  {roles.map(r=><option key={r}>{r}</option>)}
                   </select>
                 </div>
                 <div><label className="bo-label">PIN (4 digits) *</label>
