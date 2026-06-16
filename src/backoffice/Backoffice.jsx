@@ -38,6 +38,7 @@ const StaffSubmissions= lazy(() => import("./components/StaffSubmissions"))
 const ImportExport    = lazy(() => import("./components/ImportExport"))
 const Schedule        = lazy(() => import("./components/Schedule"))
 const Attendance      = lazy(() => import("./components/Attendance"))
+const DepartmentsPage = lazy(() => import("./components/Departments"))
 const Accounting      = lazy(() => import("./components/Accounting"))
 const Rekonsiliasi    = lazy(() => import("./components/Rekonsiliasi"))
 const Orders          = lazy(() => import("./components/Orders"))
@@ -175,6 +176,7 @@ const NAV = [
   { id:"staff-submissions", label:"Staff Reports",       icon:"📱" },
   { group:"People" },
   { id:"employees",        label:"Employees",          icon:"👤" },
+  { id:"departments",      label:"Departments",        icon:"🏢" },
   { id:"shifts",           label:"Shifts",             icon:"🕐" },
   { id:"schedule",         label:"Schedule",           icon:"📅" },
   { id:"attendance",        label:"Attendance",         icon:"🕐" },
@@ -218,6 +220,7 @@ const SCREENS = {
   "staff-submissions": StaffSubmissions,
   "import-export":      ImportExport,
   employees:         Employees,
+  departments:       DepartmentsPage,
   shifts:            Shifts,
   orders:            Orders,
   'market-prices':   MarketPrices,
