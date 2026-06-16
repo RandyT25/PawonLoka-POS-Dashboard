@@ -1,7 +1,7 @@
 export const STAFF = [
   { id:1, name:'Claudy', role:'Owner',      color:'#6366F1' },
   { id:2, name:'Nita',   role:'Head Kasir', color:'#F59E0B' },
-  { id:3, name:'Aisyah', role:'Bar',        color:'#10B981' },
+  { id:3, name:'Uti',    role:'Kasir',       color:'#10B981' },
   { id:4, name:'Mahes',  role:'Cook',       color:'#3B82F6' },
   { id:5, name:'Meldy',  role:'Head Cook',  color:'#8B5CF6' },
   { id:6, name:'Oji',    role:'Cook',       color:'#EF4444' },

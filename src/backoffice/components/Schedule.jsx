@@ -5,13 +5,16 @@ const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sun
 const DAY_SHORT = { Monday:"Mon",Tuesday:"Tue",Wednesday:"Wed",Thursday:"Thu",Friday:"Fri",Saturday:"Sat",Sunday:"Sun" }
 const STATIONS = ["Kasir","Bar","Bakar","Snack","Kitchen"]
 const STATION_COLORS = { Kasir:"var(--brand)",Bar:"var(--green)",Bakar:"var(--red)",Snack:"var(--amber)",Kitchen:"#6554C0" }
+const STAFF_ROLES = ["Kasir","Bar","Snack","Cook","Head Cook","Head Kasir","Owner"]
+const STAFF_COLORS = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899"]
+const STAFF_EMPTY = { name:"", role:"Cook", color:"#3B82F6", pin:"", active:true }
 
 // Default staff — can be overridden by shuffle
-const DEFAULT_STAFF = ["Nita","Aisyah","Mahes","Alin","Yudi","Meldy","Oji"]
+const DEFAULT_STAFF = ["Nita","Uti","Mahes","Alin","Yudi","Meldy","Oji"]
 
 // Default OFF rules
 const DEFAULT_OFF = {
-  Monday:["Alin","Meldy"], Tuesday:["Nita"], Wednesday:["Aisyah"],
+  Monday:["Alin","Meldy"], Tuesday:["Nita"], Wednesday:["Uti"],
   Thursday:["Mahes"], Friday:["Yudi"], Saturday:[], Sunday:["Oji"]
 }
 
@@ -23,30 +26,32 @@ const OFF_RULES = {
 // Cascade auto-fill for a day given who is OFF and staff list
 function autoFillDay(day, off, staff) {
   const available = staff.filter(n => !off.includes(n))
+  const avail = n => available.includes(n)
 
-  // Kasir: Nita first, then Aisyah
-  const kasirPriority = staff.filter(n=>n!=="Alin"&&n!=="Mahes"&&n!=="Yudi"&&n!=="Meldy"&&n!=="Oji")
-  const kasir = kasirPriority.find(n=>available.includes(n)) || available[0] || ""
+  // Bar primary = Mahes. If Mahes is off, Nita covers Bar and Uti takes Kasir.
+  // Nita is off: Uti takes Kasir, Mahes stays on Bar.
+  // Normal: Mahes on Bar, Nita on Kasir.
+  let kasir, bar
+  if (!avail("Mahes")) {
+    bar   = avail("Nita") ? "Nita" : ""
+    kasir = avail("Uti")  ? "Uti"  : ""
+  } else if (!avail("Nita")) {
+    bar   = "Mahes"
+    kasir = avail("Uti") ? "Uti" : ""
+  } else {
+    bar   = "Mahes"
+    kasir = "Nita"
+  }
 
-  // Bar: Aisyah first, then Mahes, then Nita
-  const barPriority = staff.filter(n=>n!==kasir)
-  const barCandidates = ["Aisyah","Mahes","Nita","Alin"].filter(n=>barPriority.includes(n))
-  const bar = barCandidates.find(n=>available.includes(n)&&n!==kasir) || ""
-
-  // Bakar: Yudi first, then Meldy
-  const bakarCandidates = ["Yudi","Meldy"].filter(n=>available.includes(n)&&n!==kasir&&n!==bar)
+  // Bakar: Yudi first, Meldy as backup
+  const bakarCandidates = ["Yudi","Meldy"].filter(n => avail(n) && n !== kasir && n !== bar)
   const bakar = bakarCandidates[0] || ""
 
-  // Taken by primary roles
-  const taken = [kasir,bar,bakar].filter(Boolean)
+  // Snack: Alin always (when available), Uti only when not on Kasir
+  const snack = ["Alin","Uti"].filter(n => avail(n) && n !== kasir)
 
-  // Snack: Mahes and/or Alin if available and not taken
-  const snackPool = ["Mahes","Alin"]
-  const snack = snackPool.filter(n=>available.includes(n)&&!taken.includes(n))
-
-  // Kitchen: Oji and/or Meldy if available and not taken
-  const kitchenPool = ["Oji","Meldy"]
-  const kitchen = kitchenPool.filter(n=>available.includes(n)&&!taken.includes(n)&&!snack.includes(n))
+  // Kitchen: Oji + Meldy, whoever is available and not on Bakar
+  const kitchen = ["Oji","Meldy"].filter(n => avail(n) && n !== bakar)
 
   return { off, Kasir:kasir?[kasir]:[], Bar:bar?[bar]:[], Bakar:bakar?[bakar]:[], Snack:snack, Kitchen:kitchen }
 }
@@ -69,6 +74,7 @@ function validateDay(day, dayData) {
 export default function Schedule() {
   const [days,       setDays]       = useState({})
   const [staff,      setStaff]      = useState(DEFAULT_STAFF)
+  const [staffRows,  setStaffRows]  = useState([])
   const [shiftStart, setShiftStart] = useState("08:00")
   const [shiftEnd,   setShiftEnd]   = useState("17:00")
   const [attendance, setAttendance] = useState([])
@@ -78,7 +84,11 @@ export default function Schedule() {
   const [editDay,    setEditDay]    = useState(null)
   const [editForm,   setEditForm]   = useState({})
   const [showShuffle,setShowShuffle]= useState(false)
-  const [shuffleMap, setShuffleMap] = useState({}) // {oldName: newName}
+  const [shuffleMap, setShuffleMap] = useState({})
+  const [staffModal, setStaffModal] = useState(null) // null | "add" | staffRow
+  const [staffForm,  setStaffForm]  = useState(STAFF_EMPTY)
+  const [staffSaving,setStaffSaving]= useState(false)
+  const [showPin,    setShowPin]    = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -87,7 +97,7 @@ export default function Schedule() {
     const [{ data:sched }, { data:att }, { data:staffData }] = await Promise.all([
       supabase.from("schedules").select("*").eq("id","weekly-template").maybeSingle(),
       supabase.from("attendance").select("*").order("date",{ascending:false}).limit(200),
-      supabase.from("staff").select("name").order("name"),
+      supabase.from("staff").select("*").order("name"),
     ])
     if (sched) {
       setDays(sched.days||{})
@@ -96,7 +106,10 @@ export default function Schedule() {
       if (sched.staff_list) setStaff(sched.staff_list)
     }
     setAttendance(att||[])
-    if (staffData?.length) setStaff(staffData.map(s=>s.name))
+    if (staffData?.length) {
+      setStaffRows(staffData)
+      setStaff(staffData.filter(s=>s.active!==false).map(s=>s.name))
+    }
     setLoading(false)
   }
 
@@ -111,6 +124,29 @@ export default function Schedule() {
       updated_at: new Date().toISOString()
     })
     setSaving(false)
+  }
+
+  async function saveStaff() {
+    if (!staffForm.name.trim()) return
+    if (staffForm.pin && (staffForm.pin.length!==4||!/^\d+$/.test(staffForm.pin))) { alert("PIN must be 4 digits"); return }
+    setStaffSaving(true)
+    const payload = { name:staffForm.name.trim(), role:staffForm.role, color:staffForm.color, pin:staffForm.pin||null, active:staffForm.active!==false }
+    if (staffModal==="add") {
+      await supabase.from("staff").insert({ ...payload, id:"STAFF-"+Date.now() })
+    } else {
+      await supabase.from("staff").update(payload).eq("id", staffModal.id)
+    }
+    await load()
+    setStaffModal(null)
+    setStaffForm(STAFF_EMPTY)
+    setStaffSaving(false)
+  }
+
+  async function deleteStaff(s) {
+    if (!confirm(`Delete ${s.name}? This cannot be undone.`)) return
+    await supabase.from("staff").delete().eq("id", s.id)
+    await load()
+    setStaffModal(null)
   }
 
   function autoFillWeek() {
@@ -206,7 +242,7 @@ export default function Schedule() {
     <div>
       {/* Top bar */}
       <div style={{ display:"flex", gap:8, marginBottom:16, alignItems:"center", flexWrap:"wrap" }}>
-        {[["schedule","Schedule"],["attendance","Attendance"]].map(([t,l])=>(
+        {[["schedule","Schedule"],["attendance","Attendance"],["staff","Staff"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
         {tab==="schedule" && <>
@@ -340,6 +376,38 @@ export default function Schedule() {
         </div>
       )}
 
+      {tab==="staff" && (
+        <div>
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+            <div style={{ fontSize:13, color:"var(--ink4)" }}>{staffRows.length} staff members · changes sync to schedule automatically</div>
+            <button onClick={()=>{ setStaffForm(STAFF_EMPTY); setStaffModal("add") }} className="bo-btn bo-btn-primary bo-btn-sm">+ Add Staff</button>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))", gap:10 }}>
+            {staffRows.map(s=>{
+              const color = s.color||"#3B82F6"
+              const initials = (s.name||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()
+              return (
+                <div key={s.id} style={{ background:"#fff", border:"1.5px solid var(--surface3)", borderRadius:12, overflow:"hidden", opacity:s.active===false?0.5:1 }}>
+                  <div style={{ background:color+"18", borderBottom:"1px solid "+color+"22", padding:"12px 14px", display:"flex", gap:10, alignItems:"center" }}>
+                    <div style={{ width:38, height:38, borderRadius:"50%", background:color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, color:"#fff", flexShrink:0 }}>{initials}</div>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:800 }}>{s.name}</div>
+                      <div style={{ fontSize:11, color, fontWeight:700 }}>{s.role||"—"}</div>
+                    </div>
+                    <div style={{ marginLeft:"auto", width:8, height:8, borderRadius:"50%", background:s.active!==false?"var(--green)":"var(--surface3)" }} />
+                  </div>
+                  <div style={{ display:"flex", borderTop:"1px solid var(--surface3)" }}>
+                    <button onClick={()=>{ setStaffForm({...s,pin:s.pin||""}); setStaffModal(s) }} style={{ flex:1, padding:"9px", border:"none", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
+                    <button onClick={()=>deleteStaff(s)} style={{ flex:1, padding:"9px", border:"none", borderLeft:"1px solid var(--surface3)", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--red)" }}>Delete</button>
+                  </div>
+                </div>
+              )
+            })}
+            {staffRows.length===0&&<div style={{ gridColumn:"1/-1", textAlign:"center", color:"var(--ink5)", padding:40 }}>No staff yet</div>}
+          </div>
+        </div>
+      )}
+
       {/* Edit Day Modal */}
       {editDay && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setEditDay(null)}>
@@ -433,6 +501,64 @@ export default function Schedule() {
             <div className="bo-modal-footer">
               <button onClick={()=>setShowShuffle(false)} className="bo-btn bo-btn-ghost">Cancel</button>
               <button onClick={applyShuffled} className="bo-btn bo-btn-primary">Apply Shuffle</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Add/Edit Modal */}
+      {staffModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setStaffModal(null)}>
+          <div className="bo-modal" style={{ maxWidth:420 }}>
+            <div className="bo-modal-header">
+              <div className="bo-modal-title">{staffModal==="add"?"Add Staff":"Edit — "+staffForm.name}</div>
+              <button className="bo-modal-close" onClick={()=>setStaffModal(null)}>✕</button>
+            </div>
+            <div className="bo-modal-body">
+              <div className="bo-form-row">
+                <label className="bo-label">Name *</label>
+                <input value={staffForm.name} onChange={e=>setStaffForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus placeholder="Full name" />
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Role</label>
+                <select value={staffForm.role} onChange={e=>setStaffForm(f=>({...f,role:e.target.value}))} className="bo-select">
+                  {STAFF_ROLES.map(r=><option key={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">PIN (4 digits — for POS login)</label>
+                <div style={{ position:"relative" }}>
+                  <input type={showPin?"text":"password"} maxLength={4} value={staffForm.pin||""}
+                    onChange={e=>setStaffForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))}
+                    className="bo-input" placeholder="••••" style={{ letterSpacing:4, fontSize:18, paddingRight:40 }} />
+                  <button type="button" onClick={()=>setShowPin(p=>!p)}
+                    style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:15, color:"var(--ink4)" }}>
+                    {showPin?"🙈":"👁"}
+                  </button>
+                </div>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Color</label>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                  {STAFF_COLORS.map(c=>(
+                    <div key={c} onClick={()=>setStaffForm(f=>({...f,color:c}))}
+                      style={{ width:28, height:28, borderRadius:"50%", background:c, cursor:"pointer",
+                        border:staffForm.color===c?"3px solid #0A1628":"3px solid transparent", boxSizing:"border-box" }} />
+                  ))}
+                </div>
+              </div>
+              <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer", marginTop:4 }}>
+                <input type="checkbox" checked={staffForm.active!==false} onChange={e=>setStaffForm(f=>({...f,active:e.target.checked}))}
+                  style={{ width:16, height:16, accentColor:"var(--brand)" }} />
+                <span style={{ fontSize:13, fontWeight:600 }}>Active (appears in schedule)</span>
+              </label>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setStaffModal(null)} className="bo-btn bo-btn-ghost">Cancel</button>
+              {staffModal!=="add" && <button onClick={()=>deleteStaff(staffModal)} className="bo-btn bo-btn-danger">Delete</button>}
+              <button onClick={saveStaff} disabled={staffSaving||!staffForm.name.trim()} className="bo-btn bo-btn-primary">
+                {staffSaving?"Saving...":staffModal==="add"?"Add":"Save"}
+              </button>
             </div>
           </div>
         </div>

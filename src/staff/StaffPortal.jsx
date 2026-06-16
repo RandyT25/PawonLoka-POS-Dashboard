@@ -6,9 +6,9 @@ const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
   Kitchen:    { color:"#00875A", staff:["Meldy","Oji","Yudi"] },
-  Snack:      { color:"#F59E0B", staff:["Mahes","Alin"] },
-  Bar:        { color:"#3B82F6", staff:["Aisyah","Mahes"] },
-  Kasir:      { color:"#6366F1", staff:["Nita","Alin"] },
+  Snack:      { color:"#F59E0B", staff:["Alin","Uti"] },
+  Bar:        { color:"#3B82F6", staff:["Mahes","Nita"] },
+  Kasir:      { color:"#6366F1", staff:["Nita","Uti"] },
 }
 
 const MENUS = {
