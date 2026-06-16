@@ -37,9 +37,9 @@ export default function Departments() {
     setModal(null); setForm(DEPT_EMPTY); setSaving(false)
   }
 
-  async function deleteDept() {
-    if (!confirm(`Delete "${modal.name}"? Staff with this role will keep the name.`)) return
-    await supabase.from("departments").delete().eq("id", modal.id)
+  async function deleteDept(d) {
+    if (!confirm(`Delete "${d.name}"? Staff with this role will keep the name.`)) return
+    await supabase.from("departments").delete().eq("id", d.id)
     await load(); setModal(null)
   }
 
@@ -83,7 +83,7 @@ export default function Departments() {
               <div style={{ display:"flex" }}>
                 <button onClick={()=>{ setForm({name:d.name,color:d.color}); setModal(d) }}
                   style={{ flex:1, padding:"11px", border:"none", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
-                <button onClick={()=>{ setForm({name:d.name,color:d.color}); setModal(d) }}
+                <button onClick={()=>deleteDept(d)}
                   style={{ flex:1, padding:"11px", border:"none", borderLeft:"1px solid #f0f0f0", background:"none", fontSize:13, fontWeight:600, cursor:"pointer", color:"var(--red)" }}>Delete</button>
               </div>
             </div>
@@ -130,7 +130,6 @@ export default function Departments() {
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setModal(null)} className="bo-btn bo-btn-ghost">Cancel</button>
-              {modal!=="add" && <button onClick={deleteDept} className="bo-btn bo-btn-danger">Delete</button>}
               <button onClick={save} disabled={saving||!form.name.trim()} className="bo-btn bo-btn-primary">
                 {saving?"Saving...":modal==="add"?"Add":"Save"}
               </button>
