@@ -257,7 +257,7 @@ export default function Employees() {
                     <div>
                       <div style={{ fontSize:15, fontWeight:800 }}>{d.name}</div>
                       <div style={{ fontSize:11, color:d.color, fontWeight:700, marginTop:2 }}>
-                        {staff.filter(s=>s.role===d.name).length} staff
+                        {staff.filter(s=>s.role===d.name).length} Staff member{staff.filter(s=>s.role===d.name).length!==1?"s":""}
                       </div>
                     </div>
                   </div>

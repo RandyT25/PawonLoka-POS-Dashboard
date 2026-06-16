@@ -72,7 +72,7 @@ export default function Departments() {
                       <div style={{ fontSize:16, fontWeight:800 }}>{d.name}</div>
                       {d.is_owner && <span style={{ fontSize:10, fontWeight:800, background:d.color, color:"#fff", padding:"2px 7px", borderRadius:8 }}>OWNER</span>}
                     </div>
-                    <div style={{ fontSize:12, color:d.color, fontWeight:700 }}>{members.length} staff member{members.length!==1?"s":""}</div>
+                    <div style={{ fontSize:12, color:d.color, fontWeight:700 }}>{members.length} Staff member{members.length!==1?"s":""}</div>
                   </div>
                 </div>
                 {members.length > 0 && (
