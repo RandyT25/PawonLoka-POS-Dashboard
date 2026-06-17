@@ -5,7 +5,14 @@ import App from './App.jsx'
 
 class ErrorBoundary extends Component {
   constructor(props) { super(props); this.state = { error: null } }
-  static getDerivedStateFromError(e) { return { error: e } }
+  static getDerivedStateFromError(e) {
+    // Module fetch failures (stale SW cache) are always fixed by a fresh reload
+    if (e?.message?.includes('dynamically imported module') || e?.message?.includes('Failed to fetch')) {
+      window.location.reload()
+      return { error: null }
+    }
+    return { error: e }
+  }
   render() {
     if (this.state.error) return (
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",flexDirection:"column",gap:16,fontFamily:"sans-serif",padding:24}}>

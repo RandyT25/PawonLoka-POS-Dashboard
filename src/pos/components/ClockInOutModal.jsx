@@ -73,7 +73,7 @@ export default function ClockInOutModal({ show, onClose, staff, staffList }) {
           setClockSaving(true)
           const now=new Date()
           const today=now.toISOString().slice(0,10)
-          const attId="ATT-"+staff.name.replace(/\s/g,"")+"-"+today
+          const attId="ATT-"+(clockStaff||staff).name.replace(/\s/g,"")+"-"+today
           const isOut=todayAtt?.clock_in&&!todayAtt?.clock_out
           let photoUrl=null
           if (clockPhoto) {
@@ -85,7 +85,7 @@ export default function ClockInOutModal({ show, onClose, staff, staffList }) {
           if (isOut) {
             await supabase.from("attendance").update({clock_out:now.toISOString(),clock_out_photo:photoUrl}).eq("id",attId)
           } else {
-            await supabase.from("attendance").upsert({id:attId,staff_name:(clockStaff||staff).name,date:today,clock_in:now.toISOString(),clock_in_photo:photoUrl,status:"on_time"},{onConflict:"id"})
+            await supabase.from("attendance").upsert({id:attId,staff_id:(clockStaff||staff).id||null,staff_name:(clockStaff||staff).name,date:today,clock_in:now.toISOString(),clock_in_photo:photoUrl,status:"on_time"},{onConflict:"id"})
           }
           setClockSaving(false)
           onClose()

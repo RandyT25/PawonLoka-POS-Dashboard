@@ -360,7 +360,7 @@ export default function POS() {
         pay: '-', staff: staff.name, table: tableNo || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
-        time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
+        time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:orderCogs,
       }
       const { error: insertErr } = await supabase.from('orders').insert(order)
       if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return }
@@ -455,6 +455,10 @@ export default function POS() {
 
   async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, orderNote, promoDisc = 0, promoName }) {
     const discAmt = discount ? Math.round(subtotal * discount / 100) : 0
+    const orderCogs = cart.reduce((sum, item) => {
+      const prod = products.find(p => p.sku === item.sku)
+      return sum + (prod?.cogs || 0) * (item.qty || 1)
+    }, 0)
 
     // SPLIT — record partial payment
     if (splitLabel) {
@@ -471,7 +475,7 @@ export default function POS() {
           // All paid — close the bill
           await supabase.from('orders').update({
             status: 'Paid', pay: payMethod, notes: newNote, total: billTotal,
-            customer_id: customer?.id || null,
+            cogs: orderCogs, customer_id: customer?.id || null,
           }).eq('id', openBillId)
           if (tableNo) await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo)
           if (customer?.id) {
@@ -508,7 +512,7 @@ export default function POS() {
         total: finalTotal, discount: discAmt + promoDisc,
         notes: orderNote || null, promo: promoName || null,
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
-        customer_id: customer?.id || null,
+        cogs: orderCogs, customer_id: customer?.id || null,
       }).eq('id', openBillId)
 
       // Update customer points
@@ -559,7 +563,7 @@ export default function POS() {
       time: now2.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
       payments: [{ method: payMethod, amount: finalTotal }],
       change: payMethod === 'Cash' ? Math.max(0, (parseInt(cashGiven)||0) - finalTotal) : 0,
-      cogs: 0,
+      cogs: orderCogs,
     }
     const { error: insertErr } = await supabase.from('orders').insert(newOrder)
     if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return null }
