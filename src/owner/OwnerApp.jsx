@@ -216,7 +216,7 @@ function NotifBell({ notifications, setNotifications }) {
 
 /* ─── Dashboard Screen ─── */
 function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
-  const dateRef = React.useRef(null)
+  const dateRef = useRef(null)
   const customLabel = customDate
     ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})
     : "Pilih Tanggal"
@@ -988,8 +988,8 @@ function useOwnerData(range, demo, customDate) {
       try {
         let eq=supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
         if (toStr) eq=eq.lte("created_at",toStr)
-        const {data:expData}=await eq
-        expenses=expData||[]
+        const {data:expData,error:expErr}=await eq
+        if (!expErr) expenses=expData||[]
       } catch(e) {}
     }
 
