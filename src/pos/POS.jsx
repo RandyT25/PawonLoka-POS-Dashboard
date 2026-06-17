@@ -380,8 +380,8 @@ export default function POS() {
 
     // Print kitchen tickets
     for (const [station, items] of Object.entries(stations)) {
-      const ROLE_MAP = { Kitchen:'kitchen1', Snack:'kitchen2', Bar:'bar', Kasir:'receipt' }
-      const stationRole = ROLE_MAP[station] || 'kitchen1' 
+      const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen1'
       try {
         await printer.printKitchenTicket({
           stationRole,
