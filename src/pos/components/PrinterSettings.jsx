@@ -9,7 +9,7 @@ const ROLES = [
 ];
 
 export default function PrinterSettings({ hook }) {
-  const { printers, scanning, scanAndPair, connect, disconnect, removePrinter, updatePrinter, testPrint } = hook;
+  const { printers, scanning, scanAndPair, connect, reconnect, disconnect, removePrinter, updatePrinter, testPrint } = hook;
   const [error, setError]     = useState("");
   const [busyId, setBusyId]   = useState(null);
   const [editName, setEditName] = useState({});
@@ -25,7 +25,11 @@ export default function PrinterSettings({ hook }) {
 
   async function handleConnect(id) {
     setError(""); setBusyId(id);
-    try { await connect(id); }
+    try {
+      // Try silent connect first (no dialog); fall back to re-pair picker if device not found
+      try { await connect(id); }
+      catch { await reconnect(id); }
+    }
     catch (e) { setError(e.message); }
     finally { setBusyId(null); }
   }

@@ -538,6 +538,7 @@ export function usePrinter() {
     } finally { setScanning(false); }
   }, [printers]);
 
+  // connect() — used internally by printBytes. NEVER calls requestDevice() (no user gesture).
   const connect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
@@ -550,24 +551,33 @@ export function usePrinter() {
         } catch {}
       }
       if (!device) {
-        // Android often loses BLE permission across page reloads — re-pair via requestDevice
-        // filtered to the printer's name so user sees only matching devices.
-        const printerName = printer.name || "";
-        const filters = printerName
-          ? [{ name: printerName }, { namePrefix: printerName.slice(0, 4) }]
-          : BLE_SERVICES.map(s => ({ services: [s] }));
-        device = await navigator.bluetooth.requestDevice({
-          filters,
-          optionalServices: BLE_SERVICES,
-        });
-        // Update stored deviceId if it changed (same physical printer, new browser pairing ID)
-        if (device.id !== printer.deviceId) {
-          setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.id } : p));
-          savePrinterToDb({ ...printer, deviceId: device.id }).catch(() => {});
-        }
+        throw new Error("Printer '" + (printer.name||printerId) + "' tidak ditemukan. Buka Pengaturan > Hardware lalu tap Reconnect.");
       }
       deviceRefs.current[printerId] = device;
     }
+    const char = await gattGetChar(device);
+    charRefs.current[printerId] = char;
+    attachAutoReconnect(printerId, device);
+    setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+    return char;
+  }, [printers]);
+
+  // reconnect() — called ONLY from the Settings Connect button (user gesture required).
+  // Opens a filtered BLE picker so the cashier can re-pair the printer.
+  const reconnect = useCallback(async (printerId) => {
+    const printer = printers.find(p => p.id === printerId);
+    if (!printer) throw new Error("Printer not found");
+    if (!navigator.bluetooth) throw new Error("Web Bluetooth not supported.");
+    const printerName = printer.name || "";
+    const filters = printerName
+      ? [{ name: printerName }, { namePrefix: printerName.slice(0, 4) }]
+      : BLE_SERVICES.map(s => ({ services: [s] }));
+    const device = await navigator.bluetooth.requestDevice({ filters, optionalServices: BLE_SERVICES });
+    if (device.id !== printer.deviceId) {
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.id } : p));
+      savePrinterToDb({ ...printer, deviceId: device.id }).catch(() => {});
+    }
+    deviceRefs.current[printerId] = device;
     const char = await gattGetChar(device);
     charRefs.current[printerId] = char;
     attachAutoReconnect(printerId, device);
@@ -680,7 +690,7 @@ export function usePrinter() {
 
   return {
     printers, scanning, loading,
-    scanAndPair, connect, disconnect, removePrinter, updatePrinter,
+    scanAndPair, connect, reconnect, disconnect, removePrinter, updatePrinter,
     printReceipt, printKitchenTicket, testPrint,
     printBytes, renderLines: renderToBytes,
     reloadPrinters: loadPrinters,
