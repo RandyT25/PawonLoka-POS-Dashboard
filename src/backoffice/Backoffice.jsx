@@ -264,7 +264,7 @@ function BackofficeLogin({ onAuth }) {
   return (
     <div className="bo-login">
       <div className="bo-login-card" style={{ animation:shake?"shake 0.4s ease":"none" }}>
-        <img src="/logo.png" alt="PawonLoka"
+        <img src="/logo-backoffice.png" alt="PawonLoka"
           onError={e=>e.target.style.display="none"}
           style={{ width:80, height:80, objectFit:"contain", borderRadius:16, marginBottom:8 }} />
         <div className="bo-login-logo">PawonLoka</div>
@@ -316,7 +316,7 @@ export default function Backoffice() {
     <div className="bo-app">
       <div className="bo-sidebar">
         <div className="bo-sidebar-logo">
-          <img src="/logo.png" alt="PawonLoka" onError={e=>{e.target.style.display="none"}} style={{ width:56, height:56, borderRadius:12, objectFit:"contain", marginBottom:6, display:"block", background:"#fff", padding:4 }} />
+          <img src="/logo-backoffice.png" alt="PawonLoka" onError={e=>{e.target.style.display="none"}} style={{ width:56, height:56, borderRadius:12, objectFit:"contain", marginBottom:6, display:"block", background:"#fff", padding:4 }} />
           <div className="bo-sidebar-logo-name">PawonLoka</div>
           <div className="bo-sidebar-logo-sub">Back Office</div>
         </div>
@@ -358,7 +358,7 @@ export default function Backoffice() {
               style={{ width:280,height:"100%",background:"#1a1a2e",display:"flex",flexDirection:"column",overflowY:"auto",WebkitOverflowScrolling:"touch" }}>
               {/* Header */}
               <div style={{ padding:"20px 16px 12px",borderBottom:"1px solid rgba(255,255,255,0.08)",display:"flex",alignItems:"center",gap:12 }}>
-                <img src="/logo.png" alt="" onError={e=>e.target.style.display="none"} style={{ width:36,height:36,borderRadius:8,objectFit:"contain" }} />
+                <img src="/logo-backoffice.png" alt="" onError={e=>e.target.style.display="none"} style={{ width:36,height:36,borderRadius:8,objectFit:"contain" }} />
                 <div>
                   <div style={{ fontSize:15,fontWeight:900,color:"#fff" }}>PawonLoka</div>
                   <div style={{ fontSize:10,color:"rgba(255,255,255,0.3)",textTransform:"uppercase",letterSpacing:1 }}>Back Office</div>

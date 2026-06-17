@@ -213,7 +213,7 @@ export default function StaffPortal() {
   }
 
   const Logo = () => (
-    <img src="/logo.png" alt="PawonLoka" style={{ height:36, width:36, borderRadius:8, objectFit:"cover" }} />
+    <img src="/logo-staff.png" alt="PawonLoka" style={{ height:36, width:36, borderRadius:8, objectFit:"cover" }} />
   )
 
   // Station picker screen
@@ -223,7 +223,7 @@ export default function StaffPortal() {
       <div style={s.body}>
         <div style={{ ...s.card, marginTop:24 }}>
           <div style={{ textAlign:"center", marginBottom:24 }}>
-            <img src="/logo.png" alt="PawonLoka" style={{ width:72, height:72, borderRadius:14, objectFit:"cover", marginBottom:12 }} />
+            <img src="/logo-staff.png" alt="PawonLoka" style={{ width:72, height:72, borderRadius:14, objectFit:"cover", marginBottom:12 }} />
             <div style={{ fontSize:19, fontWeight:800 }}>Select Your Station</div>
             <div style={{ fontSize:13, color:"#888", marginTop:4 }}>Pick your station to continue</div>
           </div>

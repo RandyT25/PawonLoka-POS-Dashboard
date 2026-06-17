@@ -12,39 +12,45 @@
       var manifest = '/manifest.json'
       var title = 'PawonLoka POS'
       var color = '#0A1628'
+      var logo = '/logo-pos.png'
       if (path.startsWith('/pos')) {
         manifest = '/manifest.json'
         title = 'PawonLoka POS'
         color = '#0A1628'
+        logo = '/logo-pos.png'
       } else if (path.startsWith('/backoffice')) {
         manifest = '/manifest-backoffice.json'
         title = 'PawonLoka Backoffice'
         color = '#1a1a2e'
+        logo = '/logo-backoffice.png'
       } else if (path.startsWith('/staff')) {
         manifest = '/manifest-staff.json'
         title = 'PawonLoka Staff'
         color = '#0052CC'
+        logo = '/logo-staff.png'
       }
       if (path.startsWith('/owner')) {
         manifest = '/manifest-owner.json'
         title = 'PawonLoka Owner'
         color = '#0B1120'
+        logo = '/logo-owner.png'
       }
       var lnk = document.createElement('link'); lnk.rel = 'manifest'; lnk.href = manifest; document.head.appendChild(lnk)
+      var ati = document.createElement('link'); ati.rel = 'apple-touch-icon'; ati.href = logo; document.head.appendChild(ati)
       document.title = title
       var meta = document.createElement('meta')
       meta.name = 'theme-color'
       meta.content = color
       document.head.appendChild(meta)
-      // Update banner text
       window.__PWA_NAME__ = title
+      window.__PWA_LOGO__ = logo
     })()
   </script>
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="PawonLoka" />
-  <link rel="apple-touch-icon" href="/logo.png" />
+  <!-- apple-touch-icon injected dynamically by inline script above -->
   <meta name="theme-color" content="#0A1628" />
 </head>
   <body>
@@ -55,11 +61,12 @@
     window.addEventListener('beforeinstallprompt', e => {
       e.preventDefault()
       deferredPrompt = e
-      // Show custom banner immediately
       var banner = document.getElementById('pwa-banner')
       banner.style.display = 'flex'
       var t = document.getElementById('pwa-banner-title')
       if (t && window.__PWA_NAME__) t.textContent = 'Install ' + window.__PWA_NAME__
+      var img = document.getElementById('pwa-banner-logo')
+      if (img && window.__PWA_LOGO__) img.src = window.__PWA_LOGO__
     })
     window.installPWA = async () => {
       if (deferredPrompt) {
@@ -89,7 +96,7 @@
   </script>
   <!-- PWA Install Banner -->
   <div id="pwa-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#0A1628;color:#fff;padding:12px 16px;z-index:99999;align-items:center;gap:12px;box-shadow:0 -4px 16px rgba(0,0,0,0.3);">
-    <img src="/logo.png" style="width:36px;height:36px;border-radius:8px;object-fit:contain;flex-shrink:0;" />
+    <img id="pwa-banner-logo" src="/logo-pos.png" style="width:36px;height:36px;border-radius:8px;object-fit:contain;flex-shrink:0;" />
     <div style="flex:1;">
       <div id="pwa-banner-title" style="font-weight:700;font-size:14px;">Install PawonLoka</div>
       <div style="font-size:11px;opacity:0.7;">Add to home screen for best experience</div>

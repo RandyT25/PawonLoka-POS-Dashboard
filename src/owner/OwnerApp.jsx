@@ -870,7 +870,7 @@ function PinScreen({ onAuth }) {
     <div className="owner-pin">
       <div className="owner-pin-card">
         <div className="owner-pin-logo">
-          <img src="/logo.png" alt="PawonLoka" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}/>
+          <img src="/logo-owner.png" alt="PawonLoka" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}/>
         </div>
         <div className="owner-pin-title">Owner Dashboard</div>
         <div className="owner-pin-sub">PawonLoka · Masuk dengan PIN</div>
@@ -1129,7 +1129,7 @@ export default function OwnerApp() {
       {/* mobile topnav */}
       <div className="owner-topnav">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7,flexShrink:0}}/>
+          <img src="/logo-owner.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7,flexShrink:0}}/>
           <div>
             <div className="owner-topnav-logo">PawonLoka Owner</div>
             <div className="owner-topnav-screen">{SCREEN_TITLE[screen]}</div>
@@ -1149,7 +1149,7 @@ export default function OwnerApp() {
           <div className="owner-sidebar-header">
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
               <div className="owner-sidebar-icon">
-                <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:6}}/>
+                <img src="/logo-owner.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:6}}/>
               </div>
               <div>
                 <div className="owner-sidebar-name">PawonLoka</div>

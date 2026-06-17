@@ -13,7 +13,7 @@ export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onCa
       <div onClick={e=>e.stopPropagation()}
         style={{ width:260, height:'100%', background:'#0A1628', display:'flex', flexDirection:'column', overflowY:'auto' }}>
         <div style={{ padding:'20px 16px 16px', borderBottom:'1px solid rgba(255,255,255,0.08)', display:'flex', alignItems:'center', gap:10 }}>
-          <img src="/logo.png" onError={e=>e.target.style.display="none"} style={{ width:36, height:36, borderRadius:8, objectFit:'contain' }} />
+          <img src="/logo-pos.png" onError={e=>e.target.style.display="none"} style={{ width:36, height:36, borderRadius:8, objectFit:'contain' }} />
           <div>
             <div style={{ fontSize:15, fontWeight:900, color:'#fff' }}>PawonLoka</div>
             <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)' }}>{staff.name} · {staff.role}</div>
