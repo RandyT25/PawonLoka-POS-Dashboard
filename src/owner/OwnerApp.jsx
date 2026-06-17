@@ -216,25 +216,32 @@ function NotifBell({ notifications, setNotifications }) {
 
 /* ─── Dashboard Screen ─── */
 function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
+  const dateRef = React.useRef(null)
   const customLabel = customDate
     ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})
     : "Pilih Tanggal"
+  function openPicker() {
+    const el = dateRef.current
+    if (!el) return
+    if (el.showPicker) { try { el.showPicker() } catch(e) { el.click() } } else { el.click() }
+  }
   return (
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
       <div className="ow-range-group">
         {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
           <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
         ))}
-        {/* date picker — hidden input overlaid on a styled button */}
-        <label className={"ow-range-btn ow-range-date"+(range==="custom"?" active":"")} title="Pilih tanggal spesifik">
+        {/* date picker — button triggers hidden input via showPicker() */}
+        <button className={"ow-range-btn ow-range-date"+(range==="custom"?" active":"")}
+          onClick={openPicker} title="Pilih tanggal spesifik">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{flexShrink:0}}>
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
           {range==="custom" ? customLabel : "Tanggal"}
-          <input type="date" value={customDate} max={today()}
-            onChange={e=>{ if(e.target.value){ setCustomDate(e.target.value); setRange("custom") } }}
-            style={{position:"absolute",inset:0,opacity:0,cursor:"pointer",width:"100%",height:"100%"}}/>
-        </label>
+        </button>
+        <input ref={dateRef} type="date" value={customDate} max={today()}
+          onChange={e=>{ if(e.target.value){ setCustomDate(e.target.value); setRange("custom") } }}
+          style={{position:"absolute",opacity:0,pointerEvents:"none",width:0,height:0}}/>
       </div>
       <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
         {loading&&(
