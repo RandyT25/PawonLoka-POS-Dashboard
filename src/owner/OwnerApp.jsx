@@ -76,6 +76,53 @@ const PAY_COLOR = { Cash:"#10B981",QRIS:"#0EA5E9",Card:"#3B82F6",GoPay:"#06B6D4"
 const PAY_BADGE = { Cash:"ow-badge-green",QRIS:"ow-badge-blue",Card:"ow-badge-blue",GoPay:"ow-badge-blue",OVO:"ow-badge-purple",Other:"ow-badge-amber" }
 const EXP_COLOR = { "Bahan Baku":"#EF4444","Operasional":"#F59E0B","Lain-lain":"#94A3B8" }
 const STAFF_COLORS = ["#0EA5E9","#10B981","#8B5CF6","#F59E0B","#EF4444","#06B6D4"]
+
+function OrderDetailModal({ order, onClose }) {
+  if (!order) return null
+  const items = order.items_snapshot||order.order_items||order.items||[]
+  const parsed = typeof items==="string"?JSON.parse(items):items
+  const isPaid = !order.status||order.status==="Paid"||order.status==="paid"
+  const timeStr = new Date(order.created_at).toLocaleString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:"#fff",borderRadius:16,width:"100%",maxWidth:440,maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        <div style={{padding:"14px 18px",borderBottom:"1px solid #E2E8F0",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div>
+            <div style={{fontWeight:800,fontSize:16,color:"#0F172A"}}>{order.code||"#"+String(order.id).slice(-6)}</div>
+            <div style={{fontSize:11,color:"#64748B",marginTop:2}}>{timeStr} · {order.table_name||order.table||"Walk-in"} · {order.staff||"—"}</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E"}}>{isPaid?"Lunas":"Open Bill"}</span>
+            <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#94A3B8",lineHeight:1}}>✕</button>
+          </div>
+        </div>
+        <div style={{overflowY:"auto",padding:"14px 18px",flex:1}}>
+          {(parsed||[]).map((i,idx)=>(
+            <div key={idx} style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid #F1F5F9"}}>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:600,fontSize:13,color:"#0F172A"}}>{i.name}</div>
+                {i.modifiers&&Object.values(i.modifiers).filter(Boolean).length>0&&<div style={{fontSize:11,color:"#94A3B8"}}>{Object.values(i.modifiers).filter(Boolean).join(", ")}</div>}
+                {i.note&&<div style={{fontSize:11,color:"#94A3B8",fontStyle:"italic"}}>* {i.note}</div>}
+              </div>
+              <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                <div style={{fontSize:12,color:"#64748B"}}>{i.qty||1} × {fmt(i.price||0)}</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{fmt((i.price||0)*(i.qty||1))}</div>
+              </div>
+            </div>
+          ))}
+          {(!parsed||!parsed.length)&&<div style={{textAlign:"center",color:"#94A3B8",padding:"16px 0",fontSize:13}}>No items</div>}
+          <div style={{marginTop:12,paddingTop:10,borderTop:"2px solid #E2E8F0"}}>
+            {order.discount>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#EF4444",marginBottom:4}}><span>Diskon</span><span>-{fmt(order.discount)}</span></div>}
+            {order.tax>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#64748B",marginBottom:4}}><span>Pajak</span><span>{fmt(order.tax)}</span></div>}
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:15,fontWeight:800,color:"#0F172A"}}><span>Total</span><span>{fmt(order.total)}</span></div>
+            {isPaid&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#64748B",marginTop:6}}><span>Pembayaran</span><span style={{fontWeight:700,color:"#10B981"}}>{order.pay||"—"}</span></div>}
+            {order.change>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#64748B",marginTop:2}}><span>Kembalian</span><span>{fmt(order.change)}</span></div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 const OWNER_PIN = "1234"
 
 /* ─── SVG Hourly Chart ─── */
@@ -257,6 +304,7 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
 }
 
 function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, stats, hourData, payments, topItems, slowItems, recent }) {
+  const [selectedOrder, setSelectedOrder] = useState(null)
   const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
   const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
   const RLABELS = {
@@ -433,11 +481,12 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
         </div>
       </div>
 
+      <OrderDetailModal order={selectedOrder} onClose={()=>setSelectedOrder(null)}/>
       {/* recent orders */}
       <div className="ow-card">
         <div className="ow-card-title">
           Semua Transaksi
-          <span className="ow-card-title-sub">{stats.paidOrders||0} lunas · {stats.openOrders||0} open bill</span>
+          <span className="ow-card-title-sub">{stats.paidOrders||0} lunas · {stats.openOrders||0} open bill · tap untuk detail</span>
         </div>
         <div className="ow-table-wrap">
           <table className="ow-table">
@@ -448,7 +497,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
                 : recent.map(o=>{
                   const isPaid=!o.status||o.status==="Paid"||o.status==="paid"
                   return (
-                    <tr key={o.id}>
+                    <tr key={o.id} onClick={()=>setSelectedOrder(o)} style={{cursor:"pointer"}}>
                       <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
                       <td><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E"}}>{isPaid?"Lunas":"Open Bill"}</span></td>
                       <td>{o.table_name||o.table||"Walk-in"}</td>

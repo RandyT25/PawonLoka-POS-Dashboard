@@ -3,6 +3,62 @@ import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n || 0).toLocaleString("id-ID") }
 
+function OrderDetailModal({ order, onClose }) {
+  if (!order) return null
+  const items = order.items_snapshot || order.order_items || order.items || []
+  const parsed = typeof items === "string" ? JSON.parse(items) : items
+  const isPaid = !order.status || order.status === "Paid" || order.status === "paid"
+  const timeStr = new Date(order.created_at).toLocaleString("id-ID", { weekday:"short", day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" })
+  return (
+    <div style={{ position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16 }} onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ background:"#fff",borderRadius:16,width:"100%",maxWidth:480,maxHeight:"85vh",overflow:"hidden",display:"flex",flexDirection:"column" }}>
+        <div style={{ padding:"16px 20px",borderBottom:"1px solid var(--surface3)",display:"flex",alignItems:"center",justifyContent:"space-between" }}>
+          <div>
+            <div style={{ fontWeight:800,fontSize:16 }}>{order.code||"#"+String(order.id).slice(-6)}</div>
+            <div style={{ fontSize:12,color:"var(--ink4)",marginTop:2 }}>{timeStr} · {order.table_name||order.table||"Walk-in"} · {order.staff||"—"}</div>
+          </div>
+          <div style={{ display:"flex",alignItems:"center",gap:10 }}>
+            <span style={{ fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E" }}>{isPaid?"Lunas":"Open Bill"}</span>
+            <button onClick={onClose} style={{ background:"none",border:"none",fontSize:20,cursor:"pointer",color:"var(--ink4)" }}>✕</button>
+          </div>
+        </div>
+        <div style={{ overflowY:"auto",padding:"16px 20px",flex:1 }}>
+          <table style={{ width:"100%",borderCollapse:"collapse",fontSize:13 }}>
+            <thead><tr style={{ borderBottom:"1px solid var(--surface3)" }}>
+              <th style={{ textAlign:"left",padding:"4px 0",color:"var(--ink4)",fontWeight:600,fontSize:11 }}>Item</th>
+              <th style={{ textAlign:"center",padding:"4px 8px",color:"var(--ink4)",fontWeight:600,fontSize:11 }}>Qty</th>
+              <th style={{ textAlign:"right",padding:"4px 0",color:"var(--ink4)",fontWeight:600,fontSize:11 }}>Harga</th>
+              <th style={{ textAlign:"right",padding:"4px 0",color:"var(--ink4)",fontWeight:600,fontSize:11 }}>Subtotal</th>
+            </tr></thead>
+            <tbody>
+              {(parsed||[]).map((i,idx)=>(
+                <tr key={idx} style={{ borderBottom:"1px solid var(--surface2)" }}>
+                  <td style={{ padding:"7px 0" }}>
+                    <div style={{ fontWeight:600 }}>{i.name}</div>
+                    {i.modifiers&&Object.values(i.modifiers).length>0&&<div style={{ fontSize:11,color:"var(--ink4)" }}>{Object.values(i.modifiers).join(", ")}</div>}
+                    {i.note&&<div style={{ fontSize:11,color:"var(--ink4)",fontStyle:"italic" }}>* {i.note}</div>}
+                  </td>
+                  <td style={{ textAlign:"center",padding:"7px 8px",color:"var(--ink3)" }}>{i.qty||1}</td>
+                  <td style={{ textAlign:"right",padding:"7px 0",color:"var(--ink3)" }}>{fmt(i.price||0)}</td>
+                  <td style={{ textAlign:"right",padding:"7px 0",fontWeight:600 }}>{fmt((i.price||0)*(i.qty||1))}</td>
+                </tr>
+              ))}
+              {(!parsed||!parsed.length)&&<tr><td colSpan={4} style={{ textAlign:"center",color:"var(--ink5)",padding:"12px 0" }}>No items</td></tr>}
+            </tbody>
+          </table>
+          <div style={{ marginTop:12,borderTop:"2px solid var(--surface3)",paddingTop:10 }}>
+            {order.discount>0&&<div style={{ display:"flex",justifyContent:"space-between",fontSize:13,color:"var(--red)",marginBottom:4 }}><span>Diskon</span><span>-{fmt(order.discount)}</span></div>}
+            {order.tax>0&&<div style={{ display:"flex",justifyContent:"space-between",fontSize:13,color:"var(--ink3)",marginBottom:4 }}><span>Pajak</span><span>{fmt(order.tax)}</span></div>}
+            <div style={{ display:"flex",justifyContent:"space-between",fontSize:15,fontWeight:800 }}><span>Total</span><span>{fmt(order.total)}</span></div>
+            {isPaid&&<div style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--ink4)",marginTop:4 }}><span>Pembayaran</span><span className={"bo-badge bo-badge-green"}>{order.pay||"—"}</span></div>}
+            {order.change>0&&<div style={{ display:"flex",justifyContent:"space-between",fontSize:12,color:"var(--ink4)",marginTop:4 }}><span>Kembalian</span><span>{fmt(order.change)}</span></div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const DUMMY_ORDERS = (() => {
   const today = new Date().toISOString().slice(0, 10)
   const yest  = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
@@ -37,10 +93,11 @@ export default function Dashboard() {
   const [loading,  setLoading]  = useState(true)
   const [useDummy, setUseDummy] = useState(false)
   const [stats,    setStats]    = useState({ sales:0, orders:0, customers:0, avgOrder:0, grossProfit:0, prevSales:0 })
-  const [payments, setPayments] = useState([])
-  const [topItems, setTopItems] = useState([])
-  const [hourData, setHourData] = useState([])
-  const [recent,   setRecent]   = useState([])
+  const [payments,       setPayments]       = useState([])
+  const [topItems,       setTopItems]       = useState([])
+  const [hourData,       setHourData]       = useState([])
+  const [recent,         setRecent]         = useState([])
+  const [selectedOrder,  setSelectedOrder]  = useState(null)
 
   useEffect(() => { load() }, [range, useDummy])
 
@@ -70,7 +127,6 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("status", "Paid")
         .gte("created_at", typeof fromStr!=="undefined" ? fromStr : from.toISOString())
         .order("created_at", { ascending: false })
 
@@ -127,7 +183,7 @@ export default function Dashboard() {
 
     const itemMap = {}
     periodOrders.forEach(o => {
-      const items  = o.items_snapshot || o.order_items || []
+      const items  = o.items_snapshot || o.order_items || o.items || []
       const parsed = typeof items === "string" ? JSON.parse(items) : items
       ;(parsed || []).forEach(i => {
         if (!itemMap[i.name]) itemMap[i.name] = { name:i.name, qty:0, revenue:0 }
@@ -147,11 +203,11 @@ export default function Dashboard() {
     const hourArr = Object.entries(hMap).map(([h, v]) => ({ hour: h + ":00", value: v }))
     const maxHour = Math.max(...hourArr.map(h => h.value), 1)
 
-    setStats({ sales:totalSales, unpaidSales, orders:paidOrders.length, customers:custSet.size, avgOrder, prevAvg, grossProfit:totalSales - totalCogs, prevSales, totalProductsSold, productsPerTx, mtdSales, projection })
+    setStats({ sales:totalSales, unpaidSales, orders:periodOrders.length, paidOrders:paidOrders.length, openOrders:openOrders.length, customers:custSet.size, avgOrder, prevAvg, grossProfit:totalSales - totalCogs, prevSales, totalProductsSold, productsPerTx, mtdSales, projection })
     setPayments(payArr)
     setTopItems(topArr.map(t => ({ ...t, maxQty })))
     setHourData(hourArr.map(h => ({ ...h, maxHour })))
-    setRecent(periodOrders.slice(0, 8))
+    setRecent(periodOrders.slice(0, 30))
     setLoading(false)
   }
 
@@ -323,26 +379,30 @@ export default function Dashboard() {
 
       <div className="bo-card">
         <div className="bo-card-title">
-          Recent Orders
-          <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>{stats.orders} total this period</span>
+          Semua Transaksi
+          <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>{stats.paidOrders||0} lunas · {stats.openOrders||0} open bill</span>
         </div>
         <table className="bo-table">
           <thead>
-            <tr><th>Order</th><th>Table</th><th>Staff</th><th>Payment</th><th>Total</th><th>Time</th></tr>
+            <tr><th>Order</th><th>Status</th><th>Table</th><th>Staff</th><th>Payment</th><th>Total</th><th>Time</th></tr>
           </thead>
           <tbody>
             {recent.length === 0
-              ? <tr><td colSpan={6} style={{ textAlign:"center", color:"var(--ink5)", padding:"28px 0" }}>No orders yet — click 🎲 Demo to preview</td></tr>
+              ? <tr><td colSpan={7} style={{ textAlign:"center", color:"var(--ink5)", padding:"28px 0" }}>No orders yet — click 🎲 Demo to preview</td></tr>
               : recent.map(o => {
+                  const isPaid   = !o.status || o.status === "Paid" || o.status === "paid"
                   const payBadge = { Cash:"bo-badge-green", QRIS:"bo-badge-blue", Card:"bo-badge-blue", GoPay:"bo-badge-blue", OVO:"bo-badge-amber" }
                   const timeStr  = new Date(o.created_at).toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit" })
                   return (
-                    <tr key={o.id}>
-                      <td style={{ fontWeight:600 }}>{o.code || "#" + String(o.id).slice(-6)}</td>
+                    <tr key={o.id} onClick={() => setSelectedOrder(o)}
+                      style={{ cursor:"pointer" }}
+                      className="bo-table-row-hover">
+                      <td style={{ fontWeight:600,color:"var(--brand)" }}>{o.code || "#" + String(o.id).slice(-6)}</td>
+                      <td><span style={{ fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E" }}>{isPaid?"Lunas":"Open Bill"}</span></td>
                       <td>{o.table_name || o.table || "Walk-in"}</td>
                       <td style={{ color:"var(--ink3)" }}>{o.staff || "-"}</td>
-                      <td><span className={"bo-badge " + (payBadge[o.pay] || "bo-badge-amber")}>{o.pay || "-"}</span></td>
-                      <td style={{ fontWeight:700 }}>{fmt(o.total)}</td>
+                      <td><span className={"bo-badge " + (isPaid?(payBadge[o.pay]||"bo-badge-amber"):"bo-badge-gray")}>{isPaid?(o.pay||"—"):"—"}</span></td>
+                      <td style={{ fontWeight:700,color:isPaid?"inherit":"#F59E0B" }}>{fmt(o.total)}</td>
                       <td style={{ color:"var(--ink5)" }}>{o.time || timeStr}</td>
                     </tr>
                   )
@@ -351,6 +411,7 @@ export default function Dashboard() {
           </tbody>
         </table>
       </div>
+      <OrderDetailModal order={selectedOrder} onClose={() => setSelectedOrder(null)} />
     </div>
   )
 }
