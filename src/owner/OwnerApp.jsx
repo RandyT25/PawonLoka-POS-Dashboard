@@ -1076,8 +1076,10 @@ function useOwnerData(range, demo, customDate) {
 }
 
 /* ─── Root ─── */
+const INACTIVITY_MS = 30 * 60 * 1000
+
 export default function OwnerApp() {
-  const [authed,      setAuthed]      = useState(false)
+  const [authed,      setAuthed]      = useState(()=>!!sessionStorage.getItem('owner-authed'))
   const [screen,      setScreen]      = useState("dashboard")
   const [range,       setRange]       = useState("today")
   const [customDate,  setCustomDate]  = useState(today())
@@ -1085,6 +1087,24 @@ export default function OwnerApp() {
   const [notifications, setNotifications] = useState([])
   const [mobileMenu,  setMobileMenu]  = useState(false)
   const contentRef = useRef(null)
+  const inactivityRef = useRef(null)
+
+  const logout = () => { sessionStorage.removeItem('owner-authed'); setAuthed(false) }
+
+  useEffect(()=>{
+    if (!authed) return
+    const reset = () => {
+      clearTimeout(inactivityRef.current)
+      inactivityRef.current = setTimeout(logout, INACTIVITY_MS)
+    }
+    const events = ['mousedown','mousemove','keydown','touchstart','click','scroll']
+    events.forEach(e => window.addEventListener(e, reset, {passive:true}))
+    reset()
+    return ()=>{
+      events.forEach(e => window.removeEventListener(e, reset))
+      clearTimeout(inactivityRef.current)
+    }
+  },[authed])
 
   useEffect(()=>{ contentRef.current?.scrollTo(0,0) },[screen])
 
@@ -1122,7 +1142,7 @@ export default function OwnerApp() {
 
   const SCREEN_TITLE = {dashboard:"Dashboard",products:"Produk",staff:"Karyawan",cashflow:"Arus Kas"}
 
-  if (!authed) return <PinScreen onAuth={()=>setAuthed(true)}/>
+  if (!authed) return <PinScreen onAuth={()=>{ sessionStorage.setItem('owner-authed','1'); setAuthed(true) }}/>
 
   return (
     <div className="owner-app">
@@ -1173,7 +1193,7 @@ export default function OwnerApp() {
           </nav>
 
           <div className="owner-sidebar-footer">
-            <button className="owner-logout-btn" onClick={()=>setAuthed(false)}>Keluar</button>
+            <button className="owner-logout-btn" onClick={logout}>Keluar</button>
           </div>
         </aside>
 
