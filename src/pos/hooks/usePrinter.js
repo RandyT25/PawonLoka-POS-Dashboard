@@ -372,8 +372,10 @@ export function usePrinter() {
         type:      d.type,
       }));
       setPrinters(all);
-      // Connect all previously-paired printers and attach persistent reconnect listeners.
+      // First attempt immediately, then retry after 4s — Android BLE stack
+      // sometimes needs a moment to initialize after page load.
       autoConnectAll(all);
+      setTimeout(() => autoConnectAll(all), 4000);
     } finally { setLoading(false); }
   }
 
