@@ -1,5 +1,5 @@
-const CACHE_VERSION = 'pawonloka-v7'
-const DATA_CACHE = 'pawonloka-data-v7'
+const CACHE_VERSION = 'pawonloka-v8'
+const DATA_CACHE = 'pawonloka-data-v8'
 
 // These get cached on install
 const PRECACHE = [
@@ -80,7 +80,16 @@ self.addEventListener('fetch', e => {
           }
           return res
         })
-        .catch(() => caches.match(e.request).then(cached => cached || caches.match('/index.html') || caches.match('/')))
+        .catch(async () => {
+          const cached = await caches.match(e.request)
+          if (cached) return cached
+          // Construct a new Response from root HTML so the browser never
+          // treats it as a redirect (avoids URL changing to "/" on fallback)
+          const root = await caches.match('/')
+          if (!root) return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
+          const html = await root.text()
+          return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
+        })
     )
     return
   }
