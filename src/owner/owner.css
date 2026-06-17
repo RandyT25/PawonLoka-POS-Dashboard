@@ -310,6 +310,7 @@ html,body{height:100%;}
 .ow-badge-amber{background:var(--ow-amber-lt);color:#92400E;}
 .ow-badge-purple{background:var(--ow-purple-lt);color:#6D28D9;}
 .ow-badge-red{background:var(--ow-red-lt);color:#991B1B;}
+.ow-badge-gray{background:#F1F5F9;color:#64748B;}
 
 /* ── Progress bar ── */
 .ow-bar-track{height:5px;background:var(--ow-surface2);border-radius:3px;overflow:hidden;}

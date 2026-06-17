@@ -435,23 +435,30 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
 
       {/* recent orders */}
       <div className="ow-card">
-        <div className="ow-card-title">Transaksi Terakhir<span className="ow-card-title-sub">{recent.length} dari {stats.orders} total</span></div>
+        <div className="ow-card-title">
+          Semua Transaksi
+          <span className="ow-card-title-sub">{stats.paidOrders||0} lunas · {stats.openOrders||0} open bill</span>
+        </div>
         <div className="ow-table-wrap">
           <table className="ow-table">
-            <thead><tr><th>Order</th><th>Meja</th><th>Kasir</th><th>Pembayaran</th><th style={{textAlign:"right"}}>Total</th><th style={{textAlign:"right"}}>Waktu</th></tr></thead>
+            <thead><tr><th>Order</th><th>Status</th><th>Meja</th><th>Kasir</th><th>Pembayaran</th><th style={{textAlign:"right"}}>Total</th><th style={{textAlign:"right"}}>Waktu</th></tr></thead>
             <tbody>
               {recent.length===0
-                ? <tr><td colSpan={6} className="ow-empty">Belum ada transaksi</td></tr>
-                : recent.map(o=>(
-                  <tr key={o.id}>
-                    <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
-                    <td>{o.table_name||o.table||"Walk-in"}</td>
-                    <td style={{color:"#64748B",fontSize:12}}>{o.staff||"—"}</td>
-                    <td><span className={"ow-badge "+(PAY_BADGE[o.pay]||"ow-badge-amber")}>{o.pay||"—"}</span></td>
-                    <td style={{textAlign:"right",fontWeight:700}}>{fmt(o.total)}</td>
-                    <td style={{textAlign:"right",color:"#94A3B8",fontSize:12}}>{fmtTime(o.created_at)}</td>
-                  </tr>
-                ))
+                ? <tr><td colSpan={7} className="ow-empty">Belum ada transaksi</td></tr>
+                : recent.map(o=>{
+                  const isPaid=!o.status||o.status==="Paid"||o.status==="paid"
+                  return (
+                    <tr key={o.id}>
+                      <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
+                      <td><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E"}}>{isPaid?"Lunas":"Open Bill"}</span></td>
+                      <td>{o.table_name||o.table||"Walk-in"}</td>
+                      <td style={{color:"#64748B",fontSize:12}}>{o.staff||"—"}</td>
+                      <td><span className={"ow-badge "+(isPaid?(PAY_BADGE[o.pay]||"ow-badge-amber"):"ow-badge-gray")}>{isPaid?(o.pay||"—"):"—"}</span></td>
+                      <td style={{textAlign:"right",fontWeight:700,color:isPaid?"inherit":"#F59E0B"}}>{fmt(o.total)}</td>
+                      <td style={{textAlign:"right",color:"#94A3B8",fontSize:12}}>{fmtTime(o.created_at)}</td>
+                    </tr>
+                  )
+                })
               }
             </tbody>
           </table>
@@ -980,7 +987,7 @@ function useOwnerData(range, demo, customDate) {
         if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
         fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
       }
-      let q=supabase.from("orders").select("*").eq("status","Paid").gte("created_at",fromStr)
+      let q=supabase.from("orders").select("*").gte("created_at",fromStr)
       if (toStr) q=q.lte("created_at",toStr)
       const {data,error}=await q.order("created_at",{ascending:false})
       if (error) { console.error(error); setLoading(false); return }
@@ -1061,12 +1068,12 @@ function useOwnerData(range, demo, customDate) {
       ...expPeriod.map(e=>({id:"e"+e.id,created_at:e.created_at,type:"expense",note:e.note||"Pengeluaran",category:e.category||"Lain-lain",amount:e.amount||0}))
     ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,30)
 
-    setStats({sales,unpaid,cogs,orders:paid.length,customers,avgOrder,grossProfit:sales-cogs,prevSales,totalSold,avgItems,mtd:sales,projection})
+    setStats({sales,unpaid,cogs,orders:period.length,paidOrders:paid.length,openOrders:open.length,customers,avgOrder,grossProfit:sales-cogs,prevSales,totalSold,avgItems,mtd:sales,projection})
     setPayments(payArr)
     setTopItems(topArr.map(t=>({...t,max:maxQty})))
     setSlowItems(slowArr)
     setHourData(hourArr)
-    setRecent(paid.slice(0,10))
+    setRecent(period.slice(0,30))
     setStaffData(staffArr)
     setCashData({income:sales,expenses:totalExp,incomeCount:paid.length,byMethod:payArr,expenseItems:expPeriod.map(e=>({...e,note:e.note||"Pengeluaran",category:e.category||"Lain-lain"})),log:cashLog})
     setLoading(false)
