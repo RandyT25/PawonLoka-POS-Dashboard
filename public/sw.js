@@ -1,12 +1,15 @@
-const CACHE_VERSION = 'pawonloka-v9'
-const DATA_CACHE = 'pawonloka-data-v9'
+const CACHE_VERSION = 'pawonloka-v10'
+const DATA_CACHE = 'pawonloka-data-v10'
 
 // These get cached on install
 const PRECACHE = [
   '/',
   '/backoffice',
   '/staff',
-  '/logo.png',
+  '/logo-pos.png',
+  '/logo-backoffice.png',
+  '/logo-owner.png',
+  '/logo-staff.png',
 ]
 
 self.addEventListener('install', e => {
