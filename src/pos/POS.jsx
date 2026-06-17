@@ -412,24 +412,26 @@ export default function POS() {
 
   // Print table checker — items only, no pricing
   async function printCheck() {
-    const receiptPrinter = printer.printers?.find(p=>p.role==='receipt')
-    if (!receiptPrinter) { alert('No receipt printer configured'); return }
-    const items = cart.map(i => {
-      const parts = [i.qty + 'x ' + i.name]
-      if (i.modifiers && Object.values(i.modifiers).length)
-        parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
-      if (i.note)
-        parts.push('  * ' + i.note)
-      return parts.join('\n')
-    })
+    const rs = appSettings?.receipt || {}
+    const order = {
+      table: tableNo || null,
+      cashier: staff.name,
+      staff: staff.name,
+      created_at: new Date().toISOString(),
+      items: cart,
+      discount: discount ? Math.round(subtotal * discount / 100) : 0,
+    }
+    const outlet = {
+      name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
+      address: rs.address || appSettings?.outlet?.address || '',
+      phone: rs.phone || appSettings?.outlet?.phone || '',
+    }
     try {
-      await printer.printKitchenTicket({
-        stationRole: 'receipt',
-        table: tableNo || orderType,
-        stationName: 'CHECKER',
-        orderType,
-        paperSize: receiptPrinter.paperSize,
-        items,
+      await printer.printPreBill(order, {
+        outlet,
+        tax: { enabled: TAX_RATE_LIVE > 0, rate: Math.round(TAX_RATE_LIVE * 100), label: 'PPN' },
+        service: { enabled: SERVICE_RATE > 0, rate: Math.round(SERVICE_RATE * 100) },
+        preBillNote: rs.pre_bill_note || 'Ini bukan struk pembayaran',
       })
     } catch(e) { alert('Print failed: ' + e.message) }
   }

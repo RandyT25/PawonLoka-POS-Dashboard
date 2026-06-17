@@ -8,6 +8,7 @@ const DEFAULTS = {
   address:"Bali, Indonesia", phone:"", website:"", social:"@pawonloka",
   footer_thank_you:"Terima kasih telah berkunjung!", footer_promo:"", footer_wifi:"",
   custom_line_1:"", custom_line_2:"",
+  pre_bill_note:"Ini bukan struk pembayaran — mohon bayar di kasir",
   show_order_id:true, show_cashier:true, show_table:true, show_datetime:true,
   show_sku:false, show_tax:true, show_service:true, show_loyalty:true, show_qr:false,
   qr_url:"", qr_label:"Scan to review us",
@@ -179,7 +180,7 @@ export default function ReceiptDesigner() {
         {/* Footer */}
         <div className="bo-card">
           <div className="bo-card-title">Footer</div>
-          {[["footer_thank_you","Thank you message"],["footer_promo","Promo message"],["footer_wifi","WiFi info"],["custom_line_1","Custom line 1"],["custom_line_2","Custom line 2"]].map(([k,l])=>(
+          {[["footer_thank_you","Thank you message"],["footer_promo","Promo message"],["footer_wifi","WiFi info"],["custom_line_1","Custom line 1"],["custom_line_2","Custom line 2"],["pre_bill_note","Pre-bill message (customer tagihan)"]].map(([k,l])=>(
             <div key={k} className="bo-form-row">
               <label className="bo-label">{l}</label>
               <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />

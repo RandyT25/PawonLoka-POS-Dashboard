@@ -228,6 +228,74 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   return lines;
 }
 
+// Pre-payment bill — shows items + total WITHOUT payment info.
+// Prints on the receipt printer so the customer can see what they owe.
+export function buildPreBillData({ order, outlet, tax, service, paperSize = "80mm", preBillNote }) {
+  const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID");
+  const w   = paperSize === "58mm" ? 32 : 42;
+  const EQ  = "=".repeat(w);
+  const HR  = "-".repeat(w);
+  const L   = (left, right) => line(left, right, w);
+  const lines = [];
+
+  lines.push({ cmd: "ALIGN_C" });
+  const outletName = outlet?.name || "PawonLoka";
+  lines.push({ cmd: "BOLD_ON" });
+  lines.push({ text: outletName + "\n" });
+  lines.push({ cmd: "BOLD_OFF" });
+  if (outlet?.address) lines.push({ text: outlet.address + "\n" });
+  if (outlet?.phone)   lines.push({ text: outlet.phone   + "\n" });
+  lines.push({ text: EQ + "\n" });
+
+  lines.push({ cmd: "BOLD_ON" }, { cmd: "TALL_ON" });
+  lines.push({ text: "TAGIHAN\n" });
+  lines.push({ cmd: "TALL_OFF" }, { cmd: "BOLD_OFF" });
+  lines.push({ text: EQ + "\n" });
+
+  const waktu = order.created_at
+    ? new Date(order.created_at).toLocaleString("id-ID", { dateStyle:"short", timeStyle:"short" })
+    : new Date().toLocaleString("id-ID", { dateStyle:"short", timeStyle:"short" });
+  lines.push({ cmd: "ALIGN_L" });
+  if (order.table) lines.push({ text: "Meja  : " + order.table + "\n" });
+  lines.push({ text: "Kasir : " + (order.cashier || order.staff || "-") + "\n" });
+  lines.push({ text: "Waktu : " + waktu + "\n" });
+  lines.push({ text: HR + "\n" });
+
+  for (const item of (order.items || [])) {
+    lines.push({ cmd: "BOLD_ON" });
+    lines.push({ text: item.name + "\n" });
+    lines.push({ cmd: "BOLD_OFF" });
+    if (item.modifiers && Object.values(item.modifiers).filter(Boolean).length)
+      lines.push({ text: "  [" + Object.values(item.modifiers).filter(Boolean).join(", ") + "]\n" });
+    lines.push({ text: L("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price)) + "\n" });
+    if (item.note) lines.push({ text: "  * " + item.note + "\n" });
+  }
+
+  lines.push({ text: HR + "\n" });
+  const subtotal = (order.items || []).reduce((s, i) => s + (i.qty * i.price) - (i.qty * (i.itemDisc || i.discount || 0)), 0);
+  const taxAmt   = tax?.enabled     ? Math.round(subtotal * (tax.rate / 100))     : 0;
+  const svcAmt   = service?.enabled ? Math.round(subtotal * (service.rate / 100)) : 0;
+  const total    = subtotal + taxAmt + svcAmt - (order.discount || 0);
+  if (taxAmt || order.discount || svcAmt) lines.push({ text: L("Subtotal", fmt(subtotal)) + "\n" });
+  if (taxAmt)        lines.push({ text: L((tax?.label || "PPN") + " " + (tax?.rate || "") + "%", fmt(taxAmt)) + "\n" });
+  if (svcAmt)        lines.push({ text: L("Service " + (service?.rate || "") + "%", fmt(svcAmt)) + "\n" });
+  if (order.discount) lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
+  lines.push({ text: EQ + "\n" });
+  lines.push({ cmd: "BOLD_ON" });
+  lines.push({ text: L("TOTAL", fmt(total)) + "\n" });
+  lines.push({ cmd: "BOLD_OFF" });
+  lines.push({ text: EQ + "\n" });
+
+  // Custom pre-bill message — prominent, centered, bold
+  const note = preBillNote || "Ini bukan struk pembayaran";
+  lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" });
+  lines.push({ text: note + "\n" });
+  lines.push({ cmd: "BOLD_OFF" });
+  lines.push({ text: "\n\n" });
+  lines.push({ cmd: "CUT" });
+  return lines;
+}
+
 export function buildKitchenData({ ticket, paperSize }) {
   const w  = paperSize === "80mm" ? 42 : 32;
   const EQ = "=".repeat(w);
@@ -683,6 +751,12 @@ export function usePrinter() {
     return job;
   }, [connect]);
 
+  const printPreBill = useCallback(async (order, { outlet, tax, service, preBillNote } = {}) => {
+    const rp = printers.find(p => p.role === "receipt");
+    if (!rp) throw new Error("No receipt printer configured");
+    await printBytes(rp.id, renderToBytes(buildPreBillData({ order, outlet, tax, service, paperSize: rp.paperSize, preBillNote })));
+  }, [printers, printBytes]);
+
   const printReceipt = useCallback(async (order, { outlet, tax, service } = {}) => {
     const printer = printers.find(p => p.role === "receipt");
     if (!printer) throw new Error("No receipt printer configured");
@@ -718,7 +792,7 @@ export function usePrinter() {
     printers, scanning, loading,
     printError, clearPrintError: () => setPrintError(null),
     scanAndPair, connect, reconnect, disconnect, removePrinter, updatePrinter,
-    printReceipt, printKitchenTicket, testPrint,
+    printPreBill, printReceipt, printKitchenTicket, testPrint,
     printBytes, renderLines: renderToBytes,
     reloadPrinters: loadPrinters,
   };
