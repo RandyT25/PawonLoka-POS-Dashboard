@@ -339,10 +339,9 @@ export function usePrinter() {
   const [loading,   setLoading]   = useState(true);
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
-  const printerChains        = useRef({});                 // per-printer queue — all printers print concurrently
-  const listenersAdded       = useRef(new Set());          // prevent duplicate gattserverdisconnected listeners
-  const reconnectTimers      = useRef({});                 // per-printer reconnect timeout handles
-  const intentionalDisconnects = useRef(new Set());        // skip auto-reconnect after post-print disconnect
+  const printerChains  = useRef({});   // per-printer queue
+  const listenersAdded = useRef(new Set());
+  const reconnectTimers = useRef({});
 
   // Load printers from Supabase on mount
   useEffect(() => {
@@ -377,28 +376,12 @@ export function usePrinter() {
     } finally { setLoading(false); }
   }
 
-  // Attach reconnect logic exactly once per printer.
-  // Uses watchAdvertisements (fires when printer powers on) + gattserverdisconnected fallback.
+  // Attach reconnect listener exactly once per printer.
+  // Retries indefinitely whenever the printer drops (powered off, out of range).
   function attachAutoReconnect(printerId, device) {
     if (listenersAdded.current.has(printerId)) return;
     listenersAdded.current.add(printerId);
 
-    // watchAdvertisements: browser passively scans for this device's BLE ads.
-    // Fires advertisementreceived the moment the printer powers on / comes in range.
-    // This is the correct reconnect API for Android — works across page reloads.
-    if (device.watchAdvertisements) {
-      device.addEventListener("advertisementreceived", async () => {
-        if (charRefs.current[printerId]) return; // already connected
-        try {
-          const char = await gattGetChar(device);
-          charRefs.current[printerId] = char;
-          setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
-        } catch {}
-      });
-      device.watchAdvertisements().catch(() => {});
-    }
-
-    // gattserverdisconnected + infinite retry as fallback
     let retries = 0;
     const tryReconnect = async () => {
       if (!deviceRefs.current[printerId]) return;
@@ -412,13 +395,9 @@ export function usePrinter() {
         reconnectTimers.current[printerId] = setTimeout(tryReconnect, Math.min(3000 * retries, 30000));
       }
     };
+
     device.addEventListener("gattserverdisconnected", () => {
       delete charRefs.current[printerId];
-      if (intentionalDisconnects.current.has(printerId)) {
-        intentionalDisconnects.current.delete(printerId);
-        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
-        return;
-      }
       setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
       retries = 0;
       clearTimeout(reconnectTimers.current[printerId]);
@@ -588,7 +567,7 @@ export function usePrinter() {
   const disconnect = useCallback(async (printerId) => {
     clearTimeout(reconnectTimers.current[printerId]);
     delete reconnectTimers.current[printerId];
-    listenersAdded.current.delete(printerId); // allow re-attach on next pair
+    listenersAdded.current.delete(printerId);
     const device = deviceRefs.current[printerId];
     if (device?.gatt?.connected) device.gatt.disconnect();
     delete charRefs.current[printerId];
@@ -614,14 +593,14 @@ export function usePrinter() {
   const printBytes = useCallback((printerId, bytes) => {
     if (!printerChains.current[printerId]) printerChains.current[printerId] = Promise.resolve();
     const job = printerChains.current[printerId].then(async () => {
-      // Always fresh-connect: ensures only ONE GATT connection is active at a time.
-      // Android limits simultaneous GATT connections to 3-4; with 4 printers a cached
-      // multi-connection model causes the 3rd/4th printer to silently fail.
-      const char = await connect(printerId);
-      const CHUNK = 20; // H-58BT ATT payload max
-      // No fixed delay — writeValueWithoutResponse resolves when data is queued locally,
-      // not when the printer receives it. The BLE stack handles over-air pacing.
-      // Only back off when the stack signals congestion (caught exception).
+      // Use cached connection if available, otherwise connect fresh.
+      // We keep the GATT connection alive between prints — no post-print disconnect.
+      // This is simpler and avoids the reconnect race condition.
+      let char = charRefs.current[printerId];
+      if (!char) {
+        char = await connect(printerId);
+      }
+      const CHUNK = 20;
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
           const chunk = bytes.slice(i, i + CHUNK);
@@ -640,19 +619,13 @@ export function usePrinter() {
       try {
         await writeBytes(char);
       } catch(e) {
-        console.warn("Print failed, reconnecting...", e.message);
+        // Write failed — drop cached char and reconnect once
+        delete charRefs.current[printerId];
         const char2 = await connect(printerId);
         await writeBytes(char2);
-      } finally {
-        // Release GATT slot immediately so next printer can connect
-        intentionalDisconnects.current.add(printerId);
-        const device = deviceRefs.current[printerId];
-        if (device?.gatt?.connected) device.gatt.disconnect();
-        delete charRefs.current[printerId];
-        await new Promise(r => setTimeout(r, 50));
       }
+      // Connection stays open — gattserverdisconnected handles cleanup if printer powers off
     });
-    // keep this printer's chain alive even if this job errors
     printerChains.current[printerId] = job.catch(() => {});
     return job;
   }, [connect]);
