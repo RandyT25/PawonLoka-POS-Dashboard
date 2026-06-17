@@ -319,18 +319,29 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
         <div className="ow-hero-label">Total Penjualan · {RLABELS[range]}</div>
-        <div className="ow-hero-amount">
-          {fmt(stats.sales)}
-          {trend!==null&&<span className={"ow-trend "+(trend>=0?"up":"down")}>{trend>=0?"▲":"▼"} {Math.abs(trend)}%</span>}
+        <div style={{display:"flex",alignItems:"flex-end",gap:20,flexWrap:"wrap",marginBottom:6}}>
+          <div>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.5px"}}>Sudah Dibayar</div>
+            <div className="ow-hero-amount" style={{marginBottom:0}}>
+              {fmt(stats.sales)}
+              {trend!==null&&<span className={"ow-trend "+(trend>=0?"up":"down")}>{trend>=0?"▲":"▼"} {Math.abs(trend)}%</span>}
+            </div>
+          </div>
+          <div style={{paddingBottom:4}}>
+            <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.5px"}}>Belum Dibayar</div>
+            <div style={{fontSize:24,fontWeight:800,color:stats.unpaid>0?"#FCD34D":"rgba(255,255,255,0.35)"}}>
+              {fmt(stats.unpaid)}
+            </div>
+          </div>
         </div>
         <div className="ow-hero-meta">
-          <div className="ow-hero-meta-item">{stats.orders} <strong>Transaksi</strong></div>
+          <div className="ow-hero-meta-item">{stats.paidOrders||0} <strong>Lunas</strong></div>
+          {stats.openOrders>0&&<div className="ow-hero-meta-item" style={{color:"#FCD34D"}}>{stats.openOrders} <strong>Open Bill</strong></div>}
           {range==="today"&&<>
             <div className="ow-hero-meta-item">MTD <strong>{fmtK(stats.mtd)}</strong></div>
             <div className="ow-hero-meta-item">Proyeksi <strong>{fmtK(stats.projection)}</strong></div>
           </>}
           <div className="ow-hero-meta-item">Avg/Transaksi <strong>{fmt(stats.avgOrder)}</strong></div>
-          {stats.unpaid>0&&<div className="ow-hero-meta-item" style={{color:"#FCD34D"}}>Open Bills <strong>{fmt(stats.unpaid)}</strong></div>}
         </div>
       </div>
 
