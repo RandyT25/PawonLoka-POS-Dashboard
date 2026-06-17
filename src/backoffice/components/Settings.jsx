@@ -28,16 +28,18 @@ export default function Settings() {
       supabase.from("app_settings").select("*").eq("id","main").maybeSingle(),
       supabase.from("categories").select("id,name,icon").order("sort"),
     ])
-    if (s) setSettings({ outlet:s.outlet||DEFAULTS.outlet, pos_behaviour:s.pos_behaviour||DEFAULTS.pos_behaviour, regional:s.regional||DEFAULTS.regional, loyalty:s.loyalty||DEFAULTS.loyalty, stations:s.stations||DEFAULTS.stations })
+    if (s) {
+      setSettings({ outlet:s.outlet||DEFAULTS.outlet, pos_behaviour:s.pos_behaviour||DEFAULTS.pos_behaviour, regional:s.regional||DEFAULTS.regional, loyalty:s.loyalty||DEFAULTS.loyalty, stations:s.stations||DEFAULTS.stations })
+      if (s.cat_routing) setCatRouting(s.cat_routing)
+      else { try { setCatRouting(JSON.parse(localStorage.getItem("pl_cat_routing")||"{}")) } catch {} }
+    }
     setCategories(cats||[])
-    // Load category routing from localStorage for now
-    try { setCatRouting(JSON.parse(localStorage.getItem("pl_cat_routing")||"{}")) } catch {}
     setLoading(false)
   }
 
   async function save() {
     setSaving(true)
-    await supabase.from("app_settings").upsert({ id:"main", ...settings, updated_at:new Date().toISOString() })
+    await supabase.from("app_settings").upsert({ id:"main", ...settings, cat_routing:catRouting, updated_at:new Date().toISOString() })
     localStorage.setItem("pl_cat_routing", JSON.stringify(catRouting))
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)

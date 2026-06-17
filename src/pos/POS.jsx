@@ -335,7 +335,7 @@ export default function POS() {
     }
 
     // Group new items by station — read dynamic routing from backoffice first
-    const catRouting = (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
+    const catRouting = appSettings?.cat_routing || (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
     const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
 
     const stations = {}

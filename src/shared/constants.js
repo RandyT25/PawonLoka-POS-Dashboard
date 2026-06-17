@@ -27,17 +27,17 @@ export const MODIFIERS = [
 ]
 
 export const KITCHEN_STATIONS = {
-  'Drinks':       'Bar',
-  'Main Dishies': 'Kitchen',
-  'Nasi & Mie':   'Kitchen',
-  'Sate':         'Kitchen',
-  'Snacks':       'Snack',
-  'Dessert':      'Kitchen',
-  'Ice Cream':    'Bar',
-  'Jagung':       'Snack',
-  'Gen-Z Specials':'Kitchen',
-  'Extra':        'Kitchen',
-  'Delivery':     'Kitchen',
+  'Drinks':        'Bar',
+  'Main Dishies':  'Kitchen',
+  'Nasi & Mie':    'Kitchen',
+  'Sate':          'Kitchen',
+  'Snacks':        'Snack',
+  'Dessert':       'Snack',
+  'Ice Cream':     'Kasir',
+  'Jagung':        'Snack',
+  'Gen-Z Specials':'Snack',
+  'Extra':         'Kitchen',
+  'Delivery':      'Kitchen',
 }
 
 export const fmt = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID')
