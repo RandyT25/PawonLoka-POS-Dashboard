@@ -1126,29 +1126,23 @@ export default function OwnerApp() {
       {/* mobile topnav */}
       <div className="owner-topnav">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          {/* hamburger */}
-          <button onClick={()=>setMobileMenu(m=>!m)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
-            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",transform:mobileMenu?"rotate(45deg) translate(4px,4px)":"none"}}/>
-            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",opacity:mobileMenu?0:1}}/>
-            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",transform:mobileMenu?"rotate(-45deg) translate(4px,-4px)":"none"}}/>
-          </button>
-          <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7}}/>
-          <span className="owner-topnav-logo">PawonLoka Owner</span>
+          <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7,flexShrink:0}}/>
+          <div>
+            <div className="owner-topnav-logo">PawonLoka Owner</div>
+            <div className="owner-topnav-screen">{SCREEN_TITLE[screen]}</div>
+          </div>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <NotifBell notifications={notifications} setNotifications={setNotifications}/>
           <button onClick={()=>setDemo(d=>!d)} style={{padding:"5px 10px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",background:demo?"rgba(14,165,233,0.2)":"transparent",borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"}}>
-            {demo?"Demo":"Demo"}
+            {demo?"Demo ON":"Demo"}
           </button>
         </div>
       </div>
 
-      {/* mobile backdrop */}
-      {mobileMenu&&<div onClick={()=>setMobileMenu(false)} style={{position:"fixed",inset:0,zIndex:199,background:"rgba(0,0,0,0.45)"}}/>}
-
       <div className="owner-shell">
         {/* sidebar */}
-        <aside className={"owner-sidebar"+(mobileMenu?" mobile-open":"")}>
+        <aside className="owner-sidebar">
           <div className="owner-sidebar-header">
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
               <div className="owner-sidebar-icon">
@@ -1201,6 +1195,16 @@ export default function OwnerApp() {
           </div>
         </main>
       </div>
+
+      {/* bottom tab bar — mobile only */}
+      <nav className="ow-bottom-nav">
+        {NAV.map(n=>(
+          <button key={n.id} className={"ow-bottom-nav-item"+(screen===n.id?" active":"")} onClick={()=>setScreen(n.id)}>
+            {n.icon}
+            <span>{n.label}</span>
+          </button>
+        ))}
+      </nav>
     </div>
   )
 }

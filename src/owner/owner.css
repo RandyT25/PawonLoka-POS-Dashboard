@@ -81,6 +81,27 @@ html,body{height:100%;}
   z-index:30;
 }
 .owner-topnav-logo{font-size:15px;font-weight:900;color:#fff;letter-spacing:-0.3px;}
+.owner-topnav-screen{font-size:13px;font-weight:700;color:rgba(255,255,255,0.55);}
+
+/* ── Bottom tab bar (mobile only) ── */
+.ow-bottom-nav{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;
+  background:#fff;
+  border-top:1px solid var(--ow-surface3);
+  padding:6px 0 max(6px,env(safe-area-inset-bottom));
+  z-index:150;
+  box-shadow:0 -4px 20px rgba(15,23,42,0.08);
+}
+.ow-bottom-nav-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:none;border:none;cursor:pointer;
+  color:var(--ow-ink5);font-size:10px;font-weight:600;font-family:inherit;
+  padding:6px 4px;transition:color 0.15s;
+}
+.ow-bottom-nav-item svg{transition:opacity 0.15s;opacity:0.45;width:22px;height:22px;}
+.ow-bottom-nav-item.active{color:var(--ow-brand);}
+.ow-bottom-nav-item.active svg{opacity:1;}
 
 /* ── Shell ── */
 .owner-shell{
@@ -276,8 +297,8 @@ html,body{height:100%;}
 /* ── Table ── */
 .ow-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 .ow-table{width:100%;border-collapse:collapse;}
-.ow-table th{text-align:left;font-size:10px;font-weight:700;color:var(--ow-ink4);text-transform:uppercase;letter-spacing:0.6px;padding:8px 10px;border-bottom:2px solid var(--ow-surface3);}
-.ow-table td{padding:10px 10px;border-bottom:1px solid var(--ow-surface2);font-size:13px;color:var(--ow-ink2);vertical-align:middle;}
+.ow-table th{text-align:left;font-size:10px;font-weight:700;color:var(--ow-ink4);text-transform:uppercase;letter-spacing:0.6px;padding:8px 10px;border-bottom:2px solid var(--ow-surface3);white-space:nowrap;}
+.ow-table td{padding:10px 10px;border-bottom:1px solid var(--ow-surface2);font-size:13px;color:var(--ow-ink2);vertical-align:middle;white-space:nowrap;}
 .ow-table tr:last-child td{border-bottom:none;}
 .ow-table tbody tr{transition:background 0.1s;}
 .ow-table tbody tr:hover{background:var(--ow-surface);}
@@ -311,16 +332,11 @@ html,body{height:100%;}
 
 /* ── Responsive ── */
 @media(max-width:768px){
-  /* sidebar — hidden by default, slides in as drawer when .mobile-open */
-  .owner-sidebar{
-    display:none;
-    position:fixed;top:52px;left:0;bottom:0;
-    width:260px;z-index:200;
-    box-shadow:4px 0 24px rgba(0,0,0,0.4);
-  }
-  .owner-sidebar.mobile-open{display:flex;}
+  .owner-sidebar{display:none;}
+  .owner-topbar{display:none;}         /* topnav handles title on mobile */
   .owner-topnav{display:flex;}
-  .owner-content{padding:12px;}
+  .ow-bottom-nav{display:flex;}        /* bottom tab bar */
+  .owner-content{padding:12px;padding-bottom:80px;} /* space for bottom nav */
   .ow-hero{padding:18px 20px;}
   .ow-hero-amount{font-size:26px;}
   .ow-notif-panel{width:calc(100vw - 32px);right:-16px;}
@@ -328,8 +344,6 @@ html,body{height:100%;}
   .ow-grid-2-1{grid-template-columns:1fr;}
   .ow-grid-3{grid-template-columns:1fr 1fr;}
   .ow-range-group{flex-wrap:wrap;}
-  /* tables always scrollable */
-  .ow-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
 }
 @media(max-width:420px){
   .ow-grid-3{grid-template-columns:1fr;}
