@@ -398,9 +398,9 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
           <div className="ow-card-title">Ringkasan Laba Rugi</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:1,background:"#E2E8F0",borderRadius:12,overflow:"hidden",marginBottom:12}}>
             {[{label:"Gross Revenue",val:fmt(stats.sales),color:"#1E293B"},{label:"Est. COGS",val:fmt(stats.cogs),color:"#EF4444"},{label:"Gross Profit",val:fmt(stats.grossProfit),color:stats.grossProfit>=0?"#10B981":"#EF4444"}].map(r=>(
-              <div key={r.label} style={{padding:"14px 16px",background:"#fff",textAlign:"center"}}>
+              <div key={r.label} style={{padding:"12px 8px",background:"#fff",textAlign:"center"}}>
                 <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:6}}>{r.label}</div>
-                <div style={{fontSize:17,fontWeight:900,color:r.color,letterSpacing:"-0.5px"}}>{r.val}</div>
+                <div style={{fontSize:13,fontWeight:900,color:r.color,letterSpacing:"-0.3px",whiteSpace:"nowrap"}}>{r.val}</div>
               </div>
             ))}
           </div>
@@ -1084,6 +1084,9 @@ export default function OwnerApp() {
   const [demo,        setDemo]        = useState(false)
   const [notifications, setNotifications] = useState([])
   const [mobileMenu,  setMobileMenu]  = useState(false)
+  const contentRef = useRef(null)
+
+  useEffect(()=>{ contentRef.current?.scrollTo(0,0) },[screen])
 
   const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
 
@@ -1187,7 +1190,7 @@ export default function OwnerApp() {
             </div>
           </div>
 
-          <div className="owner-content">
+          <div className="owner-content" ref={contentRef}>
             {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
             {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
             {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} demo={demo}/>}
