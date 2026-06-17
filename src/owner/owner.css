@@ -232,6 +232,10 @@ html,body{height:100%;}
   background:transparent;color:var(--ow-ink4);
 }
 .ow-range-btn.active{background:#fff;color:var(--ow-ink);box-shadow:0 1px 4px rgba(15,23,42,0.1);}
+.ow-range-date{
+  position:relative;overflow:hidden;
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;user-select:none;
+}
 
 /* ── Hero KPI ── */
 .ow-hero{

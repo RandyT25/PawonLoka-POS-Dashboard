@@ -215,30 +215,51 @@ function NotifBell({ notifications, setNotifications }) {
 }
 
 /* ─── Dashboard Screen ─── */
-function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, topItems, slowItems, recent }) {
+function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
+  const customLabel = customDate
+    ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})
+    : "Pilih Tanggal"
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
+      <div className="ow-range-group">
+        {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
+          <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
+        ))}
+        {/* date picker — hidden input overlaid on a styled button */}
+        <label className={"ow-range-btn ow-range-date"+(range==="custom"?" active":"")} title="Pilih tanggal spesifik">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{flexShrink:0}}>
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          {range==="custom" ? customLabel : "Tanggal"}
+          <input type="date" value={customDate} max={today()}
+            onChange={e=>{ if(e.target.value){ setCustomDate(e.target.value); setRange("custom") } }}
+            style={{position:"absolute",inset:0,opacity:0,cursor:"pointer",width:"100%",height:"100%"}}/>
+        </label>
+      </div>
+      <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+        {loading&&(
+          <svg className="ow-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="#E2E8F0" strokeWidth="3"/>
+            <path d="M12 2a10 10 0 0 1 10 10" stroke="#0EA5E9" strokeWidth="3" strokeLinecap="round"/>
+          </svg>
+        )}
+        <span style={{fontSize:11,color:"#94A3B8"}}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</span>
+      </div>
+    </div>
+  )
+}
+
+function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, stats, hourData, payments, topItems, slowItems, recent }) {
   const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
   const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
-  const RLABELS = {today:"Hari Ini",week:"Minggu Ini",month:"Bulan Ini"}
+  const RLABELS = {
+    today:"Hari Ini", week:"Minggu Ini", month:"Bulan Ini",
+    custom: customDate ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"}) : "Tanggal Dipilih"
+  }
 
   return (
     <div style={{maxWidth:1100}}>
-      {/* toolbar */}
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
-        <div className="ow-range-group">
-          {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
-            <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
-          ))}
-        </div>
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-          {loading&&(
-            <svg className="ow-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="#E2E8F0" strokeWidth="3"/>
-              <path d="M12 2a10 10 0 0 1 10 10" stroke="#0EA5E9" strokeWidth="3" strokeLinecap="round"/>
-            </svg>
-          )}
-          <span style={{fontSize:11,color:"#94A3B8"}}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</span>
-        </div>
-      </div>
+      <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading}/>
 
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
@@ -434,7 +455,7 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
 }
 
 /* ─── Karyawan Screen ─── */
-function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange }) {
+function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, customDate, setCustomDate, demo }) {
   const now = Date.now()
   const salesMax = Math.max(...staffData.map(s=>s.sales), 1)
 
@@ -592,14 +613,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange })
           Performa Penjualan per Karyawan
           <span className="ow-card-title-sub">auto-update dari POS</span>
         </div>
-        {/* period selector */}
-        <div style={{marginBottom:16}}>
-          <div className="ow-range-group" style={{display:"inline-flex"}}>
-            {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
-              <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
-            ))}
-          </div>
-        </div>
+        <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={false}/>
 
         {staffData.length===0 ? (
           <div className="ow-empty">Belum ada data penjualan. Aktifkan Demo untuk melihat contoh.</div>
@@ -886,7 +900,7 @@ const NAV = [
 ]
 
 /* ─── Data hook ─── */
-function useOwnerData(range, demo) {
+function useOwnerData(range, demo, customDate) {
   const [loading,        setLoading]        = useState(true)
   const [stats,          setStats]          = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
   const [payments,       setPayments]       = useState([])
@@ -899,7 +913,7 @@ function useOwnerData(range, demo) {
   const [staffList,      setStaffList]      = useState([])
   const [todayAtt,       setTodayAtt]       = useState([])
 
-  useEffect(()=>{ load() },[range,demo])
+  useEffect(()=>{ load() },[range,demo,customDate])
 
   useEffect(()=>{
     const ch=supabase.channel("owner_rt")
@@ -907,11 +921,11 @@ function useOwnerData(range, demo) {
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>load())
       .subscribe()
     return ()=>supabase.removeChannel(ch)
-  },[range,demo])
+  },[range,demo,customDate])
 
-  /* attendance realtime — refresh shift status whenever staff clocks in/out */
+  /* attendance realtime — only refresh when viewing today */
   useEffect(()=>{
-    if (demo) return
+    if (demo || (range==="custom"&&customDate!==today())) return
     const loadAtt=async()=>{
       try {
         const {data}=await supabase.from("attendance").select("*").eq("date",today())
@@ -923,21 +937,22 @@ function useOwnerData(range, demo) {
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"attendance"},loadAtt)
       .subscribe()
     return ()=>supabase.removeChannel(ch)
-  },[demo])
+  },[demo,range,customDate])
 
   async function load() {
     setLoading(true)
     let orders=[], expenses=[]
 
-    /* fetch staff list + today's attendance */
+    /* fetch staff list + attendance for the selected date */
+    const attDate = range==="custom" ? customDate : today()
     if (demo) {
       setStaffList(DEMO_STAFF)
-      setTodayAtt(DEMO_ATT)
+      setTodayAtt(range==="custom"&&customDate!==today() ? [] : DEMO_ATT)
     } else {
       try {
         const [{data:sl},{data:al}]=await Promise.all([
           supabase.from("staff").select("id,name,role,color,active").eq("active",true).order("name"),
-          supabase.from("attendance").select("*").eq("date",today()),
+          supabase.from("attendance").select("*").eq("date",attDate),
         ])
         setStaffList(sl||[])
         setTodayAtt(al||[])
@@ -947,16 +962,26 @@ function useOwnerData(range, demo) {
     if (demo) {
       orders=DEMO; expenses=DEMO_EXP
     } else {
-      const now=new Date(), from=new Date()
-      if (range==="today") { from.setHours(0,0,0,0) }
-      if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
-      if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
-      const fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
-      const {data,error}=await supabase.from("orders").select("*").eq("status","Paid").gte("created_at",fromStr).order("created_at",{ascending:false})
+      let fromStr="", toStr=""
+      if (range==="custom") {
+        fromStr=customDate+"T00:00:00+08:00"
+        toStr=customDate+"T23:59:59+08:00"
+      } else {
+        const now=new Date(), from=new Date()
+        if (range==="today") { from.setHours(0,0,0,0) }
+        if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
+        if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
+        fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
+      }
+      let q=supabase.from("orders").select("*").eq("status","Paid").gte("created_at",fromStr)
+      if (toStr) q=q.lte("created_at",toStr)
+      const {data,error}=await q.order("created_at",{ascending:false})
       if (error) { console.error(error); setLoading(false); return }
       orders=data||[]
       try {
-        const {data:expData}=await supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
+        let eq=supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
+        if (toStr) eq=eq.lte("created_at",toStr)
+        const {data:expData}=await eq
         expenses=expData||[]
       } catch(e) {}
     }
@@ -967,9 +992,10 @@ function useOwnerData(range, demo) {
 
     const inPeriod=o=>{
       const d=o.created_at.slice(0,10)
-      if(range==="today")return d===td
-      if(range==="week") return d>=wk
-      if(range==="month")return d>=mo
+      if(range==="today") return d===td
+      if(range==="week")  return d>=wk
+      if(range==="month") return d>=mo
+      if(range==="custom")return d===customDate
       return true
     }
 
@@ -1044,13 +1070,14 @@ function useOwnerData(range, demo) {
 
 /* ─── Root ─── */
 export default function OwnerApp() {
-  const [authed,  setAuthed]  = useState(false)
-  const [screen,  setScreen]  = useState("dashboard")
-  const [range,   setRange]   = useState("today")
-  const [demo,    setDemo]    = useState(false)
+  const [authed,      setAuthed]      = useState(false)
+  const [screen,      setScreen]      = useState("dashboard")
+  const [range,       setRange]       = useState("today")
+  const [customDate,  setCustomDate]  = useState(today())
+  const [demo,        setDemo]        = useState(false)
   const [notifications, setNotifications] = useState([])
 
-  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo)
+  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
 
   /* realtime notifications — orders + attendance */
   useEffect(()=>{
@@ -1150,9 +1177,9 @@ export default function OwnerApp() {
           </div>
 
           <div className="owner-content">
-            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
+            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
             {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
-            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} demo={demo}/>}
+            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} demo={demo}/>}
             {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
           </div>
         </main>
