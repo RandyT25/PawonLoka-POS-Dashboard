@@ -31,7 +31,7 @@ const formatReceipt = (order, customer) => {
   return lines.filter(l => l !== null).join('\n')
 }
 
-export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, onReprint, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
+export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, onReprint, onPrintBill, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
   const { sendReceipt } = useWhatsApp()
   const [tab, setTab]           = useState('pay') // pay | split
   const [orderNote, setOrderNote] = useState('')
@@ -150,7 +150,15 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
       <div style={S.modal}>
         <div style={S.hd}>
           <span style={{ fontSize:15, fontWeight:800 }}>Pembayaran</span>
-          <button onClick={onClose} style={S.closeBtn}>x</button>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {onPrintBill && (
+              <button onClick={onPrintBill}
+                style={{ padding:'5px 12px', background:'#F59E0B', color:'#fff', border:'none', borderRadius:7, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                🧾 Tagihan
+              </button>
+            )}
+            <button onClick={onClose} style={S.closeBtn}>x</button>
+          </div>
         </div>
 
         {/* Tabs */}

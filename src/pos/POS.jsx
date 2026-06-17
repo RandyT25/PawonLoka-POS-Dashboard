@@ -411,7 +411,31 @@ export default function POS() {
   }
 
   // Print table checker — items only, no pricing
+  // Print Table Check — items only (no prices), goes to receipt printer as kitchen-style checker
   async function printCheck() {
+    const receiptPrinter = printer.printers?.find(p=>p.role==='receipt')
+    if (!receiptPrinter) { alert('No receipt printer configured'); return }
+    const items = cart.map(i => {
+      const parts = [i.qty + 'x ' + i.name]
+      if (i.modifiers && Object.values(i.modifiers).length)
+        parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
+      if (i.note) parts.push('  * ' + i.note)
+      return parts.join('\n')
+    })
+    try {
+      await printer.printKitchenTicket({
+        stationRole: 'receipt',
+        table: tableNo || orderType,
+        stationName: 'CHECKER',
+        orderType,
+        paperSize: receiptPrinter.paperSize,
+        items,
+      })
+    } catch(e) { alert('Print failed: ' + e.message) }
+  }
+
+  // Print Bill / Tagihan — pre-payment bill with prices, shown to customer before they pay
+  async function printBill() {
     const rs = appSettings?.receipt || {}
     const order = {
       table: tableNo || null,
@@ -736,6 +760,7 @@ export default function POS() {
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
           onPrintCheck={printCheck}
+          onPrintBill={printBill}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
@@ -781,6 +806,7 @@ export default function POS() {
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
           onPrintCheck={printCheck}
+          onPrintBill={printBill}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
         />
