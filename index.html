@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="build-time" content="1780013331" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- favicon injected dynamically by inline script below -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0" />
     <title>pawonloka</title>
     <script>
@@ -13,29 +13,35 @@
       var title = 'PawonLoka POS'
       var color = '#0A1628'
       var logo = '/logo-pos.png'
+      var favicon = '/favicon-pos.png'
       if (path.startsWith('/pos')) {
         manifest = '/manifest.json'
         title = 'PawonLoka POS'
         color = '#0A1628'
         logo = '/logo-pos.png'
+        favicon = '/favicon-pos.png'
       } else if (path.startsWith('/backoffice')) {
         manifest = '/manifest-backoffice.json'
         title = 'PawonLoka Backoffice'
         color = '#1a1a2e'
         logo = '/logo-backoffice.png'
+        favicon = '/favicon-backoffice.png'
       } else if (path.startsWith('/staff')) {
         manifest = '/manifest-staff.json'
         title = 'PawonLoka Staff'
         color = '#0052CC'
         logo = '/logo-staff.png'
+        favicon = '/favicon-staff.png'
       }
       if (path.startsWith('/owner')) {
         manifest = '/manifest-owner.json'
         title = 'PawonLoka Owner'
         color = '#0B1120'
         logo = '/logo-owner.png'
+        favicon = '/favicon-owner.png'
       }
       var lnk = document.createElement('link'); lnk.rel = 'manifest'; lnk.href = manifest; document.head.appendChild(lnk)
+      var ico = document.createElement('link'); ico.rel = 'icon'; ico.type = 'image/png'; ico.href = favicon; document.head.appendChild(ico)
       var ati = document.createElement('link'); ati.rel = 'apple-touch-icon'; ati.href = logo; document.head.appendChild(ati)
       document.title = title
       var meta = document.createElement('meta')
