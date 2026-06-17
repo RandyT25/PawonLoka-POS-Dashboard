@@ -51,6 +51,27 @@ const DEMO_EXP = [
   {id:"x7",created_at:`${yestStr()}T15:00:00`,category:"Lain-lain", note:"Cetak nota bon",        amount:15000},
 ]
 
+/* ─── demo staff & attendance ─── */
+const DEMO_STAFF = [
+  {id:1,name:"Budi",role:"Kasir",active:true,color:"#0EA5E9"},
+  {id:2,name:"Raka",role:"Bar",  active:true,color:"#10B981"},
+  {id:3,name:"Siti",role:"Kasir",active:true,color:"#8B5CF6"},
+]
+const DEMO_ATT = (()=>{
+  const d=today()
+  return [
+    {id:"att1",staff_name:"Budi",date:d,clock_in:`${d}T08:00:00`,clock_out:null,status:"on_time"},
+    {id:"att2",staff_name:"Raka",date:d,clock_in:`${d}T08:30:00`,clock_out:null,status:"on_time"},
+    // Siti hasn't clocked in today
+  ]
+})()
+
+function fmtDuration(ms) {
+  if (ms<=0) return "0m"
+  const h=Math.floor(ms/3600000), m=Math.floor((ms%3600000)/60000)
+  return h>0?`${h}j ${m}m`:`${m}m`
+}
+
 const PAY_COLOR = { Cash:"#10B981",QRIS:"#0EA5E9",Card:"#3B82F6",GoPay:"#06B6D4",OVO:"#8B5CF6",Other:"#94A3B8" }
 const PAY_BADGE = { Cash:"ow-badge-green",QRIS:"ow-badge-blue",Card:"ow-badge-blue",GoPay:"ow-badge-blue",OVO:"ow-badge-purple",Other:"ow-badge-amber" }
 const EXP_COLOR = { "Bahan Baku":"#EF4444","Operasional":"#F59E0B","Lain-lain":"#94A3B8" }
@@ -413,22 +434,149 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
 }
 
 /* ─── Karyawan Screen ─── */
-function ScreenStaff({ staffData, stats }) {
-  const max = Math.max(...staffData.map(s=>s.sales), 1)
+function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange }) {
+  const now = Date.now()
+  const salesMax = Math.max(...staffData.map(s=>s.sales), 1)
+
+  /* build attendance map by staff name */
+  const attMap = {}
+  todayAtt.forEach(a => { attMap[a.staff_name] = a })
+
+  /* build sales map by staff name */
+  const salesMap = {}
+  staffData.forEach(s => { salesMap[s.name] = s })
+
+  /* derive per-staff status */
+  const allStaff = staffList.map((s,i) => {
+    const att = attMap[s.name]
+    const sale = salesMap[s.name] || {sales:0,orders:0,avg:0,pct:0}
+    let status="absent", label="Belum Masuk", sColor="#94A3B8", sBg="#F1F5F9", dur=null, warn=false
+
+    if (att?.clock_in) {
+      const msIn = now - new Date(att.clock_in)
+      if (att.clock_out) {
+        status="done"; label="Selesai"; sColor="#0369A1"; sBg="#E0F2FE"
+        dur=fmtDuration(new Date(att.clock_out)-new Date(att.clock_in))
+      } else if (msIn>9*3600000) {
+        status="forgot"; label="Lupa Clock Out?"; sColor="#B45309"; sBg="#FEF3C7"; warn=true
+        dur=fmtDuration(msIn)
+      } else {
+        status="on"; label="Sedang Bekerja"; sColor="#065F46"; sBg="#D1FAE5"
+        dur=fmtDuration(msIn)
+      }
+    }
+    return {...s,att,sale,status,label,sColor,sBg,dur,warn,color:s.color||STAFF_COLORS[i%6]}
+  })
+
+  /* sort: on > forgot > absent > done */
+  const ORDER = {on:0,forgot:1,absent:2,done:3}
+  allStaff.sort((a,b)=>(ORDER[a.status]??4)-(ORDER[b.status]??4))
+
+  const onShift  = allStaff.filter(s=>s.status==="on")
+  const forgot   = allStaff.filter(s=>s.status==="forgot")
+  const absent   = allStaff.filter(s=>s.status==="absent")
+  const done     = allStaff.filter(s=>s.status==="done")
+
   return (
-    <div style={{maxWidth:900}}>
+    <div style={{maxWidth:960}}>
+
+      {/* ── Shift status card ── */}
+      <div className="ow-card" style={{marginBottom:16}}>
+        <div className="ow-card-title">
+          Status Shift Hari Ini
+          <span className="ow-card-title-sub">
+            {onShift.length} aktif · {forgot.length} lupa clock out · {absent.length} belum masuk · {done.length} selesai
+          </span>
+        </div>
+
+        {staffList.length===0 ? (
+          <div className="ow-empty">
+            Tidak ada data staf. Tambah karyawan di Backoffice → Employees, atau aktifkan Demo.
+          </div>
+        ) : (
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
+            {allStaff.map(s=>(
+              <div key={s.name} style={{
+                padding:"14px",borderRadius:14,
+                border:"1.5px solid",
+                borderColor:s.status==="on"?"#6EE7B7":s.status==="forgot"?"#FCD34D":s.status==="done"?"#BAE6FD":"#E2E8F0",
+                background:s.status==="on"?"#F0FDF4":s.status==="forgot"?"#FFFBEB":s.status==="done"?"#F0F9FF":"#F8FAFC",
+                position:"relative",
+              }}>
+                {/* warn icon */}
+                {s.warn&&(
+                  <div style={{position:"absolute",top:10,right:10}}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="#F59E0B" stroke="#F59E0B" strokeWidth="0">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13" stroke="#fff" strokeWidth="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="#fff" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                )}
+
+                {/* avatar + name */}
+                <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:10}}>
+                  <div style={{width:36,height:36,borderRadius:10,background:s.color,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:14,fontWeight:800,flexShrink:0}}>
+                    {s.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                    <div style={{fontSize:10,color:"#94A3B8"}}>{s.role||"—"}</div>
+                  </div>
+                </div>
+
+                {/* status badge + duration */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:7}}>
+                  <span style={{fontSize:10,fontWeight:700,padding:"3px 8px",borderRadius:20,background:s.sBg,color:s.sColor}}>{s.label}</span>
+                  {s.dur&&<span style={{fontSize:10,color:"#64748B",flexShrink:0,marginLeft:4}}>{s.dur}</span>}
+                </div>
+
+                {/* clock in/out times */}
+                {s.att?.clock_in&&(
+                  <div style={{fontSize:10,color:"#94A3B8",marginBottom:7}}>
+                    <span>Masuk: <strong style={{color:"#334155"}}>{fmtTime(s.att.clock_in)}</strong></span>
+                    {s.att.clock_out&&<span style={{marginLeft:8}}>Keluar: <strong style={{color:"#334155"}}>{fmtTime(s.att.clock_out)}</strong></span>}
+                  </div>
+                )}
+
+                {/* mini sales snippet */}
+                {s.sale.orders>0?(
+                  <div style={{paddingTop:8,borderTop:"1px solid rgba(0,0,0,0.06)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:10,color:"#94A3B8"}}>{s.sale.orders} transaksi</span>
+                    <span style={{fontSize:11,fontWeight:800,color:"#0EA5E9"}}>{fmtK(s.sale.sales)}</span>
+                  </div>
+                ):(
+                  <div style={{fontSize:10,color:"#CBD5E1",paddingTop:8,borderTop:"1px solid rgba(0,0,0,0.06)"}}>Belum ada penjualan</div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* forgot clock-out alert */}
+        {forgot.length>0&&(
+          <div style={{marginTop:12,padding:"10px 14px",background:"#FEF3C7",borderRadius:10,border:"1px solid #FCD34D",display:"flex",gap:9,alignItems:"flex-start"}}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#F59E0B" strokeWidth="0" style={{flexShrink:0,marginTop:1}}>
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13" stroke="#fff" strokeWidth="2"/><line x1="12" y1="17" x2="12.01" y2="17" stroke="#fff" strokeWidth="2"/>
+            </svg>
+            <span style={{fontSize:12,fontWeight:600,color:"#92400E"}}>
+              <strong>{forgot.map(s=>s.name).join(", ")}</strong> sudah lebih dari 9 jam bekerja tanpa clock out. Ingatkan untuk check-out.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ── KPI row ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
         <div className="ow-stat">
-          <div className="ow-stat-accent" style={{background:"#8B5CF6"}}/>
-          <div className="ow-stat-label">Staf Aktif</div>
-          <div className="ow-stat-val" style={{color:"#8B5CF6"}}>{staffData.length}</div>
-          <div className="ow-stat-sub">periode ini</div>
+          <div className="ow-stat-accent" style={{background:"#10B981"}}/>
+          <div className="ow-stat-label">Sedang Bekerja</div>
+          <div className="ow-stat-val" style={{color:"#10B981"}}>{onShift.length+forgot.length}</div>
+          <div className="ow-stat-sub">dari {staffList.length} staf terdaftar</div>
         </div>
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#0EA5E9"}}/>
           <div className="ow-stat-label">Rata-rata Per Staf</div>
           <div className="ow-stat-val" style={{color:"#0EA5E9",fontSize:18}}>{staffData.length?fmtK(Math.round(stats.sales/staffData.length)):"—"}</div>
-          <div className="ow-stat-sub">penjualan rata-rata</div>
+          <div className="ow-stat-sub">penjualan periode ini</div>
         </div>
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#F59E0B"}}/>
@@ -438,67 +586,80 @@ function ScreenStaff({ staffData, stats }) {
         </div>
       </div>
 
+      {/* ── Sales performance ── */}
       <div className="ow-card">
-        <div className="ow-card-title">Performa Karyawan</div>
-        {staffData.length===0
-          ? <div className="ow-empty">Belum ada data. Aktifkan Demo untuk melihat contoh.</div>
-          : <>
-            <div style={{marginBottom:24}}>
-              {staffData.map((s,i)=>(
-                <div key={s.name} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
-                  <div style={{width:34,height:34,borderRadius:10,flexShrink:0,background:STAFF_COLORS[i%6],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800}}>
-                    {s.name.charAt(0).toUpperCase()}
+        <div className="ow-card-title">
+          Performa Penjualan per Karyawan
+          <span className="ow-card-title-sub">auto-update dari POS</span>
+        </div>
+        {/* period selector */}
+        <div style={{marginBottom:16}}>
+          <div className="ow-range-group" style={{display:"inline-flex"}}>
+            {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
+              <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
+            ))}
+          </div>
+        </div>
+
+        {staffData.length===0 ? (
+          <div className="ow-empty">Belum ada data penjualan. Aktifkan Demo untuk melihat contoh.</div>
+        ) : <>
+          {/* bar chart */}
+          <div style={{marginBottom:20}}>
+            {staffData.map((s,i)=>(
+              <div key={s.name} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+                <div style={{width:34,height:34,borderRadius:10,flexShrink:0,background:STAFF_COLORS[i%6],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800}}>
+                  {s.name.charAt(0).toUpperCase()}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4,gap:8}}>
+                    <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
+                      <span style={{fontSize:13,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                      {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
+                    </div>
+                    <span style={{fontSize:13,fontWeight:800,color:"#1E293B",flexShrink:0}}>{fmt(s.sales)}</span>
                   </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}>
-                      <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
-                        <span style={{fontSize:13,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
-                        {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
-                      </div>
-                      <span style={{fontSize:13,fontWeight:800,color:"#1E293B",flexShrink:0}}>{fmt(s.sales)}</span>
-                    </div>
-                    <div className="ow-bar-track" style={{height:8}}>
-                      <div className="ow-bar-fill" style={{width:Math.round(s.sales/max*100)+"%",background:STAFF_COLORS[i%6]}}/>
-                    </div>
-                    <div style={{display:"flex",gap:16,marginTop:5}}>
-                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.orders} transaksi</span>
-                      <span style={{fontSize:10,color:"#94A3B8"}}>avg {fmt(s.avg)}</span>
-                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.pct}% share</span>
-                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.items} item terjual</span>
-                    </div>
+                  <div className="ow-bar-track" style={{height:8}}>
+                    <div className="ow-bar-fill" style={{width:Math.round(s.sales/salesMax*100)+"%",background:STAFF_COLORS[i%6]}}/>
+                  </div>
+                  <div style={{display:"flex",gap:16,marginTop:4}}>
+                    <span style={{fontSize:10,color:"#94A3B8"}}>{s.orders} transaksi</span>
+                    <span style={{fontSize:10,color:"#94A3B8"}}>avg {fmt(s.avg)}</span>
+                    <span style={{fontSize:10,color:"#94A3B8"}}>{s.pct}% share</span>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
+          </div>
 
-            <div style={{overflowX:"auto"}}>
-              <table className="ow-table">
-                <thead>
-                  <tr><th>Karyawan</th><th style={{textAlign:"right"}}>Transaksi</th><th style={{textAlign:"right"}}>Penjualan</th><th style={{textAlign:"right"}}>Avg/Transaksi</th><th style={{textAlign:"right"}}>% Total</th></tr>
-                </thead>
-                <tbody>
-                  {staffData.map((s,i)=>(
-                    <tr key={s.name}>
-                      <td>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <div style={{width:26,height:26,borderRadius:8,background:STAFF_COLORS[i%6],color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{s.name.charAt(0).toUpperCase()}</div>
-                          <span style={{fontWeight:600}}>{s.name}</span>
-                          {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
-                        </div>
-                      </td>
-                      <td style={{textAlign:"right",fontWeight:600}}>{s.orders}</td>
-                      <td style={{textAlign:"right",fontWeight:700,color:"#0EA5E9"}}>{fmt(s.sales)}</td>
-                      <td style={{textAlign:"right",color:"#64748B"}}>{fmt(s.avg)}</td>
-                      <td style={{textAlign:"right"}}>
-                        <span className={"ow-badge "+(s.pct>=35?"ow-badge-green":s.pct>=20?"ow-badge-blue":"ow-badge-amber")}>{s.pct}%</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        }
+          {/* table */}
+          <div style={{overflowX:"auto"}}>
+            <table className="ow-table">
+              <thead>
+                <tr><th>Karyawan</th><th style={{textAlign:"right"}}>Transaksi</th><th style={{textAlign:"right"}}>Penjualan</th><th style={{textAlign:"right"}}>Avg/Transaksi</th><th style={{textAlign:"right"}}>% Total</th></tr>
+              </thead>
+              <tbody>
+                {staffData.map((s,i)=>(
+                  <tr key={s.name}>
+                    <td>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:26,height:26,borderRadius:8,background:STAFF_COLORS[i%6],color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{s.name.charAt(0).toUpperCase()}</div>
+                        <span style={{fontWeight:600}}>{s.name}</span>
+                        {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
+                      </div>
+                    </td>
+                    <td style={{textAlign:"right",fontWeight:600}}>{s.orders}</td>
+                    <td style={{textAlign:"right",fontWeight:700,color:"#0EA5E9"}}>{fmt(s.sales)}</td>
+                    <td style={{textAlign:"right",color:"#64748B"}}>{fmt(s.avg)}</td>
+                    <td style={{textAlign:"right"}}>
+                      <span className={"ow-badge "+(s.pct>=35?"ow-badge-green":s.pct>=20?"ow-badge-blue":"ow-badge-amber")}>{s.pct}%</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>}
       </div>
     </div>
   )
@@ -726,15 +887,17 @@ const NAV = [
 
 /* ─── Data hook ─── */
 function useOwnerData(range, demo) {
-  const [loading,   setLoading]   = useState(true)
-  const [stats,     setStats]     = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
-  const [payments,  setPayments]  = useState([])
-  const [topItems,  setTopItems]  = useState([])
-  const [slowItems, setSlowItems] = useState([])
-  const [hourData,  setHourData]  = useState([])
-  const [recent,    setRecent]    = useState([])
-  const [staffData, setStaffData] = useState([])
-  const [cashData,  setCashData]  = useState({income:0,expenses:0,incomeCount:0,byMethod:[],expenseItems:[],log:[]})
+  const [loading,        setLoading]        = useState(true)
+  const [stats,          setStats]          = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
+  const [payments,       setPayments]       = useState([])
+  const [topItems,       setTopItems]       = useState([])
+  const [slowItems,      setSlowItems]      = useState([])
+  const [hourData,       setHourData]       = useState([])
+  const [recent,         setRecent]         = useState([])
+  const [staffData,      setStaffData]      = useState([])
+  const [cashData,       setCashData]       = useState({income:0,expenses:0,incomeCount:0,byMethod:[],expenseItems:[],log:[]})
+  const [staffList,      setStaffList]      = useState([])
+  const [todayAtt,       setTodayAtt]       = useState([])
 
   useEffect(()=>{ load() },[range,demo])
 
@@ -746,9 +909,40 @@ function useOwnerData(range, demo) {
     return ()=>supabase.removeChannel(ch)
   },[range,demo])
 
+  /* attendance realtime — refresh shift status whenever staff clocks in/out */
+  useEffect(()=>{
+    if (demo) return
+    const loadAtt=async()=>{
+      try {
+        const {data}=await supabase.from("attendance").select("*").eq("date",today())
+        setTodayAtt(data||[])
+      } catch(e){}
+    }
+    const ch=supabase.channel("owner_att_rt")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"attendance"},loadAtt)
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"attendance"},loadAtt)
+      .subscribe()
+    return ()=>supabase.removeChannel(ch)
+  },[demo])
+
   async function load() {
     setLoading(true)
     let orders=[], expenses=[]
+
+    /* fetch staff list + today's attendance */
+    if (demo) {
+      setStaffList(DEMO_STAFF)
+      setTodayAtt(DEMO_ATT)
+    } else {
+      try {
+        const [{data:sl},{data:al}]=await Promise.all([
+          supabase.from("staff").select("id,name,role,color,active").eq("active",true).order("name"),
+          supabase.from("attendance").select("*").eq("date",today()),
+        ])
+        setStaffList(sl||[])
+        setTodayAtt(al||[])
+      } catch(e){}
+    }
 
     if (demo) {
       orders=DEMO; expenses=DEMO_EXP
@@ -845,7 +1039,7 @@ function useOwnerData(range, demo) {
     setLoading(false)
   }
 
-  return {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData}
+  return {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt}
 }
 
 /* ─── Root ─── */
@@ -856,14 +1050,22 @@ export default function OwnerApp() {
   const [demo,    setDemo]    = useState(false)
   const [notifications, setNotifications] = useState([])
 
-  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData} = useOwnerData(range,demo)
+  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo)
 
-  /* realtime notifications */
+  /* realtime notifications — orders + attendance */
   useEffect(()=>{
     const ch=supabase.channel("owner_notif")
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},payload=>{
         const o=payload.new
         setNotifications(p=>[{id:Date.now(),text:`Pesanan baru: ${o.code||"#"+String(o.id).slice(-4)} · ${fmt(o.total||0)}`,type:"order",time:new Date().toISOString(),read:false},...p].slice(0,20))
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"attendance"},payload=>{
+        const a=payload.new
+        setNotifications(p=>[{id:Date.now(),text:`${a.staff_name} clock in pukul ${fmtTime(a.clock_in)}`,type:"info",time:new Date().toISOString(),read:false},...p].slice(0,20))
+      })
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"attendance"},payload=>{
+        const a=payload.new
+        if(a.clock_out) setNotifications(p=>[{id:Date.now(),text:`${a.staff_name} selesai shift pukul ${fmtTime(a.clock_out)}`,type:"info",time:new Date().toISOString(),read:false},...p].slice(0,20))
       })
       .subscribe()
     return ()=>supabase.removeChannel(ch)
@@ -950,7 +1152,7 @@ export default function OwnerApp() {
           <div className="owner-content">
             {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
             {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
-            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats}/>}
+            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} demo={demo}/>}
             {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
           </div>
         </main>
