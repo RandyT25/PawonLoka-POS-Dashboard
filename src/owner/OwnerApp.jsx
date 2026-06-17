@@ -77,11 +77,20 @@ const PAY_BADGE = { Cash:"ow-badge-green",QRIS:"ow-badge-blue",Card:"ow-badge-bl
 const EXP_COLOR = { "Bahan Baku":"#EF4444","Operasional":"#F59E0B","Lain-lain":"#94A3B8" }
 const STAFF_COLORS = ["#0EA5E9","#10B981","#8B5CF6","#F59E0B","#EF4444","#06B6D4"]
 
+function owStatusBadge(status) {
+  if (!status||status==="Paid"||status==="paid")   return { label:"Lunas",    bg:"#D1FAE5", color:"#065F46" }
+  if (status==="Open"||status==="open")             return { label:"Open Bill", bg:"#FEF3C7", color:"#92400E" }
+  if (status==="Voided"||status==="voided")         return { label:"Void",      bg:"#F1F5F9", color:"#64748B" }
+  if (status==="Refunded"||status==="refunded")     return { label:"Refund",    bg:"#EDE9FE", color:"#5B21B6" }
+  return { label: status, bg:"#F1F5F9", color:"#64748B" }
+}
+
 function OrderDetailModal({ order, onClose }) {
   if (!order) return null
   const items = order.items_snapshot||order.order_items||order.items||[]
   const parsed = typeof items==="string"?JSON.parse(items):items
   const isPaid = !order.status||order.status==="Paid"||order.status==="paid"
+  const badge  = owStatusBadge(order.status)
   const timeStr = new Date(order.created_at).toLocaleString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"})
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}} onClick={e=>e.target===e.currentTarget&&onClose()}>
@@ -92,7 +101,7 @@ function OrderDetailModal({ order, onClose }) {
             <div style={{fontSize:11,color:"#64748B",marginTop:2}}>{timeStr} · {order.table_name||order.table||"Walk-in"} · {order.staff||"—"}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E"}}>{isPaid?"Lunas":"Open Bill"}</span>
+            <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:10,background:badge.bg,color:badge.color}}>{badge.label}</span>
             <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:"#94A3B8",lineHeight:1}}>✕</button>
           </div>
         </div>
@@ -507,14 +516,15 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
                 ? <tr><td colSpan={7} className="ow-empty">Belum ada transaksi</td></tr>
                 : recent.map(o=>{
                   const isPaid=!o.status||o.status==="Paid"||o.status==="paid"
+                  const badge=owStatusBadge(o.status)
                   return (
                     <tr key={o.id} onClick={()=>setSelectedOrder(o)} style={{cursor:"pointer"}}>
                       <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
-                      <td><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:isPaid?"#D1FAE5":"#FEF3C7",color:isPaid?"#065F46":"#92400E"}}>{isPaid?"Lunas":"Open Bill"}</span></td>
+                      <td><span style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:10,background:badge.bg,color:badge.color}}>{badge.label}</span></td>
                       <td>{o.table_name||o.table||"Walk-in"}</td>
                       <td style={{color:"#64748B",fontSize:12}}>{o.staff||"—"}</td>
                       <td><span className={"ow-badge "+(isPaid?(PAY_BADGE[o.pay]||"ow-badge-amber"):"ow-badge-gray")}>{isPaid?(o.pay||"—"):"—"}</span></td>
-                      <td style={{textAlign:"right",fontWeight:700,color:isPaid?"inherit":"#F59E0B"}}>{fmt(o.total)}</td>
+                      <td style={{textAlign:"right",fontWeight:700,color:badge.color}}>{fmt(o.total)}</td>
                       <td style={{textAlign:"right",color:"#94A3B8",fontSize:12}}>{fmtTime(o.created_at)}</td>
                     </tr>
                   )
