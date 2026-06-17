@@ -377,28 +377,43 @@ export function usePrinter() {
     } finally { setLoading(false); }
   }
 
-  // Attach gattserverdisconnected handler exactly once per printer.
-  // On disconnect: marks printer offline and retries with exponential backoff.
+  // Attach reconnect logic exactly once per printer.
+  // Uses watchAdvertisements (fires when printer powers on) + gattserverdisconnected fallback.
   function attachAutoReconnect(printerId, device) {
     if (listenersAdded.current.has(printerId)) return;
     listenersAdded.current.add(printerId);
+
+    // watchAdvertisements: browser passively scans for this device's BLE ads.
+    // Fires advertisementreceived the moment the printer powers on / comes in range.
+    // This is the correct reconnect API for Android — works across page reloads.
+    if (device.watchAdvertisements) {
+      device.addEventListener("advertisementreceived", async () => {
+        if (charRefs.current[printerId]) return; // already connected
+        try {
+          const char = await gattGetChar(device);
+          charRefs.current[printerId] = char;
+          setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+        } catch {}
+      });
+      device.watchAdvertisements().catch(() => {});
+    }
+
+    // gattserverdisconnected + infinite retry as fallback
     let retries = 0;
     const tryReconnect = async () => {
-      if (!deviceRefs.current[printerId]) return; // printer was removed
+      if (!deviceRefs.current[printerId]) return;
       try {
         const char = await gattGetChar(device);
         charRefs.current[printerId] = char;
         setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
         retries = 0;
       } catch {
-        // Keep retrying indefinitely — printer will reconnect whenever it comes back online
         retries++;
         reconnectTimers.current[printerId] = setTimeout(tryReconnect, Math.min(3000 * retries, 30000));
       }
     };
     device.addEventListener("gattserverdisconnected", () => {
       delete charRefs.current[printerId];
-      // If we disconnected on purpose (post-print), don't auto-reconnect
       if (intentionalDisconnects.current.has(printerId)) {
         intentionalDisconnects.current.delete(printerId);
         setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
@@ -528,17 +543,28 @@ export function usePrinter() {
     if (!printer) throw new Error("Printer not found");
     let device = deviceRefs.current[printerId];
     if (!device) {
-      // Try previously-permitted devices first (no dialog)
       if (navigator.bluetooth?.getDevices) {
         try {
           const devs = await navigator.bluetooth.getDevices();
           device = devs.find(d => d.id === printer.deviceId);
-        } catch { device = null; }
+        } catch {}
       }
       if (!device) {
-        // Do NOT call requestDevice() here — it shows a blocking dialog that freezes the print chain.
-        // requestDevice() is only for scanAndPair (explicit user action in settings).
-        throw new Error("Printer '" + (printer.name || printerId) + "' belum di-pair di perangkat ini. Buka Pengaturan > Hardware > Add Printer.");
+        // Android often loses BLE permission across page reloads — re-pair via requestDevice
+        // filtered to the printer's name so user sees only matching devices.
+        const printerName = printer.name || "";
+        const filters = printerName
+          ? [{ name: printerName }, { namePrefix: printerName.slice(0, 4) }]
+          : BLE_SERVICES.map(s => ({ services: [s] }));
+        device = await navigator.bluetooth.requestDevice({
+          filters,
+          optionalServices: BLE_SERVICES,
+        });
+        // Update stored deviceId if it changed (same physical printer, new browser pairing ID)
+        if (device.id !== printer.deviceId) {
+          setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.id } : p));
+          savePrinterToDb({ ...printer, deviceId: device.id }).catch(() => {});
+        }
       }
       deviceRefs.current[printerId] = device;
     }

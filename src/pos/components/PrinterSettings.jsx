@@ -74,7 +74,7 @@ export default function PrinterSettings({ hook }) {
       </div>
       {isAndroid && (
         <div style={{ fontSize:11, color:"#6B778C", padding:"6px 10px", background:"#F4F5F7", borderRadius:8, lineHeight:1.5 }}>
-          On Android: tap Add to pair a new printer, or tap Connect to reconnect — you will need to select the printer from the list each session.
+          On Android: tap <strong>Add Printer</strong> to pair a new device. If a printer shows Disconnected after a page refresh, tap <strong>Connect</strong> — it will show a filtered list of nearby printers to re-pair with.
         </div>
       )}
 
@@ -110,7 +110,10 @@ export default function PrinterSettings({ hook }) {
                 </div>
               ) : (
                 <div style={{ display:"flex", gap:6, flex:1, alignItems:"center" }}>
-                  <span style={s.value}>{p.name}</span>
+                  <div>
+                    <span style={s.value}>{p.name}</span>
+                    {p.deviceId && <div style={{ fontSize:10, color:"#97A0AF", marginTop:1 }}>ID: …{p.deviceId.slice(-8)}</div>}
+                  </div>
                   <button onClick={() => setEditName(prev => ({ ...prev, [p.id]: p.name }))} style={s.editBtn}>Rename</button>
                 </div>
               )}
