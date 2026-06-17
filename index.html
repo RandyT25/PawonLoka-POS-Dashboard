@@ -69,8 +69,16 @@
       localStorage.setItem('pwa-dismissed', '1')
     }
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
+      window.addEventListener('load', async () => {
+        try {
+          // One-time cleanup: unregister old SWs that cause /owner → / redirect bug
+          if (!localStorage.getItem('sw-clean-v8')) {
+            const regs = await navigator.serviceWorker.getRegistrations()
+            await Promise.all(regs.map(r => r.unregister()))
+            localStorage.setItem('sw-clean-v8', '1')
+          }
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        } catch(e) {}
       })
     }
   </script>

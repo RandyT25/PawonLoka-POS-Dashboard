@@ -1,5 +1,5 @@
-const CACHE_VERSION = 'pawonloka-v8'
-const DATA_CACHE = 'pawonloka-data-v8'
+const CACHE_VERSION = 'pawonloka-v9'
+const DATA_CACHE = 'pawonloka-data-v9'
 
 // These get cached on install
 const PRECACHE = [
@@ -69,28 +69,8 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Navigation (HTML pages) - network first, fall back to cache
+  // Navigation — never intercept, let Cloudflare Pages _redirects handle routing
   if (e.request.mode === 'navigate') {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          if (res.ok) {
-            const clone = res.clone()
-            caches.open(CACHE_VERSION).then(c => c.put(e.request, clone))
-          }
-          return res
-        })
-        .catch(async () => {
-          const cached = await caches.match(e.request)
-          if (cached) return cached
-          // Construct a new Response from root HTML so the browser never
-          // treats it as a redirect (avoids URL changing to "/" on fallback)
-          const root = await caches.match('/')
-          if (!root) return new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })
-          const html = await root.text()
-          return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } })
-        })
-    )
     return
   }
 })
