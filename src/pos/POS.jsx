@@ -602,6 +602,12 @@ export default function POS() {
           Offline Mode — Orders will sync when connected
         </div>
       )}
+      {printer.printError && (
+        <div style={{ background:'#DC2626', color:'#fff', padding:'8px 12px', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+          <span>🖨 Print Error: {printer.printError}</span>
+          <button onClick={printer.clearPrintError} style={{ background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', borderRadius:4, padding:'2px 8px', cursor:'pointer', fontSize:11 }}>✕</button>
+        </div>
+      )}
       <div style={S.header}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <span style={{ fontSize:18, fontWeight:900, color:'white' }}>PawonLoka</span>

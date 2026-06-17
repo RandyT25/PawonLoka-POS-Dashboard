@@ -334,12 +334,13 @@ export function renderToBytes(lines) {
 }
 
 export function usePrinter() {
-  const [printers,  setPrinters]  = useState([]);
-  const [scanning,  setScanning]  = useState(false);
-  const [loading,   setLoading]   = useState(true);
+  const [printers,    setPrinters]    = useState([]);
+  const [scanning,    setScanning]    = useState(false);
+  const [loading,     setLoading]     = useState(true);
+  const [printError,  setPrintError]  = useState(null);  // visible in-app error
   const deviceRefs  = useRef({});
   const charRefs    = useRef({});
-  const printerChains  = useRef({});   // per-printer queue
+  const printerChains  = useRef({});
   const listenersAdded = useRef(new Set());
   const reconnectTimers = useRef({});
 
@@ -593,13 +594,28 @@ export function usePrinter() {
   const printBytes = useCallback((printerId, bytes) => {
     if (!printerChains.current[printerId]) printerChains.current[printerId] = Promise.resolve();
     const job = printerChains.current[printerId].then(async () => {
-      // Use cached connection if available, otherwise connect fresh.
-      // We keep the GATT connection alive between prints — no post-print disconnect.
-      // This is simpler and avoids the reconnect race condition.
+      console.group('[PRINT]', printerId);
+      console.log('charRefs set:', !!charRefs.current[printerId]);
+      console.log('deviceRefs set:', !!deviceRefs.current[printerId]);
+      console.log('bytes length:', bytes?.length);
+
       let char = charRefs.current[printerId];
       if (!char) {
+        console.log('no cached char — calling connect()');
         char = await connect(printerId);
+        console.log('connect() succeeded, char:', char?.uuid);
+      } else {
+        // Verify the cached char's GATT server is still connected
+        const gattOk = char.service?.device?.gatt?.connected;
+        console.log('cached char GATT connected:', gattOk);
+        if (!gattOk) {
+          console.log('stale char — reconnecting');
+          delete charRefs.current[printerId];
+          char = await connect(printerId);
+          console.log('reconnect succeeded');
+        }
       }
+
       const CHUNK = 20;
       async function writeBytes(c) {
         for (let i = 0; i < bytes.length; i += CHUNK) {
@@ -609,7 +625,8 @@ export function usePrinter() {
               if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(chunk);
               else await c.writeValue(chunk);
               break;
-            } catch {
+            } catch (err) {
+              console.warn('write attempt', attempt, 'failed:', err.message);
               if (attempt >= 4) throw new Error("BLE write congestion — printer not responding");
               await new Promise(r => setTimeout(r, 10 * (attempt + 1)));
             }
@@ -618,15 +635,22 @@ export function usePrinter() {
       }
       try {
         await writeBytes(char);
+        console.log('print succeeded');
+        setPrintError(null);
       } catch(e) {
-        // Write failed — drop cached char and reconnect once
+        console.warn('write failed, reconnecting once:', e.message);
         delete charRefs.current[printerId];
         const char2 = await connect(printerId);
         await writeBytes(char2);
+        console.log('print succeeded after reconnect');
+        setPrintError(null);
       }
-      // Connection stays open — gattserverdisconnected handles cleanup if printer powers off
+      console.groupEnd();
     });
-    printerChains.current[printerId] = job.catch(() => {});
+    printerChains.current[printerId] = job.catch(err => {
+      console.error('[PRINT FAILED]', printerId, err);
+      setPrintError(err.message || 'Print failed');
+    });
     return job;
   }, [connect]);
 
@@ -663,6 +687,7 @@ export function usePrinter() {
 
   return {
     printers, scanning, loading,
+    printError, clearPrintError: () => setPrintError(null),
     scanAndPair, connect, reconnect, disconnect, removePrinter, updatePrinter,
     printReceipt, printKitchenTicket, testPrint,
     printBytes, renderLines: renderToBytes,
