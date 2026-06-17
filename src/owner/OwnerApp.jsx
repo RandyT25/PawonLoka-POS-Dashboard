@@ -1,21 +1,19 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import "./owner.css"
 
 /* ─── helpers ─── */
-function fmt(n)  { return "Rp " + Number(n || 0).toLocaleString("id-ID") }
+function fmt(n)  { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtK(n) {
-  if (n >= 1_000_000) return "Rp " + (n / 1_000_000).toFixed(1).replace(".0","") + " jt"
-  if (n >= 1_000)     return "Rp " + (n / 1_000).toFixed(0) + " rb"
+  if (n >= 1_000_000) return "Rp " + (n/1_000_000).toFixed(1).replace(".0","") + " jt"
+  if (n >= 1_000)     return "Rp " + (n/1_000).toFixed(0) + " rb"
   return fmt(n)
 }
-function fmtTime(iso) {
-  return new Date(iso).toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit" })
-}
-function today()    { return new Date().toISOString().slice(0,10) }
-function yestStr()  { return new Date(Date.now()-86400000).toISOString().slice(0,10) }
+function fmtTime(iso) { return new Date(iso).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) }
+function today()   { return new Date().toISOString().slice(0,10) }
+function yestStr() { return new Date(Date.now()-86400000).toISOString().slice(0,10) }
 
-/* ─── demo data ─── */
+/* ─── demo orders ─── */
 const DEMO = (() => {
   const d = today(), y = yestStr()
   return [
@@ -42,44 +40,55 @@ const DEMO = (() => {
   ]
 })()
 
-const PAY_COLOR = { Cash:"#10B981", QRIS:"#0EA5E9", Card:"#3B82F6", GoPay:"#06B6D4", OVO:"#8B5CF6", Other:"#94A3B8" }
-const PAY_BADGE = { Cash:"ow-badge-green", QRIS:"ow-badge-blue", Card:"ow-badge-blue", GoPay:"ow-badge-blue", OVO:"ow-badge-purple", Other:"ow-badge-amber" }
+/* ─── demo expenses ─── */
+const DEMO_EXP = [
+  {id:"x1",created_at:`${today()}T07:30:00`,category:"Bahan Baku",  note:"Belanja pasar pagi",   amount:185000},
+  {id:"x2",created_at:`${today()}T08:00:00`,category:"Operasional", note:"Gas LPG 3 kg",          amount:22000},
+  {id:"x3",created_at:`${today()}T10:00:00`,category:"Operasional", note:"Plastik & kemasan",     amount:35000},
+  {id:"x4",created_at:`${today()}T11:30:00`,category:"Bahan Baku",  note:"Restok kopi & susu",   amount:120000},
+  {id:"x5",created_at:`${yestStr()}T07:30:00`,category:"Bahan Baku",note:"Belanja pasar pagi",   amount:175000},
+  {id:"x6",created_at:`${yestStr()}T09:00:00`,category:"Operasional",note:"Sabun & alat bersih", amount:28000},
+  {id:"x7",created_at:`${yestStr()}T15:00:00`,category:"Lain-lain", note:"Cetak nota bon",        amount:15000},
+]
+
+const PAY_COLOR = { Cash:"#10B981",QRIS:"#0EA5E9",Card:"#3B82F6",GoPay:"#06B6D4",OVO:"#8B5CF6",Other:"#94A3B8" }
+const PAY_BADGE = { Cash:"ow-badge-green",QRIS:"ow-badge-blue",Card:"ow-badge-blue",GoPay:"ow-badge-blue",OVO:"ow-badge-purple",Other:"ow-badge-amber" }
+const EXP_COLOR = { "Bahan Baku":"#EF4444","Operasional":"#F59E0B","Lain-lain":"#94A3B8" }
+const STAFF_COLORS = ["#0EA5E9","#10B981","#8B5CF6","#F59E0B","#EF4444","#06B6D4"]
 const OWNER_PIN = "1234"
 
-/* ─── SVG Hourly chart ─── */
+/* ─── SVG Hourly Chart ─── */
 function HourlyChart({ data }) {
   const [tip, setTip] = useState(null)
   if (!data.length || data.every(h => h.sales === 0)) {
     return <div className="ow-empty">Belum ada data untuk periode ini</div>
   }
-  const W=560, H=130, PL=44, PR=12, PT=10, PB=26
+  const W=560,H=130,PL=44,PR=12,PT=10,PB=26
   const cW=W-PL-PR, cH=H-PT-PB
-  const maxS = Math.max(...data.map(h=>h.sales), 1)
-  const maxT = Math.max(...data.map(h=>h.tx), 1)
-  const n = data.length
-  const sx = i => PL + (i/(n-1))*cW
-  const sy = v => PT + cH - (v/maxS)*cH
-  const ty = v => PT + cH - (v/maxT)*cH
+  const maxS=Math.max(...data.map(h=>h.sales),1)
+  const maxT=Math.max(...data.map(h=>h.tx),1)
+  const n=data.length
+  const sx=i=>PL+(i/(n-1))*cW
+  const sy=v=>PT+cH-(v/maxS)*cH
+  const ty=v=>PT+cH-(v/maxT)*cH
 
   function curve(pts) {
-    if (pts.length < 2) return ""
-    let d = `M${pts[0][0]},${pts[0][1]}`
-    for (let i=1; i<pts.length; i++) {
-      const [x0,y0]=pts[i-1], [x1,y1]=pts[i], cx=(x0+x1)/2
-      d += ` C${cx},${y0} ${cx},${y1} ${x1},${y1}`
+    if (pts.length<2) return ""
+    let d=`M${pts[0][0]},${pts[0][1]}`
+    for (let i=1;i<pts.length;i++) {
+      const [x0,y0]=pts[i-1],[x1,y1]=pts[i],cx=(x0+x1)/2
+      d+=` C${cx},${y0} ${cx},${y1} ${x1},${y1}`
     }
     return d
   }
-  const sp = data.map((h,i)=>[sx(i),sy(h.sales)])
-  const tp = data.map((h,i)=>[sx(i),ty(h.tx)])
-  const fill = curve(sp)+` L${sp[n-1][0]},${PT+cH} L${sp[0][0]},${PT+cH} Z`
-
-  const yTicks = [0,0.5,1].map(f => ({ y:PT+cH-f*cH, lbl:fmtK(f*maxS) }))
+  const sp=data.map((h,i)=>[sx(i),sy(h.sales)])
+  const tp=data.map((h,i)=>[sx(i),ty(h.tx)])
+  const fill=curve(sp)+` L${sp[n-1][0]},${PT+cH} L${sp[0][0]},${PT+cH} Z`
+  const yTicks=[0,0.5,1].map(f=>({y:PT+cH-f*cH,lbl:fmtK(f*maxS)}))
 
   return (
     <div style={{position:"relative"}}>
-      <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:"auto",display:"block"}}
-        onMouseLeave={()=>setTip(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:"auto",display:"block"}} onMouseLeave={()=>setTip(null)}>
         <defs>
           <linearGradient id="owFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0EA5E9" stopOpacity=".18"/>
@@ -92,19 +101,16 @@ function HourlyChart({ data }) {
             <text x={PL-5} y={t.y+4} textAnchor="end" fontSize="9" fill="#94A3B8">{t.lbl}</text>
           </g>
         ))}
-        {data.map((h,i)=> i%2===0 && (
-          <text key={i} x={sx(i)} y={H-4} textAnchor="middle" fontSize="9" fill="#94A3B8">
-            {h.hour.replace(":00","")}
-          </text>
+        {data.map((h,i)=>i%2===0&&(
+          <text key={i} x={sx(i)} y={H-4} textAnchor="middle" fontSize="9" fill="#94A3B8">{h.hour.replace(":00","")}</text>
         ))}
         <path d={fill} fill="url(#owFill)"/>
         <path d={curve(sp)} fill="none" stroke="#0EA5E9" strokeWidth="2.5" strokeLinecap="round"/>
         <path d={curve(tp)} fill="none" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" strokeDasharray="5 3"/>
         {data.map((h,i)=>(
           <g key={i}>
-            <rect x={sx(i)-cW/n/2} y={PT} width={cW/n} height={cH} fill="transparent"
-              style={{cursor:"crosshair"}} onMouseEnter={()=>setTip({i,h})}/>
-            {tip?.i===i && <>
+            <rect x={sx(i)-cW/n/2} y={PT} width={cW/n} height={cH} fill="transparent" style={{cursor:"crosshair"}} onMouseEnter={()=>setTip({i,h})}/>
+            {tip?.i===i&&<>
               <line x1={sx(i)} x2={sx(i)} y1={PT} y2={PT+cH} stroke="#E2E8F0" strokeWidth="1"/>
               <circle cx={sx(i)} cy={sy(h.sales)} r="4" fill="#0EA5E9" stroke="#fff" strokeWidth="2"/>
               <circle cx={sx(i)} cy={ty(h.tx)} r="3.5" fill="#F59E0B" stroke="#fff" strokeWidth="2"/>
@@ -112,14 +118,8 @@ function HourlyChart({ data }) {
           </g>
         ))}
       </svg>
-      {tip && (
-        <div style={{
-          position:"absolute",top:4,left:12,
-          background:"#0F172A",color:"#fff",
-          borderRadius:10,padding:"8px 12px",fontSize:11,lineHeight:1.7,
-          pointerEvents:"none",zIndex:10,
-          boxShadow:"0 4px 16px rgba(15,23,42,0.3)"
-        }}>
+      {tip&&(
+        <div style={{position:"absolute",top:4,left:12,background:"#0F172A",color:"#fff",borderRadius:10,padding:"8px 12px",fontSize:11,lineHeight:1.7,pointerEvents:"none",zIndex:10,boxShadow:"0 4px 16px rgba(15,23,42,0.3)"}}>
           <div style={{fontWeight:700,marginBottom:2}}>{tip.h.hour}</div>
           <div style={{color:"#7DD3FC"}}>{fmt(tip.h.sales)}</div>
           <div style={{color:"#FCD34D"}}>{tip.h.tx} transaksi</div>
@@ -137,17 +137,70 @@ function HourlyChart({ data }) {
   )
 }
 
-/* ─── Main screens ─── */
+/* ─── Notification Bell ─── */
+function NotifBell({ notifications, setNotifications }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const unread = notifications.filter(n=>!n.read).length
+
+  useEffect(()=>{
+    function h(e){ if(ref.current&&!ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener("mousedown",h)
+    return ()=>document.removeEventListener("mousedown",h)
+  },[])
+
+  function markAll(){ setNotifications(p=>p.map(n=>({...n,read:true}))) }
+  function markOne(id){ setNotifications(p=>p.map(n=>n.id===id?{...n,read:true}:n)) }
+
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <button className="ow-notif-btn" onClick={()=>setOpen(s=>!s)}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        {unread>0&&<span className="ow-notif-badge">{unread>9?"9+":unread}</span>}
+      </button>
+      {open&&(
+        <div className="ow-notif-panel">
+          <div className="ow-notif-header">
+            <span>Notifikasi</span>
+            {unread>0&&<button className="ow-notif-clear" onClick={markAll}>Tandai semua dibaca</button>}
+          </div>
+          {notifications.length===0
+            ? <div style={{padding:"28px 16px",textAlign:"center",color:"#94A3B8",fontSize:12}}>Tidak ada notifikasi</div>
+            : notifications.map(n=>(
+              <div key={n.id} className={"ow-notif-item"+(n.read?"":" unread")} onClick={()=>markOne(n.id)}>
+                <div className={"ow-notif-icon "+(n.type==="order"?"ico-green":n.type==="alert"?"ico-amber":"ico-blue")}>
+                  {n.type==="order"
+                    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                    : n.type==="alert"
+                    ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  }
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,fontWeight:n.read?400:600,color:"#1E293B",lineHeight:1.4}}>{n.text}</div>
+                  <div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{fmtTime(n.time)}</div>
+                </div>
+                {!n.read&&<div style={{width:6,height:6,borderRadius:"50%",background:"#0EA5E9",flexShrink:0,marginTop:4}}/>}
+              </div>
+            ))
+          }
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── Dashboard Screen ─── */
 function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, topItems, slowItems, recent }) {
-  const trend = stats.prevSales > 0
-    ? Math.round((stats.sales - stats.prevSales) / stats.prevSales * 100)
-    : null
-  const margin = stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0
-  const RLABELS = { today:"Hari Ini", week:"Minggu Ini", month:"Bulan Ini" }
+  const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
+  const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
+  const RLABELS = {today:"Hari Ini",week:"Minggu Ini",month:"Bulan Ini"}
 
   return (
     <div style={{maxWidth:1100}}>
-
       {/* toolbar */}
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
         <div className="ow-range-group">
@@ -156,7 +209,7 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
           ))}
         </div>
         <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-          {loading && (
+          {loading&&(
             <svg className="ow-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="#E2E8F0" strokeWidth="3"/>
               <path d="M12 2a10 10 0 0 1 10 10" stroke="#0EA5E9" strokeWidth="3" strokeLinecap="round"/>
@@ -171,20 +224,16 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
         <div className="ow-hero-label">Total Penjualan · {RLABELS[range]}</div>
         <div className="ow-hero-amount">
           {fmt(stats.sales)}
-          {trend !== null && (
-            <span className={"ow-trend "+(trend>=0?"up":"down")}>
-              {trend>=0?"▲":"▼"} {Math.abs(trend)}%
-            </span>
-          )}
+          {trend!==null&&<span className={"ow-trend "+(trend>=0?"up":"down")}>{trend>=0?"▲":"▼"} {Math.abs(trend)}%</span>}
         </div>
         <div className="ow-hero-meta">
           <div className="ow-hero-meta-item">{stats.orders} <strong>Transaksi</strong></div>
-          {range==="today" && <>
+          {range==="today"&&<>
             <div className="ow-hero-meta-item">MTD <strong>{fmtK(stats.mtd)}</strong></div>
             <div className="ow-hero-meta-item">Proyeksi <strong>{fmtK(stats.projection)}</strong></div>
           </>}
           <div className="ow-hero-meta-item">Avg/Transaksi <strong>{fmt(stats.avgOrder)}</strong></div>
-          {stats.unpaid > 0 && <div className="ow-hero-meta-item" style={{color:"#FCD34D"}}>Open Bills <strong>{fmt(stats.unpaid)}</strong></div>}
+          {stats.unpaid>0&&<div className="ow-hero-meta-item" style={{color:"#FCD34D"}}>Open Bills <strong>{fmt(stats.unpaid)}</strong></div>}
         </div>
       </div>
 
@@ -193,9 +242,9 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#10B981"}}/>
           <div className="ow-stat-label">Laba Kotor</div>
-          <div className="ow-stat-val" style={{color: stats.grossProfit>=0?"#10B981":"#EF4444"}}>{fmt(stats.grossProfit)}</div>
+          <div className="ow-stat-val" style={{color:stats.grossProfit>=0?"#10B981":"#EF4444"}}>{fmt(stats.grossProfit)}</div>
           <div className="ow-stat-sub">Margin <strong style={{color:margin>=30?"#10B981":"#F59E0B"}}>{margin}%</strong>
-            {margin < 30 && <span style={{color:"#F59E0B",marginLeft:4}}>· di bawah target</span>}
+            {margin<30&&<span style={{color:"#F59E0B",marginLeft:4}}>· di bawah target</span>}
           </div>
         </div>
         <div className="ow-stat">
@@ -214,81 +263,53 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
 
       {/* hourly chart */}
       <div className="ow-card" style={{marginBottom:16}}>
-        <div className="ow-card-title">
-          Performa Per Jam
-          <span className="ow-card-title-sub">{RLABELS[range]}</span>
-        </div>
+        <div className="ow-card-title">Performa Per Jam<span className="ow-card-title-sub">{RLABELS[range]}</span></div>
         <HourlyChart data={hourData}/>
       </div>
 
       {/* product intel + payments */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
-
-        {/* product intel */}
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Pergerakan Produk</div>
-
-          {/* top sellers */}
           <div style={{marginBottom:16}}>
-            <div style={{fontSize:10,fontWeight:700,color:"#10B981",textTransform:"uppercase",letterSpacing:"1px",marginBottom:10,display:"flex",alignItems:"center",gap:5}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-              </svg>
+            <div className="ow-section-label" style={{color:"#10B981"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
               Produk Terlaris
             </div>
             {topItems.length===0
               ? <div className="ow-empty" style={{padding:"8px 0"}}>Belum ada data</div>
               : topItems.slice(0,5).map((it,i)=>(
                 <div key={it.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
-                  <div style={{
-                    width:20,height:20,borderRadius:"50%",flexShrink:0,fontSize:9,fontWeight:800,
-                    display:"flex",alignItems:"center",justifyContent:"center",
-                    background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",
-                    color:i<3?"#fff":"#64748B"
-                  }}>{i+1}</div>
+                  <div style={{width:20,height:20,borderRadius:"50%",flexShrink:0,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B"}}>{i+1}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                       <span style={{fontSize:12,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.name}</span>
                       <span style={{fontSize:11,fontWeight:700,color:"#0EA5E9",flexShrink:0,marginLeft:8}}>{it.qty}×</span>
                     </div>
-                    <div className="ow-bar-track">
-                      <div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/>
-                    </div>
+                    <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/></div>
                   </div>
                 </div>
               ))
             }
           </div>
-
           <div className="ow-divider"/>
-
-          {/* slow movers */}
           <div>
-            <div style={{fontSize:10,fontWeight:700,color:"#F59E0B",textTransform:"uppercase",letterSpacing:"1px",marginBottom:10,display:"flex",alignItems:"center",gap:5}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
+            <div className="ow-section-label" style={{color:"#F59E0B"}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               Produk Lambat
             </div>
             {slowItems.length===0
               ? <div style={{fontSize:12,color:"#94A3B8",padding:"4px 0"}}>Semua produk bergerak — bagus!</div>
               : slowItems.map(it=>(
-                <div key={it.name} style={{
-                  display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"7px 10px",borderRadius:8,
-                  background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:5
-                }}>
+                <div key={it.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 10px",borderRadius:8,background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:5}}>
                   <span style={{fontSize:12,color:"#1E293B",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{it.name}</span>
-                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEF3C7",color:"#92400E",flexShrink:0,marginLeft:8}}>
-                    hanya {it.qty}×
-                  </span>
+                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEF3C7",color:"#92400E",flexShrink:0,marginLeft:8}}>hanya {it.qty}×</span>
                 </div>
               ))
             }
           </div>
         </div>
 
-        {/* payment methods */}
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Metode Pembayaran</div>
           {payments.length===0
@@ -306,17 +327,12 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
                       <span style={{fontSize:10,color:"#94A3B8",marginLeft:6}}>{p.pct}%</span>
                     </div>
                   </div>
-                  <div className="ow-bar-track" style={{height:6}}>
-                    <div className="ow-bar-fill" style={{width:p.pct+"%",background:PAY_COLOR[p.method]||"#94A3B8"}}/>
-                  </div>
+                  <div className="ow-bar-track" style={{height:6}}><div className="ow-bar-fill" style={{width:p.pct+"%",background:PAY_COLOR[p.method]||"#94A3B8"}}/></div>
                 </div>
               ))}
               <div style={{display:"flex",gap:8,marginTop:14,flexWrap:"wrap"}}>
                 {payments.slice(0,4).map(p=>(
-                  <div key={p.method} style={{
-                    flex:1,minWidth:60,textAlign:"center",
-                    padding:"8px 6px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"
-                  }}>
+                  <div key={p.method} style={{flex:1,minWidth:60,textAlign:"center",padding:"8px 6px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
                     <div style={{fontSize:15,fontWeight:800,color:PAY_COLOR[p.method]}}>{p.pct}%</div>
                     <div style={{fontSize:9,color:"#94A3B8",marginTop:2}}>{p.method}</div>
                   </div>
@@ -332,25 +348,15 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Ringkasan Laba Rugi</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:1,background:"#E2E8F0",borderRadius:12,overflow:"hidden",marginBottom:12}}>
-            {[
-              {label:"Gross Revenue",val:fmt(stats.sales),   color:"#1E293B"},
-              {label:"Est. COGS",    val:fmt(stats.cogs),    color:"#EF4444"},
-              {label:"Gross Profit", val:fmt(stats.grossProfit),color:stats.grossProfit>=0?"#10B981":"#EF4444"},
-            ].map(r=>(
+            {[{label:"Gross Revenue",val:fmt(stats.sales),color:"#1E293B"},{label:"Est. COGS",val:fmt(stats.cogs),color:"#EF4444"},{label:"Gross Profit",val:fmt(stats.grossProfit),color:stats.grossProfit>=0?"#10B981":"#EF4444"}].map(r=>(
               <div key={r.label} style={{padding:"14px 16px",background:"#fff",textAlign:"center"}}>
                 <div style={{fontSize:9,fontWeight:700,color:"#94A3B8",textTransform:"uppercase",letterSpacing:"0.7px",marginBottom:6}}>{r.label}</div>
                 <div style={{fontSize:17,fontWeight:900,color:r.color,letterSpacing:"-0.5px"}}>{r.val}</div>
               </div>
             ))}
           </div>
-          {stats.sales > 0 && (
-            <div style={{
-              padding:"10px 14px",borderRadius:10,
-              background:margin>=30?"#D1FAE5":"#FEF3C7",
-              fontSize:12,fontWeight:600,
-              color:margin>=30?"#065F46":"#92400E",
-              display:"flex",justifyContent:"space-between",alignItems:"center"
-            }}>
+          {stats.sales>0&&(
+            <div style={{padding:"10px 14px",borderRadius:10,background:margin>=30?"#D1FAE5":"#FEF3C7",fontSize:12,fontWeight:600,color:margin>=30?"#065F46":"#92400E",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span>Gross margin saat ini: <strong>{margin}%</strong></span>
               <span style={{fontSize:11,fontWeight:500}}>{margin>=30?"Sehat":"Di bawah target 30%"}</span>
             </div>
@@ -360,23 +366,16 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Kas & Pembayaran</div>
           {[
-            {label:"Tunai",    val:payments.find(p=>p.method==="Cash")?.amount||0,  color:"#10B981", icon:<IconCash/>},
-            {label:"Non-Tunai",val:payments.filter(p=>p.method!=="Cash").reduce((s,p)=>s+p.amount,0), color:"#0EA5E9",icon:<IconCard/>},
-            {label:"Total",    val:stats.sales, color:"#1E293B", icon:<IconTotal/>},
+            {label:"Tunai",val:payments.find(p=>p.method==="Cash")?.amount||0,color:"#10B981"},
+            {label:"Non-Tunai",val:payments.filter(p=>p.method!=="Cash").reduce((s,p)=>s+p.amount,0),color:"#0EA5E9"},
+            {label:"Total",val:stats.sales,color:"#1E293B"},
           ].map((r,i,arr)=>(
-            <div key={r.label} style={{
-              display:"flex",justifyContent:"space-between",alignItems:"center",
-              padding:"10px 0",
-              borderBottom:i<arr.length-1?"1px solid #F1F5F9":"none"
-            }}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <div style={{width:28,height:28,borderRadius:8,background:"#F8FAFC",display:"flex",alignItems:"center",justifyContent:"center",color:r.color}}>{r.icon}</div>
-                <span style={{fontSize:12,color:"#334155",fontWeight:500}}>{r.label}</span>
-              </div>
+            <div key={r.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<arr.length-1?"1px solid #F1F5F9":"none"}}>
+              <span style={{fontSize:12,color:"#334155",fontWeight:500}}>{r.label}</span>
               <span style={{fontSize:13,fontWeight:800,color:r.color}}>{fmt(r.val)}</span>
             </div>
           ))}
-          {stats.unpaid > 0 && (
+          {stats.unpaid>0&&(
             <div style={{marginTop:12,padding:"8px 12px",background:"#FEF3C7",borderRadius:8,display:"flex",justifyContent:"space-between"}}>
               <span style={{fontSize:11,color:"#92400E",fontWeight:600}}>Open Bills</span>
               <span style={{fontSize:12,fontWeight:800,color:"#92400E"}}>{fmt(stats.unpaid)}</span>
@@ -387,222 +386,260 @@ function ScreenDashboard({ range, setRange, loading, stats, hourData, payments, 
 
       {/* recent orders */}
       <div className="ow-card">
-        <div className="ow-card-title">
-          Transaksi Terakhir
-          <span className="ow-card-title-sub">{recent.length} dari {stats.orders} total</span>
+        <div className="ow-card-title">Transaksi Terakhir<span className="ow-card-title-sub">{recent.length} dari {stats.orders} total</span></div>
+        <div style={{overflowX:"auto"}}>
+          <table className="ow-table">
+            <thead><tr><th>Order</th><th>Meja</th><th>Kasir</th><th>Pembayaran</th><th style={{textAlign:"right"}}>Total</th><th style={{textAlign:"right"}}>Waktu</th></tr></thead>
+            <tbody>
+              {recent.length===0
+                ? <tr><td colSpan={6} className="ow-empty">Belum ada transaksi</td></tr>
+                : recent.map(o=>(
+                  <tr key={o.id}>
+                    <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
+                    <td>{o.table_name||o.table||"Walk-in"}</td>
+                    <td style={{color:"#64748B",fontSize:12}}>{o.staff||"—"}</td>
+                    <td><span className={"ow-badge "+(PAY_BADGE[o.pay]||"ow-badge-amber")}>{o.pay||"—"}</span></td>
+                    <td style={{textAlign:"right",fontWeight:700}}>{fmt(o.total)}</td>
+                    <td style={{textAlign:"right",color:"#94A3B8",fontSize:12}}>{fmtTime(o.created_at)}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
         </div>
-        <table className="ow-table">
-          <thead>
-            <tr>
-              <th>Order</th><th>Meja</th><th>Kasir</th>
-              <th>Pembayaran</th>
-              <th style={{textAlign:"right"}}>Total</th>
-              <th style={{textAlign:"right"}}>Waktu</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.length===0
-              ? <tr><td colSpan={6} className="ow-empty">Belum ada transaksi</td></tr>
-              : recent.map(o=>(
-                <tr key={o.id}>
-                  <td style={{fontWeight:700,color:"#0EA5E9"}}>{o.code||"#"+String(o.id).slice(-6)}</td>
-                  <td>{o.table_name||o.table||"Walk-in"}</td>
-                  <td style={{color:"#64748B",fontSize:12}}>{o.staff||"—"}</td>
-                  <td><span className={"ow-badge "+(PAY_BADGE[o.pay]||"ow-badge-amber")}>{o.pay||"—"}</span></td>
-                  <td style={{textAlign:"right",fontWeight:700}}>{fmt(o.total)}</td>
-                  <td style={{textAlign:"right",color:"#94A3B8",fontSize:12}}>{fmtTime(o.created_at)}</td>
-                </tr>
-              ))
-            }
-          </tbody>
-        </table>
       </div>
     </div>
   )
 }
 
-/* ─── mini icon components ─── */
-function IconCash() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>
-}
-function IconCard() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-}
-function IconTotal() {
-  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-}
-
-/* ─── Nav icon svgs ─── */
-const NAV = [
-  { id:"dashboard", label:"Dashboard",    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> },
-  { id:"products",  label:"Produk",       icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> },
-  { id:"staff",     label:"Karyawan",     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { id:"cashflow",  label:"Arus Kas",     icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-]
-
-/* ─── Data hook ─── */
-function useOwnerData(range, demo) {
-  const [loading,   setLoading]   = useState(true)
-  const [stats,     setStats]     = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
-  const [payments,  setPayments]  = useState([])
-  const [topItems,  setTopItems]  = useState([])
-  const [slowItems, setSlowItems] = useState([])
-  const [hourData,  setHourData]  = useState([])
-  const [recent,    setRecent]    = useState([])
-
-  useEffect(() => { load() }, [range, demo])
-
-  useEffect(() => {
-    const ch = supabase.channel("owner_rt")
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},()=>load())
-      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>load())
-      .subscribe()
-    return ()=>supabase.removeChannel(ch)
-  }, [range, demo])
-
-  async function load() {
-    setLoading(true)
-    let orders = []
-
-    if (demo) {
-      orders = DEMO
-    } else {
-      const now = new Date(), from = new Date()
-      if (range==="today") { from.setHours(0,0,0,0) }
-      if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
-      if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
-      const fromStr = from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
-      const {data,error} = await supabase.from("orders").select("*").eq("status","Paid")
-        .gte("created_at",fromStr).order("created_at",{ascending:false})
-      if (error) { console.error(error); setLoading(false); return }
-      orders = data || []
-    }
-
-    const td=today(), yd=yestStr()
-    const wk=(() =>{ const d=new Date(); d.setDate(d.getDate()-d.getDay()); return d.toISOString().slice(0,10) })()
-    const mo=new Date().toISOString().slice(0,7)+"-01"
-
-    const inPeriod = o => {
-      const d=o.created_at.slice(0,10)
-      if(range==="today")return d===td
-      if(range==="week") return d>=wk
-      if(range==="month")return d>=mo
-      return true
-    }
-
-    const period = demo ? orders.filter(inPeriod) : orders
-    const prev   = demo ? orders.filter(o=>o.created_at.slice(0,10)===yd) : []
-
-    const paid   = period.filter(o=>!o.status||o.status==="Paid"||o.status==="paid")
-    const open   = period.filter(o=>o.status==="Open"||o.status==="open")
-
-    const sales      = paid.reduce((s,o)=>s+(o.total||0),0)
-    const unpaid     = open.reduce((s,o)=>s+(o.total||0),0)
-    const cogs       = paid.reduce((s,o)=>s+(o.cogs||0),0)
-    const prevSales  = demo ? prev.reduce((s,o)=>s+(o.total||0),0) : 0
-    const avgOrder   = paid.length ? Math.round(sales/paid.length) : 0
-    const customers  = new Set(paid.filter(o=>o.customer_id).map(o=>o.customer_id)).size
-    const totalSold  = paid.reduce((s,o)=>{
-      const it=o.items_snapshot||o.order_items||[]
-      const p=typeof it==="string"?JSON.parse(it):it
-      return s+(p||[]).reduce((ss,i)=>ss+(i.qty||1),0)
-    },0)
-    const avgItems   = paid.length ? Math.round(totalSold/paid.length*10)/10 : 0
-    const mtd        = sales
-    const dom        = new Date().getDate()
-    const dim        = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()
-    const projection = dom>0 ? Math.round(mtd/dom*dim) : 0
-
-    // payments
-    const pm={}
-    paid.forEach(o=>{ const m=o.pay||"Other"; pm[m]=(pm[m]||0)+(o.total||0) })
-    const payArr=Object.entries(pm).map(([method,amount])=>({method,amount,pct:sales?Math.round(amount/sales*100):0})).sort((a,b)=>b.amount-a.amount)
-
-    // items
-    const im={}
-    paid.forEach(o=>{
-      const it=o.items_snapshot||o.order_items||[]
-      const p=typeof it==="string"?JSON.parse(it):it
-      ;(p||[]).forEach(i=>{
-        if(!im[i.name])im[i.name]={name:i.name,qty:0,revenue:0}
-        im[i.name].qty+=(i.qty||1)
-        im[i.name].revenue+=(i.price||0)*(i.qty||1)
-      })
-    })
-    const allItems=Object.values(im).sort((a,b)=>b.qty-a.qty)
-    const topArr  =allItems.slice(0,5)
-    const maxQty  =topArr[0]?.qty||1
-    const slowArr =allItems.filter(i=>i.qty<=2).sort((a,b)=>a.qty-b.qty).slice(0,6)
-
-    // hourly
-    const hs={}, ht={}
-    for(let h=7;h<=21;h++){hs[h]=0;ht[h]=0}
-    paid.forEach(o=>{
-      const h=new Date(o.created_at).getHours()
-      if(h>=7&&h<=21){hs[h]=(hs[h]||0)+(o.total||0);ht[h]=(ht[h]||0)+1}
-    })
-    const hourArr=Object.entries(hs).map(([h,v])=>({hour:h+":00",sales:v,tx:ht[h]||0}))
-
-    setStats({sales,unpaid,cogs,orders:paid.length,customers,avgOrder,grossProfit:sales-cogs,prevSales,totalSold,avgItems,mtd,projection})
-    setPayments(payArr)
-    setTopItems(topArr.map(t=>({...t,max:maxQty})))
-    setSlowItems(slowArr)
-    setHourData(hourArr)
-    setRecent(paid.slice(0,10))
-    setLoading(false)
-  }
-
-  return {loading,stats,payments,topItems,slowItems,hourData,recent}
-}
-
-/* ─── Staff screen placeholder ─── */
-function ScreenStaff() {
+/* ─── Karyawan Screen ─── */
+function ScreenStaff({ staffData, stats }) {
+  const max = Math.max(...staffData.map(s=>s.sales), 1)
   return (
-    <div style={{maxWidth:700}}>
+    <div style={{maxWidth:900}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:"#8B5CF6"}}/>
+          <div className="ow-stat-label">Staf Aktif</div>
+          <div className="ow-stat-val" style={{color:"#8B5CF6"}}>{staffData.length}</div>
+          <div className="ow-stat-sub">periode ini</div>
+        </div>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:"#0EA5E9"}}/>
+          <div className="ow-stat-label">Rata-rata Per Staf</div>
+          <div className="ow-stat-val" style={{color:"#0EA5E9",fontSize:18}}>{staffData.length?fmtK(Math.round(stats.sales/staffData.length)):"—"}</div>
+          <div className="ow-stat-sub">penjualan rata-rata</div>
+        </div>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:"#F59E0B"}}/>
+          <div className="ow-stat-label">Top Performer</div>
+          <div className="ow-stat-val" style={{color:"#F59E0B",fontSize:16,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{staffData[0]?.name||"—"}</div>
+          <div className="ow-stat-sub">{staffData[0]?fmtK(staffData[0].sales):""}</div>
+        </div>
+      </div>
+
       <div className="ow-card">
-        <div style={{textAlign:"center",padding:"40px 0",color:"#94A3B8"}}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{margin:"0 auto 12px",display:"block",opacity:0.4}}>
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <div style={{fontSize:14,fontWeight:600,color:"#334155",marginBottom:6}}>Laporan Karyawan</div>
-          <div style={{fontSize:12}}>Segera hadir — absensi, shift, dan komisi per kasir</div>
+        <div className="ow-card-title">Performa Karyawan</div>
+        {staffData.length===0
+          ? <div className="ow-empty">Belum ada data. Aktifkan Demo untuk melihat contoh.</div>
+          : <>
+            <div style={{marginBottom:24}}>
+              {staffData.map((s,i)=>(
+                <div key={s.name} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
+                  <div style={{width:34,height:34,borderRadius:10,flexShrink:0,background:STAFF_COLORS[i%6],display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:800}}>
+                    {s.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0}}>
+                        <span style={{fontSize:13,fontWeight:700,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</span>
+                        {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
+                      </div>
+                      <span style={{fontSize:13,fontWeight:800,color:"#1E293B",flexShrink:0}}>{fmt(s.sales)}</span>
+                    </div>
+                    <div className="ow-bar-track" style={{height:8}}>
+                      <div className="ow-bar-fill" style={{width:Math.round(s.sales/max*100)+"%",background:STAFF_COLORS[i%6]}}/>
+                    </div>
+                    <div style={{display:"flex",gap:16,marginTop:5}}>
+                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.orders} transaksi</span>
+                      <span style={{fontSize:10,color:"#94A3B8"}}>avg {fmt(s.avg)}</span>
+                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.pct}% share</span>
+                      <span style={{fontSize:10,color:"#94A3B8"}}>{s.items} item terjual</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{overflowX:"auto"}}>
+              <table className="ow-table">
+                <thead>
+                  <tr><th>Karyawan</th><th style={{textAlign:"right"}}>Transaksi</th><th style={{textAlign:"right"}}>Penjualan</th><th style={{textAlign:"right"}}>Avg/Transaksi</th><th style={{textAlign:"right"}}>% Total</th></tr>
+                </thead>
+                <tbody>
+                  {staffData.map((s,i)=>(
+                    <tr key={s.name}>
+                      <td>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <div style={{width:26,height:26,borderRadius:8,background:STAFF_COLORS[i%6],color:"#fff",fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{s.name.charAt(0).toUpperCase()}</div>
+                          <span style={{fontWeight:600}}>{s.name}</span>
+                          {i===0&&<span className="ow-badge ow-badge-amber">Top</span>}
+                        </div>
+                      </td>
+                      <td style={{textAlign:"right",fontWeight:600}}>{s.orders}</td>
+                      <td style={{textAlign:"right",fontWeight:700,color:"#0EA5E9"}}>{fmt(s.sales)}</td>
+                      <td style={{textAlign:"right",color:"#64748B"}}>{fmt(s.avg)}</td>
+                      <td style={{textAlign:"right"}}>
+                        <span className={"ow-badge "+(s.pct>=35?"ow-badge-green":s.pct>=20?"ow-badge-blue":"ow-badge-amber")}>{s.pct}%</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        }
+      </div>
+    </div>
+  )
+}
+
+/* ─── Arus Kas Screen ─── */
+function ScreenCashFlow({ cashData, demo }) {
+  const net = cashData.income - cashData.expenses
+  return (
+    <div style={{maxWidth:900}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:"#10B981"}}/>
+          <div className="ow-stat-label">Total Pemasukan</div>
+          <div className="ow-stat-val" style={{color:"#10B981",fontSize:20}}>{fmtK(cashData.income)}</div>
+          <div className="ow-stat-sub">{cashData.incomeCount} transaksi</div>
+        </div>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:"#EF4444"}}/>
+          <div className="ow-stat-label">Total Pengeluaran</div>
+          <div className="ow-stat-val" style={{color:"#EF4444",fontSize:20}}>{fmtK(cashData.expenses)}</div>
+          <div className="ow-stat-sub">{cashData.expenseItems.length} pos pengeluaran{demo?" (demo)":""}</div>
+        </div>
+        <div className="ow-stat">
+          <div className="ow-stat-accent" style={{background:net>=0?"#0EA5E9":"#F59E0B"}}/>
+          <div className="ow-stat-label">Saldo Bersih</div>
+          <div className="ow-stat-val" style={{color:net>=0?"#0EA5E9":"#F59E0B",fontSize:20}}>{fmtK(net)}</div>
+          <div className="ow-stat-sub" style={{color:net>=0?"#10B981":"#F59E0B"}}>{net>=0?"Surplus":"Defisit"}</div>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+        {/* income by method */}
+        <div className="ow-card" style={{marginBottom:0}}>
+          <div className="ow-card-title" style={{color:"#10B981"}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Pemasukan per Metode
+          </div>
+          {cashData.byMethod.length===0
+            ? <div className="ow-empty">Belum ada data</div>
+            : cashData.byMethod.map(p=>(
+              <div key={p.method} style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7}}>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:PAY_COLOR[p.method]||"#94A3B8",display:"inline-block"}}/>
+                    <span style={{fontSize:12,fontWeight:600,color:"#334155"}}>{p.method}</span>
+                  </div>
+                  <div>
+                    <span style={{fontSize:12,fontWeight:700,color:"#1E293B"}}>{fmt(p.amount)}</span>
+                    <span style={{fontSize:10,color:"#94A3B8",marginLeft:6}}>{p.pct}%</span>
+                  </div>
+                </div>
+                <div className="ow-bar-track" style={{height:5}}><div className="ow-bar-fill" style={{width:p.pct+"%",background:PAY_COLOR[p.method]||"#94A3B8"}}/></div>
+              </div>
+            ))
+          }
+        </div>
+
+        {/* expense breakdown */}
+        <div className="ow-card" style={{marginBottom:0}}>
+          <div className="ow-card-title" style={{color:"#EF4444"}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></svg>
+            Pengeluaran
+          </div>
+          {cashData.expenseItems.length===0
+            ? <div style={{fontSize:12,color:"#94A3B8",padding:"8px 0"}}>Tidak ada pengeluaran tercatat{demo?"":". Tambah tabel cash_flows di Supabase."}.</div>
+            : <>
+              {Object.entries(
+                cashData.expenseItems.reduce((acc,e)=>{ acc[e.category]=(acc[e.category]||0)+e.amount; return acc },{})
+              ).map(([cat,amt])=>(
+                <div key={cat} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 0",borderBottom:"1px solid #F1F5F9"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7}}>
+                    <span style={{width:8,height:8,borderRadius:"50%",background:EXP_COLOR[cat]||"#94A3B8",display:"inline-block",flexShrink:0}}/>
+                    <span style={{fontSize:12,fontWeight:600,color:"#334155"}}>{cat}</span>
+                  </div>
+                  <span style={{fontSize:12,fontWeight:700,color:"#EF4444"}}>{fmt(amt)}</span>
+                </div>
+              ))}
+              <div className="ow-divider"/>
+              {cashData.expenseItems.map(e=>(
+                <div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",borderRadius:8,background:"#FFF7F7",border:"1px solid #FEE2E2",marginBottom:5}}>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:600,color:"#1E293B"}}>{e.note}</div>
+                    <div style={{fontSize:10,color:"#94A3B8"}}>{e.category} · {fmtTime(e.created_at)}</div>
+                  </div>
+                  <span style={{fontSize:12,fontWeight:700,color:"#EF4444",flexShrink:0,marginLeft:8}}>{fmt(e.amount)}</span>
+                </div>
+              ))}
+            </>
+          }
+        </div>
+      </div>
+
+      {/* full log */}
+      <div className="ow-card">
+        <div className="ow-card-title">Riwayat Kas Lengkap</div>
+        <div style={{overflowX:"auto"}}>
+          <table className="ow-table">
+            <thead><tr><th>Waktu</th><th>Keterangan</th><th>Kategori</th><th style={{textAlign:"right"}}>Masuk</th><th style={{textAlign:"right"}}>Keluar</th></tr></thead>
+            <tbody>
+              {cashData.log.length===0
+                ? <tr><td colSpan={5} className="ow-empty">Belum ada data kas</td></tr>
+                : cashData.log.map(e=>(
+                  <tr key={e.id}>
+                    <td style={{color:"#94A3B8",fontSize:11,whiteSpace:"nowrap"}}>{fmtTime(e.created_at)}</td>
+                    <td style={{fontWeight:500}}>{e.note||"—"}</td>
+                    <td><span className={"ow-badge "+(e.type==="income"?"ow-badge-green":"ow-badge-red")}>{e.type==="income"?e.pay:e.category}</span></td>
+                    <td style={{textAlign:"right",fontWeight:700,color:"#10B981"}}>{e.type==="income"?fmt(e.amount):"—"}</td>
+                    <td style={{textAlign:"right",fontWeight:700,color:"#EF4444"}}>{e.type==="expense"?fmt(e.amount):"—"}</td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   )
 }
 
-/* ─── Products screen placeholder ─── */
+/* ─── Products Screen ─── */
 function ScreenProducts({ topItems, slowItems }) {
   return (
     <div style={{maxWidth:800}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
         <div className="ow-card">
           <div className="ow-card-title" style={{color:"#10B981"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>
-            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             Produk Terlaris
           </div>
           {topItems.length===0
             ? <div className="ow-empty">Belum ada data — aktifkan Demo</div>
             : topItems.map((it,i)=>(
               <div key={it.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
-                <div style={{
-                  width:24,height:24,borderRadius:"50%",flexShrink:0,
-                  background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",
-                  color:i<3?"#fff":"#64748B",
-                  fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"
-                }}>{i+1}</div>
+                <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{i+1}</div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
                     <span style={{fontSize:13,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.name}</span>
                     <span style={{fontSize:12,fontWeight:700,color:"#0EA5E9",flexShrink:0,marginLeft:8}}>{it.qty}×</span>
                   </div>
-                  <div className="ow-bar-track">
-                    <div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/>
-                  </div>
+                  <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/></div>
                   <div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>{fmt(it.revenue)}</div>
                 </div>
               </div>
@@ -611,28 +648,18 @@ function ScreenProducts({ topItems, slowItems }) {
         </div>
         <div className="ow-card">
           <div className="ow-card-title" style={{color:"#F59E0B"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Produk Lambat / Tidak Bergerak
           </div>
           {slowItems.length===0
             ? <div style={{fontSize:12,color:"#94A3B8",padding:"8px 0"}}>Semua produk terjual dengan baik!</div>
             : slowItems.map(it=>(
-              <div key={it.name} style={{
-                display:"flex",alignItems:"center",justifyContent:"space-between",
-                padding:"9px 12px",borderRadius:10,
-                background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:7
-              }}>
+              <div key={it.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",borderRadius:10,background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:7}}>
                 <div>
                   <div style={{fontSize:13,color:"#1E293B",fontWeight:600}}>{it.name}</div>
                   <div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{fmt(it.revenue)} omset</div>
                 </div>
-                <div style={{textAlign:"right"}}>
-                  <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:12,background:"#FEF3C7",color:"#92400E"}}>
-                    hanya {it.qty}×
-                  </span>
-                </div>
+                <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:12,background:"#FEF3C7",color:"#92400E"}}>hanya {it.qty}×</span>
               </div>
             ))
           }
@@ -642,16 +669,16 @@ function ScreenProducts({ topItems, slowItems }) {
   )
 }
 
-/* ─── PIN screen ─── */
+/* ─── PIN Screen ─── */
 function PinScreen({ onAuth }) {
   const [pin, setPin] = useState("")
   const [err, setErr] = useState("")
   const push = d => {
-    if(pin.length>=4) return
+    if (pin.length>=4) return
     const next = pin+d
     setPin(next)
-    if(next.length===4) {
-      if(next===OWNER_PIN) { setTimeout(()=>onAuth(),150) }
+    if (next.length===4) {
+      if (next===OWNER_PIN) { setTimeout(()=>onAuth(),150) }
       else { setTimeout(()=>{ setPin(""); setErr("PIN salah, coba lagi") },400) }
     } else { setErr("") }
   }
@@ -660,7 +687,9 @@ function PinScreen({ onAuth }) {
   return (
     <div className="owner-pin">
       <div className="owner-pin-card">
-        <div className="owner-pin-logo">P</div>
+        <div className="owner-pin-logo">
+          <img src="/logo.png" alt="PawonLoka" style={{width:"100%",height:"100%",objectFit:"cover",borderRadius:12}}/>
+        </div>
         <div className="owner-pin-title">Owner Dashboard</div>
         <div className="owner-pin-sub">PawonLoka · Masuk dengan PIN</div>
         <div className="owner-pin-dots">
@@ -682,12 +711,141 @@ function PinScreen({ onAuth }) {
           </button>
         </div>
         <div style={{marginTop:20,fontSize:11,color:"rgba(255,255,255,0.2)"}}>Demo PIN: 1234</div>
-        <a href="/" style={{display:"block",marginTop:12,fontSize:11,color:"rgba(255,255,255,0.25)",textDecoration:"none"}}>
-          Kembali ke POS
-        </a>
       </div>
     </div>
   )
+}
+
+/* ─── NAV items ─── */
+const NAV = [
+  {id:"dashboard",label:"Dashboard",icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>},
+  {id:"products", label:"Produk",    icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>},
+  {id:"staff",    label:"Karyawan",  icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>},
+  {id:"cashflow", label:"Arus Kas",  icon:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>},
+]
+
+/* ─── Data hook ─── */
+function useOwnerData(range, demo) {
+  const [loading,   setLoading]   = useState(true)
+  const [stats,     setStats]     = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
+  const [payments,  setPayments]  = useState([])
+  const [topItems,  setTopItems]  = useState([])
+  const [slowItems, setSlowItems] = useState([])
+  const [hourData,  setHourData]  = useState([])
+  const [recent,    setRecent]    = useState([])
+  const [staffData, setStaffData] = useState([])
+  const [cashData,  setCashData]  = useState({income:0,expenses:0,incomeCount:0,byMethod:[],expenseItems:[],log:[]})
+
+  useEffect(()=>{ load() },[range,demo])
+
+  useEffect(()=>{
+    const ch=supabase.channel("owner_rt")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},()=>load())
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>load())
+      .subscribe()
+    return ()=>supabase.removeChannel(ch)
+  },[range,demo])
+
+  async function load() {
+    setLoading(true)
+    let orders=[], expenses=[]
+
+    if (demo) {
+      orders=DEMO; expenses=DEMO_EXP
+    } else {
+      const now=new Date(), from=new Date()
+      if (range==="today") { from.setHours(0,0,0,0) }
+      if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
+      if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
+      const fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
+      const {data,error}=await supabase.from("orders").select("*").eq("status","Paid").gte("created_at",fromStr).order("created_at",{ascending:false})
+      if (error) { console.error(error); setLoading(false); return }
+      orders=data||[]
+      try {
+        const {data:expData}=await supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
+        expenses=expData||[]
+      } catch(e) {}
+    }
+
+    const td=today(), yd=yestStr()
+    const wk=(()=>{ const d=new Date(); d.setDate(d.getDate()-d.getDay()); return d.toISOString().slice(0,10) })()
+    const mo=new Date().toISOString().slice(0,7)+"-01"
+
+    const inPeriod=o=>{
+      const d=o.created_at.slice(0,10)
+      if(range==="today")return d===td
+      if(range==="week") return d>=wk
+      if(range==="month")return d>=mo
+      return true
+    }
+
+    const period=demo?orders.filter(inPeriod):orders
+    const prev=demo?orders.filter(o=>o.created_at.slice(0,10)===yd):[]
+    const expPeriod=demo?expenses.filter(inPeriod):expenses
+
+    const paid=period.filter(o=>!o.status||o.status==="Paid"||o.status==="paid")
+    const open=period.filter(o=>o.status==="Open"||o.status==="open")
+
+    const sales=paid.reduce((s,o)=>s+(o.total||0),0)
+    const unpaid=open.reduce((s,o)=>s+(o.total||0),0)
+    const cogs=paid.reduce((s,o)=>s+(o.cogs||0),0)
+    const prevSales=demo?prev.reduce((s,o)=>s+(o.total||0),0):0
+    const avgOrder=paid.length?Math.round(sales/paid.length):0
+    const customers=new Set(paid.filter(o=>o.customer_id).map(o=>o.customer_id)).size
+    const totalSold=paid.reduce((s,o)=>{ const it=o.items_snapshot||o.order_items||[]; const p=typeof it==="string"?JSON.parse(it):it; return s+(p||[]).reduce((ss,i)=>ss+(i.qty||1),0) },0)
+    const avgItems=paid.length?Math.round(totalSold/paid.length*10)/10:0
+    const dom=new Date().getDate(), dim=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()
+    const projection=dom>0?Math.round(sales/dom*dim):0
+
+    const pm={}
+    paid.forEach(o=>{ const m=o.pay||"Other"; pm[m]=(pm[m]||0)+(o.total||0) })
+    const payArr=Object.entries(pm).map(([method,amount])=>({method,amount,pct:sales?Math.round(amount/sales*100):0})).sort((a,b)=>b.amount-a.amount)
+
+    const im={}
+    paid.forEach(o=>{
+      const it=o.items_snapshot||o.order_items||[]
+      const p=typeof it==="string"?JSON.parse(it):it
+      ;(p||[]).forEach(i=>{ if(!im[i.name])im[i.name]={name:i.name,qty:0,revenue:0}; im[i.name].qty+=(i.qty||1); im[i.name].revenue+=(i.price||0)*(i.qty||1) })
+    })
+    const allItems=Object.values(im).sort((a,b)=>b.qty-a.qty)
+    const topArr=allItems.slice(0,5)
+    const maxQty=topArr[0]?.qty||1
+    const slowArr=allItems.filter(i=>i.qty<=2).sort((a,b)=>a.qty-b.qty).slice(0,6)
+
+    const hs={},ht={}
+    for(let h=7;h<=21;h++){hs[h]=0;ht[h]=0}
+    paid.forEach(o=>{ const h=new Date(o.created_at).getHours(); if(h>=7&&h<=21){hs[h]=(hs[h]||0)+(o.total||0);ht[h]=(ht[h]||0)+1} })
+    const hourArr=Object.entries(hs).map(([h,v])=>({hour:h+":00",sales:v,tx:ht[h]||0}))
+
+    const sm={}
+    paid.forEach(o=>{
+      const s=o.staff||"Lainnya"
+      if(!sm[s])sm[s]={name:s,orders:0,sales:0,items:0}
+      sm[s].orders++; sm[s].sales+=(o.total||0)
+      const it=o.items_snapshot||o.order_items||[]
+      const p=typeof it==="string"?JSON.parse(it):it
+      sm[s].items+=(p||[]).reduce((ss,i)=>ss+(i.qty||1),0)
+    })
+    const staffArr=Object.values(sm).map(s=>({...s,avg:s.orders?Math.round(s.sales/s.orders):0,pct:sales?Math.round(s.sales/sales*100):0})).sort((a,b)=>b.sales-a.sales)
+
+    const totalExp=expPeriod.reduce((s,e)=>s+(e.amount||0),0)
+    const cashLog=[
+      ...paid.map(o=>({id:"i"+o.id,created_at:o.created_at,type:"income",note:o.code||"Penjualan",pay:o.pay,amount:o.total||0})),
+      ...expPeriod.map(e=>({id:"e"+e.id,created_at:e.created_at,type:"expense",note:e.note||"Pengeluaran",category:e.category||"Lain-lain",amount:e.amount||0}))
+    ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,30)
+
+    setStats({sales,unpaid,cogs,orders:paid.length,customers,avgOrder,grossProfit:sales-cogs,prevSales,totalSold,avgItems,mtd:sales,projection})
+    setPayments(payArr)
+    setTopItems(topArr.map(t=>({...t,max:maxQty})))
+    setSlowItems(slowArr)
+    setHourData(hourArr)
+    setRecent(paid.slice(0,10))
+    setStaffData(staffArr)
+    setCashData({income:sales,expenses:totalExp,incomeCount:paid.length,byMethod:payArr,expenseItems:expPeriod.map(e=>({...e,note:e.note||"Pengeluaran",category:e.category||"Lain-lain"})),log:cashLog})
+    setLoading(false)
+  }
+
+  return {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData}
 }
 
 /* ─── Root ─── */
@@ -696,8 +854,33 @@ export default function OwnerApp() {
   const [screen,  setScreen]  = useState("dashboard")
   const [range,   setRange]   = useState("today")
   const [demo,    setDemo]    = useState(false)
+  const [notifications, setNotifications] = useState([])
 
-  const { loading, stats, payments, topItems, slowItems, hourData, recent } = useOwnerData(range, demo)
+  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData} = useOwnerData(range,demo)
+
+  /* realtime notifications */
+  useEffect(()=>{
+    const ch=supabase.channel("owner_notif")
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},payload=>{
+        const o=payload.new
+        setNotifications(p=>[{id:Date.now(),text:`Pesanan baru: ${o.code||"#"+String(o.id).slice(-4)} · ${fmt(o.total||0)}`,type:"order",time:new Date().toISOString(),read:false},...p].slice(0,20))
+      })
+      .subscribe()
+    return ()=>supabase.removeChannel(ch)
+  },[])
+
+  /* demo notifications */
+  useEffect(()=>{
+    if (demo) {
+      setNotifications([
+        {id:1,text:"Pesanan #1015 masuk · Rp 49.588",type:"order",time:new Date(Date.now()-5*60000).toISOString(),read:false},
+        {id:2,text:"Margin laba turun di bawah 30% pukul 10.00",type:"alert",time:new Date(Date.now()-25*60000).toISOString(),read:false},
+        {id:3,text:"Bakso Malang belum terjual hari ini",type:"alert",time:new Date(Date.now()-60*60000).toISOString(),read:true},
+      ])
+    }
+  },[demo])
+
+  const SCREEN_TITLE = {dashboard:"Dashboard",products:"Produk",staff:"Karyawan",cashflow:"Arus Kas"}
 
   if (!authed) return <PinScreen onAuth={()=>setAuthed(true)}/>
 
@@ -705,58 +888,48 @@ export default function OwnerApp() {
     <div className="owner-app">
       {/* mobile topnav */}
       <div className="owner-topnav">
-        <div className="owner-topnav-logo">PawonLoka Owner</div>
-        <button onClick={()=>setDemo(d=>!d)} style={{
-          padding:"5px 12px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",
-          background:demo?"rgba(14,165,233,0.2)":"transparent",
-          borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",
-          color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"
-        }}>{demo?"Demo ON":"Demo"}</button>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7}}/>
+          <span className="owner-topnav-logo">PawonLoka Owner</span>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <NotifBell notifications={notifications} setNotifications={setNotifications}/>
+          <button onClick={()=>setDemo(d=>!d)} style={{padding:"5px 12px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",background:demo?"rgba(14,165,233,0.2)":"transparent",borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"}}>
+            {demo?"Demo ON":"Demo"}
+          </button>
+        </div>
       </div>
 
       <div className="owner-shell">
         {/* sidebar */}
         <aside className="owner-sidebar">
           <div className="owner-sidebar-header">
-            <div className="owner-sidebar-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+              <div className="owner-sidebar-icon">
+                <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:6}}/>
+              </div>
+              <div>
+                <div className="owner-sidebar-name">PawonLoka</div>
+                <div className="owner-sidebar-role">Owner View</div>
+              </div>
             </div>
-            <div className="owner-sidebar-name">PawonLoka</div>
-            <div className="owner-sidebar-role">Owner View</div>
           </div>
 
           <nav className="owner-nav">
             <div className="owner-nav-section">Menu</div>
             {NAV.map(n=>(
-              <button key={n.id} className={"owner-nav-item"+(screen===n.id?" active":"")}
-                onClick={()=>setScreen(n.id)}>
+              <button key={n.id} className={"owner-nav-item"+(screen===n.id?" active":"")} onClick={()=>setScreen(n.id)}>
                 {n.icon}{n.label}
               </button>
             ))}
-
             <div className="owner-nav-section" style={{marginTop:8}}>Data</div>
             <button className={"owner-nav-item"+(demo?" active":"")} onClick={()=>setDemo(d=>!d)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-              </svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
               {demo?"Demo: ON":"Demo: OFF"}
             </button>
           </nav>
 
           <div className="owner-sidebar-footer">
-            <a href="/backoffice" style={{
-              display:"block",padding:"9px 12px",borderRadius:10,
-              background:"rgba(14,165,233,0.15)",
-              border:"1px solid rgba(14,165,233,0.25)",
-              color:"rgba(255,255,255,0.7)",
-              fontSize:12,fontWeight:600,textAlign:"center",textDecoration:"none",
-              marginBottom:6
-            }}>
-              Buka Backoffice
-            </a>
             <button className="owner-logout-btn" onClick={()=>setAuthed(false)}>Keluar</button>
           </div>
         </aside>
@@ -766,29 +939,19 @@ export default function OwnerApp() {
           <div className="owner-topbar">
             <div className="owner-topbar-left">
               <div className="owner-live-dot"/>
-              <div className="owner-topbar-title">
-                {screen==="dashboard" && "Dashboard"}
-                {screen==="products"  && "Produk"}
-                {screen==="staff"     && "Karyawan"}
-                {screen==="cashflow"  && "Arus Kas"}
-              </div>
+              <div className="owner-topbar-title">{SCREEN_TITLE[screen]}</div>
             </div>
-            <div className="owner-topbar-date">
-              {new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <span className="owner-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</span>
+              <NotifBell notifications={notifications} setNotifications={setNotifications}/>
             </div>
           </div>
 
           <div className="owner-content">
-            {screen==="dashboard" && (
-              <ScreenDashboard
-                range={range} setRange={setRange} loading={loading}
-                stats={stats} hourData={hourData} payments={payments}
-                topItems={topItems} slowItems={slowItems} recent={recent}
-              />
-            )}
-            {screen==="products" && <ScreenProducts topItems={topItems} slowItems={slowItems}/>}
-            {screen==="staff"    && <ScreenStaff/>}
-            {screen==="cashflow" && <ScreenStaff/>}
+            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
+            {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
+            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats}/>}
+            {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
           </div>
         </main>
       </div>

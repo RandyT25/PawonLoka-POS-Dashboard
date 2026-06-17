@@ -6,7 +6,6 @@ const PRECACHE = [
   '/',
   '/backoffice',
   '/staff',
-  '/owner',
   '/logo.png',
 ]
 

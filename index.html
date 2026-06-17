@@ -25,6 +25,11 @@
         title = 'PawonLoka Staff'
         color = '#0052CC'
       }
+      if (path.startsWith('/owner')) {
+        manifest = '/manifest-owner.json'
+        title = 'PawonLoka Owner'
+        color = '#0B1120'
+      }
       var lnk = document.createElement('link'); lnk.rel = 'manifest'; lnk.href = manifest; document.head.appendChild(lnk)
       document.title = title
       var meta = document.createElement('meta')
