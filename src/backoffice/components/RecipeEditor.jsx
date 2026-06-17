@@ -92,6 +92,58 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
   )
 }
 
+function ConsignmentPanel({ item, onSaved, onCancel }) {
+  const [consignCogs, setConsignCogs] = useState(String(item.cogs || ""))
+  const [saving,      setSaving]      = useState(false)
+  const [msg,         setMsg]         = useState(null)
+
+  async function save() {
+    const v = parseInt(consignCogs) || 0
+    if (!v) { setMsg({ err:true, text:"Enter a COGS value > 0" }); return }
+    setSaving(true); setMsg(null)
+    const { error } = await supabase.from("products").update({ cogs: v }).eq("sku", item.id)
+    if (error) { setMsg({ err:true, text:"Error: "+error.message }) }
+    else { setMsg({ err:false, text:"✓ COGS updated!" }); onSaved({ cogs: v }) }
+    setSaving(false)
+  }
+
+  const cp    = parseInt(consignCogs) || 0
+  const sellP = item.price || 0
+  const mgn   = sellP > 0 && cp > 0 ? pct(sellP - cp, sellP) : null
+
+  return (
+    <div style={{ padding:"24px 28px", maxWidth:480 }}>
+      <div style={{ fontSize:20, fontWeight:800, marginBottom:4 }}>{item.icon||"📦"} {item.name}</div>
+      <div style={{ fontSize:12, color:"var(--ink4)", marginBottom:20 }}>Consignment · no recipe — set COGS directly</div>
+      <div style={{ background:"#ede9fe", borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
+        <div style={{ fontSize:11, fontWeight:700, color:"#6d28d9", textTransform:"uppercase", marginBottom:8 }}>Consignment COGS (per item)</div>
+        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+          <span style={{ fontSize:14, fontWeight:700, color:"#6d28d9" }}>Rp</span>
+          <input type="number" value={consignCogs} onChange={e=>setConsignCogs(e.target.value)}
+            className="bo-input" style={{ fontSize:18, fontWeight:800, width:160 }} placeholder="0" />
+        </div>
+        {mgn !== null && (
+          <div style={{ marginTop:10, fontSize:13, fontWeight:700 }}>
+            Sell: {fmtRp(sellP)} · Margin: <span style={{ color:mgn>=65?"#065f46":mgn>=45?"#92400e":"#991b1b" }}>{mgn}%</span>
+          </div>
+        )}
+      </div>
+      {msg && (
+        <div style={{ padding:"8px 12px", borderRadius:8, fontSize:13, fontWeight:600, marginBottom:14,
+          background:msg.err?"#fee2e2":"#d1fae5", color:msg.err?"#991b1b":"#065f46" }}>
+          {msg.text}
+        </div>
+      )}
+      <div style={{ display:"flex", gap:10 }}>
+        <button onClick={onCancel} className="bo-btn bo-btn-ghost">Cancel</button>
+        <button onClick={save} disabled={saving} className="bo-btn bo-btn-primary">
+          {saving ? "Saving..." : "Save COGS"}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCancel }) {
   const [rows,      setRows]      = useState([])
   const [yieldQty,  setYieldQty]  = useState(1)
@@ -189,6 +241,10 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
 
   const sellingPrice = item?.price || 0
   const margin = sellingPrice>0 && totalCost>0 ? pct(sellingPrice-totalCost, sellingPrice) : null
+
+  if (itemType === "dish" && item.category === "Consignment") {
+    return <ConsignmentPanel item={item} onSaved={onSaved} onCancel={onCancel} />
+  }
 
   return (
     <div style={{ padding:"24px 28px", maxWidth:780 }}>
@@ -312,6 +368,7 @@ export default function RecipeEditor() {
   const [selected,    setSelected]    = useState(null)
   const [loading,     setLoading]     = useState(true)
   const [tick,        setTick]        = useState(0)
+  const [syncing,     setSyncing]     = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -383,6 +440,83 @@ export default function RecipeEditor() {
     setTick(t => t+1)
   }, [selected])
 
+  async function syncDishCogs() {
+    setSyncing(true)
+    const consignmentSkus = new Set(products.filter(p => p.category === "Consignment").map(p => p.id))
+    const [recRes, iRes, srRes, mpRes] = await Promise.all([
+      supabase.from("recipes").select("productSku,ingredient_id,qty,unit"),
+      supabase.from("ingredients").select("id,name,unit,cost_per_unit"),
+      supabase.from("sub_recipes").select("id,unit,cost_per_unit"),
+      supabase.from("market_prices").select("ingredient_id,price,conv_qty").order("checked_at", { ascending: false }),
+    ])
+    const mpMap = {}
+    ;(mpRes.data || []).forEach(p => { if (!mpMap[p.ingredient_id]) mpMap[p.ingredient_id] = p.price / (p.conv_qty || 1) })
+    const lookup = {}
+    ;(iRes.data || []).forEach(i => { lookup[i.id] = { unit: i.unit || "gr", cost_per_unit: i.cost_per_unit || 0, market_cost: mpMap[i.id] || 0 } })
+    ;(srRes.data || []).forEach(s => { lookup[s.id] = { unit: s.unit || "gr", cost_per_unit: s.cost_per_unit || 0, market_cost: 0 } })
+    const byProduct = {}
+    ;(recRes.data || []).forEach(r => {
+      if (!r.productSku || !r.ingredient_id) return
+      if (consignmentSkus.has(r.productSku)) return
+      if (!byProduct[r.productSku]) byProduct[r.productSku] = []
+      byProduct[r.productSku].push(r)
+    })
+    for (const [sku, lines] of Object.entries(byProduct)) {
+      const cogs = lines.reduce((sum, row) => {
+        const ing = lookup[row.ingredient_id]
+        if (!ing) return sum
+        const effectiveCost = ing.cost_per_unit || ing.market_cost || 0
+        if (!effectiveCost) return sum
+        return sum + (effectiveCost / (UNIT_TO_BASE[ing.unit] || 1)) * toBase(row.qty, row.unit)
+      }, 0)
+      const rounded = Math.round(cogs)
+      if (rounded > 0) {
+        await supabase.from("products").update({ cogs: rounded }).eq("sku", sku)
+      }
+    }
+    setSyncing(false)
+    setTick(t => t + 1)
+  }
+
+  async function syncSubCosts() {
+    setSyncing(true)
+    const [sriRes, iRes, srRes, mpRes] = await Promise.all([
+      supabase.from("sub_recipe_ingredients").select("*"),
+      supabase.from("ingredients").select("id,name,unit,cost_per_unit"),
+      supabase.from("sub_recipes").select("id,yield_qty,yield_unit"),
+      supabase.from("market_prices").select("ingredient_id,price,conv_qty").order("checked_at", { ascending: false }),
+    ])
+    const mpMap = {}
+    ;(mpRes.data || []).forEach(p => { if (!mpMap[p.ingredient_id]) mpMap[p.ingredient_id] = p.price / (p.conv_qty || 1) })
+    const ingLookup = {}
+    ;(iRes.data || []).forEach(i => { ingLookup[i.id] = { ...i, market_cost: mpMap[i.id] || 0 } })
+    const srLookup = {}
+    ;(srRes.data || []).forEach(s => { srLookup[s.id] = s })
+    const bySubRecipe = {}
+    ;(sriRes.data || []).forEach(row => {
+      if (!bySubRecipe[row.sub_recipe_id]) bySubRecipe[row.sub_recipe_id] = []
+      bySubRecipe[row.sub_recipe_id].push(row)
+    })
+    for (const [subId, rows] of Object.entries(bySubRecipe)) {
+      const sr = srLookup[subId]
+      if (!sr) continue
+      const totalCost = rows.reduce((sum, row) => {
+        const ing = ingLookup[row.ingredient_id]
+        if (!ing) return sum
+        const effectiveCost = ing.cost_per_unit || ing.market_cost || 0
+        if (!effectiveCost) return sum
+        return sum + (effectiveCost / (UNIT_TO_BASE[ing.unit] || 1)) * toBase(row.qty, row.unit)
+      }, 0)
+      const yieldBase = toBase(sr.yield_qty || 1, sr.yield_unit || "gr")
+      const costPerUnit = yieldBase > 0 ? totalCost / yieldBase : 0
+      if (costPerUnit > 0) {
+        await supabase.from("sub_recipes").update({ cost_per_unit: costPerUnit }).eq("id", subId)
+      }
+    }
+    setSyncing(false)
+    setTick(t => t + 1)
+  }
+
   const listItems = (tab==="dish" ? products : subRecipes)
     .filter(x => !search || x.name?.toLowerCase().includes(search.toLowerCase()))
 
@@ -403,9 +537,15 @@ export default function RecipeEditor() {
           ))}
         </div>
         {/* Search */}
-        <div style={{ padding:"10px 12px", borderBottom:"1px solid var(--surface2,#f0f0f0)" }}>
+        <div style={{ padding:"10px 12px", borderBottom:"1px solid var(--surface2,#f0f0f0)", display:"flex", gap:6 }}>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..."
-            className="bo-input" style={{ fontSize:13 }} />
+            className="bo-input" style={{ fontSize:13, flex:1 }} />
+          <button onClick={tab === "sub" ? syncSubCosts : syncDishCogs} disabled={syncing}
+            className="bo-btn bo-btn-ghost"
+            style={{ fontSize:11, padding:"4px 8px", whiteSpace:"nowrap", flexShrink:0 }}
+            title={tab === "sub" ? "Recalculate cost_per_unit for all sub-recipes" : "Recalculate COGS for all dishes"}>
+            {syncing ? "..." : "Sync COGS"}
+          </button>
         </div>
         {/* List */}
         <div style={{ flex:1, overflowY:"auto" }}>
@@ -428,13 +568,16 @@ export default function RecipeEditor() {
                     <div style={{ minWidth:0 }}>
                       <div style={{ fontSize:13, fontWeight:700, color:"var(--ink,#1f2937)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
                       <div style={{ fontSize:11, marginTop:2 }}>
-                        {hasCogs
+                        {tab==="dish" && item.category==="Consignment"
+                          ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#ede9fe", color:"#6d28d9", fontWeight:700 }}>📦 Consignment</span>
+                          : hasCogs
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#d1fae5", color:"#065f46", fontWeight:700 }}>✓ Has recipe</span>
                           : hasRecipeFlag
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#fef3c7", color:"#92400e", fontWeight:700 }}>Has recipe · No price</span>
                           : <span style={{ color:"var(--ink4,#9ca3af)" }}>No recipe</span>}
                         {hasCogs && tab==="sub" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· Rp {fmtUnit(item.cost_per_unit||0)}/{item.yield_unit||item.unit}</span>}
-                        {hasCogs && tab==="dish" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
+                        {tab==="dish" && item.category==="Consignment" && item.cogs>0 && <span style={{ color:"#6d28d9", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
+                        {hasCogs && tab==="dish" && item.category!=="Consignment" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
                       </div>
                     </div>
                   </div>
