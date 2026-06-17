@@ -287,7 +287,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
       </div>
 
       {/* stat cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+      <div className="ow-grid-3">
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#10B981"}}/>
           <div className="ow-stat-label">Laba Kotor</div>
@@ -317,7 +317,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
       </div>
 
       {/* product intel + payments */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+      <div className="ow-grid-2">
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Pergerakan Produk</div>
           <div style={{marginBottom:16}}>
@@ -393,7 +393,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
       </div>
 
       {/* P&L + Cash */}
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginBottom:14}}>
+      <div className="ow-grid-2-1">
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title">Ringkasan Laba Rugi</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:1,background:"#E2E8F0",borderRadius:12,overflow:"hidden",marginBottom:12}}>
@@ -436,7 +436,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
       {/* recent orders */}
       <div className="ow-card">
         <div className="ow-card-title">Transaksi Terakhir<span className="ow-card-title-sub">{recent.length} dari {stats.orders} total</span></div>
-        <div style={{overflowX:"auto"}}>
+        <div className="ow-table-wrap">
           <table className="ow-table">
             <thead><tr><th>Order</th><th>Meja</th><th>Kasir</th><th>Pembayaran</th><th style={{textAlign:"right"}}>Total</th><th style={{textAlign:"right"}}>Waktu</th></tr></thead>
             <tbody>
@@ -593,7 +593,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
       </div>
 
       {/* ── KPI row ── */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+      <div className="ow-grid-3">
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#10B981"}}/>
           <div className="ow-stat-label">Sedang Bekerja</div>
@@ -654,7 +654,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
           </div>
 
           {/* table */}
-          <div style={{overflowX:"auto"}}>
+          <div className="ow-table-wrap">
             <table className="ow-table">
               <thead>
                 <tr><th>Karyawan</th><th style={{textAlign:"right"}}>Transaksi</th><th style={{textAlign:"right"}}>Penjualan</th><th style={{textAlign:"right"}}>Avg/Transaksi</th><th style={{textAlign:"right"}}>% Total</th></tr>
@@ -691,7 +691,7 @@ function ScreenCashFlow({ cashData, demo }) {
   const net = cashData.income - cashData.expenses
   return (
     <div style={{maxWidth:900}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
+      <div className="ow-grid-3">
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:"#10B981"}}/>
           <div className="ow-stat-label">Total Pemasukan</div>
@@ -712,7 +712,7 @@ function ScreenCashFlow({ cashData, demo }) {
         </div>
       </div>
 
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+      <div className="ow-grid-2">
         {/* income by method */}
         <div className="ow-card" style={{marginBottom:0}}>
           <div className="ow-card-title" style={{color:"#10B981"}}>
@@ -777,7 +777,7 @@ function ScreenCashFlow({ cashData, demo }) {
       {/* full log */}
       <div className="ow-card">
         <div className="ow-card-title">Riwayat Kas Lengkap</div>
-        <div style={{overflowX:"auto"}}>
+        <div className="ow-table-wrap">
           <table className="ow-table">
             <thead><tr><th>Waktu</th><th>Keterangan</th><th>Kategori</th><th style={{textAlign:"right"}}>Masuk</th><th style={{textAlign:"right"}}>Keluar</th></tr></thead>
             <tbody>
@@ -805,7 +805,7 @@ function ScreenCashFlow({ cashData, demo }) {
 function ScreenProducts({ topItems, slowItems }) {
   return (
     <div style={{maxWidth:800}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div className="ow-grid-2" style={{marginBottom:0}}>
         <div className="ow-card">
           <div className="ow-card-title" style={{color:"#10B981"}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
@@ -1083,6 +1083,7 @@ export default function OwnerApp() {
   const [customDate,  setCustomDate]  = useState(today())
   const [demo,        setDemo]        = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [mobileMenu,  setMobileMenu]  = useState(false)
 
   const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
 
@@ -1125,20 +1126,29 @@ export default function OwnerApp() {
       {/* mobile topnav */}
       <div className="owner-topnav">
         <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {/* hamburger */}
+          <button onClick={()=>setMobileMenu(m=>!m)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",transform:mobileMenu?"rotate(45deg) translate(4px,4px)":"none"}}/>
+            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",opacity:mobileMenu?0:1}}/>
+            <span style={{display:"block",width:20,height:2,background:"rgba(255,255,255,0.7)",borderRadius:2,transition:"all 0.2s",transform:mobileMenu?"rotate(-45deg) translate(4px,-4px)":"none"}}/>
+          </button>
           <img src="/logo.png" alt="PawonLoka" style={{width:28,height:28,objectFit:"cover",borderRadius:7}}/>
           <span className="owner-topnav-logo">PawonLoka Owner</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <NotifBell notifications={notifications} setNotifications={setNotifications}/>
-          <button onClick={()=>setDemo(d=>!d)} style={{padding:"5px 12px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",background:demo?"rgba(14,165,233,0.2)":"transparent",borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"}}>
-            {demo?"Demo ON":"Demo"}
+          <button onClick={()=>setDemo(d=>!d)} style={{padding:"5px 10px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",background:demo?"rgba(14,165,233,0.2)":"transparent",borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"}}>
+            {demo?"Demo":"Demo"}
           </button>
         </div>
       </div>
 
+      {/* mobile backdrop */}
+      {mobileMenu&&<div onClick={()=>setMobileMenu(false)} style={{position:"fixed",inset:0,zIndex:199,background:"rgba(0,0,0,0.45)"}}/>}
+
       <div className="owner-shell">
         {/* sidebar */}
-        <aside className="owner-sidebar">
+        <aside className={"owner-sidebar"+(mobileMenu?" mobile-open":"")}>
           <div className="owner-sidebar-header">
             <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
               <div className="owner-sidebar-icon">
@@ -1154,7 +1164,7 @@ export default function OwnerApp() {
           <nav className="owner-nav">
             <div className="owner-nav-section">Menu</div>
             {NAV.map(n=>(
-              <button key={n.id} className={"owner-nav-item"+(screen===n.id?" active":"")} onClick={()=>setScreen(n.id)}>
+              <button key={n.id} className={"owner-nav-item"+(screen===n.id?" active":"")} onClick={()=>{ setScreen(n.id); setMobileMenu(false) }}>
                 {n.icon}{n.label}
               </button>
             ))}
