@@ -360,7 +360,7 @@ export default function POS() {
         pay: '-', staff: staff.name, table: tableNo || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
-        time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:orderCogs,
+        time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
       }
       const { error: insertErr } = await supabase.from('orders').insert(order)
       if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return }
