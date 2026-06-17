@@ -26,9 +26,10 @@ export default function PrinterSettings({ hook }) {
   async function handleConnect(id) {
     setError(""); setBusyId(id);
     try {
-      // Try silent connect first (no dialog); fall back to re-pair picker if device not found
-      try { await connect(id); }
-      catch { await reconnect(id); }
+      // requestDevice() MUST be the first async call in the gesture handler — any prior
+      // await (even getDevices()) causes Chrome to reject it as "not a user gesture".
+      // So we call reconnect() directly here without trying connect() first.
+      await reconnect(id);
     }
     catch (e) { setError(e.message); }
     finally { setBusyId(null); }
