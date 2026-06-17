@@ -608,14 +608,6 @@ export default function POS() {
           <button onClick={printer.clearPrintError} style={{ background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', borderRadius:4, padding:'2px 8px', cursor:'pointer', fontSize:11 }}>✕</button>
         </div>
       )}
-      {!printer.printError && printer.printers?.length > 0 && printer.printers.some(p => !p.connected) && (
-        <div onClick={() => setShowSettings(true)}
-          style={{ background:'#92400E', color:'#FEF3C7', padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
-          <span>🖨</span>
-          <span>{printer.printers.filter(p=>!p.connected).map(p=>p.name).join(', ')} offline — tap to reconnect</span>
-          <span style={{ marginLeft:'auto', background:'rgba(255,255,255,0.2)', borderRadius:4, padding:'2px 8px', fontSize:11 }}>Open Settings →</span>
-        </div>
-      )}
       <div style={S.header}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <span style={{ fontSize:18, fontWeight:900, color:'white' }}>PawonLoka</span>

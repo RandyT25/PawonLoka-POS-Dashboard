@@ -379,12 +379,37 @@ export function usePrinter() {
     } finally { setLoading(false); }
   }
 
-  // Attach reconnect listener exactly once per printer.
-  // Retries indefinitely whenever the printer drops (powered off, out of range).
+  // Attach auto-reconnect listeners exactly once per printer.
+  // Uses watchAdvertisements (fires the moment printer powers on) +
+  // gattserverdisconnected timer as fallback.
   function attachAutoReconnect(printerId, device) {
     if (listenersAdded.current.has(printerId)) return;
     listenersAdded.current.add(printerId);
 
+    // watchAdvertisements: passive BLE scan — fires advertisementreceived the
+    // instant the printer starts broadcasting (powers on / comes in range).
+    // Safe now because we no longer disconnect after printing, so charRefs stays
+    // set during print jobs and the guard below prevents spurious reconnects.
+    const startWatching = () => {
+      if (device.watchAdvertisements) {
+        device.watchAdvertisements().catch(() => {});
+      }
+    };
+
+    if (device.watchAdvertisements) {
+      device.addEventListener("advertisementreceived", async () => {
+        if (charRefs.current[printerId]) return; // already connected — ignore
+        if (!deviceRefs.current[printerId]) return; // printer removed
+        try {
+          const char = await gattGetChar(device);
+          charRefs.current[printerId] = char;
+          setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+        } catch {}
+      });
+      startWatching();
+    }
+
+    // gattserverdisconnected: printer powered off or walked out of range
     let retries = 0;
     const tryReconnect = async () => {
       if (!deviceRefs.current[printerId]) return;
@@ -404,7 +429,9 @@ export function usePrinter() {
       setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
       retries = 0;
       clearTimeout(reconnectTimers.current[printerId]);
-      reconnectTimers.current[printerId] = setTimeout(tryReconnect, 3000);
+      // watchAdvertisements catches it first; timer is fallback for browsers without it
+      reconnectTimers.current[printerId] = setTimeout(tryReconnect, 5000);
+      startWatching(); // restart scanning in case it stopped
     });
   }
 
