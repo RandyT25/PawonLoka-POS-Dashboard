@@ -1019,7 +1019,7 @@ function useOwnerData(range, demo, customDate) {
     const prevSales=demo?prev.reduce((s,o)=>s+(o.total||0),0):0
     const avgOrder=paid.length?Math.round(sales/paid.length):0
     const customers=new Set(paid.filter(o=>o.customer_id).map(o=>o.customer_id)).size
-    const totalSold=paid.reduce((s,o)=>{ const it=o.items_snapshot||o.order_items||[]; const p=typeof it==="string"?JSON.parse(it):it; return s+(p||[]).reduce((ss,i)=>ss+(i.qty||1),0) },0)
+    const totalSold=paid.reduce((s,o)=>{ const it=o.items_snapshot||o.order_items||o.items||[]; const p=typeof it==="string"?JSON.parse(it):it; return s+(p||[]).reduce((ss,i)=>ss+(i.qty||1),0) },0)
     const avgItems=paid.length?Math.round(totalSold/paid.length*10)/10:0
     const dom=new Date().getDate(), dim=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()
     const projection=dom>0?Math.round(sales/dom*dim):0
@@ -1030,7 +1030,7 @@ function useOwnerData(range, demo, customDate) {
 
     const im={}
     paid.forEach(o=>{
-      const it=o.items_snapshot||o.order_items||[]
+      const it=o.items_snapshot||o.order_items||o.items||[]
       const p=typeof it==="string"?JSON.parse(it):it
       ;(p||[]).forEach(i=>{ if(!im[i.name])im[i.name]={name:i.name,qty:0,revenue:0}; im[i.name].qty+=(i.qty||1); im[i.name].revenue+=(i.price||0)*(i.qty||1) })
     })
@@ -1049,7 +1049,7 @@ function useOwnerData(range, demo, customDate) {
       const s=o.staff||"Lainnya"
       if(!sm[s])sm[s]={name:s,orders:0,sales:0,items:0}
       sm[s].orders++; sm[s].sales+=(o.total||0)
-      const it=o.items_snapshot||o.order_items||[]
+      const it=o.items_snapshot||o.order_items||o.items||[]
       const p=typeof it==="string"?JSON.parse(it):it
       sm[s].items+=(p||[]).reduce((ss,i)=>ss+(i.qty||1),0)
     })

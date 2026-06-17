@@ -471,7 +471,6 @@ export default function POS() {
           // All paid — close the bill
           await supabase.from('orders').update({
             status: 'Paid', pay: payMethod, notes: newNote, total: billTotal,
-            items_snapshot: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, cat:i.cat||'' })),
             customer_id: customer?.id || null,
           }).eq('id', openBillId)
           if (tableNo) await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo)
@@ -509,7 +508,6 @@ export default function POS() {
         total: finalTotal, discount: discAmt + promoDisc,
         notes: orderNote || null, promo: promoName || null,
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
-        items_snapshot: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, cat:i.cat||'' })),
         customer_id: customer?.id || null,
       }).eq('id', openBillId)
 
@@ -551,7 +549,6 @@ export default function POS() {
     const newOrder = {
       id: newOrderId,
       items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0 })),
-      items_snapshot: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, cat:i.cat||'' })),
       subtotal, tax: Math.round(subtotal * TAX_RATE_LIVE),
       discount: discAmt + promoDisc, total: finalTotal,
       pay: payMethod, staff: staff.name,
