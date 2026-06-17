@@ -1,11 +1,12 @@
-const CACHE_VERSION = 'pawonloka-v6'
-const DATA_CACHE = 'pawonloka-data-v6'
+const CACHE_VERSION = 'pawonloka-v7'
+const DATA_CACHE = 'pawonloka-data-v7'
 
 // These get cached on install
 const PRECACHE = [
   '/',
   '/backoffice',
   '/staff',
+  '/owner',
   '/logo.png',
 ]
 
@@ -79,7 +80,7 @@ self.addEventListener('fetch', e => {
           }
           return res
         })
-        .catch(() => caches.match(e.request).then(cached => cached || caches.match('/')))
+        .catch(() => caches.match(e.request).then(cached => cached || caches.match('/index.html') || caches.match('/')))
     )
     return
   }
