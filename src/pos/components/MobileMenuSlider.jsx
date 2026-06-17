@@ -1,9 +1,10 @@
-export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onCashLog, onSettings, onLogout }) {
+export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onCashLog, onReprint, onSettings, onLogout }) {
   if (!show) return null
 
   const items = [
     ['🕐 Clock In/Out', onClockIn],
     ['💵 Cash In/Out', onCashLog],
+    ['🖨 Cetak Ulang Struk', onReprint],
     ['⚙️ Settings', onSettings],
   ]
 

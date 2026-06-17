@@ -11,6 +11,7 @@ import ModifierModal from './components/ModifierModal'
 import CustomerSearch from './components/CustomerSearch'
 import ShiftModal from './components/ShiftModal'
 import VoidModal from './components/VoidModal'
+import ReprintModal from './components/ReprintModal'
 import CustomItemModal from './components/CustomItemModal'
 import PromoModal from './components/PromoModal'
 import CashInOutModal from './components/CashInOutModal'
@@ -104,6 +105,7 @@ export default function POS() {
   const [modifierItem, setModifierItem]   = useState(null)
   const [showReceipt, setShowReceipt]     = useState(false)
   const [showVoid, setShowVoid]           = useState(false)
+  const [showReprint, setShowReprint]     = useState(false)
   const [showOrders, setShowOrders]       = useState(false)
   const [showCustomItem, setShowCustomItem] = useState(false)
   const [showCashLog, setShowCashLog]       = useState(false)
@@ -578,6 +580,35 @@ export default function POS() {
     return newOrder
   }
 
+  async function handleReprint(order) {
+    try {
+      const rs = appSettings?.receipt || {}
+      const outlet = {
+        name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
+        address: rs.address || appSettings?.outlet?.address || '',
+        phone: rs.phone || appSettings?.outlet?.phone || '',
+        website: rs.website || '',
+        tagline: rs.tagline || '',
+        thankYou: rs.footer_thank_you || 'Terima kasih!',
+        wifi: rs.footer_wifi || '',
+        promo: rs.footer_promo || '',
+        social: rs.social || '',
+        custom_line_1: rs.custom_line_1 || '',
+        custom_line_2: rs.custom_line_2 || '',
+        logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
+        showOrderId: rs.show_order_id !== false,
+        showTable: rs.show_table !== false,
+        showCashier: rs.show_cashier !== false,
+        showDatetime: rs.show_datetime !== false,
+        showTax: rs.show_tax !== false,
+        showService: rs.show_service !== false,
+        showLoyalty: rs.show_loyalty !== false,
+        showSku: rs.show_sku === true,
+      }
+      await printer.printReceipt(order, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
+    } catch(e) { alert('Print failed: ' + e.message) }
+  }
+
   if (showFloorPlan) return (
     <FloorPlan
       staff={staff}
@@ -667,6 +698,7 @@ export default function POS() {
             {customer ? customer.name : '+ Customer'}
           </button>
           <button onClick={() => { if (staff?.permissions && !staff.permissions.cash) { alert('No cash in/out permission'); return } setShowCashLog(true) }} style={S.headerBtn} className="pos-hide-mobile">Cash</button>
+          <button onClick={() => setShowReprint(true)} style={{ ...S.headerBtn, color:'#86EFAC' }} className="pos-hide-mobile">🖨 Reprint</button>
           <button onClick={() => setShowVoid(true)} style={{ ...S.headerBtn, color:'#FCA5A5' }} className="pos-hide-mobile">Void</button>
           <button onClick={() => setShowShift(true)} style={S.headerBtn} className="pos-hide-mobile">Shift</button>
           <button onClick={() => setShowMobileMenu(true)} style={{ ...S.headerBtn, fontSize:20, padding:'4px 10px' }}>☰</button>
@@ -738,34 +770,7 @@ export default function POS() {
           customer={customer}
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
-          onReprint={async (paidOrder) => {
-            try {
-              const rs = appSettings?.receipt || {}
-              const reprOutlet = {
-                name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
-                address: rs.address || appSettings?.outlet?.address || '',
-                phone: rs.phone || appSettings?.outlet?.phone || '',
-                website: rs.website || '',
-                tagline: rs.tagline || '',
-                thankYou: rs.footer_thank_you || 'Terima kasih!',
-                wifi: rs.footer_wifi || '',
-                promo: rs.footer_promo || '',
-                social: rs.social || '',
-                custom_line_1: rs.custom_line_1 || '',
-                custom_line_2: rs.custom_line_2 || '',
-                logo: rs.show_logo !== false ? (rs.logo_bw || '') : '',
-                showOrderId:  rs.show_order_id  !== false,
-                showTable:    rs.show_table     !== false,
-                showCashier:  rs.show_cashier   !== false,
-                showDatetime: rs.show_datetime  !== false,
-                showTax:      rs.show_tax       !== false,
-                showService:  rs.show_service   !== false,
-                showLoyalty:  rs.show_loyalty   !== false,
-                showSku:      rs.show_sku       === true,
-              }
-              await printer.printReceipt(paidOrder, { outlet: reprOutlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
-            } catch(e) { alert("Print failed: " + e.message) }
-          }}
+          onReprint={handleReprint}
           onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
@@ -803,6 +808,9 @@ export default function POS() {
         />
       )}
 
+      {showReprint && (
+        <ReprintModal onClose={() => setShowReprint(false)} onReprint={handleReprint} />
+      )}
       {showVoid && (
         <VoidModal onClose={() => setShowVoid(false)} managerPin={appSettings?.pos_behaviour?.manager_pin || '9999'} />
       )}
@@ -822,6 +830,7 @@ export default function POS() {
         staff={staff}
         onClockIn={() => setShowClock(true)}
         onCashLog={() => { if (staff?.permissions && !staff.permissions.cash) { alert('No cash in/out permission'); return } setShowCashLog(true) }}
+        onReprint={() => { setShowMobileMenu(false); setShowReprint(true) }}
         onSettings={() => setShowSettings(true)}
         onLogout={() => { setStaff(null); setShift(null) }}
       />
