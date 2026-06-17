@@ -372,9 +372,8 @@ export function usePrinter() {
         type:      d.type,
       }));
       setPrinters(all);
-      // Pre-populate deviceRefs so batch prints never hit requestDevice() (requires user gesture).
-      // getDevices() is gesture-free and safe to call on page load.
-      warmDeviceRefs(all);
+      // Connect all previously-paired printers and attach persistent reconnect listeners.
+      autoConnectAll(all);
     } finally { setLoading(false); }
   }
 
@@ -392,10 +391,9 @@ export function usePrinter() {
         setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
         retries = 0;
       } catch {
-        if (retries < 6) {
-          retries++;
-          reconnectTimers.current[printerId] = setTimeout(tryReconnect, Math.min(3000 * retries, 30000));
-        }
+        // Keep retrying indefinitely — printer will reconnect whenever it comes back online
+        retries++;
+        reconnectTimers.current[printerId] = setTimeout(tryReconnect, Math.min(3000 * retries, 30000));
       }
     };
     device.addEventListener("gattserverdisconnected", () => {
