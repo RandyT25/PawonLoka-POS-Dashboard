@@ -444,6 +444,28 @@ export default function POS() {
     }
     // Mark all cart items as sent; update _printedQty so next comparison is correct
     setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat), _printedQty: i.qty })))
+
+    // Auto-print checker to receipt printer — full order, silent (no alert on failure)
+    // Skip only if explicitly disabled via pos_behaviour.auto_print_checker === false
+    if (appSettings?.pos_behaviour?.auto_print_checker !== false) {
+      const rp = printer.printers?.find(p => p.role === 'receipt')
+      if (rp) {
+        printer.printKitchenTicket({
+          stationRole: 'receipt',
+          stationName: 'CHECKER',
+          table: tableNo || '-',
+          orderType,
+          items: cart.map(i => {
+            const parts = [i.qty + 'x ' + i.name]
+            if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
+              parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
+            if (i.note) parts.push('  * ' + i.note)
+            return parts.join('\n')
+          }),
+        }).catch(e => console.error('[auto-checker]', e.message))
+      }
+    }
+
     const stationList = [...new Set([...Object.keys(stations), ...Object.keys(cancelStations)])].join(', ')
     alert('Order dikirim ke ' + stationList + '!')
   }

@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 const DEFAULTS = {
   outlet: { name:"PawonLoka", tagline:"Rasa yang lahir dari dapur penuh cerita", address:"Bali, Indonesia", phone:"", email:"", website:"", instagram:"@pawonloka", wifi:"" },
-  pos_behaviour: { auto_print_receipt:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true, auto_close_time:"", manager_pin:"9999" },
+  pos_behaviour: { auto_print_receipt:true, auto_print_checker:true, kitchen_display:true, cashier_discounts:true, require_pin_void:true, require_pin_refund:true, auto_member_discount:true, auto_close_time:"", manager_pin:"9999" },
   regional: { currency:"IDR", timezone:"WITA", date_format:"DD/MM/YYYY" },
   loyalty: { points_per_100:1, gold_threshold:5000, silver_threshold:2000 },
   stations: [{ id:"kitchen",name:"Kitchen",icon:"🍳" },{ id:"bar",name:"Bar",icon:"🍹" },{ id:"snack",name:"Snack",icon:"🍟" },{ id:"kasir",name:"Kasir",icon:"🧾" }],
@@ -99,6 +99,7 @@ export default function Settings() {
           <div className="bo-card-title">🧾 POS Behaviour</div>
           {[
             ["auto_print_receipt","Auto-print receipt on sale"],
+            ["auto_print_checker","Auto-print checker when order is sent to kitchen"],
             ["kitchen_display","Kitchen Display / Tickets"],
             ["cashier_discounts","Allow cashier discounts"],
             ["require_pin_void","Require PIN for void"],
