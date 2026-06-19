@@ -299,16 +299,29 @@ function BackofficeLogin({ onAuth }) {
   )
 }
 
+function pageFromPath() {
+  const segment = window.location.pathname.replace(/\/+$/, "").replace(/^\/backoffice\/?/, "")
+  return segment || sessionStorage.getItem("bo_active") || "dashboard"
+}
+
 export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
-  const [active, setActive] = useState(()=>sessionStorage.getItem("bo_active")||"dashboard")
+  const [active, setActive] = useState(pageFromPath)
 
   const { pending, notes, markRead } = useNotifications(navTo)
 
   function navTo(id) {
     setActive(id)
     sessionStorage.setItem("bo_active", id)
+    history.pushState(null, "", "/backoffice/" + id)
   }
+
+  // Back / Forward browser buttons
+  useEffect(() => {
+    function onPop() { setActive(pageFromPath()) }
+    window.addEventListener("popstate", onPop)
+    return () => window.removeEventListener("popstate", onPop)
+  }, [])
 
   useEffect(() => {
     const el = document.querySelector(".bo-nav-item.active")
