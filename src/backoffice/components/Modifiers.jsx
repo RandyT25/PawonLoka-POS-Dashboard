@@ -216,7 +216,7 @@ export default function Modifiers() {
                   })}
                 </div>
               </div>
-            </div>
+
               <div style={{borderTop:"1px solid var(--surface3)",paddingTop:14,marginTop:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <label className="bo-label" style={{marginBottom:0}}>Link to Products</label>
@@ -263,6 +263,7 @@ export default function Modifiers() {
                   })()}
                 </div>
               </div>
+            </div>
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
               <button onClick={save} disabled={saving||!form.name.trim()} className="bo-btn bo-btn-primary">{saving?"Saving...":modal==="add"?"Add":"Save"}</button>
