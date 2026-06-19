@@ -24,7 +24,7 @@ export default function MenuPerformance() {
     setLoading(true)
     const { fromStr, toStr } = buildDateRange(range, customDate)
     let q = supabase.from("orders")
-      .select("items,items_snapshot,total,status,cat")
+      .select("*")
       .gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q

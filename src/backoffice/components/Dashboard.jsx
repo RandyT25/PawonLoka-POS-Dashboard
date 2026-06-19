@@ -25,7 +25,7 @@ export default function Dashboard() {
   const load = useCallback(async () => {
     setLoading(true)
     const { fromStr, toStr } = buildDateRange(range, customDate)
-    let q = supabase.from("orders").select("id,code,created_at,total,pay,status,cogs,staff,table_name,table,items,items_snapshot,customer_id,time").gte("created_at", fromStr)
+    let q = supabase.from("orders").select("*").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("created_at", { ascending: false })
     if (error) { console.error(error); setLoading(false); return }

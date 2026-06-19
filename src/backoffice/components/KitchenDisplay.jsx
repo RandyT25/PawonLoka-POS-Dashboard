@@ -203,7 +203,7 @@ export default function KitchenDisplay() {
 
   useEffect(() => {
     // Load settings
-    supabase.from("app_settings").select("kitchen_ticket").eq("id","main").maybeSingle()
+    supabase.from("app_settings").select("*").eq("id","main").maybeSingle()
       .then(({ data }) => setSettings(data?.kitchen_ticket || KITCHEN_TICKET_DEFAULTS))
     loadTickets()
   }, [loadTickets])

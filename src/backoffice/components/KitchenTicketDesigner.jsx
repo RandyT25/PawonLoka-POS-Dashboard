@@ -207,7 +207,7 @@ export default function KitchenTicketDesigner() {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from("app_settings").select("kitchen_ticket,outlet").eq("id","main").maybeSingle()
+    const { data } = await supabase.from("app_settings").select("*").eq("id","main").maybeSingle()
     if (data?.kitchen_ticket) {
       setS({ ...KITCHEN_TICKET_DEFAULTS, ...data.kitchen_ticket,
         station_colors: { ...KITCHEN_TICKET_DEFAULTS.station_colors, ...(data.kitchen_ticket.station_colors||{}) }
