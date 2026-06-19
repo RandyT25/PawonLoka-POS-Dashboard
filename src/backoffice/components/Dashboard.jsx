@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
@@ -63,15 +63,27 @@ export default function Dashboard() {
     setLoading(false)
   }, [range, customDate])
 
+  // loadRef — always points to latest load(), prevents stale closure in interval/realtime
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load })
+
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
     const ch = supabase.channel("dashboard_rt")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => loadRef.current())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => loadRef.current())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [load])
+
+  // 10-second polling + immediate reload on tab focus (guaranteed refresh regardless of realtime)
+  useEffect(() => {
+    const poll = setInterval(() => { if (!document.hidden) loadRef.current() }, 10000)
+    const onVisible = () => { if (!document.hidden) loadRef.current() }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => { clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
+  }, [])
 
   const margin = stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0
 

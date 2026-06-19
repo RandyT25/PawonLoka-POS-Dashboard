@@ -1022,10 +1022,12 @@ function useOwnerData(range, demo, customDate) {
     return ()=>supabase.removeChannel(ch)
   },[range,demo,customDate])
 
-  // Polling fallback — guaranteed refresh every 30s regardless of realtime status
+  // 10-second polling + immediate reload when tab becomes visible
   useEffect(()=>{
-    const id = setInterval(()=>{ if(!document.hidden) loadRef.current() }, 30000)
-    return ()=>clearInterval(id)
+    const poll = setInterval(()=>{ if(!document.hidden) loadRef.current() }, 10000)
+    const onVisible = ()=>{ if(!document.hidden) loadRef.current() }
+    document.addEventListener("visibilitychange", onVisible)
+    return ()=>{ clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
   },[])
 
   /* attendance realtime — only refresh when viewing today */

@@ -446,8 +446,12 @@ export default function POS() {
     setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat), _printedQty: i.qty })))
 
     // Auto-print checker to receipt printer — full order, silent (no alert on failure)
-    // Skip only if explicitly disabled via pos_behaviour.auto_print_checker === false
-    if (appSettings?.pos_behaviour?.auto_print_checker !== false) {
+    // Skip if disabled, or if receipt printer already fired as a station (Kasir routing) — prevents double-print
+    const receiptUsedAsStation = [...allStations].some(s => {
+      const mapped = ROLE_MAP[s] || ROLE_MAP[s?.charAt(0).toUpperCase() + s?.slice(1)]
+      return mapped === 'receipt'
+    })
+    if (appSettings?.pos_behaviour?.auto_print_checker !== false && !receiptUsedAsStation) {
       const rp = printer.printers?.find(p => p.role === 'receipt')
       if (rp) {
         printer.printKitchenTicket({
@@ -885,7 +889,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
-          onPrintCheck={printCheck}
+          onPrintCheck={appSettings?.pos_behaviour?.auto_print_checker !== false ? null : printCheck}
           onPrintBill={printBill}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
@@ -932,7 +936,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
-          onPrintCheck={printCheck}
+          onPrintCheck={appSettings?.pos_behaviour?.auto_print_checker !== false ? null : printCheck}
           onPrintBill={printBill}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
