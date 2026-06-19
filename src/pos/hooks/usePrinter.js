@@ -38,10 +38,10 @@ const BLE_SERVICES = [
 ];
 
 // Connect GATT and return the first writable characteristic found.
-// Races against a 15-second timeout (Android BLE negotiation can take up to 15s).
-async function gattGetChar(device) {
+// ms: timeout in ms — use short value (5000) for startup probes, full (15000) for print.
+async function gattGetChar(device, ms = 15000) {
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("BLE connection timeout (15s) — printer out of range?")), 15000)
+    setTimeout(() => reject(new Error(`BLE timeout (${ms/1000}s)`)), ms)
   );
   const connect = async () => {
     const server = await device.gatt.connect();
@@ -580,14 +580,17 @@ export function usePrinter() {
       const attempt = async () => {
         if (charRefs.current[printer.id] || !deviceRefs.current[printer.id]) return;
         try {
-          const char = await gattGetChar(device);
+          // First 4 attempts: 5s timeout (fast probe — BLE stack usually ready within 1-3s)
+          // Later attempts: 15s timeout (printer may be temporarily out of range)
+          const ms = retries < 4 ? 5000 : 15000;
+          const char = await gattGetChar(device, ms);
           charRefs.current[printer.id] = char;
           setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
         } catch {
           retries++;
-          // Back-off: 3 s, 6 s, 9 s … capped at 30 s; give up after 12 attempts (~5 min total)
+          // Back-off: 2s, 4s, 6s … capped at 20s; give up after 12 attempts (~3 min total)
           if (retries <= 12) {
-            reconnectTimers.current[printer.id] = setTimeout(attempt, Math.min(3000 * retries, 30000));
+            reconnectTimers.current[printer.id] = setTimeout(attempt, Math.min(2000 * retries, 20000));
           }
         }
       };

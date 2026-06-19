@@ -1061,10 +1061,11 @@ export default function POS() {
               </div>
               <div style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:16 }}>
                 <div style={{ background:'#EFF6FF', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:'#0052CC', marginBottom:6 }}>Install PawonLoka App</div>
-                  <div style={{ fontSize:12, color:'#42526E', lineHeight:1.6, marginBottom:8 }}>
-                    <b>Android:</b> Tap menu then Add to Home Screen<br/>
-                    <b>iPhone/iPad:</b> Tap Share then Add to Home Screen
+                  <div style={{ fontSize:13, fontWeight:800, color:'#0052CC', marginBottom:6 }}>📲 Install PawonLoka App — Recommended</div>
+                  <div style={{ fontSize:12, color:'#42526E', lineHeight:1.7, marginBottom:8 }}>
+                    Installing as an app <b>prevents accidental page refreshes</b> that disconnect the printer. The app reconnects automatically when opened.<br/><br/>
+                    <b>Android Chrome:</b> Menu (⋮) → Add to Home Screen<br/>
+                    <b>iPhone/iPad:</b> Share (□↑) → Add to Home Screen
                   </div>
                   {pwaInstallable && (
                     <button onClick={()=>window.installPWA()}
