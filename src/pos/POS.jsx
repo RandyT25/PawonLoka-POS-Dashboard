@@ -572,17 +572,23 @@ export default function POS() {
     if (!reason) return
     const newCart = cart.filter(i => i._key !== item._key)
     setCart(newCart)
+    if (item._sent) printCancelTicket([{ ...item, qty: item._printedQty || item.qty }])
     if (openBillId) {
-      const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
-      const discA = discount ? Math.round(sub*discount/100) : 0
-      const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
-      await supabase.from('orders').update({
-        items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
-        subtotal: sub, tax: tx, total: sub-discA+tx,
-        notes: (item.notes||'') + ' | REMOVE: ' + item.name + ' - ' + reason
-      }).eq('id', openBillId)
-      // Notify kitchen immediately — use _printedQty (last confirmed qty) as cancel qty
-      if (item._sent) printCancelTicket([{ ...item, qty: item._printedQty || item.qty }])
+      if (newCart.length === 0) {
+        // Last item removed — delete the empty order and reset POS
+        await supabase.from('orders').delete().eq('id', openBillId)
+        if (tableNo) await supabase.from('tables').update({ status:'Available', open_bill_id:null }).eq('name', tableNo)
+        setOpenBillId(null); setTableNo(''); setCustomer(null); setDiscount(0)
+      } else {
+        const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
+        const discA = discount ? Math.round(sub*discount/100) : 0
+        const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
+        await supabase.from('orders').update({
+          items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
+          subtotal: sub, tax: tx, total: sub-discA+tx,
+          notes: (item.notes||'') + ' | REMOVE: ' + item.name + ' - ' + reason
+        }).eq('id', openBillId)
+      }
     }
   }
 
@@ -598,16 +604,23 @@ export default function POS() {
       ? cart.filter(i => i._key !== item._key)
       : cart.map(i => i._key === item._key ? { ...i, qty: newQty, _printedQty: newQty } : i)
     setCart(newCart)
+    if (item._sent) printCancelTicket([{ ...item, qty: delta }])
     if (openBillId) {
-      const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
-      const discA = discount ? Math.round(sub*discount/100) : 0
-      const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
-      await supabase.from('orders').update({
-        items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
-        subtotal: sub, tax: tx, total: sub-discA+tx,
-        notes: (item.notes||'') + ' | REDUCE: ' + item.name + ' -' + delta + ' - ' + reason
-      }).eq('id', openBillId)
-      if (item._sent) printCancelTicket([{ ...item, qty: delta }])
+      if (newCart.length === 0) {
+        // Cart is now empty — delete the order and reset POS
+        await supabase.from('orders').delete().eq('id', openBillId)
+        if (tableNo) await supabase.from('tables').update({ status:'Available', open_bill_id:null }).eq('name', tableNo)
+        setOpenBillId(null); setTableNo(''); setCustomer(null); setDiscount(0)
+      } else {
+        const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
+        const discA = discount ? Math.round(sub*discount/100) : 0
+        const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
+        await supabase.from('orders').update({
+          items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
+          subtotal: sub, tax: tx, total: sub-discA+tx,
+          notes: (item.notes||'') + ' | REDUCE: ' + item.name + ' -' + delta + ' - ' + reason
+        }).eq('id', openBillId)
+      }
     }
   }
 
