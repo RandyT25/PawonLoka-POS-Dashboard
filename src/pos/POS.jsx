@@ -28,17 +28,19 @@ import './pos.mobile.css'
 import OfflineBar from './components/OfflineBar'
 
 export default function POS() {
-  const [staff, setStaff]           = useState(null)
+  // Persist staff, openBillId, tableNo in sessionStorage so a page refresh doesn't log out
+  // or lose the active order. sessionStorage is tab-scoped — clears on tab close (security).
+  const [staff, setStaff]           = useState(() => { try { return JSON.parse(sessionStorage.getItem('pos_staff') || 'null') } catch { return null } })
   const [shift, setShift]           = useState(null)
   const [products, setProducts]     = useState([])
   const [categories, setCategories] = useState([])
   const [modifierGroups, setModifierGroups] = useState([])
   const [loading, setLoading]       = useState(true)
-  const [tableNo, setTableNo]       = useState('')
+  const [tableNo, setTableNo]       = useState(() => sessionStorage.getItem('pos_table') || '')
   const [customer, setCustomer]     = useState(null)
   const [discount, setDiscount]     = useState(0)
   const [orderType, setOrderType]     = useState('Dine-in')
-  const [openBillId, setOpenBillId]   = useState(null)
+  const [openBillId, setOpenBillId]   = useState(() => sessionStorage.getItem('pos_open_bill') || null)
   const [deliveryFee, setDeliveryFee]   = useState(0)
   const [deliveryAddr, setDeliveryAddr] = useState('')
 
@@ -63,6 +65,20 @@ export default function POS() {
       window.removeEventListener('online', goOnline)
     }
   }, [])
+  // Sync session-critical state to sessionStorage on every change
+  useEffect(() => {
+    if (staff) sessionStorage.setItem('pos_staff', JSON.stringify(staff))
+    else { sessionStorage.removeItem('pos_staff'); sessionStorage.removeItem('pos_open_bill'); sessionStorage.removeItem('pos_table') }
+  }, [staff])
+  useEffect(() => {
+    if (openBillId) sessionStorage.setItem('pos_open_bill', openBillId)
+    else sessionStorage.removeItem('pos_open_bill')
+  }, [openBillId])
+  useEffect(() => {
+    if (tableNo) sessionStorage.setItem('pos_table', tableNo)
+    else sessionStorage.removeItem('pos_table')
+  }, [tableNo])
+
   const [cartOpen, setCartOpen]           = useState(false)
   const [heldBills, setHeldBills]         = useState([])
   const printer    = usePrinter()
@@ -122,9 +138,21 @@ export default function POS() {
   useOrders() // subscribes to realtime order changes
 
   useEffect(() => {
-    if (staff) {
-      loadData()
-      restoreShift()
+    if (!staff) return
+    loadData()
+    restoreShift()
+    // After a refresh, restore the active open bill so the cart isn't empty
+    const savedBill = sessionStorage.getItem('pos_open_bill')
+    if (savedBill) {
+      supabase.from('orders').select('*').eq('id', savedBill).maybeSingle()
+        .then(({ data }) => {
+          if (data && (data.status === 'Open' || data.status === 'open')) {
+            recallFromOrder(data)
+          } else {
+            // Bill was paid or voided while the tab was closed — clear stale session
+            setOpenBillId(null); setTableNo('')
+          }
+        })
     }
   }, [staff])
 
@@ -198,7 +226,7 @@ export default function POS() {
 
   // PIN Login
   if (!staff) return (
-    <PinLogin onLogin={s => { setStaff(s) }} />
+    <PinLogin onLogin={s => { sessionStorage.setItem('pos_staff', JSON.stringify(s)); setStaff(s) }} />
   )
 
   // Shift modal
