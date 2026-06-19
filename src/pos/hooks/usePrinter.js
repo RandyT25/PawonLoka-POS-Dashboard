@@ -38,10 +38,10 @@ const BLE_SERVICES = [
 ];
 
 // Connect GATT and return the first writable characteristic found.
-// Races against a 10-second timeout to avoid blocking the print chain indefinitely.
+// Races against a 15-second timeout (Android BLE negotiation can take up to 15s).
 async function gattGetChar(device) {
   const timeout = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error("BLE connection timeout (10s) — printer out of range?")), 10000)
+    setTimeout(() => reject(new Error("BLE connection timeout (15s) — printer out of range?")), 15000)
   );
   const connect = async () => {
     const server = await device.gatt.connect();
@@ -559,22 +559,39 @@ export function usePrinter() {
 
   // Auto-connect all stored printers silently on startup using getDevices().
   // getDevices() returns previously-permitted devices with no user dialog (Chrome 85+).
+  // When the initial connect fails (common after page refresh — BLE stack needs time),
+  // starts a retry loop with backoff instead of silently giving up.
   async function autoConnectAll(loadedPrinters) {
     if (!navigator.bluetooth?.getDevices) return;
     let permitted;
     try { permitted = await navigator.bluetooth.getDevices(); } catch { return; }
     for (const printer of loadedPrinters) {
       if (!printer.deviceId) continue;
+      // Skip if already connected or a retry loop is already running
+      if (charRefs.current[printer.id]) continue;
       const device = permitted.find(d => d.id === printer.deviceId);
       if (!device) continue;
       deviceRefs.current[printer.id] = device;
       attachAutoReconnect(printer.id, device);
-      gattGetChar(device)
-        .then(char => {
+      // Skip if a retry is already scheduled (prevents duplicate loops on double call)
+      if (reconnectTimers.current[printer.id]) continue;
+
+      let retries = 0;
+      const attempt = async () => {
+        if (charRefs.current[printer.id] || !deviceRefs.current[printer.id]) return;
+        try {
+          const char = await gattGetChar(device);
           charRefs.current[printer.id] = char;
           setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
-        })
-        .catch(() => {}); // silent — device may be out of range, auto-reconnects when back
+        } catch {
+          retries++;
+          // Back-off: 3 s, 6 s, 9 s … capped at 30 s; give up after 12 attempts (~5 min total)
+          if (retries <= 12) {
+            reconnectTimers.current[printer.id] = setTimeout(attempt, Math.min(3000 * retries, 30000));
+          }
+        }
+      };
+      attempt();
     }
   }
 
