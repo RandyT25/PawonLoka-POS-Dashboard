@@ -16,10 +16,11 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
 
   async function loadReport() {
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: orders }, { data: cashLogs }, { data: openBills }] = await Promise.all([
+    const [{ data: orders }, { data: cashLogs }, { data: openBills }, { data: notClockedOut }] = await Promise.all([
       supabase.from('orders').select('total,pay,status').eq('date', today).eq('status', 'Paid'),
       supabase.from('cash_logs').select('*').eq('date', today),
       supabase.from('orders').select('id,table,total').eq('date', today).eq('status', 'Open'),
+      supabase.from('attendance').select('id,staff_name,clock_in').eq('date', today).not('clock_in', 'is', null).is('clock_out', null),
     ])
 
     const sales = {}
@@ -35,7 +36,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
     const topups      = (cashLogs||[]).filter(l=>l.type==='topup').reduce((a,l)=>a+l.amount,0)
     const expectedCash = (shift.float_open||0) + cashSales + topups - expenses + returns
 
-    setReport({ sales, totalSales, cashSales, expenses, returns, topups, expectedCash, cashLogs: cashLogs||[], orderCount: orders?.length||0, openBills: openBills||[] })
+    setReport({ sales, totalSales, cashSales, expenses, returns, topups, expectedCash, cashLogs: cashLogs||[], orderCount: orders?.length||0, openBills: openBills||[], notClockedOut: notClockedOut||[] })
   }
 
   async function openShift() {
@@ -65,16 +66,15 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
   async function closeShift() {
     if (!confirmed) { setConfirmed(true); return }
 
-    // Re-query for open bills — report could be seconds old
+    // Re-query live state — report could be seconds old
     const today = new Date().toISOString().slice(0, 10)
-    const { data: stillOpen } = await supabase
-      .from('orders')
-      .select('id,table,total')
-      .eq('date', today)
-      .eq('status', 'Open')
-    if (stillOpen?.length > 0) {
+    const [{ data: stillOpen }, { data: stillClockedIn }] = await Promise.all([
+      supabase.from('orders').select('id,table,total').eq('date', today).eq('status', 'Open'),
+      supabase.from('attendance').select('id,staff_name').eq('date', today).not('clock_in', 'is', null).is('clock_out', null),
+    ])
+    if (stillOpen?.length > 0 || stillClockedIn?.length > 0) {
       setConfirmed(false)
-      await loadReport() // refresh the warning list in UI
+      await loadReport() // refresh the warning lists in UI
       return
     }
 
@@ -209,6 +209,29 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
                 </div>
               )}
 
+              {/* ── Clock-out blocker ───────────────────── */}
+              {report.notClockedOut?.length > 0 && (
+                <div style={{ background:'#FFFBEB', border:'1.5px solid #FCD34D', borderRadius:12, padding:14, marginBottom:14 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                    <span style={{ fontSize:18 }}>⏱️</span>
+                    <div style={{ fontSize:13, fontWeight:800, color:'#B45309' }}>
+                      {report.notClockedOut.length} Karyawan Belum Clock Out
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:10 }}>
+                    {report.notClockedOut.map(a => (
+                      <div key={a.id} style={{ display:'flex', justifyContent:'space-between', fontSize:12, color:'#92400E', background:'rgba(255,255,255,0.6)', borderRadius:8, padding:'6px 10px' }}>
+                        <span style={{ fontWeight:700 }}>{a.staff_name}</span>
+                        <span>{a.clock_in ? 'Masuk: ' + new Date(a.clock_in).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ fontSize:11, color:'#92400E', fontWeight:700, textAlign:'center' }}>
+                    Minta semua karyawan clock out sebelum menutup shift.
+                  </div>
+                </div>
+              )}
+
               <div style={{ background:'#F0FDF4', borderRadius:12, padding:14, marginBottom:14, textAlign:'center' }}>
                 <div style={{ fontSize:12, color:'#16A34A' }}>Kas yang seharusnya ada di laci</div>
                 <div style={{ fontSize:28, fontWeight:900, color:'#16A34A' }}>{fmt(report.expectedCash)}</div>
@@ -221,8 +244,8 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
                   Konfirmasi tutup shift? Tekan sekali lagi untuk menutup.
                 </div>
               )}
-              <button onClick={closeShift} disabled={saving || report.openBills?.length > 0}
-                style={{ ...S.primaryBtn, background: report.openBills?.length > 0 ? '#94A3B8' : '#DC2626', opacity: saving ? 0.5 : 1, cursor: report.openBills?.length > 0 ? 'not-allowed' : 'pointer' }}>
+              <button onClick={closeShift} disabled={saving || report.openBills?.length > 0 || report.notClockedOut?.length > 0}
+                style={{ ...S.primaryBtn, background: (report.openBills?.length > 0 || report.notClockedOut?.length > 0) ? '#94A3B8' : '#DC2626', opacity: saving ? 0.5 : 1, cursor: (report.openBills?.length > 0 || report.notClockedOut?.length > 0) ? 'not-allowed' : 'pointer' }}>
                 {saving ? 'Menutup...' : confirmed ? 'Ya, Tutup Shift Sekarang' : 'Tutup Shift'}
               </button>
             </div>
