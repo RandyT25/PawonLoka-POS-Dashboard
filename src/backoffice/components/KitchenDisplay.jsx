@@ -350,7 +350,7 @@ export default function KitchenDisplay() {
             {showDone ? "No tickets" : "All tickets done!"}
           </div>
           <div style={{ fontSize:12 }}>
-            {!showDone && "Enable "Show Done" to see completed tickets"}
+            {!showDone && 'Enable "Show Done" to see completed tickets'}
           </div>
         </div>
       ) : (
