@@ -271,7 +271,7 @@ function NotifBell({ notifications, setNotifications }) {
 }
 
 /* ─── Dashboard Screen ─── */
-function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
+function DateRangeBar({ range, setRange, customDate, setCustomDate, loading, lastUpdated, onRefresh }) {
   const dateRef = useRef(null)
   const customLabel = customDate
     ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})
@@ -300,11 +300,21 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
           style={{position:"absolute",opacity:0,pointerEvents:"none",width:0,height:0}}/>
       </div>
       <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
-        {loading&&(
+        {loading ? (
           <svg className="ow-spinner" width="14" height="14" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="#E2E8F0" strokeWidth="3"/>
             <path d="M12 2a10 10 0 0 1 10 10" stroke="#0EA5E9" strokeWidth="3" strokeLinecap="round"/>
           </svg>
+        ) : (
+          <button onClick={onRefresh} title="Refresh data"
+            style={{background:"none",border:"none",cursor:"pointer",color:"#94A3B8",fontSize:14,padding:"2px 4px",lineHeight:1}}>
+            ↺
+          </button>
+        )}
+        {lastUpdated && !loading && (
+          <span style={{fontSize:10,color:"#94A3B8"}}>
+            Update: {lastUpdated.toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+          </span>
         )}
         <span style={{fontSize:11,color:"#94A3B8"}}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</span>
       </div>
@@ -312,7 +322,7 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, loading }) {
   )
 }
 
-function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, stats, hourData, payments, topItems, slowItems, recent }) {
+function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, lastUpdated, onRefresh, stats, hourData, payments, topItems, slowItems, recent }) {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
   const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
@@ -323,7 +333,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
 
   return (
     <div style={{maxWidth:1100}}>
-      <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading}/>
+      <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={onRefresh}/>
 
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
@@ -986,6 +996,7 @@ const NAV = [
 /* ─── Data hook ─── */
 function useOwnerData(range, demo, customDate) {
   const [loading,        setLoading]        = useState(true)
+  const [lastUpdated,    setLastUpdated]    = useState(null)
   const [stats,          setStats]          = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
   const [payments,       setPayments]       = useState([])
   const [topItems,       setTopItems]       = useState([])
@@ -999,13 +1010,23 @@ function useOwnerData(range, demo, customDate) {
 
   useEffect(()=>{ load() },[range,demo,customDate])
 
+  // loadRef always points to the latest load — avoids stale closure in intervals/channels
+  const loadRef = useRef(load)
+  useEffect(()=>{ loadRef.current = load })
+
   useEffect(()=>{
     const ch=supabase.channel("owner_rt")
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},()=>load())
-      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>load())
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"orders"},()=>loadRef.current())
+      .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>loadRef.current())
       .subscribe()
     return ()=>supabase.removeChannel(ch)
   },[range,demo,customDate])
+
+  // Polling fallback — guaranteed refresh every 30s regardless of realtime status
+  useEffect(()=>{
+    const id = setInterval(()=>{ if(!document.hidden) loadRef.current() }, 30000)
+    return ()=>clearInterval(id)
+  },[])
 
   /* attendance realtime — only refresh when viewing today */
   useEffect(()=>{
@@ -1146,10 +1167,11 @@ function useOwnerData(range, demo, customDate) {
     setRecent(period.slice(0,30))
     setStaffData(staffArr)
     setCashData({income:sales,expenses:totalExp,incomeCount:paid.length,byMethod:payArr,expenseItems:expPeriod.map(e=>({...e,note:e.note||"Pengeluaran",category:e.category||"Lain-lain"})),log:cashLog})
+    setLastUpdated(new Date())
     setLoading(false)
   }
 
-  return {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt}
+  return {loading,lastUpdated,refresh:()=>loadRef.current(),stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt}
 }
 
 /* ─── Root ─── */
@@ -1185,7 +1207,7 @@ export default function OwnerApp() {
 
   useEffect(()=>{ contentRef.current?.scrollTo(0,0) },[screen])
 
-  const {loading,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
+  const {loading,lastUpdated,refresh,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
 
   /* realtime notifications — orders + attendance */
   useEffect(()=>{
@@ -1288,7 +1310,7 @@ export default function OwnerApp() {
           </div>
 
           <div className="owner-content" ref={contentRef}>
-            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
+            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
             {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
             {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} demo={demo}/>}
             {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
