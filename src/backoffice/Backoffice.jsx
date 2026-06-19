@@ -11,7 +11,9 @@ if (typeof window !== "undefined") {
 import "./backoffice.css"
 
 // Lazy-load all tab components — only the active tab is downloaded
-const Dashboard       = lazy(() => import("./components/Dashboard"))
+const Dashboard        = lazy(() => import("./components/Dashboard"))
+const SalesAnalysis    = lazy(() => import("./components/SalesAnalysis"))
+const MenuPerformance  = lazy(() => import("./components/MenuPerformance"))
 const Products        = lazy(() => import("./components/Products"))
 const Categories      = lazy(() => import("./components/Categories"))
 const Modifiers       = lazy(() => import("./components/Modifiers"))
@@ -154,8 +156,10 @@ const SESSION_KEY = "bo_auth"
 
 const NAV = [
   { group:"Overview" },
-  { id:"dashboard",        label:"Dashboard",         icon:"📊" },
-  { id:"reports",          label:"Reports",            icon:"📈" },
+  { id:"dashboard",         label:"Dashboard",          icon:"📊" },
+  { id:"sales-analysis",    label:"Sales Analysis",     icon:"📈" },
+  { id:"menu-performance",  label:"Menu Performance",   icon:"🍽" },
+  { id:"reports",           label:"Reports & Export",   icon:"📋" },
   { group:"Finance" },
   { id:"accounting",       label:"Accounting",         icon:"🧾" },
   { id:"rekonsiliasi",     label:"Rekonsiliasi",       icon:"🔄" },
@@ -205,8 +209,10 @@ const NAV = [
 ]
 
 const SCREENS = {
-  dashboard:         Dashboard,
-  reports:           Reports,
+  dashboard:          Dashboard,
+  "sales-analysis":   SalesAnalysis,
+  "menu-performance": MenuPerformance,
+  reports:            Reports,
   accounting:        Accounting,
   rekonsiliasi:      Rekonsiliasi,
   products:          Products,
