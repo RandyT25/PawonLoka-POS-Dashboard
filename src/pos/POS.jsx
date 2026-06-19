@@ -258,7 +258,7 @@ export default function POS() {
 
 
   async function recallFromOrder(order) {
-    setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '' })))
+    setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '', _printedQty: i.qty })))
     setTableNo(order.table || '')
     setOpenBillId(order.id)
     if (order.customer_id) {
@@ -326,11 +326,28 @@ export default function POS() {
   async function handleSendOrder({ subtotal, tax, discAmt, total, fee }) {
     if (cart.length === 0) return
     const now = new Date()
-    const newItems = cart
+    // kitchenItems: delta qty only — kitchen staff see only what's new/increased
+    const kitchenItems = cart
       .filter(i => !i._sent)
-      .map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'' }))
+      .map(i => ({
+        sku: i.sku || '', name: i.name,
+        qty: i._printedQty != null ? i.qty - i._printedQty : i.qty,
+        _isAddition: i._printedQty != null,
+        price: i.price, modifiers: i.modifiers || {}, note: i.note || '', cat: i.cat || '',
+      }))
+      .filter(i => i.qty > 0)
 
-    if (newItems.length === 0) {
+    // cancelItems: safety net — sent items whose qty fell below _printedQty
+    // (normally printed immediately by manager functions; this catches edge cases)
+    const cancelItems = cart
+      .filter(i => i._sent && i._printedQty != null && i.qty < i._printedQty)
+      .map(i => ({
+        sku: i.sku || '', name: i.name,
+        qty: i._printedQty - i.qty,
+        price: i.price, modifiers: i.modifiers || {}, note: i.note || '', cat: i.cat || '',
+      }))
+
+    if (kitchenItems.length === 0 && cancelItems.length === 0) {
       // All already sent — just open charge
       setShowCharge(true)
       return
@@ -341,16 +358,21 @@ export default function POS() {
     const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
 
     const stations = {}
-    newItems.forEach(item => {
+    kitchenItems.forEach(item => {
       const station = getStation(item.cat)
       if (!stations[station]) stations[station] = []
       stations[station].push(item)
     })
+    const cancelStations = {}
+    cancelItems.forEach(item => {
+      const station = getStation(item.cat)
+      if (!cancelStations[station]) cancelStations[station] = []
+      cancelStations[station].push(item)
+    })
 
     if (openBillId) {
-      // Add to existing open bill
-      const { data: existing } = await supabase.from('orders').select('items').eq('id', openBillId).maybeSingle()
-      const allItems = [...(existing?.items || []), ...newItems.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) }))]
+      // Rebuild item list from cart — cart is source of truth for the full order state
+      const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null }))
       await supabase.from('orders').update({ items: allItems, subtotal, tax, discount: discAmt, total }).eq('id', openBillId)
     } else {
       // Create new open bill
@@ -369,45 +391,100 @@ export default function POS() {
       setOpenBillId(orderId)
     }
 
-    // Send kitchen tickets per station — parallel, unique IDs
-    await Promise.all(Object.entries(stations).map(([station, items]) =>
-      supabase.from('kitchen_tickets').insert({
-        id: 'KT-' + crypto.randomUUID(),
-        table: tableNo || orderType,
-        items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
-        time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
-        status: 'New', station,
-      })
-    ))
+    // Save kitchen tickets to DB (additions + cancellations)
+    const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+    await Promise.all([
+      ...Object.entries(stations).map(([station, items]) =>
+        supabase.from('kitchen_tickets').insert({
+          id: 'KT-' + crypto.randomUUID(),
+          table: tableNo || orderType,
+          items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
+          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+          status: 'New', station,
+        })
+      ),
+      ...Object.entries(cancelStations).map(([station, items]) =>
+        supabase.from('kitchen_tickets').insert({
+          id: 'KT-' + crypto.randomUUID(),
+          table: tableNo || orderType,
+          items: items.map(i => ({ name:i.name, qty:i.qty })),
+          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+          status: 'New', station, type: 'cancellation',
+        }).catch(() => {})
+      ),
+    ])
 
-    // Print kitchen tickets
-    for (const [station, items] of Object.entries(stations)) {
-      const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+    // Print per station — combine add+cancel into one ticket when both exist
+    const allStations = new Set([...Object.keys(stations), ...Object.keys(cancelStations)])
+    for (const station of allStations) {
+      const addItems = stations[station] || []
+      const cItems   = cancelStations[station] || []
+      const type     = addItems.length && cItems.length ? 'update' : addItems.length ? 'addition' : 'cancellation'
+      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen1'
+      const fmtItem = (i, prefix) => {
+        const parts = [prefix + i.qty + 'x ' + i.name]
+        if (i.modifiers && Object.values(i.modifiers).length) parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
+        if (i.note) parts.push('  * ' + i.note)
+        return parts.join('\n')
+      }
+      try {
+        await printer.printKitchenTicket({
+          stationRole, stationName: station,
+          table: tableNo || '-', orderType, type,
+          items:       addItems.map(i => fmtItem(i, i._isAddition ? '+' : '')),
+          cancelItems: cItems.map(i => fmtItem(i, '-')),
+          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' | ' + now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }),
+          orderId: openBillId || 'NEW',
+          settings: appSettings?.kitchen_ticket,
+        })
+      } catch(e) {
+        console.error('[print] failed for station', station, e)
+        alert('Gagal cetak ke ' + station + ':\n' + e.message + '\n\nPastikan printer sudah di-pair di Pengaturan > Hardware.')
+      }
+    }
+    // Mark all cart items as sent; update _printedQty so next comparison is correct
+    setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat), _printedQty: i.qty })))
+    const stationList = [...new Set([...Object.keys(stations), ...Object.keys(cancelStations)])].join(', ')
+    alert('Order dikirim ke ' + stationList + '!')
+  }
+
+  // Immediately print a cancellation ticket to the correct stations.
+  // Called by handleManagerRemoveItem and handleManagerReduceQty.
+  async function printCancelTicket(items) {
+    if (!items?.length) return
+    const catRouting = appSettings?.cat_routing || (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
+    const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
+    const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+    const now = new Date()
+    const nowTime = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' | ' + now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' })
+    const stns = {}
+    items.forEach(i => { const s = getStation(i.cat); if (!stns[s]) stns[s] = []; stns[s].push(i) })
+    for (const [station, stItems] of Object.entries(stns)) {
+      supabase.from('kitchen_tickets').insert({
+        id: 'KT-' + crypto.randomUUID(), table: tableNo || orderType,
+        items: stItems.map(i => ({ name:i.name, qty:i.qty })),
+        time: nowTime, status: 'New', station, type: 'cancellation',
+      }).catch(() => {})
       const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen1'
       try {
         await printer.printKitchenTicket({
-          stationRole,
-          stationName: station,
-          table: tableNo || '-',
-          orderType,
-          items: items.map(i => {
-            const parts = [i.qty + 'x ' + i.name]
-            if (i.modifiers && Object.values(i.modifiers).length)
+          stationRole, stationName: station,
+          table: tableNo || '-', orderType,
+          type: 'cancellation', time: nowTime,
+          settings: appSettings?.kitchen_ticket,
+          cancelItems: stItems.map(i => {
+            const parts = ['-' + i.qty + 'x ' + i.name]
+            if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
               parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
             if (i.note) parts.push('  * ' + i.note)
             return parts.join('\n')
           }),
-          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
-          orderId: openBillId || 'NEW',
         })
       } catch(e) {
-        console.error('[print] failed for station', station, e);
-        alert('Gagal cetak ke ' + station + ':\n' + e.message + '\n\nPastikan printer sudah di-pair di Pengaturan > Hardware.')
+        console.error('[cancel print] station', station, e)
+        alert('Gagal cetak batalkan ke ' + station + ':\n' + e.message)
       }
     }
-    // Mark all cart items as sent
-    setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat) })))
-    alert('Order dikirim ke ' + Object.keys(stations).join(', ') + '!')
   }
 
   // Print table checker — items only, no pricing
@@ -478,6 +555,33 @@ export default function POS() {
         subtotal: sub, tax: tx, total: sub-discA+tx,
         notes: (item.notes||'') + ' | REMOVE: ' + item.name + ' - ' + reason
       }).eq('id', openBillId)
+      // Notify kitchen immediately — use _printedQty (last confirmed qty) as cancel qty
+      if (item._sent) printCancelTicket([{ ...item, qty: item._printedQty || item.qty }])
+    }
+  }
+
+  // Manager PIN required to reduce qty on a sent item (partial cancellation)
+  async function handleManagerReduceQty(item, delta) {
+    const pin = prompt('Masukkan PIN Manager untuk kurangi ' + item.name + ':')
+    const managerPin = appSettings?.pos_behaviour?.manager_pin || '9999'
+    if (pin !== managerPin) { alert('PIN salah'); return }
+    const reason = prompt('Alasan kurangi ' + delta + 'x ' + item.name + ':')
+    if (!reason) return
+    const newQty = item.qty - delta
+    const newCart = newQty <= 0
+      ? cart.filter(i => i._key !== item._key)
+      : cart.map(i => i._key === item._key ? { ...i, qty: newQty, _printedQty: newQty } : i)
+    setCart(newCart)
+    if (openBillId) {
+      const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
+      const discA = discount ? Math.round(sub*discount/100) : 0
+      const tx = Math.round((sub-discA)*TAX_RATE_LIVE)
+      await supabase.from('orders').update({
+        items: newCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:i._sent||false, _station:i._station||'', isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
+        subtotal: sub, tax: tx, total: sub-discA+tx,
+        notes: (item.notes||'') + ' | REDUCE: ' + item.name + ' -' + delta + ' - ' + reason
+      }).eq('id', openBillId)
+      if (item._sent) printCancelTicket([{ ...item, qty: delta }])
     }
   }
 
@@ -765,6 +869,7 @@ export default function POS() {
           onOrderTypeChange={setOrderType}
           openBillId={openBillId}
           onManagerRemoveItem={handleManagerRemoveItem}
+          onManagerReduceQty={handleManagerReduceQty}
           onAddExtra={handleAddExtra}
           onSplit={() => setSplitTotals({ subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), total: subtotal+Math.round(subtotal*TAX_RATE_LIVE) })}
           deliveryFee={deliveryFee}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n || 0).toLocaleString("id-ID") }
@@ -98,46 +98,44 @@ const DUMMY_ORDERS = (() => {
 const PAY_COLORS = { Cash:"var(--green)", QRIS:"var(--brand)", Card:"#1565C0", GoPay:"#00ADE0", OVO:"#4527A0", Other:"var(--ink4)" }
 
 export default function Dashboard() {
-  const [range,    setRange]    = useState("today")
-  const [loading,  setLoading]  = useState(true)
-  const [useDummy, setUseDummy] = useState(false)
+  const todayStr = new Date().toISOString().slice(0,10)
+  const [range,      setRange]      = useState("today")
+  const [customDate, setCustomDate] = useState(todayStr)
+  const [loading,    setLoading]    = useState(true)
+  const [useDummy,   setUseDummy]   = useState(false)
   const [stats,    setStats]    = useState({ sales:0, orders:0, customers:0, avgOrder:0, grossProfit:0, prevSales:0 })
   const [payments,       setPayments]       = useState([])
   const [topItems,       setTopItems]       = useState([])
   const [hourData,       setHourData]       = useState([])
   const [recent,         setRecent]         = useState([])
   const [selectedOrder,  setSelectedOrder]  = useState(null)
+  const dateInputRef = useRef(null)
 
-  useEffect(() => { load() }, [range, useDummy])
-
-  useEffect(() => {
-    const channel = supabase.channel("dashboard_realtime")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [range, useDummy])
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     let orders = []
 
     if (useDummy) {
       orders = DUMMY_ORDERS
     } else {
-      const now  = new Date()
-      let from   = new Date()
-      if (range === "today") { from.setHours(0,0,0,0) }
-      if (range === "week")  { from.setDate(now.getDate() - now.getDay()); from.setHours(0,0,0,0) }
-      if (range === "month") { from.setDate(1); from.setHours(0,0,0,0) }
-      // Keep as local time, use +08:00 in query string
-      const fromStr = from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
+      let fromStr, toStr
+      const now = new Date()
+      if (range === "today") {
+        fromStr = todayStr + "T00:00:00+08:00"
+        toStr   = todayStr + "T23:59:59+08:00"
+      } else if (range === "week") {
+        const d = new Date(); d.setDate(now.getDate() - now.getDay()); d.setHours(0,0,0,0)
+        fromStr = d.toISOString().slice(0,10) + "T00:00:00+08:00"
+      } else if (range === "month") {
+        fromStr = now.toISOString().slice(0,7) + "-01T00:00:00+08:00"
+      } else if (range === "custom") {
+        fromStr = customDate + "T00:00:00+08:00"
+        toStr   = customDate + "T23:59:59+08:00"
+      }
 
-      const { data, error } = await supabase
-        .from("orders")
-        .select("*")
-        .gte("created_at", typeof fromStr!=="undefined" ? fromStr : from.toISOString())
-        .order("created_at", { ascending: false })
+      let q = supabase.from("orders").select("*").gte("created_at", fromStr)
+      if (toStr) q = q.lte("created_at", toStr)
+      const { data, error } = await q.order("created_at", { ascending: false })
 
       if (error) { console.error("Dashboard load error:", error); setLoading(false); return }
       orders = data || []
@@ -150,9 +148,10 @@ export default function Dashboard() {
 
     const filterDate = (o) => {
       const d = o.created_at.slice(0, 10)
-      if (range === "today") return d === today
-      if (range === "week")  return d >= weekStart
-      if (range === "month") return d >= monthStart
+      if (range === "today")  return d === today
+      if (range === "week")   return d >= weekStart
+      if (range === "month")  return d >= monthStart
+      if (range === "custom") return d === customDate
       return true
     }
 
@@ -218,7 +217,17 @@ export default function Dashboard() {
     setHourData(hourArr.map(h => ({ ...h, maxHour })))
     setRecent(periodOrders.slice(0, 30))
     setLoading(false)
-  }
+  }, [range, useDummy, customDate])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const channel = supabase.channel("dashboard_realtime")
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   const trend = stats.prevSales > 0
     ? Math.round((stats.sales - stats.prevSales) / stats.prevSales * 100)
@@ -233,8 +242,30 @@ export default function Dashboard() {
             {l}
           </button>
         ))}
+        {/* Date picker — hidden input triggered by visible button */}
+        <div style={{ position:"relative" }}>
+          <button
+            className={"bo-btn bo-btn-sm " + (range === "custom" ? "bo-btn-primary" : "bo-btn-ghost")}
+            onClick={() => { const el = dateInputRef.current; if (!el) return; if (el.showPicker) { try { el.showPicker() } catch { el.click() } } else { el.click() } }}
+            style={{ display:"flex", alignItems:"center", gap:5 }}>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            {range === "custom"
+              ? new Date(customDate + "T12:00:00").toLocaleDateString("id-ID", { day:"numeric", month:"short", year:"numeric" })
+              : "Tanggal"}
+          </button>
+          <input ref={dateInputRef} type="date" value={customDate} max={todayStr}
+            onChange={e => { if (e.target.value) { setCustomDate(e.target.value); setRange("custom") } }}
+            style={{ position:"absolute", opacity:0, pointerEvents:"none", width:0, height:0, top:0, left:0 }} />
+        </div>
         <div style={{ marginLeft:"auto", display:"flex", gap:8, alignItems:"center" }}>
-          {loading && <span style={{ fontSize:12, color:"var(--ink5)" }}>Loading…</span>}
+          {loading && (
+            <svg style={{ animation:"spin 0.8s linear infinite" }} width="14" height="14" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="var(--surface3)" strokeWidth="3"/>
+              <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round"/>
+            </svg>
+          )}
           <button
             className={"bo-btn bo-btn-sm " + (useDummy ? "bo-btn-primary" : "bo-btn-ghost")}
             onClick={() => setUseDummy(d => !d)}>
@@ -242,6 +273,7 @@ export default function Dashboard() {
           </button>
         </div>
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* Hero KPI Row */}
       <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:12, marginBottom:12 }}>

@@ -297,30 +297,84 @@ export function buildPreBillData({ order, outlet, tax, service, paperSize = "80m
 }
 
 export function buildKitchenData({ ticket, paperSize }) {
-  const w  = paperSize === "80mm" ? 42 : 32;
-  const EQ = "=".repeat(w);
-  const HR = "-".repeat(w);
+  const cfg = ticket.settings || {};
+  const w   = paperSize === "80mm" ? 42 : 32;
+  const EQ  = "=".repeat(w);
+  const HR  = "-".repeat(w);
   const lines = [];
+
+  // ── Outlet name ───────────────────────────────────────
+  if (cfg.show_outlet_name !== false && cfg.outlet_name) {
+    lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" });
+    lines.push({ text: cfg.outlet_name + "\n" });
+    lines.push({ cmd: "BOLD_OFF" });
+  }
+
+  // ── Station header ────────────────────────────────────
   lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" }, { cmd: "TALL_ON" });
   lines.push({ text: (ticket.stationName || "KITCHEN") + "\n" });
   lines.push({ cmd: "TALL_OFF" }, { cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
-  const tableLabel = ticket.table && ticket.table !== ticket.orderType ? ticket.table : (ticket.orderType || "-");
-  lines.push({ text: "Meja: " + tableLabel + "\n" });
-  lines.push({ text: new Date().toLocaleTimeString("id-ID") + "\n" });
-  lines.push({ text: HR + "\n" });
+
+  // ── Order info ────────────────────────────────────────
   lines.push({ cmd: "ALIGN_L" });
-  for (const item of ticket.items) {
-    const parts = (typeof item === "string" ? item : "").split("\n");
+  if (cfg.show_order_id !== false && ticket.orderId && ticket.orderId !== "NEW") {
     lines.push({ cmd: "BOLD_ON" });
-    lines.push({ text: parts[0] + "\n" });
+    lines.push({ text: String(ticket.orderId).slice(-16) + "\n" });
     lines.push({ cmd: "BOLD_OFF" });
-    for (let i = 1; i < parts.length; i++) {
-      lines.push({ text: parts[i] + "\n" });
+  }
+  const metaParts = [
+    cfg.show_order_type !== false && ticket.orderType,
+    cfg.show_table !== false && ticket.table && ticket.table !== ticket.orderType && ticket.table,
+  ].filter(Boolean);
+  if (metaParts.length) lines.push({ text: metaParts.join(" · ") + "\n" });
+  if (cfg.show_datetime !== false) {
+    const ts = ticket.time || new Date().toLocaleString("id-ID", { dateStyle:"short", timeStyle:"short" });
+    lines.push({ text: ts + "\n" });
+  }
+  lines.push({ text: HR + "\n" });
+  const ticketType = ticket.type || (ticket.isAdditional ? "addition" : "new");
+  const TICKET_HEADERS = { addition: "** TAMBAHAN **", cancellation: "*** BATALKAN ***", update: "*** ORDER UPDATE ***" };
+  if (TICKET_HEADERS[ticketType]) {
+    lines.push({ cmd: "ALIGN_C" }, { cmd: "BOLD_ON" });
+    lines.push({ text: TICKET_HEADERS[ticketType] + "\n" });
+    lines.push({ cmd: "BOLD_OFF" });
+  }
+  lines.push({ cmd: "ALIGN_L" });
+  const renderKLines = (arr) => {
+    for (const item of arr || []) {
+      const parts = (typeof item === "string" ? item : "").split("\n");
+      lines.push({ cmd: "BOLD_ON" });
+      lines.push({ text: parts[0] + "\n" });
+      lines.push({ cmd: "BOLD_OFF" });
+      for (let k = 1; k < parts.length; k++) lines.push({ text: parts[k] + "\n" });
     }
+  };
+  if (ticketType === "update") {
+    if (ticket.items?.length) {
+      lines.push({ cmd: "BOLD_ON" });
+      lines.push({ text: "TAMBAH:\n" });
+      lines.push({ cmd: "BOLD_OFF" });
+      renderKLines(ticket.items);
+    }
+    if (ticket.cancelItems?.length) {
+      lines.push({ text: HR + "\n" });
+      lines.push({ cmd: "BOLD_ON" });
+      lines.push({ text: "BATALKAN:\n" });
+      lines.push({ cmd: "BOLD_OFF" });
+      renderKLines(ticket.cancelItems);
+    }
+  } else {
+    renderKLines(ticketType === "cancellation" ? (ticket.cancelItems || ticket.items) : ticket.items);
   }
   lines.push({ text: EQ + "\n" });
+  // ── Footer ────────────────────────────────────────────
+  if (cfg.show_footer !== false && cfg.footer_text) {
+    lines.push({ cmd: "ALIGN_C" });
+    lines.push({ text: cfg.footer_text + "\n" });
+    lines.push({ cmd: "ALIGN_L" });
+  }
   lines.push({ text: "\n\n" }, { cmd: "CUT" });
   return lines;
 }

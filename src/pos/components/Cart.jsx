@@ -5,7 +5,7 @@ export default function Cart({
   cart, onUpdateQty, onClear, onSendOrder, onCharge, onNewOrder,
   tableNo, onTableNoChange, customer, onShowCustomer, onRemoveCustomer,
   discount, onDiscountChange, orderType, onOrderTypeChange,
-  openBillId, onManagerRemoveItem, onSplit, deliveryFee, onDeliveryFeeChange,
+  openBillId, onManagerRemoveItem, onManagerReduceQty, onSplit, deliveryFee, onDeliveryFeeChange,
   deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate, staffPerms,
   onPrintCheck, onPrintBill
 }) {
@@ -129,7 +129,7 @@ export default function Cart({
                   }
                   <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:4 }}>
                     <button onClick={() => openBillId && item._sent
-                      ? onManagerRemoveItem && onManagerRemoveItem(item)
+                      ? onManagerReduceQty ? onManagerReduceQty(item, 1) : (onManagerRemoveItem && onManagerRemoveItem(item))
                       : onUpdateQty(item._key, -1)}
                       style={{ ...S.qtyBtn, width:28, height:28 }}>-</button>
                     <span style={{ ...S.qtyNum, minWidth:22, textAlign:'center', fontWeight:800 }}>{item.qty}</span>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 import jsPDF from "jspdf"
@@ -12,9 +12,7 @@ export default function Reports() {
   const [from,    setFrom]    = useState(new Date().toISOString().slice(0,10))
   const [to,      setTo]      = useState(new Date().toISOString().slice(0,10))
 
-  useEffect(() => { load() }, [from, to])
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from("orders")
@@ -26,7 +24,18 @@ export default function Reports() {
     if (error) console.error("Reports load error:", error)
     setOrders(data || [])
     setLoading(false)
-  }
+  }, [from, to])
+
+  useEffect(() => { load() }, [load])
+
+  // Auto-refresh when new orders land or existing ones are updated
+  useEffect(() => {
+    const channel = supabase.channel("reports_realtime")
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   const totalSales  = orders.reduce((s,o) => s+(o.total||0), 0)
   const totalOrders = orders.length

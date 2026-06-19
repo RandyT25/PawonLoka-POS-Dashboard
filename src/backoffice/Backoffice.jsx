@@ -28,7 +28,9 @@ const Promotions      = lazy(() => import("./components/Promotions"))
 const Bundles         = lazy(() => import("./components/Bundles"))
 const Discounts       = lazy(() => import("./components/Discounts"))
 const FloorPlan       = lazy(() => import("./components/FloorPlan"))
-const ReceiptDesigner = lazy(() => import("./components/ReceiptDesigner"))
+const ReceiptDesigner        = lazy(() => import("./components/ReceiptDesigner"))
+const KitchenTicketDesigner  = lazy(() => import("./components/KitchenTicketDesigner"))
+const KitchenDisplay         = lazy(() => import("./components/KitchenDisplay"))
 const Hardware        = lazy(() => import("./components/Hardware"))
 const UsersAccess     = lazy(() => import("./components/UsersAccess"))
 const AuditLog        = lazy(() => import("./components/AuditLog"))
@@ -190,10 +192,12 @@ const NAV = [
   { id:"payments",         label:"Payments & Tax",     icon:"💳" },
   { group:"Operations" },
   { id:"floorplan",        label:"Floor Plan",         icon:"🪑" },
+  { id:"kitchen-display",  label:"Kitchen Display",    icon:"🎫" },
   { group:"System" },
   { id:"import-export",     label:"Import / Export",    icon:"📂" },
   { id:"settings",         label:"Settings",           icon:"⚙️" },
-  { id:"receipt-designer", label:"Receipt Designer",   icon:"🖨" },
+  { id:"receipt-designer",       label:"Receipt Designer",        icon:"🖨" },
+  { id:"kitchen-ticket-designer", label:"Kitchen Ticket Designer", icon:"🎫" },
   { id:"hardware",         label:"Hardware",           icon:"🔧" },
   { id:"users-access",     label:"Users & Access",     icon:"🔑" },
   { id:"audit-log",        label:"Audit Log",          icon:"📜" },
@@ -236,7 +240,9 @@ const SCREENS = {
   payments:          PaymentsTax,
   floorplan:         FloorPlan,
   settings:          Settings,
-  "receipt-designer":ReceiptDesigner,
+  "receipt-designer":         ReceiptDesigner,
+  "kitchen-ticket-designer":  KitchenTicketDesigner,
+  "kitchen-display":          KitchenDisplay,
   hardware:          Hardware,
   "users-access":    UsersAccess,
   "audit-log":       AuditLog,
