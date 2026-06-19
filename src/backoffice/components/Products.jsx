@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase"
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function pct(a,b) { return b>0?Math.round(a/b*100):0 }
 
-const EMPTY = { name:"", cat:"", price:"", desc:"", icon:"🍽", active:true, image_url:null, cogs:0 }
+const EMPTY = { name:"", cat:"", price:"", desc:"", icon:"🍽", active:true, image_url:null, cogs:0, is_consignment:false }
 
 export default function Products() {
   const [products,    setProducts]    = useState([])
@@ -123,15 +123,16 @@ export default function Products() {
     if (!form.name || !form.price) return
     setSaving(true)
     const payload = {
-      name:      form.name.trim(),
-      cat:       form.cat,
-      price:     parseInt(form.price) || 0,
-      cogs:      parseInt(form.cogs) || 0,
-      desc:      form.desc || null,
-      icon:      form.icon || "🍽",
-      active:    form.active !== false,
-      image_url: form.image_url || null,
-      variants:  variants,
+      name:           form.name.trim(),
+      cat:            form.cat,
+      price:          parseInt(form.price) || 0,
+      cogs:           parseInt(form.cogs) || 0,
+      desc:           form.desc || null,
+      icon:           form.icon || "🍽",
+      active:         form.active !== false,
+      image_url:      form.image_url || null,
+      variants:       variants,
+      is_consignment: form.is_consignment || false,
       linked_modifiers: form.linked_modifiers || [],
     }
     if (modal === "add") {
@@ -373,9 +374,16 @@ export default function Products() {
                         }
                       </td>
                       <td>
-                        <span className={"bo-badge "+(p.active?"bo-badge-green":"bo-badge-amber")}>
-                          {p.active?"Active":"Hidden"}
-                        </span>
+                        <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
+                          <span className={"bo-badge "+(p.active?"bo-badge-green":"bo-badge-amber")}>
+                            {p.active?"Active":"Hidden"}
+                          </span>
+                          {p.is_consignment && (
+                            <span style={{ fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:10, background:"#EDE9FE", color:"#6D28D9" }}>
+                              📦 Consign
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <div style={{ display:"flex", gap:4 }}>
@@ -461,10 +469,30 @@ export default function Products() {
               </div>
 
               {/* Available toggle */}
-              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
                 <label className="bo-label" style={{ marginBottom:0 }}>Available in POS</label>
                 <input type="checkbox" checked={form.active!==false} onChange={e=>setForm(f=>({...f,active:e.target.checked}))} style={{ width:16, height:16, accentColor:"var(--brand)" }} />
               </div>
+
+              {/* Consignment toggle */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:16, padding:"10px 12px", background: form.is_consignment ? "#F5F3FF" : "var(--surface)", borderRadius:10, border: form.is_consignment ? "1.5px solid #C4B5FD" : "1px solid var(--surface3)" }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:700, color: form.is_consignment ? "#6D28D9" : "var(--ink)" }}>📦 Consignment Item</div>
+                  <div style={{ fontSize:11, color:"var(--ink5)", marginTop:2 }}>No recipe needed — COGS is set manually. Item sold on behalf of supplier.</div>
+                </div>
+                <div onClick={()=>setForm(f=>({...f, is_consignment:!f.is_consignment}))}
+                  style={{ width:40, height:22, borderRadius:11, background: form.is_consignment ? "#7C3AED" : "var(--surface3)", position:"relative", cursor:"pointer", flexShrink:0, transition:"background 0.2s" }}>
+                  <div style={{ width:18, height:18, borderRadius:"50%", background:"#fff", position:"absolute", top:2, left: form.is_consignment ? 20 : 2, transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.25)" }} />
+                </div>
+              </div>
+              {/* Manual COGS for consignment items */}
+              {form.is_consignment && (
+                <div className="bo-form-row" style={{ marginTop:-8, marginBottom:16 }}>
+                  <label className="bo-label">Consignment COGS per item (Rp)</label>
+                  <input type="number" value={form.cogs||""} onChange={e=>setForm(f=>({...f,cogs:e.target.value}))} className="bo-input" placeholder="e.g. 20000" />
+                  <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>Amount paid to the supplier per unit sold.</div>
+                </div>
+              )}
 
               {/* Variants */}
               <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:14, marginBottom:14 }}>

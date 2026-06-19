@@ -5,8 +5,8 @@ import * as XLSX from "xlsx"
 const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("id-ID")
 const fmtP = n => (Number(n||0)).toFixed(1) + "%"
 
-function statusLabel(cogsP, type) {
-  if (type === "Consignment") return { text:"Pure Profit", color:"#6554C0", bg:"#EEF2FF" }
+function statusLabel(cogsP, type, isConsignment) {
+  if (isConsignment || type === "Consignment") return { text:"Pure Profit", color:"#6554C0", bg:"#EEF2FF" }
   if (cogsP <= 30)  return { text:"Sangat Baik", color:"var(--green)", bg:"var(--green-lt)" }
   if (cogsP <= 35)  return { text:"On Target", color:"#00875A", bg:"#E3FCEF" }
   if (cogsP <= 40)  return { text:"Perlu Pantau", color:"var(--amber)", bg:"#FFF7E6" }
@@ -25,7 +25,8 @@ const toBase = (qty, unit) => (Number(qty)||0) * (UNIT_TO_BASE[unit]||1)
 export default function Profitability() {
   const [products,   setProducts]   = useState([])
   const [loading,    setLoading]    = useState(true)
-  const [target,     setTarget]     = useState(35)
+  const [target,     setTarget]     = useState(() => Number(localStorage.getItem("pl_target_food_cost")) || 35)
+  const [targetInput,setTargetInput]= useState("")
   const [catFilter,  setCatFilter]  = useState("")
   const [statusFilter,setStatusFilter] = useState("")
   const [search,     setSearch]     = useState("")
@@ -42,13 +43,20 @@ export default function Profitability() {
       supabase.from("profitability_settings").select("*").eq("id","main").maybeSingle()
     ])
     setProducts(prods||[])
-    if (settings?.target_food_cost) setTarget(settings.target_food_cost)
+    if (settings?.target_food_cost) {
+      setTarget(settings.target_food_cost)
+      localStorage.setItem("pl_target_food_cost", String(settings.target_food_cost))
+    }
     setLoading(false)
   }
 
   async function saveTarget(val) {
-    setTarget(val)
-    await supabase.from("profitability_settings").upsert({ id:"main", target_food_cost: val })
+    const n = Math.max(1, Math.min(99, Number(val) || 35))
+    setTarget(n)
+    localStorage.setItem("pl_target_food_cost", String(n))
+    try {
+      await supabase.from("profitability_settings").upsert({ id:"main", target_food_cost: n })
+    } catch(e) { /* persisted in localStorage */ }
   }
 
   async function applyPriceChanges() {
@@ -116,7 +124,7 @@ export default function Profitability() {
         "Delta COGS": (newCogsP - cogsP).toFixed(1)+"%",
         "Profit Baru (Rp)": newPrice - cpp,
         ["Recommended @ "+target+"%"]: recPrice,
-        "Status": statusLabel(cogsP, "Regular").text
+        "Status": statusLabel(cogsP, p.cat, p.is_consignment).text
       }
     })
     const ws = XLSX.utils.json_to_sheet(rows)
@@ -131,7 +139,7 @@ export default function Profitability() {
     const cpp   = p.cogs || 0
     const price = p.price || 0
     const cogsP = price > 0 ? (cpp / price * 100) : 0
-    const st    = statusLabel(cogsP, "Regular")
+    const st    = statusLabel(cogsP, p.cat, p.is_consignment)
     const matchCat    = !catFilter || p.cat === catFilter
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase())
     const matchStatus = !statusFilter || st.text === statusFilter
@@ -153,14 +161,26 @@ export default function Profitability() {
           <div style={{ fontSize:13, color:"var(--ink4)" }}>Analyze menu pricing, COGS, and profitability targets</div>
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", background:"#fff", borderRadius:10, border:"1px solid #E8ECF0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 14px", background:"#fff", borderRadius:10, border:"1px solid #E8ECF0", flexWrap:"wrap" }}>
             <span style={{ fontSize:12, fontWeight:700, color:"var(--ink4)" }}>Target Food Cost:</span>
-            {[30,35,40,45].map(t => (
+            {[25,30,35,40,45].map(t => (
               <button key={t} onClick={()=>saveTarget(t)}
                 className={"bo-btn bo-btn-sm "+(target===t?"bo-btn-primary":"bo-btn-ghost")}>
                 {t}%
               </button>
             ))}
+            <div style={{ display:"flex", alignItems:"center", gap:4, marginLeft:4 }}>
+              <input
+                type="number" min={1} max={99}
+                value={targetInput !== "" ? targetInput : ""}
+                placeholder={target + "%"}
+                onChange={e => setTargetInput(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter" && targetInput) { saveTarget(targetInput); setTargetInput("") } }}
+                onBlur={() => { if (targetInput) { saveTarget(targetInput); setTargetInput("") } }}
+                style={{ width:54, padding:"4px 8px", borderRadius:8, border:"1.5px solid var(--surface3)", fontSize:12, textAlign:"center", outline:"none" }}
+              />
+              <span style={{ fontSize:11, color:"var(--ink4)", fontWeight:700 }}>%</span>
+            </div>
           </div>
           <button onClick={syncCogs} disabled={syncing} className="bo-btn bo-btn-ghost">{syncing ? "Syncing..." : "Sync COGS"}</button>
           <button onClick={exportExcel} className="bo-btn bo-btn-ghost">Export Excel</button>
