@@ -23,4 +23,4 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: 7a6d81a46df4ccf1aeffcabef537f177
-          command: pages deploy dist --project-name=pawonloka
+          command: pages deploy dist --project-name=pawonloka --branch=main
