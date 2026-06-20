@@ -3,6 +3,26 @@ import { supabase } from '../lib/supabase'
 import { fmt, TAX_RATE, STAFF, KITCHEN_STATIONS } from '../shared/constants'
 import useCart from './hooks/useCart'
 import useOrders from './hooks/useOrders'
+import useOfflineSync from './hooks/useOfflineSync'
+import { offlineStore } from '../lib/offlineStore'
+
+// Offline-safe write: tries Supabase, queues to IndexedDB if offline
+async function dbWrite(table, op, payload, match = null) {
+  try {
+    let q = supabase.from(table)[op](payload)
+    if (match) Object.entries(match).forEach(([k, v]) => { q = q.eq(k, v) })
+    const { error } = await q
+    if (error) throw error
+    return true
+  } catch {
+    if (!navigator.onLine) {
+      await offlineStore.enqueue({ table, op, payload, match })
+      window.dispatchEvent(new Event('offline-queue-updated'))
+      return true // optimistic — queued
+    }
+    return false // real online error
+  }
+}
 import PinLogin from './components/PinLogin'
 import MenuGrid from './components/MenuGrid'
 import Cart from './components/Cart'
@@ -97,13 +117,24 @@ export default function POS() {
       .then(({data}) => {
         if (data) {
           setAppSettings(data)
+          offlineStore.setCache('app_settings', data)
           if (data.outlet?.logo) prefetchLogo(data.outlet.logo, '80mm')
         }
       })
+      .catch(async () => {
+        const cached = await offlineStore.getCache('app_settings')
+        if (cached) setAppSettings(cached)
+      })
     supabase.from('discounts').select('*').eq('active', true).order('name')
-      .then(({data}) => { if (data) setBackofficeDiscounts(data) })
+      .then(({data}) => { if (data) { setBackofficeDiscounts(data); offlineStore.setCache('discounts', data) } })
+      .catch(async () => { const c = await offlineStore.getCache('discounts'); if (c) setBackofficeDiscounts(c) })
     supabase.from('staff').select('id,name,role,pin,color,active').eq('active', true).order('name')
-      .then(({data}) => { if (data?.length) setStaffList(data) })
+      .then(({data}) => {
+        if (data?.length) {
+          setStaffList(data)
+          localStorage.setItem('pos_staff_cache', JSON.stringify(data))
+        }
+      })
     supabase.from('bundles').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) setBundles(data) })
   }, [])
@@ -139,6 +170,7 @@ export default function POS() {
 
   const { cart, setCart, addItem, updateQty, clearCart, subtotal } = useCart()
   const { orders } = useOrders()
+  const { pendingCount, syncing } = useOfflineSync()
   const [dismissedBills, setDismissedBills] = useState(new Set())
 
   useEffect(() => {
@@ -217,14 +249,31 @@ export default function POS() {
   }
 
   async function loadData() {
-    const [{ data: prods }, { data: cats }, { data: mods }] = await Promise.all([
-      supabase.from('products').select('*').eq('active', true),
-      supabase.from('categories').select('*').order('sort'),
-      supabase.from('modifier_groups').select('*').order('name')
-    ])
-    setProducts(prods || [])
-    setCategories(cats || [])
-    setModifierGroups(mods || [])
+    try {
+      const [{ data: prods, error: e1 }, { data: cats, error: e2 }, { data: mods, error: e3 }] = await Promise.all([
+        supabase.from('products').select('*').eq('active', true),
+        supabase.from('categories').select('*').order('sort'),
+        supabase.from('modifier_groups').select('*').order('name'),
+      ])
+      if (e1 || e2 || e3) throw new Error('fetch failed')
+      setProducts(prods || [])
+      setCategories(cats || [])
+      setModifierGroups(mods || [])
+      // Cache for offline use
+      offlineStore.setCache('products', prods)
+      offlineStore.setCache('categories', cats)
+      offlineStore.setCache('modifier_groups', mods)
+    } catch {
+      // Offline fallback — load from IndexedDB cache
+      const [prods, cats, mods] = await Promise.all([
+        offlineStore.getCache('products'),
+        offlineStore.getCache('categories'),
+        offlineStore.getCache('modifier_groups'),
+      ])
+      if (prods?.length) setProducts(prods)
+      if (cats?.length) setCategories(cats)
+      if (mods?.length) setModifierGroups(mods)
+    }
     setLoading(false)
   }
 
@@ -409,7 +458,7 @@ export default function POS() {
     if (openBillId) {
       // Rebuild item list from cart — cart is source of truth for the full order state
       const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null }))
-      await supabase.from('orders').update({ items: allItems, subtotal, tax, discount: discAmt, total }).eq('id', openBillId)
+      await dbWrite('orders', 'update', { items: allItems, subtotal, tax, discount: discAmt, total }, { id: openBillId })
     } else {
       // Create new open bill
       const orderId = 'ORD-' + Date.now()
@@ -423,16 +472,16 @@ export default function POS() {
         status: 'Open', date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
       }
-      const { error: insertErr } = await supabase.from('orders').insert(order)
-      if (insertErr) { alert('Gagal simpan order: ' + insertErr.message); return }
+      const ok = await dbWrite('orders', 'insert', order)
+      if (!ok) { alert('Gagal simpan order'); return }
       setOpenBillId(orderId)
     }
 
-    // Save kitchen tickets to DB (additions + cancellations)
+    // Save kitchen tickets (offline-safe — queued if no connection)
     const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
     await Promise.all([
       ...Object.entries(stations).map(([station, items]) =>
-        supabase.from('kitchen_tickets').insert({
+        dbWrite('kitchen_tickets', 'insert', {
           id: 'KT-' + crypto.randomUUID(),
           table: tableNo || orderType,
           items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
@@ -441,7 +490,7 @@ export default function POS() {
         })
       ),
       ...Object.entries(cancelStations).map(([station, items]) =>
-        supabase.from('kitchen_tickets').insert({
+        dbWrite('kitchen_tickets', 'insert', {
           id: 'KT-' + crypto.randomUUID(),
           table: tableNo || orderType,
           items: items.map(i => ({ name:i.name, qty:i.qty })),
@@ -681,17 +730,17 @@ export default function POS() {
         const newNote = (prevNotes ? prevNotes + ' | ' : '') + 'SPLIT: ' + payMethod + ' Rp' + finalTotal
         if (isFullyPaid) {
           // All paid — close the bill
-          await supabase.from('orders').update({
+          await dbWrite('orders', 'update', {
             status: 'Paid', pay: payMethod, notes: newNote, total: billTotal,
             cogs: orderCogs, customer_id: customer?.id || null,
-          }).eq('id', openBillId)
-          if (tableNo) await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo)
+          }, { id: openBillId })
+          if (tableNo) await dbWrite('tables', 'update', { status: 'Available' }, { name: tableNo })
           if (customer?.id) {
             const pts = Math.floor(billTotal / 100)
-            await supabase.from('customers').update({ points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }).eq('id', customer.id)
+            await dbWrite('customers', 'update', { points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }, { id: customer.id })
           }
         } else {
-          await supabase.from('orders').update({ notes: newNote }).eq('id', openBillId)
+          await dbWrite('orders', 'update', { notes: newNote }, { id: openBillId })
         }
       }
 
@@ -713,7 +762,7 @@ export default function POS() {
     // FULL PAYMENT — if open bill exists, update it to Paid instead of creating new
     if (openBillId) {
       const now = new Date()
-      await supabase.from('orders').update({
+      await dbWrite('orders', 'update', {
         status: 'Paid', pay: payMethod,
         cash_given: payMethod === 'Cash' ? parseInt(cashGiven) : null,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : null,
@@ -721,20 +770,20 @@ export default function POS() {
         notes: orderNote || null, promo: promoName || null,
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         cogs: orderCogs, customer_id: customer?.id || null,
-      }).eq('id', openBillId)
+      }, { id: openBillId })
 
-      // Update customer points
+      // Update customer points (queued if offline — they get their points when synced)
       if (customer) {
         const pts = Math.floor(finalTotal / 100)
-        await supabase.from('customers').update({
+        await dbWrite('customers', 'update', {
           points: (customer.points || 0) + pts,
           visits: (customer.visits || 0) + 1,
-        }).eq('id', customer.id)
+        }, { id: customer.id })
       }
 
       // Update table back to Available
       if (tableNo) {
-        await supabase.from('tables').update({ status: 'Available', open_bill_id: null }).eq('name', tableNo)
+        await dbWrite('tables', 'update', { status: 'Available', open_bill_id: null }, { name: tableNo })
       }
 
       const fakeOrder = {
@@ -1172,7 +1221,7 @@ export default function POS() {
       )}
 
       {showTablePicker === false && null}
-      <OfflineBar />
+      <OfflineBar pendingCount={pendingCount} syncing={syncing} />
 
     </div>
   )

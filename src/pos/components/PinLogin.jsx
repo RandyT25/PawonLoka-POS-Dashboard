@@ -15,9 +15,20 @@ export default function PinLogin({ onLogin }) {
   const lockoutRef = useRef(null)
 
   useEffect(() => {
+    // Load cached staff immediately so PIN works offline before network responds
+    try {
+      const cached = localStorage.getItem('pos_staff_cache')
+      if (cached) { const s = JSON.parse(cached); if (s?.length) setStaffList(s) }
+    } catch {}
+    // Fetch fresh from Supabase and update cache
     supabase.from('staff').select('id,name,role,pin,color,active,permissions')
       .eq('active', true).order('name')
-      .then(({data}) => { if (data?.length) setStaffList(data) })
+      .then(({data}) => {
+        if (data?.length) {
+          setStaffList(data)
+          localStorage.setItem('pos_staff_cache', JSON.stringify(data))
+        }
+      })
   }, [])
 
   useEffect(() => {
