@@ -20,9 +20,11 @@ export default function Dashboard() {
   const [loading,    setLoading]    = useState(true)
   const [stats,      setStats]      = useState({ sales:0, unpaidSales:0, paidOrders:0, openOrders:0, avgOrder:0, grossProfit:0, prevSales:0, totalProductsSold:0, projection:0, mtdSales:0 })
   const [hourData,   setHourData]   = useState([])
-  const [recent,       setRecent]       = useState([])
-  const [selected,     setSelected]     = useState(null)
-  const [lastUpdated,  setLastUpdated]  = useState(null)
+  const [payments,   setPayments]   = useState([])
+  const [topProds,   setTopProds]   = useState([])
+  const [recent,     setRecent]     = useState([])
+  const [selected,   setSelected]   = useState(null)
+  const [lastUpdated,setLastUpdated]= useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,9 +61,25 @@ export default function Dashboard() {
     const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()
     const proj = day > 0 ? Math.round(totalSales / day * days) : 0
 
+    // Payment method breakdown
+    const pm = {}
+    paid.forEach(o => { const m = o.pay||"Other"; pm[m] = (pm[m]||0)+(o.total||0) })
+    const payArr = Object.entries(pm).map(([method,amount]) => ({ method, amount, pct: totalSales ? Math.round(amount/totalSales*100) : 0 })).sort((a,b) => b.amount-a.amount)
+
+    // Top 5 products by qty
+    const im = {}
+    paid.forEach(o => {
+      const its = typeof o.items==="string" ? JSON.parse(o.items||"[]") : (o.items||o.items_snapshot||[])
+      ;(its||[]).forEach(i => { if(!im[i.name]) im[i.name]={name:i.name,qty:0}; im[i.name].qty+=(i.qty||1) })
+    })
+    const topArr = Object.values(im).sort((a,b)=>b.qty-a.qty).slice(0,5)
+    const maxQty = topArr[0]?.qty||1
+
     setStats({ sales:totalSales, unpaidSales, paidOrders:paid.length, openOrders:open.length, avgOrder, grossProfit:totalSales - totalCogs, totalProductsSold:totalProd, projection:proj, mtdSales:totalSales })
     setHourData(hourArr)
-    setRecent(orders.slice(0, 8))
+    setPayments(payArr)
+    setTopProds(topArr.map(t=>({...t,max:maxQty})))
+    setRecent(orders.slice(0, 20))
     setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate, customDateTo])
@@ -124,44 +142,80 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Secondary KPI row ────────────────────────── */}
-      <div className="bo-dash-kpi" style={{ gap:10, marginBottom:16 }}>
-        {[
-          { label:"Transaksi Lunas", value:stats.paidOrders,        sub:"orders lunas",  color:"#0052CC" },
-          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),     sub:"per transaksi", color:"var(--ink1)" },
-          { label:"Produk Terjual",  value:stats.totalProductsSold, sub:"total items",   color:"#6554C0" },
-          { label:"Open Bills",      value:stats.openOrders,        sub:"belum dibayar", color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)" },
-        ].map(k => (
-          <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
-            <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.4px" }}>{k.label}</div>
-            <div style={{ fontSize:20, fontWeight:900, color:k.color }}>{k.value}</div>
-            <div style={{ fontSize:10, color:"var(--ink5)", marginTop:4 }}>{k.sub}</div>
-          </div>
-        ))}
-      </div>
+      {/* ── 2-column: Chart + Side panel ─────────────── */}
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 340px", gap:12, marginBottom:12 }}>
 
-      {/* ── Sales by Hour ─────────────────────────────── */}
-      <div className="bo-card" style={{ marginBottom:16 }}>
-        <div className="bo-card-title">
-          Sales by Hour
-          {hourData.every(h => h.value === 0) && <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>— no data yet</span>}
+        {/* Sales by Hour — taller, with value labels */}
+        <div className="bo-card" style={{ marginBottom:0 }}>
+          <div className="bo-card-title">
+            Penjualan per Jam
+            {hourData.every(h => h.value === 0) && <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>— belum ada data</span>}
+          </div>
+          <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:130, paddingTop:8 }}>
+            {hourData.map(h => {
+              const pct    = h.maxHour > 0 ? Math.max(3, Math.round(h.value / h.maxHour * 100)) : 3
+              const active = h.value > 0
+              return (
+                <div key={h.hour} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3, height:"100%" }}>
+                  <div style={{ flex:1, display:"flex", alignItems:"flex-end", width:"100%" }}>
+                    <div title={active ? fmt(h.value) : ""} style={{
+                      width:"100%", height: pct + "%", minHeight:3,
+                      borderRadius:"3px 3px 0 0",
+                      background: active ? "var(--brand)" : "var(--surface2)",
+                      transition:"height 0.3s",
+                      cursor: active ? "default" : "default",
+                    }} />
+                  </div>
+                  <span style={{ fontSize:8, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00","")}</span>
+                </div>
+              )
+            })}
+          </div>
         </div>
-        <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:80 }}>
-          {hourData.map(h => {
-            const pct    = h.maxHour > 0 ? Math.max(4, Math.round(h.value / h.maxHour * 100)) : 4
-            const active = h.value > 0
-            return (
-              <div key={h.hour} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <div title={fmt(h.value)} style={{
-                  width:"100%", height: pct * 0.76 + "%", minHeight:4,
-                  borderRadius:"3px 3px 0 0",
-                  background: active ? "var(--brand)" : "var(--surface2)",
-                  transition:"height 0.3s",
-                }} />
-                <span style={{ fontSize:9, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00", "")}</span>
-              </div>
-            )
-          })}
+
+        {/* Side panel: payment methods + top products */}
+        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+          {/* Payment methods */}
+          <div className="bo-card" style={{ marginBottom:0, flex:1 }}>
+            <div className="bo-card-title" style={{ marginBottom:10 }}>Metode Pembayaran</div>
+            {payments.length === 0
+              ? <div style={{ fontSize:12, color:"var(--ink5)" }}>Belum ada transaksi</div>
+              : payments.map(p => (
+                <div key={p.method} style={{ marginBottom:10 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, fontSize:12 }}>
+                    <span style={{ fontWeight:600, color:"var(--ink1)" }}>{p.method}</span>
+                    <span style={{ fontWeight:700, color:"var(--brand)" }}>{p.pct}%</span>
+                  </div>
+                  <div style={{ height:5, background:"var(--surface2)", borderRadius:3, overflow:"hidden" }}>
+                    <div style={{ height:"100%", width:p.pct+"%", background:"var(--brand)", borderRadius:3 }}/>
+                  </div>
+                  <div style={{ fontSize:10, color:"var(--ink5)", marginTop:2 }}>{fmt(p.amount)}</div>
+                </div>
+              ))
+            }
+          </div>
+
+          {/* Top products */}
+          <div className="bo-card" style={{ marginBottom:0, flex:1 }}>
+            <div className="bo-card-title" style={{ marginBottom:10 }}>Top Produk</div>
+            {topProds.length === 0
+              ? <div style={{ fontSize:12, color:"var(--ink5)" }}>Belum ada data</div>
+              : topProds.map((p,i) => (
+                <div key={p.name} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
+                  <div style={{ width:20, height:20, borderRadius:"50%", flexShrink:0, background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9", color:i<3?"#fff":"#64748B", fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center" }}>{i+1}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:2 }}>
+                      <span style={{ fontSize:12, fontWeight:600, color:"var(--ink1)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
+                      <span style={{ fontSize:11, fontWeight:700, color:"var(--brand)", flexShrink:0, marginLeft:6 }}>{p.qty}×</span>
+                    </div>
+                    <div style={{ height:4, background:"var(--surface2)", borderRadius:2, overflow:"hidden" }}>
+                      <div style={{ height:"100%", width:Math.round(p.qty/p.max*100)+"%", background:"var(--brand)", borderRadius:2 }}/>
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
         </div>
       </div>
 
@@ -170,7 +224,7 @@ export default function Dashboard() {
         <div className="bo-card-title">
           Transaksi Terbaru
           <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>
-            {stats.paidOrders} lunas · {stats.openOrders} open · lihat semua di halaman Orders
+            {stats.paidOrders} lunas · {stats.openOrders} open
           </span>
         </div>
         {selected && (
