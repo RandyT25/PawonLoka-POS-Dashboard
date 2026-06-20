@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { fmt, TAX_RATE, KITCHEN_STATIONS } from '../shared/constants'
+import { fmt, KITCHEN_STATIONS } from '../shared/constants'
 import './customer.css'
 
 // ── Modifier Sheet ───────────────────────────────────────────────────────────
@@ -85,6 +85,8 @@ export default function CustomerApp({ tableId }) {
   const [tableRecord, setTableRecord] = useState(null)
   const [ordering, setOrdering] = useState(false)
   const [billRequested, setBillRequested] = useState(false)
+  const [taxRate, setTaxRate] = useState(0)
+  const [outletName, setOutletName] = useState('PawonLoka')
 
   useEffect(() => { load() }, [tableId])
 
@@ -97,11 +99,13 @@ export default function CustomerApp({ tableId }) {
         { data: prods },
         { data: cats },
         { data: mods },
+        { data: settings },
       ] = await Promise.all([
         supabase.from('tables').select('*').eq('name', tableId).maybeSingle(),
         supabase.from('products').select('*').eq('active', true),
         supabase.from('categories').select('*').order('sort'),
         supabase.from('modifier_groups').select('*'),
+        supabase.from('app_settings').select('*').maybeSingle(),
       ])
 
       setTableRecord(tableData)
@@ -109,6 +113,11 @@ export default function CustomerApp({ tableId }) {
       setCategories(cats || [])
       setModifierGroups(mods || [])
       if (cats?.length) setActiveCat(cats[0].name)
+
+      // Read tax rate and outlet name from backoffice settings
+      const pay = settings?.payments
+      setTaxRate(pay?.tax?.enabled ? (pay.tax.rate || 0) / 100 : 0)
+      setOutletName(settings?.outlet?.name || settings?.receipt?.outlet_name || 'PawonLoka')
 
       if (tableData?.open_bill_id) {
         const { data: order } = await supabase
@@ -127,7 +136,7 @@ export default function CustomerApp({ tableId }) {
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0)
-  const tax       = Math.round(subtotal * TAX_RATE)
+  const tax       = Math.round(subtotal * taxRate)
   const total     = subtotal + tax
 
   const visibleProducts = activeCat ? products.filter(p => p.cat === activeCat) : products
@@ -183,7 +192,7 @@ export default function CustomerApp({ tableId }) {
       if (openOrder) {
         const merged = [...(openOrder.items || []), ...orderItems]
         const newSub = merged.reduce((s, i) => s + i.price * i.qty, 0)
-        const newTax = Math.round(newSub * TAX_RATE)
+        const newTax = Math.round(newSub * taxRate)
         await supabase.from('orders').update({
           items: merged, subtotal: newSub, tax: newTax, total: newSub + newTax,
         }).eq('id', openOrder.id)
@@ -321,8 +330,8 @@ export default function CustomerApp({ tableId }) {
             </div>
 
             <div className="cust-bill-totals">
-              <div className="cust-bill-total-row"><span>Subtotal</span><span>{fmt(openOrder.subtotal)}</span></div>
-              <div className="cust-bill-total-row"><span>Pajak (10%)</span><span>{fmt(openOrder.tax)}</span></div>
+              {taxRate > 0 && <div className="cust-bill-total-row"><span>Subtotal</span><span>{fmt(openOrder.subtotal)}</span></div>}
+              {taxRate > 0 && <div className="cust-bill-total-row"><span>Pajak ({Math.round(taxRate*100)}%)</span><span>{fmt(openOrder.tax)}</span></div>}
               <div className="cust-bill-total-row cust-bill-grand"><span>Total</span><span>{fmt(openOrder.total)}</span></div>
             </div>
 
@@ -382,8 +391,8 @@ export default function CustomerApp({ tableId }) {
 
       {cart.length > 0 && (
         <div className="cust-cart-summary">
-          <div className="cust-cart-total-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>
-          <div className="cust-cart-total-row"><span>Pajak (10%)</span><span>{fmt(tax)}</span></div>
+          {taxRate > 0 && <div className="cust-cart-total-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>}
+          {taxRate > 0 && <div className="cust-cart-total-row"><span>Pajak ({Math.round(taxRate*100)}%)</span><span>{fmt(tax)}</span></div>}
           <div className="cust-cart-total-row cust-cart-grand"><span>Total</span><span>{fmt(total)}</span></div>
         </div>
       )}
@@ -414,7 +423,7 @@ export default function CustomerApp({ tableId }) {
       <div className="cust-header">
         <div className="cust-header-logo">🍽️</div>
         <div className="cust-header-info">
-          <div className="cust-header-title">PawonLoka</div>
+          <div className="cust-header-title">{outletName}</div>
           <div className="cust-header-sub">Meja {tableId}</div>
         </div>
         {openOrder ? (
