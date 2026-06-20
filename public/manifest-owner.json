@@ -1,8 +1,10 @@
 {
+  "id": "pawonloka-owner",
   "name": "PawonLoka Owner",
   "short_name": "Owner",
-  "description": "PawonLoka Owner Dashboard — sales, staff & cash flow",
+  "description": "PawonLoka Owner Dashboard — penjualan, staf & arus kas",
   "start_url": "/owner",
+  "scope": "/owner",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0B1120",
@@ -10,7 +12,7 @@
   "icons": [
     { "src": "/logo-owner.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/logo-owner.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/logo.png",       "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png",       "sizes": "512x512", "type": "image/png" }
   ]
 }

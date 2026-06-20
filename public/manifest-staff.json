@@ -1,8 +1,10 @@
 {
+  "id": "pawonloka-staff",
   "name": "PawonLoka Staff",
-  "short_name": "Staff PawonLoka",
-  "description": "PawonLoka Staff Portal",
+  "short_name": "Staff",
+  "description": "PawonLoka Staff Portal — clock in/out & laporan",
   "start_url": "/staff",
+  "scope": "/staff",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#f5f6fa",
@@ -10,7 +12,7 @@
   "icons": [
     { "src": "/logo-staff.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/logo-staff.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/logo.png",       "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png",       "sizes": "512x512", "type": "image/png" }
   ]
 }

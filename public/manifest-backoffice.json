@@ -1,16 +1,18 @@
 {
+  "id": "pawonloka-backoffice",
   "name": "PawonLoka Backoffice",
-  "short_name": "BO PawonLoka",
-  "description": "PawonLoka Restaurant Back Office",
+  "short_name": "Backoffice",
+  "description": "PawonLoka Back Office — manajemen menu, laporan & pengaturan",
   "start_url": "/backoffice",
-  "display": "browser",
+  "scope": "/backoffice",
+  "display": "standalone",
   "orientation": "any",
   "background_color": "#1a1a2e",
   "theme_color": "#1a1a2e",
   "icons": [
     { "src": "/logo-backoffice.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
     { "src": "/logo-backoffice.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
-    { "src": "/logo.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/logo.png", "sizes": "512x512", "type": "image/png" }
+    { "src": "/logo.png",            "sizes": "192x192", "type": "image/png" },
+    { "src": "/logo.png",            "sizes": "512x512", "type": "image/png" }
   ]
 }
