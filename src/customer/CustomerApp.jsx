@@ -161,28 +161,60 @@ export default function CustomerApp({ tableId }) {
 
   const visibleProducts = activeCat ? products.filter(p => p.cat === activeCat) : products
 
+  // Exact same modifier matching logic as the POS
   function getProductMods(product) {
-    if (!product.linked_modifiers?.length) return []
-    return modifierGroups.filter(m => product.linked_modifiers.includes(m.id))
+    const prodCatId = categories.find(c => c.name === product.cat)?.id
+    const hasLinked = Array.isArray(product.linked_modifiers) && product.linked_modifiers.length > 0
+    return hasLinked
+      ? modifierGroups.filter(m => product.linked_modifiers.includes(m.id))
+      : modifierGroups.filter(m => {
+          const hasCatFilter  = Array.isArray(m.linked_cats)     && m.linked_cats.length > 0
+          const hasProdFilter = Array.isArray(m.linked_products)  && m.linked_products.length > 0
+          if (!hasCatFilter && !hasProdFilter) return true
+          if (hasCatFilter  && prodCatId && m.linked_cats.includes(prodCatId)) return true
+          if (hasProdFilter && m.linked_products.includes(product.sku)) return true
+          return false
+        })
   }
 
   function handleTapProduct(product) {
     const mods = getProductMods(product)
-    if (mods.length > 0) setModProduct({ product, mods })
+    if (mods.length > 0) setModProduct({ product: { ...product, _mods: mods }, mods })
     else addToCart(product, {}, '')
   }
 
   function addToCart(product, modifiers, note) {
     setModProduct(null)
-    const key = product.sku + JSON.stringify(modifiers) + (note || '')
+    const mods = product._mods || modifierGroups
+
+    // Extra price from modifier options — same as POS
+    const extraPrice = Object.entries(modifiers).reduce((sum, [modId, optName]) => {
+      const mod = mods.find(m => m.id === modId)
+      const opt = mod?.options?.find(o => (o.name || o) === optName)
+      return sum + (opt?.price || 0)
+    }, 0)
+
+    // Display labels with price suffix — same as POS
+    const displayMods = Object.fromEntries(
+      Object.entries(modifiers).map(([modId, optName]) => {
+        const mod = mods.find(m => m.id === modId)
+        const opt = mod?.options?.find(o => (o.name || o) === optName)
+        const label = opt?.price > 0 ? optName + ' +Rp ' + opt.price.toLocaleString('id-ID') : optName
+        return [modId, label]
+      })
+    )
+
+    const finalPrice = product.price + extraPrice
+    const key = product.sku + JSON.stringify(displayMods) + (note || '')
+
     setCart(prev => {
       const existing = prev.find(i => i._key === key)
       if (existing) return prev.map(i => i._key === key ? { ...i, qty: i.qty + 1 } : i)
       return [...prev, {
         _id: Date.now() + Math.random(), _key: key,
         sku: product.sku, name: product.name,
-        price: product.price, cat: product.cat,
-        qty: 1, modifiers, note: note || '',
+        price: finalPrice, cat: product.cat,
+        qty: 1, modifiers: displayMods, note: note || '',
         icon: product.icon, image_url: product.image_url,
       }]
     })
