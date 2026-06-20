@@ -170,19 +170,19 @@ export default function Dashboard() {
           Sales by Hour
           {hourData.every(h => h.value === 0) && <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>— no data yet</span>}
         </div>
-        <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:80 }}>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:100 }}>
           {hourData.map(h => {
-            const pct    = h.maxHour > 0 ? Math.max(4, Math.round(h.value / h.maxHour * 100)) : 4
+            const barH = h.maxHour > 0 ? Math.max(4, Math.round(h.value / h.maxHour * 84)) : 4
             const active = h.value > 0
             return (
               <div key={h.hour} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-                <div title={fmt(h.value)} style={{
-                  width:"100%", height: pct * 0.76 + "%", minHeight:4,
+                <div title={active ? fmt(h.value) : ""} style={{
+                  width:"100%", height: barH + "px",
                   borderRadius:"3px 3px 0 0",
                   background: active ? "var(--brand)" : "var(--surface2)",
-                  transition:"height 0.3s",
+                  transition:"height 0.4s ease",
                 }} />
-                <span style={{ fontSize:9, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00", "")}</span>
+                <span style={{ fontSize:9, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00","")}</span>
               </div>
             )
           })}
