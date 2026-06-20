@@ -40,6 +40,7 @@ export default function FloorPlan() {
   const [areaModal, setAreaModal] = useState(false)
   const [areaForm,  setAreaForm]  = useState({ old:"", name:"" })
   const [selected,  setSelected]  = useState(new Set())
+  const [qrTable,   setQrTable]   = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -257,8 +258,10 @@ export default function FloorPlan() {
               <div style={{ display:"flex",borderTop:"1px solid #f0f0f0" }}>
                 <button onClick={e=>{e.stopPropagation();openEdit(t)}}
                   style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--brand)",background:"none",border:"none",cursor:"pointer" }}>Edit</button>
+                <button onClick={e=>{e.stopPropagation();setQrTable(t)}}
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"#10B981",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>QR</button>
                 <button onClick={e=>{e.stopPropagation();deleteTable(t.id)}}
-                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--red)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Delete</button>
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--red)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Del</button>
               </div>
             </div>
           ))}
@@ -283,6 +286,7 @@ export default function FloorPlan() {
                     <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:st.bg,color:st.text }}>{t.active!==false?t.status||"Available":"Inactive"}</span></td>
                     <td><div style={{ display:"flex",gap:6 }}>
                       <button onClick={()=>openEdit(t)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
+                      <button onClick={()=>setQrTable(t)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid #10B981",borderRadius:6,background:"none",color:"#10B981",cursor:"pointer" }}>QR</button>
                       <button onClick={()=>deleteTable(t.id)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid var(--red)",borderRadius:6,background:"none",color:"var(--red)",cursor:"pointer" }}>Del</button>
                     </div></td>
                   </tr>
@@ -357,6 +361,34 @@ export default function FloorPlan() {
           </div>
         </div>
       )}
+
+      {/* QR Code Modal */}
+      {qrTable && (() => {
+        const url = `https://pawonloka.pages.dev/q/${encodeURIComponent(qrTable.name)}`
+        const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=16&data=${encodeURIComponent(url)}`
+        return (
+          <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setQrTable(null)}>
+            <div className="bo-modal" style={{ maxWidth:380, textAlign:"center" }}>
+              <div className="bo-modal-header">
+                <div className="bo-modal-title">📱 QR Code — {qrTable.name}</div>
+                <button className="bo-modal-close" onClick={()=>setQrTable(null)}>✕</button>
+              </div>
+              <div className="bo-modal-body" style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:14 }}>
+                <img src={qrImg} alt="QR Code" style={{ width:240,height:240,borderRadius:12,border:"1px solid #E2E8F0" }} />
+                <div style={{ fontSize:11,color:"#6B778C",wordBreak:"break-all",background:"#F4F5F7",padding:"8px 12px",borderRadius:8,width:"100%",boxSizing:"border-box" }}>
+                  {url}
+                </div>
+                <div style={{ fontSize:12,color:"#6B778C" }}>Tempel QR ini di meja <strong>{qrTable.name}</strong> agar pelanggan bisa scan dan pesan langsung.</div>
+              </div>
+              <div className="bo-modal-footer" style={{ justifyContent:"center",gap:8 }}>
+                <button onClick={()=>{ const a=document.createElement('a'); a.href=qrImg.replace('280x280','600x600'); a.download=`QR-${qrTable.name}.png`; a.target='_blank'; a.click() }}
+                  className="bo-btn bo-btn-primary">⬇ Download QR</button>
+                <button onClick={()=>window.open(url,'_blank')} className="bo-btn bo-btn-ghost">🔗 Buka Link</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Add/Edit Modal */}
       {modal && (
