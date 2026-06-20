@@ -165,19 +165,24 @@ export default function StaffPortal() {
   }
 
   async function submitProduction() {
-    if (!prodBatchQty) { alert("Enter batch quantity"); return }
-    const validUsed = prodUsed.filter(u=>u.ingredient_id&&parseFloat(u.qty)>0)
-    if (!validUsed.length) { alert("Add ingredients used"); return }
-    const sub = subRecipes.find(s=>s.id===prodSubId)
+    if (!prodSubId) { alert("Pilih resep terlebih dahulu"); return }
+    if (!prodBatchQty || parseFloat(prodBatchQty) <= 0) { alert("Masukkan jumlah batch"); return }
+    const sub     = subRecipes.find(s => s.id === prodSubId)
+    const lines   = subRecipeIngs.filter(l => l.sub_recipe_id === prodSubId)
+    const batches = parseFloat(prodBatchQty)
+    const ingredients_used = lines.map(l => {
+      const ing = ingredients.find(i => i.id === l.ingredient_id)
+      return { ingredient_id:l.ingredient_id, name:ing?.name||"", qty:l.qty*batches, unit:l.unit||ing?.unit||"" }
+    })
     await submit("production", {
-      sub_recipe_id: prodSubId||null,
-      item_name: sub?.name||"Custom Production",
-      batch_qty: parseFloat(prodBatchQty),
-      actual_yield: parseFloat(prodYield)||parseFloat(prodBatchQty),
-      yield_unit: prodYieldUnit,
-      notes: prodNotes+(!prodSubId?" [NEW RECIPE - needs review]":""),
-      needs_recipe_review: !prodSubId,
-      ingredients_used: validUsed.map(u=>({ ingredient_id:u.ingredient_id, name:u.name||ingredients.find(i=>i.id===u.ingredient_id)?.name||"", qty:parseFloat(u.qty), unit:u.unit }))
+      sub_recipe_id: prodSubId,
+      item_name: sub?.name || "",
+      batch_qty: batches,
+      actual_yield: (sub?.yield_qty||1) * batches,
+      yield_unit: sub?.yield_unit || sub?.unit || "gr",
+      notes: prodNotes,
+      needs_recipe_review: false,
+      ingredients_used
     })
   }
 
@@ -363,7 +368,17 @@ export default function StaffPortal() {
   )
 
   if (screen==="production") {
-    const selectedSub = subRecipes.find(s=>s.id===prodSubId)
+    const selectedSub = subRecipes.find(s => s.id === prodSubId)
+    const batchQty    = parseFloat(prodBatchQty) || 0
+    const recipeLines = prodSubId ? subRecipeIngs.filter(l => l.sub_recipe_id === prodSubId) : []
+    const preview     = recipeLines.map(l => {
+      const ing   = ingredients.find(i => i.id === l.ingredient_id)
+      const total = l.qty * batchQty
+      return { name:ing?.name||"", perBatch:l.qty, unit:l.unit||ing?.unit||"", total, cost:total*(ing?.cost_per_unit||0) }
+    })
+    const totalCost = preview.reduce((s,p) => s+p.cost, 0)
+    const canSubmit = !saving && prodSubId && batchQty > 0
+
     return (
       <div style={s.wrap}>
         <div style={s.header}>
@@ -371,61 +386,87 @@ export default function StaffPortal() {
           <span style={{ fontSize:17, fontWeight:800 }}>Production Batch</span>
         </div>
         <div style={s.body}>
+
+          {/* Staff */}
           <div style={s.card}>
             <StaffPicker station={station} value={staffName} onChange={setStaffName} />
           </div>
+
+          {/* Step 1 — Recipe selector */}
           <div style={s.card}>
-            <label style={s.label}>What are you producing?</label>
+            <label style={s.label}>Resep yang dibuat *</label>
             <SearchableSelect
-              options={[...subRecipes.map(s=>({id:s.id,name:s.name})), {id:"__custom__",name:"Something not in the list..."}]}
-              value={prodSubId} onChange={v=>{ if(v==="__custom__"){setProdSubId("");setProdUsed([{ingredient_id:"",qty:"",unit:"",name:""}])}else selectSubRecipe(v) }}
-              placeholder="— Search sub-recipe —"
+              options={subRecipes.map(r => ({ id:r.id, name:r.name }))}
+              value={prodSubId}
+              onChange={v => selectSubRecipe(v)}
+              placeholder="— Pilih resep —"
             />
             {selectedSub && (
               <div style={{ marginTop:8, padding:"8px 12px", background:"#f0fff8", borderRadius:8, fontSize:12, color:"#00875A", fontWeight:700 }}>
-                Recipe loaded — {selectedSub.yield_qty} {selectedSub.yield_unit||"gr"} per batch
+                1 batch = {selectedSub.yield_qty} {selectedSub.yield_unit||"gr"} {selectedSub.name}
+              </div>
+            )}
+            {!subRecipes.length && (
+              <div style={{ fontSize:12, color:"#999", marginTop:8 }}>
+                Belum ada resep. Minta manager tambahkan di Backoffice → Recipes.
               </div>
             )}
           </div>
-          <div style={s.card}>
-            <label style={s.label}>Batch Quantity *</label>
-            <input type="number" inputMode="decimal" value={prodBatchQty} onChange={e=>setProdBatchQty(e.target.value)} style={s.input} placeholder="How many batches?" />
-            <label style={{ ...s.label, marginTop:14 }}>Actual Yield (Total Output)</label>
-            <div style={{ display:"flex", gap:10 }}>
-              <input type="number" inputMode="decimal" value={prodYield} onChange={e=>setProdYield(e.target.value)} style={{ ...s.input, flex:1 }} placeholder={selectedSub?.yield_qty||"e.g. 1500"} />
-              <input value={prodYieldUnit} onChange={e=>setProdYieldUnit(e.target.value)} style={{ ...s.input, width:80 }} placeholder="gr" />
-            </div>
-          </div>
-          <div style={s.card}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
-              <div>
-                <div style={{ fontSize:14, fontWeight:700 }}>Ingredients Used *</div>
-                {selectedSub && <div style={{ fontSize:11, color:"#888", marginTop:2 }}>Auto-filled from recipe. Adjust if needed.</div>}
-              </div>
-              <button onClick={()=>setProdUsed(u=>[...u,{ingredient_id:"",qty:"",unit:"",name:""}])} style={{ background:"#f0f0f0", border:"none", borderRadius:8, padding:"5px 12px", fontSize:13, cursor:"pointer", fontWeight:600 }}>+ Add</button>
-            </div>
-            {prodUsed.map((u,i)=>(
-              <div key={i} style={{ display:"flex", gap:8, marginBottom:10, alignItems:"center" }}>
-                <div style={{ flex:2 }}>
-                  <SearchableSelect options={ingredients} value={u.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||"",name:ing?.name||""}:x)) }} placeholder="— Ingredient —" />
-                </div>
-                <input type="number" inputMode="decimal" value={u.qty} onChange={e=>setProdUsed(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, width:70, fontSize:14 }} placeholder="Qty" />
-                <span style={{ fontSize:11, color:"#888", minWidth:24 }}>{u.unit}</span>
-                <button onClick={()=>setProdUsed(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:20, cursor:"pointer", padding:0 }}>✕</button>
-              </div>
-            ))}
-            {prodUsed.length===0 && <div style={{ fontSize:13, color:"#999", textAlign:"center", padding:"12px 0" }}>Select a recipe above or add ingredients manually</div>}
-          </div>
-          <div style={s.card}>
-            <label style={s.label}>Notes</label>
-            <input value={prodNotes} onChange={e=>setProdNotes(e.target.value)} style={s.input} placeholder={!prodSubId?"Describe what you are making (for review)":"Optional notes"} />
-          </div>
-          {!prodSubId && (
-            <div style={{ padding:"10px 14px", background:"#fff8e1", borderRadius:10, marginBottom:12, fontSize:12, color:"#8a6000" }}>
-              No recipe selected — this will be sent for manager review before stock is updated.
+
+          {/* Step 2 — Batch count */}
+          {selectedSub && (
+            <div style={s.card}>
+              <label style={{ ...s.label, marginBottom:10 }}>Berapa batch yang dibuat hari ini? *</label>
+              <input
+                type="number" inputMode="decimal"
+                value={prodBatchQty}
+                onChange={e => setProdBatchQty(e.target.value)}
+                style={{ ...s.input, fontSize:32, fontWeight:900, textAlign:"center", padding:18 }}
+                placeholder="0"
+              />
             </div>
           )}
-          <button onClick={submitProduction} disabled={saving} style={{ ...s.btn, background:"#00875A", color:"#fff" }}>{saving?"Submitting...":"Submit Production"}</button>
+
+          {/* Step 3 — Read-only ingredient preview */}
+          {selectedSub && batchQty > 0 && preview.length > 0 && (
+            <div style={s.card}>
+              <div style={{ fontSize:13, fontWeight:700, marginBottom:10, color:"#444" }}>
+                📋 Bahan yang akan dipakai
+                <span style={{ fontSize:11, fontWeight:400, color:"#999", marginLeft:6 }}>otomatis dari resep × {batchQty} batch</span>
+              </div>
+              {preview.map((p,i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"9px 0", borderBottom:"1px solid #f5f5f5" }}>
+                  <span style={{ fontSize:13, fontWeight:600, color:"#222" }}>{p.name}</span>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ fontSize:11, color:"#aaa" }}>{p.perBatch} × {batchQty}</div>
+                    <div style={{ fontSize:14, fontWeight:800, color:"#00875A" }}>{p.total} {p.unit}</div>
+                  </div>
+                </div>
+              ))}
+              {totalCost > 0 && (
+                <div style={{ marginTop:10, padding:"9px 13px", background:"#f0fff8", borderRadius:9, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                  <span style={{ fontSize:12, fontWeight:700, color:"#00875A" }}>Estimasi biaya</span>
+                  <span style={{ fontSize:15, fontWeight:900, color:"#00875A" }}>Rp {Number(totalCost).toLocaleString("id-ID")}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Notes */}
+          {selectedSub && (
+            <div style={s.card}>
+              <label style={s.label}>Catatan (opsional)</label>
+              <input value={prodNotes} onChange={e=>setProdNotes(e.target.value)} style={s.input} placeholder="Tambah catatan jika perlu..." />
+            </div>
+          )}
+
+          <button
+            onClick={submitProduction}
+            disabled={!canSubmit}
+            style={{ ...s.btn, background:canSubmit?"#00875A":"#ccc", color:"#fff" }}
+          >
+            {saving ? "Mengirim..." : "Kirim Laporan Produksi"}
+          </button>
         </div>
       </div>
     )
