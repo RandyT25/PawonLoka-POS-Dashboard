@@ -94,34 +94,43 @@ export default function Dashboard() {
     <div>
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
-      {/* ── Hero KPI row ─────────────────────────────── */}
-      <div className="bo-dash-hero" style={{ gap:12, marginBottom:12 }}>
-        <div style={{ background:"linear-gradient(135deg,#0052CC,#0066FF)", borderRadius:14, padding:"20px 24px", color:"#fff" }}>
-          <div style={{ fontSize:11, fontWeight:700, opacity:0.8, marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Total Penjualan</div>
-          <div style={{ fontSize:28, fontWeight:900, letterSpacing:"-0.5px", marginBottom:4 }}>{fmt(stats.sales)}</div>
-          <div style={{ fontSize:11, opacity:0.75 }}>
-            {range === "today" ? `Proyeksi Bulan Ini: ${fmt(stats.projection)}` : `${stats.paidOrders} transaksi lunas`}
+      {/* ── Hero ─────────────────────────────────────── */}
+      <div style={{ background:"linear-gradient(135deg,#0A1628,#0052CC)", borderRadius:16, padding:"22px 24px", color:"#fff", marginBottom:12 }}>
+        {/* Grand total */}
+        <div style={{ fontSize:11, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:4 }}>Total Keseluruhan</div>
+        <div style={{ fontSize:34, fontWeight:900, letterSpacing:"-1px", marginBottom:2 }}>{fmt(stats.sales + stats.unpaidSales)}</div>
+        <div style={{ fontSize:11, opacity:0.45, marginBottom:18 }}>Sudah dibayar + belum dibayar</div>
+
+        {/* Sudah / Belum row */}
+        <div style={{ display:"flex", gap:24, flexWrap:"wrap", marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.6, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>✓ Sudah Dibayar</div>
+            <div style={{ fontSize:22, fontWeight:900 }}>{fmt(stats.sales)}</div>
+            <div style={{ fontSize:11, opacity:0.5, marginTop:1 }}>{stats.paidOrders} transaksi lunas</div>
+          </div>
+          <div style={{ width:1, background:"rgba(255,255,255,0.15)", alignSelf:"stretch" }}/>
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.6, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>⏳ Belum Dibayar</div>
+            <div style={{ fontSize:22, fontWeight:900, color: stats.unpaidSales > 0 ? "#FCD34D" : "rgba(255,255,255,0.3)" }}>{fmt(stats.unpaidSales)}</div>
+            <div style={{ fontSize:11, opacity:0.5, marginTop:1 }}>{stats.openOrders} open bill</div>
           </div>
         </div>
-        <div style={{ background:"#fff", borderRadius:14, padding:"20px 20px", border:"1.5px solid #FFF0B3" }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#FF8B00", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Belum Dibayar</div>
-          <div style={{ fontSize:24, fontWeight:900, color:"#FF8B00", marginBottom:4 }}>{fmt(stats.unpaidSales)}</div>
-          <div style={{ fontSize:11, color:"#FF8B00", opacity:0.7 }}>{stats.openOrders} open bill</div>
-        </div>
-        <div style={{ background:"#fff", borderRadius:14, padding:"20px 20px", border:"1.5px solid #ABF5D1" }}>
-          <div style={{ fontSize:11, fontWeight:700, color:"#00875A", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Gross Profit</div>
-          <div style={{ fontSize:24, fontWeight:900, color:stats.grossProfit >= 0 ? "#00875A" : "#DC2626", marginBottom:4 }}>{fmt(stats.grossProfit)}</div>
-          <div style={{ fontSize:11, color:"#00875A", opacity:0.7 }}>Margin {margin}%</div>
+
+        {/* Meta bar */}
+        <div style={{ display:"flex", gap:16, flexWrap:"wrap", fontSize:11, borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:12 }}>
+          <span style={{ opacity:0.6 }}>Avg/Transaksi <strong style={{ opacity:1 }}>{fmt(stats.avgOrder)}</strong></span>
+          <span style={{ opacity:0.6 }}>Gross Profit <strong style={{ opacity:1, color: stats.grossProfit >= 0 ? "#86EFAC" : "#FCA5A5" }}>{fmt(stats.grossProfit)}</strong> <span style={{ opacity:0.7 }}>({margin}%)</span></span>
+          <span style={{ opacity:0.6 }}>Proyeksi Bulan Ini <strong style={{ opacity:1 }}>{fmt(stats.projection)}</strong></span>
         </div>
       </div>
 
       {/* ── Secondary KPI row ────────────────────────── */}
       <div className="bo-dash-kpi" style={{ gap:10, marginBottom:16 }}>
         {[
-          { label:"Transaksi",       value:stats.paidOrders,         sub:"orders lunas",     color:"#0052CC" },
-          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),      sub:"per transaksi",    color:"var(--ink1)" },
-          { label:"Produk Terjual",  value:stats.totalProductsSold,  sub:"total items",      color:"#6554C0" },
-          { label:"Open Bills",      value:stats.openOrders,         sub:"belum dibayar",    color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)" },
+          { label:"Transaksi Lunas", value:stats.paidOrders,        sub:"orders lunas",  color:"#0052CC" },
+          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),     sub:"per transaksi", color:"var(--ink1)" },
+          { label:"Produk Terjual",  value:stats.totalProductsSold, sub:"total items",   color:"#6554C0" },
+          { label:"Open Bills",      value:stats.openOrders,        sub:"belum dibayar", color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)" },
         ].map(k => (
           <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
             <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.4px" }}>{k.label}</div>
