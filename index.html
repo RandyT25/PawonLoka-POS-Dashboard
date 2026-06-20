@@ -65,14 +65,7 @@
     <script>
     let deferredPrompt = null
     window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault()
-      deferredPrompt = e
-      var banner = document.getElementById('pwa-banner')
-      banner.style.display = 'flex'
-      var t = document.getElementById('pwa-banner-title')
-      if (t && window.__PWA_NAME__) t.textContent = 'Install ' + window.__PWA_NAME__
-      var img = document.getElementById('pwa-banner-logo')
-      if (img && window.__PWA_LOGO__) img.src = window.__PWA_LOGO__
+      e.preventDefault() // suppress browser install prompt everywhere
     })
     window.installPWA = async () => {
       if (deferredPrompt) {

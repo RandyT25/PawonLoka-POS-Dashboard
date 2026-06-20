@@ -1,13 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { supabase } from "../lib/supabase"
 
-// Suppress PWA install prompt on desktop
-if (typeof window !== "undefined") {
-  window.addEventListener("beforeinstallprompt", e => {
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
-    if (!isMobile) e.preventDefault()
-  })
-}
 import "./backoffice.css"
 
 // Lazy-load all tab components — only the active tab is downloaded
