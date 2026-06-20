@@ -37,6 +37,9 @@ export default function POS() {
   const [modifierGroups, setModifierGroups] = useState([])
   const [loading, setLoading]       = useState(true)
   const [tableNo, setTableNo]       = useState(() => sessionStorage.getItem('pos_table') || '')
+  const [pax, setPax]               = useState(0)
+  const [showPaxModal, setShowPaxModal] = useState(false)
+  const [pendingTable, setPendingTable] = useState(null)
   const [customer, setCustomer]     = useState(null)
   const [discount, setDiscount]     = useState(0)
   const [orderType, setOrderType]     = useState('Dine-in')
@@ -289,6 +292,7 @@ export default function POS() {
   async function recallFromOrder(order) {
     setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '', _printedQty: i.qty })))
     setTableNo(order.table || '')
+    setPax(order.pax || 0)
     setOpenBillId(order.id)
     if (order.customer_id) {
       const { data: cust } = await supabase.from('customers').select('*').eq('id', order.customer_id).maybeSingle()
@@ -317,8 +321,11 @@ export default function POS() {
         if (data) { recallFromOrder(data); setOrderType('Dine-in'); setShowFloorPlan(false) }
       })
     } else {
-      clearCart(); setTableNo(table.name); setOrderType('Dine-in')
+      clearCart(); setOrderType('Dine-in')
       setCustomer(null); setOpenBillId(null); setShowFloorPlan(false)
+      setPendingTable(table.name)
+      setPax(0)
+      setShowPaxModal(true)
     }
   }
 
@@ -411,6 +418,7 @@ export default function POS() {
         items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal, tax, discount: discAmt, total,
         pay: '-', staff: staff.name, table: tableNo || null,
+        pax: pax || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
@@ -607,7 +615,7 @@ export default function POS() {
         // Last item removed — delete the empty order and reset POS
         await supabase.from('orders').delete().eq('id', openBillId)
         if (tableNo) await supabase.from('tables').update({ status:'Available', open_bill_id:null }).eq('name', tableNo)
-        setOpenBillId(null); setTableNo(''); setCustomer(null); setDiscount(0)
+        setOpenBillId(null); setTableNo(''); setPax(0); setCustomer(null); setDiscount(0)
       } else {
         const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
         const discA = discount ? Math.round(sub*discount/100) : 0
@@ -639,7 +647,7 @@ export default function POS() {
         // Cart is now empty — delete the order and reset POS
         await supabase.from('orders').delete().eq('id', openBillId)
         if (tableNo) await supabase.from('tables').update({ status:'Available', open_bill_id:null }).eq('name', tableNo)
-        setOpenBillId(null); setTableNo(''); setCustomer(null); setDiscount(0)
+        setOpenBillId(null); setTableNo(''); setPax(0); setCustomer(null); setDiscount(0)
       } else {
         const sub = newCart.reduce((a,i) => a + i.price*i.qty, 0)
         const discA = discount ? Math.round(sub*discount/100) : 0
@@ -741,7 +749,7 @@ export default function POS() {
         subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), discount: discAmt + promoDisc,
         payments: [{ method: payMethod, amount: finalTotal }],
       }
-      clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
+      clearCart(); setCustomer(null); setTableNo(''); setPax(0); setDiscount(0)
       setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
       setDeliveryAddr(''); setAppliedPromo(null); setSplitPaid(0)
       return fakeOrder
@@ -772,7 +780,7 @@ export default function POS() {
       await supabase.from('customers').update({ points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }).eq('id', customer.id)
     }
     await deductStock(cart)
-    clearCart(); setCustomer(null); setTableNo(''); setDiscount(0)
+    clearCart(); setCustomer(null); setTableNo(''); setPax(0); setDiscount(0)
     setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
     setDeliveryAddr(''); setAppliedPromo(null); setSplitPaid(0)
     return newOrder
@@ -853,7 +861,7 @@ export default function POS() {
           <div style={{ position:'relative' }}>
             <button onClick={() => setShowFloorPlan(true)}
               style={{ ...S.headerBtn, background: tableNo ? '#10B981' : 'rgba(255,255,255,0.15)', color:'white', fontWeight:700 }}>
-              {tableNo || 'Table'}
+              {tableNo || 'Table'}{tableNo && pax > 0 ? ` · ${pax}px` : ''}
             </button>
             {showTablePicker && (
               <TablePicker
@@ -959,6 +967,37 @@ export default function POS() {
           Cart {cart.length > 0 && <span style={{ background:"#fff", color:"#0066FF", borderRadius:12, padding:"1px 7px", fontSize:12, fontWeight:800, marginLeft:4 }}>{cart.reduce((s,i)=>s+i.qty,0)}</span>}
         </button>
       </div>
+
+      {showPaxModal && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(9,22,48,0.7)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}>
+          <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:360, padding:24 }}>
+            <div style={{ fontSize:18, fontWeight:900, color:'#0A1628', marginBottom:4 }}>Meja {pendingTable}</div>
+            <div style={{ fontSize:13, color:'#6B7A8D', marginBottom:20 }}>Berapa jumlah tamu?</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10, marginBottom:20 }}>
+              {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
+                <button key={n} onClick={() => setPax(n)}
+                  style={{ padding:'14px 0', borderRadius:12, border:'2px solid', fontSize:16, fontWeight:800, cursor:'pointer',
+                    borderColor: pax===n ? '#0A1628' : '#E2E8F0',
+                    background: pax===n ? '#0A1628' : 'white',
+                    color: pax===n ? 'white' : '#0A1628' }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => { setTableNo(pendingTable); setShowPaxModal(false); setPendingTable(null) }}
+                style={{ flex:1, padding:14, borderRadius:12, border:'1.5px solid #E2E8F0', background:'white', color:'#6B7A8D', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                Lewati
+              </button>
+              <button onClick={() => { setTableNo(pendingTable); setShowPaxModal(false); setPendingTable(null) }}
+                disabled={pax === 0}
+                style={{ flex:2, padding:14, borderRadius:12, border:'none', background: pax===0 ? '#E2E8F0' : '#0A1628', color: pax===0 ? '#94A3B8' : 'white', fontSize:14, fontWeight:800, cursor: pax===0 ? 'not-allowed' : 'pointer' }}>
+                {pax > 0 ? `Mulai · ${pax} Tamu` : 'Pilih jumlah tamu'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {modifierItem && (
         <ModifierModal
