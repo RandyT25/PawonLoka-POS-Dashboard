@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import "./owner.css"
+import CalendarRangePicker from "../backoffice/components/CalendarRangePicker"
 
 /* ─── helpers ─── */
 function fmt(n)  { return "Rp " + Number(n||0).toLocaleString("id-ID") }
@@ -271,33 +272,34 @@ function NotifBell({ notifications, setNotifications }) {
 }
 
 /* ─── Dashboard Screen ─── */
-function DateRangeBar({ range, setRange, customDate, setCustomDate, loading, lastUpdated, onRefresh }) {
-  const dateRef = useRef(null)
-  const customLabel = customDate
-    ? new Date(customDate+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"})
-    : "Pilih Tanggal"
-  function openPicker() {
-    const el = dateRef.current
-    if (!el) return
-    if (el.showPicker) { try { el.showPicker() } catch(e) { el.click() } } else { el.click() }
-  }
+function DateRangeBar({ range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, loading, lastUpdated, onRefresh }) {
+  const [showCal, setShowCal] = useState(false)
+
+  const fmtD = d => new Date(d+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short"})
+  const rangeLabel = range==="custom" && customDate
+    ? (customDateTo && customDateTo!==customDate ? fmtD(customDate)+" → "+fmtD(customDateTo) : fmtD(customDate))
+    : "Tanggal"
+
   return (
+    <>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
       <div className="ow-range-group">
         {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
           <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
         ))}
-        {/* date picker — button triggers hidden input via showPicker() */}
         <button className={"ow-range-btn ow-range-date"+(range==="custom"?" active":"")}
-          onClick={openPicker} title="Pilih tanggal spesifik">
+          onClick={()=>setShowCal(true)} title="Pilih rentang tanggal">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{flexShrink:0}}>
             <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          {range==="custom" ? customLabel : "Tanggal"}
+          {rangeLabel}
         </button>
-        <input ref={dateRef} type="date" value={customDate} max={today()}
-          onChange={e=>{ if(e.target.value){ setCustomDate(e.target.value); setRange("custom") } }}
-          style={{position:"absolute",opacity:0,pointerEvents:"none",width:0,height:0}}/>
+        {range==="custom" && (
+          <button onClick={()=>setRange("today")}
+            style={{background:"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",color:"#94A3B8"}}>
+            ✕
+          </button>
+        )}
       </div>
       <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
         {loading ? (
@@ -319,10 +321,19 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, loading, las
         <span style={{fontSize:11,color:"#94A3B8"}}>{new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long"})}</span>
       </div>
     </div>
+    {showCal && (
+      <CalendarRangePicker
+        initialFrom={customDate}
+        initialTo={customDateTo}
+        onSave={(from, to) => { setCustomDate(from); setCustomDateTo?.(to); setRange("custom"); setShowCal(false) }}
+        onClose={() => setShowCal(false)}
+      />
+    )}
+    </>
   )
 }
 
-function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, lastUpdated, onRefresh, stats, hourData, payments, topItems, slowItems, recent }) {
+function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, loading, lastUpdated, onRefresh, stats, hourData, payments, topItems, slowItems, recent }) {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
   const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
@@ -333,7 +344,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
 
   return (
     <div style={{maxWidth:1100}}>
-      <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={onRefresh}/>
+      <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={onRefresh}/>
 
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
@@ -549,7 +560,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, loading, 
 }
 
 /* ─── Karyawan Screen ─── */
-function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, customDate, setCustomDate, demo }) {
+function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, demo }) {
   const now = Date.now()
   const salesMax = Math.max(...staffData.map(s=>s.sales), 1)
 
@@ -707,7 +718,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
           Performa Penjualan per Karyawan
           <span className="ow-card-title-sub">auto-update dari POS</span>
         </div>
-        <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={false}/>
+        <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={false}/>
 
         {staffData.length===0 ? (
           <div className="ow-empty">Belum ada data penjualan. Aktifkan Demo untuk melihat contoh.</div>
@@ -994,7 +1005,7 @@ const NAV = [
 ]
 
 /* ─── Data hook ─── */
-function useOwnerData(range, demo, customDate) {
+function useOwnerData(range, demo, customDate, customDateTo) {
   const [loading,        setLoading]        = useState(true)
   const [lastUpdated,    setLastUpdated]    = useState(null)
   const [stats,          setStats]          = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
@@ -1008,7 +1019,7 @@ function useOwnerData(range, demo, customDate) {
   const [staffList,      setStaffList]      = useState([])
   const [todayAtt,       setTodayAtt]       = useState([])
 
-  useEffect(()=>{ load() },[range,demo,customDate])
+  useEffect(()=>{ load() },[range,demo,customDate,customDateTo])
 
   // loadRef always points to the latest load — avoids stale closure in intervals/channels
   const loadRef = useRef(load)
@@ -1020,7 +1031,7 @@ function useOwnerData(range, demo, customDate) {
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>loadRef.current())
       .subscribe()
     return ()=>supabase.removeChannel(ch)
-  },[range,demo,customDate])
+  },[range,demo,customDate,customDateTo])
 
   // 10-second polling + immediate reload when tab becomes visible
   useEffect(()=>{
@@ -1072,7 +1083,7 @@ function useOwnerData(range, demo, customDate) {
       let fromStr="", toStr=""
       if (range==="custom") {
         fromStr=customDate+"T00:00:00+08:00"
-        toStr=customDate+"T23:59:59+08:00"
+        toStr=(customDateTo||customDate)+"T23:59:59+08:00"
       } else {
         const now=new Date(), from=new Date()
         if (range==="today") { from.setHours(0,0,0,0) }
@@ -1102,7 +1113,7 @@ function useOwnerData(range, demo, customDate) {
       if(range==="today") return d===td
       if(range==="week")  return d>=wk
       if(range==="month") return d>=mo
-      if(range==="custom")return d===customDate
+      if(range==="custom")return d>=customDate && d<=(customDateTo||customDate)
       return true
     }
 
@@ -1184,6 +1195,7 @@ export default function OwnerApp() {
   const [screen,      setScreen]      = useState("dashboard")
   const [range,       setRange]       = useState("today")
   const [customDate,  setCustomDate]  = useState(today())
+  const [customDateTo,setCustomDateTo]= useState(today())
   const [demo,        setDemo]        = useState(false)
   const [notifications, setNotifications] = useState([])
   const [mobileMenu,  setMobileMenu]  = useState(false)
@@ -1209,7 +1221,7 @@ export default function OwnerApp() {
 
   useEffect(()=>{ contentRef.current?.scrollTo(0,0) },[screen])
 
-  const {loading,lastUpdated,refresh,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate)
+  const {loading,lastUpdated,refresh,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate,customDateTo)
 
   /* realtime notifications — orders + attendance */
   useEffect(()=>{
@@ -1312,9 +1324,9 @@ export default function OwnerApp() {
           </div>
 
           <div className="owner-content" ref={contentRef}>
-            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
+            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
             {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
-            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} demo={demo}/>}
+            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} demo={demo}/>}
             {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
           </div>
         </main>
