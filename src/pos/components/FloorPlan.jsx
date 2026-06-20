@@ -10,6 +10,7 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
   const [actionMenu,setActionMenu]= useState(null) // { table }
   const [mergeMode, setMergeMode] = useState(null) // source table
   const [moveMode,  setMoveMode]  = useState(null) // source table
+  const [qrTable,   setQrTable]   = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -257,12 +258,38 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
                 <button onClick={()=>{ handleSplit(actionMenu); setActionMenu(null) }}
                   style={S.menuBtn('#8B5CF6')}>Split Table</button>
               )}
+              <button onClick={()=>{ setQrTable(actionMenu); setActionMenu(null) }}
+                style={S.menuBtn('#10B981')}>📱 QR Customer</button>
               <button onClick={()=>setActionMenu(null)}
                 style={{ ...S.menuBtn('#F1F5F9'), color:'#6B7A8D' }}>Cancel</button>
             </div>
           </div>
         </div>
       )}
+
+      {/* QR Code Modal */}
+      {qrTable && (() => {
+        const url   = `https://pawonloka.pages.dev/q/${encodeURIComponent(qrTable.name)}`
+        const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=14&data=${encodeURIComponent(url)}`
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(9,22,48,0.6)', zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+            onClick={() => setQrTable(null)}>
+            <div style={{ background:'white', borderRadius:20, width:'100%', maxWidth:340, padding:24, textAlign:'center' }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ fontSize:16, fontWeight:900, color:'#0A1628', marginBottom:4 }}>📱 QR — {qrTable.name}</div>
+              <div style={{ fontSize:12, color:'#94A3B8', marginBottom:16 }}>Tempel di meja agar pelanggan bisa scan & pesan</div>
+              <img src={qrImg} alt="QR" style={{ width:220, height:220, borderRadius:12, border:'1px solid #E2E8F0' }} />
+              <div style={{ fontSize:10, color:'#94A3B8', wordBreak:'break-all', background:'#F8FAFC', borderRadius:8, padding:'8px 10px', margin:'14px 0', lineHeight:1.5 }}>{url}</div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => { const a=document.createElement('a'); a.href=qrImg.replace('260x260','600x600'); a.download=`QR-${qrTable.name}.png`; a.target='_blank'; a.click() }}
+                  style={{ flex:1, padding:'12px 0', background:'#0A1628', color:'white', border:'none', borderRadius:12, fontWeight:800, fontSize:13, cursor:'pointer' }}>⬇ Download</button>
+                <button onClick={() => setQrTable(null)}
+                  style={{ flex:1, padding:'12px 0', background:'#F1F5F9', color:'#6B7A8D', border:'none', borderRadius:12, fontWeight:700, fontSize:13, cursor:'pointer' }}>Tutup</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
