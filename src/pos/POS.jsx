@@ -135,7 +135,8 @@ export default function POS() {
 
 
   const { cart, setCart, addItem, updateQty, clearCart, subtotal } = useCart()
-  useOrders() // subscribes to realtime order changes
+  const { orders } = useOrders()
+  const [dismissedBills, setDismissedBills] = useState(new Set())
 
   useEffect(() => {
     if (!staff) return
@@ -836,6 +837,12 @@ export default function POS() {
           <button onClick={printer.clearPrintError} style={{ background:'rgba(255,255,255,0.2)', border:'none', color:'#fff', borderRadius:4, padding:'2px 8px', cursor:'pointer', fontSize:11 }}>✕</button>
         </div>
       )}
+      {orders.filter(o => o.bill_requested && o.status === 'Open' && !dismissedBills.has(o.id)).map(o => (
+        <div key={o.id} style={{ background:'#F59E0B', color:'#fff', padding:'8px 12px', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+          <span>🔔 Meja {o.table} minta struk!</span>
+          <button onClick={() => setDismissedBills(prev => new Set([...prev, o.id]))} style={{ background:'rgba(255,255,255,0.25)', border:'none', color:'#fff', borderRadius:4, padding:'2px 8px', cursor:'pointer', fontSize:11 }}>✕</button>
+        </div>
+      ))}
       <div style={S.header}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <span style={{ fontSize:18, fontWeight:900, color:'white' }}>PawonLoka</span>
