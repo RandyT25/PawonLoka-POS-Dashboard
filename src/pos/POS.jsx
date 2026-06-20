@@ -20,14 +20,15 @@ async function dbWrite(table, op, payload, match = null) {
     const { error } = await q
     if (error) throw error
     return true
-  } catch {
+  } catch(e) {
     // Went offline during the call — queue the retry
     if (!navigator.onLine) {
       await offlineStore.enqueue({ table, op, payload, match })
       window.dispatchEvent(new Event('offline-queue-updated'))
       return true
     }
-    return false // real online error
+    console.error('[dbWrite]', table, op, e?.message || e)
+    return false // real online error — caller handles alert
   }
 }
 import PinLogin from './components/PinLogin'
@@ -564,7 +565,7 @@ export default function POS() {
         items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal, tax, discount: discAmt, total,
         pay: '-', staff: staff.name, table: capturedTable || null,
-        pax: pax || null,
+        ...(pax > 0 ? { pax } : {}),
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }), cogs:0,
