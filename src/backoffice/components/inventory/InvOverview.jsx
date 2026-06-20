@@ -21,7 +21,14 @@ export default function InvOverview({ onNav }) {
       supabase.from("waste_records").select("*").order("created_at", { ascending:false }),
     ])
     setIngredients(ings||[])
-    setPOs(p||[])
+    const posNorm=(p||[]).map(po=>({
+      ...po,
+      supplier_name: po.supplierName||po.supplier_name||"",
+      invoice_no:    po.invoiceNo   ||po.invoice_no   ||"",
+      order_date:    po.date        ||po.order_date    ||"",
+      po_items:      po.items       ||po.po_items      ||[],
+    }))
+    setPOs(posNorm)
     setProduction(prod||[])
     setWaste(wst||[])
     setLoading(false)
@@ -97,7 +104,7 @@ export default function InvOverview({ onNav }) {
             return (
               <div key={po.id} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 0", borderBottom:"1px solid var(--surface2)" }}>
                 <div>
-                  <div style={{ fontSize:13, fontWeight:700 }}>{po.po_number} · {po.supplier_name}</div>
+                  <div style={{ fontSize:13, fontWeight:700 }}>{po.invoice_no||po.id} · {po.supplier_name}</div>
                   <div style={{ fontSize:11, color:"var(--ink5)" }}>{po.order_date}</div>
                 </div>
                 <div style={{ textAlign:"right" }}>

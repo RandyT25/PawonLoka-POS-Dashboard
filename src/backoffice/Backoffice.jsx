@@ -14,6 +14,9 @@ import "./backoffice.css"
 const Dashboard        = lazy(() => import("./components/Dashboard"))
 const SalesAnalysis    = lazy(() => import("./components/SalesAnalysis"))
 const MenuPerformance  = lazy(() => import("./components/MenuPerformance"))
+const SalesReport      = lazy(() => import("./components/SalesReport"))
+const ProductReport    = lazy(() => import("./components/ProductReport"))
+const TopSlowReport    = lazy(() => import("./components/TopSlowReport"))
 const Products        = lazy(() => import("./components/Products"))
 const Categories      = lazy(() => import("./components/Categories"))
 const Modifiers       = lazy(() => import("./components/Modifiers"))
@@ -159,6 +162,9 @@ const NAV = [
   { id:"dashboard",         label:"Dashboard",          icon:"📊" },
   { id:"sales-analysis",    label:"Sales Analysis",     icon:"📈" },
   { id:"menu-performance",  label:"Menu Performance",   icon:"🍽" },
+  { id:"sales-report",      label:"Sales Report",        icon:"📅" },
+  { id:"product-report",    label:"Product Report",      icon:"🧾" },
+  { id:"top-slow",          label:"Top & Slow Moving",   icon:"📊" },
   { id:"reports",           label:"Reports & Export",   icon:"📋" },
   { group:"Finance" },
   { id:"accounting",       label:"Accounting",         icon:"🧾" },
@@ -212,6 +218,9 @@ const SCREENS = {
   dashboard:          Dashboard,
   "sales-analysis":   SalesAnalysis,
   "menu-performance": MenuPerformance,
+  "sales-report":     SalesReport,
+  "product-report":   ProductReport,
+  "top-slow":         TopSlowReport,
   reports:            Reports,
   accounting:        Accounting,
   rekonsiliasi:      Rekonsiliasi,

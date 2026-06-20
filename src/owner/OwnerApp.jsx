@@ -14,58 +14,6 @@ function fmtTime(iso) { return new Date(iso).toLocaleTimeString("id-ID",{hour:"2
 function today()   { return new Date().toISOString().slice(0,10) }
 function yestStr() { return new Date(Date.now()-86400000).toISOString().slice(0,10) }
 
-/* ─── demo orders ─── */
-const DEMO = (() => {
-  const d = today(), y = yestStr()
-  return [
-    {id:"d1",  code:"#1001",created_at:`${d}T08:14:00`,total:57750, pay:"Cash", staff:"Budi",table_name:"Table 2", customer_id:"c1",cogs:14000,items_snapshot:[{name:"Nasi Goreng Telur",qty:2,price:20000},{name:"Teh Manis",qty:2,price:8000}]},
-    {id:"d2",  code:"#1002",created_at:`${d}T08:38:00`,total:59290, pay:"QRIS", staff:"Budi",table_name:"Walk-in", customer_id:"c2",cogs:15000,items_snapshot:[{name:"Ayam Bakar",qty:1,price:28000},{name:"Americano",qty:1,price:25000}]},
-    {id:"d3",  code:"#1003",created_at:`${d}T09:05:00`,total:57750, pay:"GoPay",staff:"Raka",table_name:"Table 4", customer_id:"c3",cogs:12000,items_snapshot:[{name:"Matcha Latte",qty:2,price:25000}]},
-    {id:"d4",  code:"#1004",created_at:`${d}T09:44:00`,total:57750, pay:"Card", staff:"Budi",table_name:"Table 1", customer_id:null, cogs:16000,items_snapshot:[{name:"Sate Kambing",qty:1,price:38000},{name:"Es Jeruk",qty:1,price:12000}]},
-    {id:"d5",  code:"#1005",created_at:`${d}T10:20:00`,total:28875, pay:"Cash", staff:"Raka",table_name:"Walk-in", customer_id:"c4",cogs:7000, items_snapshot:[{name:"Bakmi Goreng",qty:1,price:25000}]},
-    {id:"d6",  code:"#1006",created_at:`${d}T10:45:00`,total:57750, pay:"Cash", staff:"Budi",table_name:"Table 3", customer_id:null, cogs:13000,items_snapshot:[{name:"Latte",qty:2,price:25000}]},
-    {id:"d7",  code:"#1007",created_at:`${d}T11:10:00`,total:49588, pay:"QRIS", staff:"Raka",table_name:"Table 5", customer_id:"c2",cogs:11000,items_snapshot:[{name:"Nasi Goreng Spesial",qty:1,price:25000},{name:"Jus Alpukat",qty:1,price:18000}]},
-    {id:"d8",  code:"#1008",created_at:`${d}T11:35:00`,total:50820, pay:"OVO",  staff:"Budi",table_name:"Table 2", customer_id:null, cogs:9000, items_snapshot:[{name:"Gado Gado",qty:2,price:22000}]},
-    {id:"d9",  code:"#1009",created_at:`${d}T12:05:00`,total:96712, pay:"Card", staff:"Raka",table_name:"VIP Room",customer_id:"c5",cogs:21000,items_snapshot:[{name:"Cappuccino",qty:3,price:28000}]},
-    {id:"d10", code:"#1010",created_at:`${d}T12:30:00`,total:73140, pay:"Cash", staff:"Budi",table_name:"Table 1", customer_id:null, cogs:15000,items_snapshot:[{name:"Soto Ayam",qty:2,price:20000},{name:"Teh Tarik",qty:2,price:12000}]},
-    {id:"d11", code:"#1011",created_at:`${d}T13:00:00`,total:25300, pay:"GoPay",staff:"Raka",table_name:"Walk-in", customer_id:"c3",cogs:8000, items_snapshot:[{name:"Bakso Malang",qty:1,price:22000}]},
-    {id:"d12", code:"#1012",created_at:`${d}T13:25:00`,total:67650, pay:"Cash", staff:"Budi",table_name:"Table 3", customer_id:null, cogs:14000,items_snapshot:[{name:"Es Kopi Susu",qty:2,price:22000},{name:"Mendoan",qty:1,price:15000}]},
-    {id:"d13", code:"#1013",created_at:`${d}T14:00:00`,total:41400, pay:"QRIS", staff:"Raka",table_name:"Outdoor", customer_id:null, cogs:7500, items_snapshot:[{name:"Pisang Goreng",qty:3,price:12000}]},
-    {id:"d14", code:"#1014",created_at:`${d}T14:30:00`,total:80500, pay:"Card", staff:"Budi",table_name:"Table 4", customer_id:"c4",cogs:22000,items_snapshot:[{name:"Nasi Goreng Seafood",qty:2,price:35000}]},
-    {id:"d15", code:"#1015",created_at:`${d}T15:10:00`,total:49588, pay:"OVO",  staff:"Raka",table_name:"Walk-in", customer_id:null, cogs:12000,items_snapshot:[{name:"Latte",qty:1,price:25000},{name:"Croissant",qty:1,price:18000}]},
-    {id:"y1",  code:"#0901",created_at:`${y}T09:00:00`, total:23000, pay:"Cash", staff:"Budi",table_name:"Table 1", customer_id:null, cogs:5500, items_snapshot:[{name:"Nasi Goreng Telur",qty:1,price:20000}]},
-    {id:"y2",  code:"#0902",created_at:`${y}T10:00:00`, total:57750, pay:"QRIS", staff:"Raka",table_name:"Table 2", customer_id:"c2",cogs:13800,items_snapshot:[{name:"Latte",qty:2,price:25000}]},
-    {id:"y3",  code:"#0903",created_at:`${y}T12:00:00`, total:32200, pay:"GoPay",staff:"Budi",table_name:"Walk-in", customer_id:null, cogs:9200, items_snapshot:[{name:"Ayam Bakar",qty:1,price:28000}]},
-    {id:"y4",  code:"#0904",created_at:`${y}T14:00:00`, total:75900, pay:"Cash", staff:"Raka",table_name:"Table 5", customer_id:"c5",cogs:19800,items_snapshot:[{name:"Es Kopi Susu",qty:3,price:22000}]},
-    {id:"y5",  code:"#0905",created_at:`${y}T15:30:00`, total:57750, pay:"Card", staff:"Budi",table_name:"Table 3", customer_id:null, cogs:14400,items_snapshot:[{name:"Bakmi Goreng",qty:2,price:25000}]},
-  ]
-})()
-
-/* ─── demo expenses ─── */
-const DEMO_EXP = [
-  {id:"x1",created_at:`${today()}T07:30:00`,category:"Bahan Baku",  note:"Belanja pasar pagi",   amount:185000},
-  {id:"x2",created_at:`${today()}T08:00:00`,category:"Operasional", note:"Gas LPG 3 kg",          amount:22000},
-  {id:"x3",created_at:`${today()}T10:00:00`,category:"Operasional", note:"Plastik & kemasan",     amount:35000},
-  {id:"x4",created_at:`${today()}T11:30:00`,category:"Bahan Baku",  note:"Restok kopi & susu",   amount:120000},
-  {id:"x5",created_at:`${yestStr()}T07:30:00`,category:"Bahan Baku",note:"Belanja pasar pagi",   amount:175000},
-  {id:"x6",created_at:`${yestStr()}T09:00:00`,category:"Operasional",note:"Sabun & alat bersih", amount:28000},
-  {id:"x7",created_at:`${yestStr()}T15:00:00`,category:"Lain-lain", note:"Cetak nota bon",        amount:15000},
-]
-
-/* ─── demo staff & attendance ─── */
-const DEMO_STAFF = [
-  {id:1,name:"Budi",role:"Kasir",active:true,color:"#0EA5E9"},
-  {id:2,name:"Raka",role:"Bar",  active:true,color:"#10B981"},
-  {id:3,name:"Siti",role:"Kasir",active:true,color:"#8B5CF6"},
-]
-const DEMO_ATT = (()=>{
-  const d=today()
-  return [
-    {id:"att1",staff_name:"Budi",date:d,clock_in:`${d}T08:00:00`,clock_out:null,status:"on_time"},
-    {id:"att2",staff_name:"Raka",date:d,clock_in:`${d}T08:30:00`,clock_out:null,status:"on_time"},
-    // Siti hasn't clocked in today
-  ]
-})()
 
 function fmtDuration(ms) {
   if (ms<=0) return "0m"
@@ -333,7 +281,7 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, customDateTo
   )
 }
 
-function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, loading, lastUpdated, onRefresh, stats, hourData, payments, topItems, slowItems, recent }) {
+function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, loading, lastUpdated, onRefresh, stats, hourData, payments, topItems, topDrinkItems, slowItems, recent }) {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const trend = stats.prevSales>0 ? Math.round((stats.sales-stats.prevSales)/stats.prevSales*100) : null
   const margin = stats.sales>0 ? Math.round(stats.grossProfit/stats.sales*100) : 0
@@ -349,6 +297,10 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
         <div className="ow-hero-label">Total Penjualan · {RLABELS[range]}</div>
+        <div style={{fontSize:32,fontWeight:900,color:"white",letterSpacing:"-1px",marginBottom:4}}>
+          {fmt(stats.sales + stats.unpaid)}
+        </div>
+        <div style={{fontSize:11,opacity:0.45,textTransform:"uppercase",letterSpacing:"0.6px",marginBottom:12}}>Total Keseluruhan</div>
         <div style={{display:"flex",alignItems:"flex-start",gap:20,flexWrap:"wrap",marginBottom:6}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.5px"}}>Sudah Dibayar</div>
@@ -367,10 +319,8 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
         <div className="ow-hero-meta">
           <div className="ow-hero-meta-item">{stats.paidOrders||0} <strong>Lunas</strong></div>
           {stats.openOrders>0&&<div className="ow-hero-meta-item" style={{color:"#FCD34D"}}>{stats.openOrders} <strong>Open Bill</strong></div>}
-          {range==="today"&&<>
-            <div className="ow-hero-meta-item">MTD <strong>{fmtK(stats.mtd)}</strong></div>
-            <div className="ow-hero-meta-item">Proyeksi <strong>{fmtK(stats.projection)}</strong></div>
-          </>}
+          <div className="ow-hero-meta-item">MTD <strong>{fmtK(stats.mtd)}</strong></div>
+          <div className="ow-hero-meta-item">Proyeksi Bulan Ini <strong>{fmtK(stats.projection)}</strong></div>
           <div className="ow-hero-meta-item">Avg/Transaksi <strong>{fmt(stats.avgOrder)}</strong></div>
         </div>
       </div>
@@ -408,15 +358,31 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
       {/* product intel + payments */}
       <div className="ow-grid-2">
         <div className="ow-card" style={{marginBottom:0}}>
-          <div className="ow-card-title">Pergerakan Produk</div>
+          <div className="ow-card-title">Top 10 Menu</div>
           <div style={{marginBottom:16}}>
-            <div className="ow-section-label" style={{color:"#10B981"}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-              Produk Terlaris
-            </div>
+            <div className="ow-section-label" style={{color:"#10B981"}}>🍽 Makanan</div>
             {topItems.length===0
               ? <div className="ow-empty" style={{padding:"8px 0"}}>Belum ada data</div>
-              : topItems.slice(0,5).map((it,i)=>(
+              : topItems.map((it,i)=>(
+                <div key={it.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",flexShrink:0,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B"}}>{i+1}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:12,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.name}</span>
+                      <span style={{fontSize:11,fontWeight:700,color:"#10B981",flexShrink:0,marginLeft:8}}>{it.qty}×</span>
+                    </div>
+                    <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#10B981"}}/></div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+          <div className="ow-divider"/>
+          <div>
+            <div className="ow-section-label" style={{color:"#0EA5E9"}}>☕ Minuman</div>
+            {topDrinkItems.length===0
+              ? <div style={{fontSize:12,color:"#94A3B8",padding:"4px 0"}}>Belum ada data minuman</div>
+              : topDrinkItems.map((it,i)=>(
                 <div key={it.name} style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
                   <div style={{width:20,height:20,borderRadius:"50%",flexShrink:0,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B"}}>{i+1}</div>
                   <div style={{flex:1,minWidth:0}}>
@@ -426,22 +392,6 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
                     </div>
                     <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/></div>
                   </div>
-                </div>
-              ))
-            }
-          </div>
-          <div className="ow-divider"/>
-          <div>
-            <div className="ow-section-label" style={{color:"#F59E0B"}}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Produk Lambat
-            </div>
-            {slowItems.length===0
-              ? <div style={{fontSize:12,color:"#94A3B8",padding:"4px 0"}}>Semua produk bergerak — bagus!</div>
-              : slowItems.map(it=>(
-                <div key={it.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"7px 10px",borderRadius:8,background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:5}}>
-                  <span style={{fontSize:12,color:"#1E293B",fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1}}>{it.name}</span>
-                  <span style={{fontSize:10,fontWeight:700,padding:"2px 8px",borderRadius:10,background:"#FEF3C7",color:"#92400E",flexShrink:0,marginLeft:8}}>hanya {it.qty}×</span>
                 </div>
               ))
             }
@@ -560,7 +510,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
 }
 
 /* ─── Karyawan Screen ─── */
-function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, demo }) {
+function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo }) {
   const now = Date.now()
   const salesMax = Math.max(...staffData.map(s=>s.sales), 1)
 
@@ -617,7 +567,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
 
         {staffList.length===0 ? (
           <div className="ow-empty">
-            Tidak ada data staf. Tambah karyawan di Backoffice → Employees, atau aktifkan Demo.
+            Tidak ada data staf. Tambah karyawan di Backoffice → Employees.
           </div>
         ) : (
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:10}}>
@@ -721,7 +671,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
         <DateRangeBar range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={false}/>
 
         {staffData.length===0 ? (
-          <div className="ow-empty">Belum ada data penjualan. Aktifkan Demo untuk melihat contoh.</div>
+          <div className="ow-empty">Belum ada data penjualan pada periode ini.</div>
         ) : <>
           {/* bar chart */}
           <div style={{marginBottom:20}}>
@@ -785,7 +735,7 @@ function ScreenStaff({ staffData, stats, staffList, todayAtt, range, setRange, c
 }
 
 /* ─── Arus Kas Screen ─── */
-function ScreenCashFlow({ cashData, demo }) {
+function ScreenCashFlow({ cashData }) {
   const net = cashData.income - cashData.expenses
   return (
     <div style={{maxWidth:900}}>
@@ -800,7 +750,7 @@ function ScreenCashFlow({ cashData, demo }) {
           <div className="ow-stat-accent" style={{background:"#EF4444"}}/>
           <div className="ow-stat-label">Total Pengeluaran</div>
           <div className="ow-stat-val" style={{color:"#EF4444",fontSize:20}}>{fmtK(cashData.expenses)}</div>
-          <div className="ow-stat-sub">{cashData.expenseItems.length} pos pengeluaran{demo?" (demo)":""}</div>
+          <div className="ow-stat-sub">{cashData.expenseItems.length} pos pengeluaran</div>
         </div>
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{background:net>=0?"#0EA5E9":"#F59E0B"}}/>
@@ -844,7 +794,7 @@ function ScreenCashFlow({ cashData, demo }) {
             Pengeluaran
           </div>
           {cashData.expenseItems.length===0
-            ? <div style={{fontSize:12,color:"#94A3B8",padding:"8px 0"}}>Tidak ada pengeluaran tercatat{demo?"":". Tambah tabel cash_flows di Supabase."}.</div>
+            ? <div style={{fontSize:12,color:"#94A3B8",padding:"8px 0"}}>Tidak ada pengeluaran tercatat. Tambah tabel cash_flows di Supabase.</div>
             : <>
               {Object.entries(
                 cashData.expenseItems.reduce((acc,e)=>{ acc[e.category]=(acc[e.category]||0)+e.amount; return acc },{})
@@ -900,49 +850,33 @@ function ScreenCashFlow({ cashData, demo }) {
 }
 
 /* ─── Products Screen ─── */
-function ScreenProducts({ topItems, slowItems }) {
+function ScreenProducts({ topItems, topDrinkItems }) {
+  function ItemList({ items, color }) {
+    if (!items.length) return <div className="ow-empty">Belum ada data</div>
+    return items.map((it,i)=>(
+      <div key={it.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
+        <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{i+1}</div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+            <span style={{fontSize:13,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.name}</span>
+            <span style={{fontSize:12,fontWeight:700,color,flexShrink:0,marginLeft:8}}>{it.qty}×</span>
+          </div>
+          <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:color}}/></div>
+          <div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>{fmt(it.revenue)}</div>
+        </div>
+      </div>
+    ))
+  }
   return (
     <div style={{maxWidth:800}}>
       <div className="ow-grid-2" style={{marginBottom:0}}>
         <div className="ow-card">
-          <div className="ow-card-title" style={{color:"#10B981"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            Produk Terlaris
-          </div>
-          {topItems.length===0
-            ? <div className="ow-empty">Belum ada data — aktifkan Demo</div>
-            : topItems.map((it,i)=>(
-              <div key={it.name} style={{display:"flex",alignItems:"center",gap:10,marginBottom:11}}>
-                <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9",color:i<3?"#fff":"#64748B",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{i+1}</div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                    <span style={{fontSize:13,fontWeight:600,color:"#1E293B",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.name}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:"#0EA5E9",flexShrink:0,marginLeft:8}}>{it.qty}×</span>
-                  </div>
-                  <div className="ow-bar-track"><div className="ow-bar-fill" style={{width:Math.round(it.qty/it.max*100)+"%",background:"#0EA5E9"}}/></div>
-                  <div style={{fontSize:10,color:"#94A3B8",marginTop:3}}>{fmt(it.revenue)}</div>
-                </div>
-              </div>
-            ))
-          }
+          <div className="ow-card-title" style={{color:"#10B981"}}>🍽 Top Makanan</div>
+          <ItemList items={topItems} color="#10B981" />
         </div>
         <div className="ow-card">
-          <div className="ow-card-title" style={{color:"#F59E0B"}}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Produk Lambat / Tidak Bergerak
-          </div>
-          {slowItems.length===0
-            ? <div style={{fontSize:12,color:"#94A3B8",padding:"8px 0"}}>Semua produk terjual dengan baik!</div>
-            : slowItems.map(it=>(
-              <div key={it.name} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 12px",borderRadius:10,background:"#FFFBEB",border:"1px solid #FEF3C7",marginBottom:7}}>
-                <div>
-                  <div style={{fontSize:13,color:"#1E293B",fontWeight:600}}>{it.name}</div>
-                  <div style={{fontSize:10,color:"#94A3B8",marginTop:2}}>{fmt(it.revenue)} omset</div>
-                </div>
-                <span style={{fontSize:11,fontWeight:700,padding:"3px 9px",borderRadius:12,background:"#FEF3C7",color:"#92400E"}}>hanya {it.qty}×</span>
-              </div>
-            ))
-          }
+          <div className="ow-card-title" style={{color:"#0EA5E9"}}>☕ Top Minuman</div>
+          <ItemList items={topDrinkItems} color="#0EA5E9" />
         </div>
       </div>
     </div>
@@ -990,7 +924,6 @@ function PinScreen({ onAuth }) {
             </svg>
           </button>
         </div>
-        <div style={{marginTop:20,fontSize:11,color:"rgba(255,255,255,0.2)"}}>Demo PIN: 1234</div>
       </div>
     </div>
   )
@@ -1005,12 +938,13 @@ const NAV = [
 ]
 
 /* ─── Data hook ─── */
-function useOwnerData(range, demo, customDate, customDateTo) {
+function useOwnerData(range, customDate, customDateTo) {
   const [loading,        setLoading]        = useState(true)
   const [lastUpdated,    setLastUpdated]    = useState(null)
   const [stats,          setStats]          = useState({sales:0,orders:0,customers:0,avgOrder:0,grossProfit:0,prevSales:0,unpaid:0,totalSold:0,avgItems:0,mtd:0,projection:0,cogs:0})
   const [payments,       setPayments]       = useState([])
   const [topItems,       setTopItems]       = useState([])
+  const [topDrinkItems,  setTopDrinkItems]  = useState([])
   const [slowItems,      setSlowItems]      = useState([])
   const [hourData,       setHourData]       = useState([])
   const [recent,         setRecent]         = useState([])
@@ -1019,7 +953,7 @@ function useOwnerData(range, demo, customDate, customDateTo) {
   const [staffList,      setStaffList]      = useState([])
   const [todayAtt,       setTodayAtt]       = useState([])
 
-  useEffect(()=>{ load() },[range,demo,customDate,customDateTo])
+  useEffect(()=>{ load() },[range,customDate,customDateTo])
 
   // loadRef always points to the latest load — avoids stale closure in intervals/channels
   const loadRef = useRef(load)
@@ -1031,7 +965,7 @@ function useOwnerData(range, demo, customDate, customDateTo) {
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"orders"},()=>loadRef.current())
       .subscribe()
     return ()=>supabase.removeChannel(ch)
-  },[range,demo,customDate,customDateTo])
+  },[range,customDate,customDateTo])
 
   // 10-second polling + immediate reload when tab becomes visible
   useEffect(()=>{
@@ -1043,7 +977,7 @@ function useOwnerData(range, demo, customDate, customDateTo) {
 
   /* attendance realtime — only refresh when viewing today */
   useEffect(()=>{
-    if (demo || (range==="custom"&&customDate!==today())) return
+    if (range==="custom"&&customDate!==today()) return
     const loadAtt=async()=>{
       try {
         const {data}=await supabase.from("attendance").select("*").eq("date",today())
@@ -1055,7 +989,7 @@ function useOwnerData(range, demo, customDate, customDateTo) {
       .on("postgres_changes",{event:"UPDATE",schema:"public",table:"attendance"},loadAtt)
       .subscribe()
     return ()=>supabase.removeChannel(ch)
-  },[demo,range,customDate])
+  },[range,customDate])
 
   async function load() {
     setLoading(true)
@@ -1063,63 +997,50 @@ function useOwnerData(range, demo, customDate, customDateTo) {
 
     /* fetch staff list + attendance for the selected date */
     const attDate = range==="custom" ? customDate : today()
-    if (demo) {
-      setStaffList(DEMO_STAFF)
-      setTodayAtt(range==="custom"&&customDate!==today() ? [] : DEMO_ATT)
+    try {
+      const [{data:sl},{data:al}]=await Promise.all([
+        supabase.from("staff").select("id,name,role,color,active").eq("active",true).order("name"),
+        supabase.from("attendance").select("*").eq("date",attDate),
+      ])
+      setStaffList(sl||[])
+      setTodayAtt(al||[])
+    } catch(e){}
+
+    let fromStr="", toStr=""
+    if (range==="custom") {
+      fromStr=customDate+"T00:00:00+08:00"
+      toStr=(customDateTo||customDate)+"T23:59:59+08:00"
     } else {
-      try {
-        const [{data:sl},{data:al}]=await Promise.all([
-          supabase.from("staff").select("id,name,role,color,active").eq("active",true).order("name"),
-          supabase.from("attendance").select("*").eq("date",attDate),
-        ])
-        setStaffList(sl||[])
-        setTodayAtt(al||[])
-      } catch(e){}
+      const now=new Date(), from=new Date()
+      if (range==="today") { from.setHours(0,0,0,0) }
+      if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
+      if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
+      fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
     }
+    let q=supabase.from("orders").select("*").gte("created_at",fromStr)
+    if (toStr) q=q.lte("created_at",toStr)
+    const {data,error}=await q.order("created_at",{ascending:false})
+    if (error) { console.error(error); setLoading(false); return }
+    orders=data||[]
+    try {
+      let eq=supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
+      if (toStr) eq=eq.lte("created_at",toStr)
+      const {data:expData,error:expErr}=await eq
+      if (!expErr) expenses=expData||[]
+    } catch(e) {}
 
-    if (demo) {
-      orders=DEMO; expenses=DEMO_EXP
-    } else {
-      let fromStr="", toStr=""
-      if (range==="custom") {
-        fromStr=customDate+"T00:00:00+08:00"
-        toStr=(customDateTo||customDate)+"T23:59:59+08:00"
-      } else {
-        const now=new Date(), from=new Date()
-        if (range==="today") { from.setHours(0,0,0,0) }
-        if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
-        if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
-        fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
-      }
-      let q=supabase.from("orders").select("*").gte("created_at",fromStr)
-      if (toStr) q=q.lte("created_at",toStr)
-      const {data,error}=await q.order("created_at",{ascending:false})
-      if (error) { console.error(error); setLoading(false); return }
-      orders=data||[]
-      try {
-        let eq=supabase.from("cash_flows").select("*").eq("type","expense").gte("created_at",fromStr)
-        if (toStr) eq=eq.lte("created_at",toStr)
-        const {data:expData,error:expErr}=await eq
-        if (!expErr) expenses=expData||[]
-      } catch(e) {}
-    }
+    /* real MTD — always current month regardless of selected range */
+    let mtd=0
+    try {
+      const now2=new Date()
+      const mStart=`${now2.getFullYear()}-${String(now2.getMonth()+1).padStart(2,"0")}-01`
+      const todayS=now2.toISOString().slice(0,10)
+      const {data:mtdR}=await supabase.from("orders").select("total").eq("status","Paid").gte("date",mStart).lte("date",todayS)
+      mtd=(mtdR||[]).reduce((s,o)=>s+(o.total||0),0)
+    } catch(e){}
 
-    const td=today(), yd=yestStr()
-    const wk=(()=>{ const d=new Date(); d.setDate(d.getDate()-d.getDay()); return d.toISOString().slice(0,10) })()
-    const mo=new Date().toISOString().slice(0,7)+"-01"
-
-    const inPeriod=o=>{
-      const d=o.created_at.slice(0,10)
-      if(range==="today") return d===td
-      if(range==="week")  return d>=wk
-      if(range==="month") return d>=mo
-      if(range==="custom")return d>=customDate && d<=(customDateTo||customDate)
-      return true
-    }
-
-    const period=demo?orders.filter(inPeriod):orders
-    const prev=demo?orders.filter(o=>o.created_at.slice(0,10)===yd):[]
-    const expPeriod=demo?expenses.filter(inPeriod):expenses
+    const period=orders
+    const expPeriod=expenses
 
     const paid=period.filter(o=>!o.status||o.status==="Paid"||o.status==="paid")
     const open=period.filter(o=>o.status==="Open"||o.status==="open")
@@ -1127,13 +1048,12 @@ function useOwnerData(range, demo, customDate, customDateTo) {
     const sales=paid.reduce((s,o)=>s+(o.total||0),0)
     const unpaid=open.reduce((s,o)=>s+(o.total||0),0)
     const cogs=paid.reduce((s,o)=>s+(o.cogs||0),0)
-    const prevSales=demo?prev.reduce((s,o)=>s+(o.total||0),0):0
     const avgOrder=paid.length?Math.round(sales/paid.length):0
     const customers=new Set(paid.filter(o=>o.customer_id).map(o=>o.customer_id)).size
     const totalSold=paid.reduce((s,o)=>{ const it=o.items_snapshot||o.order_items||o.items||[]; const p=typeof it==="string"?JSON.parse(it):it; return s+(p||[]).reduce((ss,i)=>ss+(i.qty||1),0) },0)
     const avgItems=paid.length?Math.round(totalSold/paid.length*10)/10:0
     const dom=new Date().getDate(), dim=new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate()
-    const projection=dom>0?Math.round(sales/dom*dim):0
+    const proyeksiBulanIni=dom>0?Math.round(mtd/dom*dim):0
 
     const pm={}
     paid.forEach(o=>{ const m=o.pay||"Other"; pm[m]=(pm[m]||0)+(o.total||0) })
@@ -1143,12 +1063,16 @@ function useOwnerData(range, demo, customDate, customDateTo) {
     paid.forEach(o=>{
       const it=o.items_snapshot||o.order_items||o.items||[]
       const p=typeof it==="string"?JSON.parse(it):it
-      ;(p||[]).forEach(i=>{ if(!im[i.name])im[i.name]={name:i.name,qty:0,revenue:0}; im[i.name].qty+=(i.qty||1); im[i.name].revenue+=(i.price||0)*(i.qty||1) })
+      ;(p||[]).forEach(i=>{ if(!im[i.name])im[i.name]={name:i.name,qty:0,revenue:0,cat:i.cat||""}; im[i.name].qty+=(i.qty||1); im[i.name].revenue+=(i.price||0)*(i.qty||1) })
     })
     const allItems=Object.values(im).sort((a,b)=>b.qty-a.qty)
-    const topArr=allItems.slice(0,5)
-    const maxQty=topArr[0]?.qty||1
-    const slowArr=allItems.filter(i=>i.qty<=2).sort((a,b)=>a.qty-b.qty).slice(0,6)
+    const foodArr=allItems.filter(it=>it.cat!=="Drinks").slice(0,10)
+    const drinkArr=allItems.filter(it=>it.cat==="Drinks").slice(0,10)
+    const maxFoodQty=foodArr[0]?.qty||1
+    const maxDrinkQty=drinkArr[0]?.qty||1
+    foodArr.forEach(it=>it.max=maxFoodQty)
+    drinkArr.forEach(it=>it.max=maxDrinkQty)
+    const slowArr=allItems.filter(i=>i.qty<=2).sort((a,b)=>a.qty-b.qty).slice(0,10)
 
     const hs={},ht={}
     for(let h=7;h<=21;h++){hs[h]=0;ht[h]=0}
@@ -1172,9 +1096,10 @@ function useOwnerData(range, demo, customDate, customDateTo) {
       ...expPeriod.map(e=>({id:"e"+e.id,created_at:e.created_at,type:"expense",note:e.note||"Pengeluaran",category:e.category||"Lain-lain",amount:e.amount||0}))
     ].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,30)
 
-    setStats({sales,unpaid,cogs,orders:period.length,paidOrders:paid.length,openOrders:open.length,customers,avgOrder,grossProfit:sales-cogs,prevSales,totalSold,avgItems,mtd:sales,projection})
+    setStats({sales,unpaid,cogs,orders:period.length,paidOrders:paid.length,openOrders:open.length,customers,avgOrder,grossProfit:sales-cogs,prevSales:0,totalSold,avgItems,mtd,projection:proyeksiBulanIni})
     setPayments(payArr)
-    setTopItems(topArr.map(t=>({...t,max:maxQty})))
+    setTopItems(foodArr)
+    setTopDrinkItems(drinkArr)
     setSlowItems(slowArr)
     setHourData(hourArr)
     setRecent(period.slice(0,30))
@@ -1184,7 +1109,7 @@ function useOwnerData(range, demo, customDate, customDateTo) {
     setLoading(false)
   }
 
-  return {loading,lastUpdated,refresh:()=>loadRef.current(),stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt}
+  return {loading,lastUpdated,refresh:()=>loadRef.current(),stats,payments,topItems,topDrinkItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt}
 }
 
 /* ─── Root ─── */
@@ -1196,7 +1121,6 @@ export default function OwnerApp() {
   const [range,       setRange]       = useState("today")
   const [customDate,  setCustomDate]  = useState(today())
   const [customDateTo,setCustomDateTo]= useState(today())
-  const [demo,        setDemo]        = useState(false)
   const [notifications, setNotifications] = useState([])
   const [mobileMenu,  setMobileMenu]  = useState(false)
   const contentRef = useRef(null)
@@ -1221,7 +1145,7 @@ export default function OwnerApp() {
 
   useEffect(()=>{ contentRef.current?.scrollTo(0,0) },[screen])
 
-  const {loading,lastUpdated,refresh,stats,payments,topItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,demo,customDate,customDateTo)
+  const {loading,lastUpdated,refresh,stats,payments,topItems,topDrinkItems,slowItems,hourData,recent,staffData,cashData,staffList,todayAtt} = useOwnerData(range,customDate,customDateTo)
 
   /* realtime notifications — orders + attendance */
   useEffect(()=>{
@@ -1242,17 +1166,6 @@ export default function OwnerApp() {
     return ()=>supabase.removeChannel(ch)
   },[])
 
-  /* demo notifications */
-  useEffect(()=>{
-    if (demo) {
-      setNotifications([
-        {id:1,text:"Pesanan #1015 masuk · Rp 49.588",type:"order",time:new Date(Date.now()-5*60000).toISOString(),read:false},
-        {id:2,text:"Margin laba turun di bawah 30% pukul 10.00",type:"alert",time:new Date(Date.now()-25*60000).toISOString(),read:false},
-        {id:3,text:"Bakso Malang belum terjual hari ini",type:"alert",time:new Date(Date.now()-60*60000).toISOString(),read:true},
-      ])
-    }
-  },[demo])
-
   const SCREEN_TITLE = {dashboard:"Dashboard",products:"Produk",staff:"Karyawan",cashflow:"Arus Kas"}
 
   if (!authed) return <PinScreen onAuth={()=>{ sessionStorage.setItem('owner-authed','1'); setAuthed(true) }}/>
@@ -1270,9 +1183,6 @@ export default function OwnerApp() {
         </div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <NotifBell notifications={notifications} setNotifications={setNotifications}/>
-          <button onClick={()=>setDemo(d=>!d)} style={{padding:"5px 10px",borderRadius:8,border:"1.5px solid",fontSize:11,fontWeight:700,cursor:"pointer",background:demo?"rgba(14,165,233,0.2)":"transparent",borderColor:demo?"#0EA5E9":"rgba(255,255,255,0.2)",color:demo?"#7DD3FC":"rgba(255,255,255,0.5)"}}>
-            {demo?"Demo ON":"Demo"}
-          </button>
         </div>
       </div>
 
@@ -1298,11 +1208,6 @@ export default function OwnerApp() {
                 {n.icon}{n.label}
               </button>
             ))}
-            <div className="owner-nav-section" style={{marginTop:8}}>Data</div>
-            <button className={"owner-nav-item"+(demo?" active":"")} onClick={()=>setDemo(d=>!d)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
-              {demo?"Demo: ON":"Demo: OFF"}
-            </button>
           </nav>
 
           <div className="owner-sidebar-footer">
@@ -1324,10 +1229,10 @@ export default function OwnerApp() {
           </div>
 
           <div className="owner-content" ref={contentRef}>
-            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} stats={stats} hourData={hourData} payments={payments} topItems={topItems} slowItems={slowItems} recent={recent}/>}
-            {screen==="products" &&<ScreenProducts topItems={topItems} slowItems={slowItems}/>}
-            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} demo={demo}/>}
-            {screen==="cashflow" &&<ScreenCashFlow cashData={cashData} demo={demo}/>}
+            {screen==="dashboard"&&<ScreenDashboard range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={refresh} stats={stats} hourData={hourData} payments={payments} topItems={topItems} topDrinkItems={topDrinkItems} slowItems={slowItems} recent={recent}/>}
+            {screen==="products" &&<ScreenProducts topItems={topItems} topDrinkItems={topDrinkItems}/>}
+            {screen==="staff"    &&<ScreenStaff staffData={staffData} stats={stats} staffList={staffList} todayAtt={todayAtt} range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}/>}
+            {screen==="cashflow" &&<ScreenCashFlow cashData={cashData}/>}
           </div>
         </main>
       </div>
