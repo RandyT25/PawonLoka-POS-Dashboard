@@ -113,6 +113,24 @@ export default function POS() {
   const [showBundles, setShowBundles] = useState(false)
 
   useEffect(() => {
+    // Load from cache first — instant, no network needed
+    Promise.all([
+      offlineStore.getCache('app_settings'),
+      offlineStore.getCache('discounts'),
+    ]).then(([cachedSettings, cachedDiscounts]) => {
+      if (cachedSettings) {
+        setAppSettings(cachedSettings)
+        if (cachedSettings.outlet?.logo) prefetchLogo(cachedSettings.outlet.logo, '80mm')
+      }
+      if (cachedDiscounts) setBackofficeDiscounts(cachedDiscounts)
+    })
+    // Staff from localStorage (already cache-first in PinLogin, mirror here)
+    try {
+      const s = JSON.parse(localStorage.getItem('pos_staff_cache') || 'null')
+      if (s?.length) setStaffList(s)
+    } catch {}
+
+    // Then refresh from Supabase in background
     supabase.from('app_settings').select('*').eq('id','main').maybeSingle()
       .then(({data}) => {
         if (data) {
@@ -120,23 +138,19 @@ export default function POS() {
           offlineStore.setCache('app_settings', data)
           if (data.outlet?.logo) prefetchLogo(data.outlet.logo, '80mm')
         }
-      })
-      .catch(async () => {
-        const cached = await offlineStore.getCache('app_settings')
-        if (cached) setAppSettings(cached)
-      })
+      }).catch(() => {})
     supabase.from('discounts').select('*').eq('active', true).order('name')
       .then(({data}) => { if (data) { setBackofficeDiscounts(data); offlineStore.setCache('discounts', data) } })
-      .catch(async () => { const c = await offlineStore.getCache('discounts'); if (c) setBackofficeDiscounts(c) })
+      .catch(() => {})
     supabase.from('staff').select('id,name,role,pin,color,active').eq('active', true).order('name')
       .then(({data}) => {
         if (data?.length) {
           setStaffList(data)
           localStorage.setItem('pos_staff_cache', JSON.stringify(data))
         }
-      })
+      }).catch(() => {})
     supabase.from('bundles').select('*').eq('active', true).order('name')
-      .then(({data}) => { if (data) setBundles(data) })
+      .then(({data}) => { if (data) setBundles(data) }).catch(() => {})
   }, [])
 
   const paySettings = appSettings?.payments
@@ -249,30 +263,35 @@ export default function POS() {
   }
 
   async function loadData() {
+    // Step 1: Load from IndexedDB cache IMMEDIATELY — instant startup even offline
+    const [cachedProds, cachedCats, cachedMods] = await Promise.all([
+      offlineStore.getCache('products'),
+      offlineStore.getCache('categories'),
+      offlineStore.getCache('modifier_groups'),
+    ])
+    if (cachedProds?.length) setProducts(cachedProds)
+    if (cachedCats?.length)  setCategories(cachedCats)
+    if (cachedMods?.length)  setModifierGroups(cachedMods)
+    // Show UI immediately if we have cached data — don't wait for network
+    if (cachedProds?.length && cachedCats?.length) setLoading(false)
+
+    // Step 2: Refresh from Supabase in background with a 10s timeout
     try {
-      const [{ data: prods, error: e1 }, { data: cats, error: e2 }, { data: mods, error: e3 }] = await Promise.all([
-        supabase.from('products').select('*').eq('active', true),
-        supabase.from('categories').select('*').order('sort'),
-        supabase.from('modifier_groups').select('*').order('name'),
+      const race = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
+      const [{ data: prods, error: e1 }, { data: cats, error: e2 }, { data: mods, error: e3 }] = await Promise.race([
+        Promise.all([
+          supabase.from('products').select('*').eq('active', true),
+          supabase.from('categories').select('*').order('sort'),
+          supabase.from('modifier_groups').select('*').order('name'),
+        ]),
+        race(10000).then(() => { throw new Error('timeout') }),
       ])
       if (e1 || e2 || e3) throw new Error('fetch failed')
-      setProducts(prods || [])
-      setCategories(cats || [])
-      setModifierGroups(mods || [])
-      // Cache for offline use
-      offlineStore.setCache('products', prods)
-      offlineStore.setCache('categories', cats)
-      offlineStore.setCache('modifier_groups', mods)
+      if (prods) { setProducts(prods); offlineStore.setCache('products', prods) }
+      if (cats)  { setCategories(cats); offlineStore.setCache('categories', cats) }
+      if (mods)  { setModifierGroups(mods); offlineStore.setCache('modifier_groups', mods) }
     } catch {
-      // Offline fallback — load from IndexedDB cache
-      const [prods, cats, mods] = await Promise.all([
-        offlineStore.getCache('products'),
-        offlineStore.getCache('categories'),
-        offlineStore.getCache('modifier_groups'),
-      ])
-      if (prods?.length) setProducts(prods)
-      if (cats?.length) setCategories(cats)
-      if (mods?.length) setModifierGroups(mods)
+      // Silent — cache already loaded above
     }
     setLoading(false)
   }
