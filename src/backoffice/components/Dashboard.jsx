@@ -114,108 +114,78 @@ export default function Dashboard() {
 
       {/* ── Hero ─────────────────────────────────────── */}
       <div style={{ background:"linear-gradient(135deg,#0A1628,#0052CC)", borderRadius:16, padding:"22px 24px", color:"#fff", marginBottom:12 }}>
-        {/* Grand total */}
-        <div style={{ fontSize:11, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:4 }}>Total Keseluruhan</div>
-        <div style={{ fontSize:34, fontWeight:900, letterSpacing:"-1px", marginBottom:2 }}>{fmt(stats.sales + stats.unpaidSales)}</div>
-        <div style={{ fontSize:11, opacity:0.45, marginBottom:18 }}>Sudah dibayar + belum dibayar</div>
-
-        {/* Sudah / Belum row */}
-        <div style={{ display:"flex", gap:24, flexWrap:"wrap", marginBottom:14 }}>
+        {/* 3-column grid fills the full width */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", gap:"0 20px", marginBottom:16 }}>
+          {/* Col 1 — Grand Total */}
           <div>
-            <div style={{ fontSize:10, fontWeight:700, opacity:0.6, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>✓ Sudah Dibayar</div>
-            <div style={{ fontSize:22, fontWeight:900 }}>{fmt(stats.sales)}</div>
-            <div style={{ fontSize:11, opacity:0.5, marginTop:1 }}>{stats.paidOrders} transaksi lunas</div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>Total Keseluruhan</div>
+            <div style={{ fontSize:30, fontWeight:900, letterSpacing:"-1px", lineHeight:1 }}>{fmt(stats.sales + stats.unpaidSales)}</div>
+            <div style={{ fontSize:11, opacity:0.4, marginTop:5 }}>sudah + belum dibayar</div>
           </div>
-          <div style={{ width:1, background:"rgba(255,255,255,0.15)", alignSelf:"stretch" }}/>
+          {/* Divider */}
+          <div style={{ background:"rgba(255,255,255,0.15)" }}/>
+          {/* Col 2 — Sudah Dibayar */}
           <div>
-            <div style={{ fontSize:10, fontWeight:700, opacity:0.6, textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>⏳ Belum Dibayar</div>
-            <div style={{ fontSize:22, fontWeight:900, color: stats.unpaidSales > 0 ? "#FCD34D" : "rgba(255,255,255,0.3)" }}>{fmt(stats.unpaidSales)}</div>
-            <div style={{ fontSize:11, opacity:0.5, marginTop:1 }}>{stats.openOrders} open bill</div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>✓ Sudah Dibayar</div>
+            <div style={{ fontSize:26, fontWeight:900, letterSpacing:"-0.5px", lineHeight:1 }}>{fmt(stats.sales)}</div>
+            <div style={{ fontSize:11, opacity:0.4, marginTop:5 }}>{stats.paidOrders} transaksi lunas</div>
+          </div>
+          {/* Divider */}
+          <div style={{ background:"rgba(255,255,255,0.15)" }}/>
+          {/* Col 3 — Belum Dibayar */}
+          <div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>⏳ Belum Dibayar</div>
+            <div style={{ fontSize:26, fontWeight:900, letterSpacing:"-0.5px", lineHeight:1, color: stats.unpaidSales > 0 ? "#FCD34D" : "rgba(255,255,255,0.3)" }}>{fmt(stats.unpaidSales)}</div>
+            <div style={{ fontSize:11, opacity:0.4, marginTop:5 }}>{stats.openOrders} open bill</div>
           </div>
         </div>
-
         {/* Meta bar */}
-        <div style={{ display:"flex", gap:16, flexWrap:"wrap", fontSize:11, borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:12 }}>
+        <div style={{ display:"flex", gap:20, flexWrap:"wrap", fontSize:11, borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:12 }}>
           <span style={{ opacity:0.6 }}>Avg/Transaksi <strong style={{ opacity:1 }}>{fmt(stats.avgOrder)}</strong></span>
-          <span style={{ opacity:0.6 }}>Gross Profit <strong style={{ opacity:1, color: stats.grossProfit >= 0 ? "#86EFAC" : "#FCA5A5" }}>{fmt(stats.grossProfit)}</strong> <span style={{ opacity:0.7 }}>({margin}%)</span></span>
+          <span style={{ opacity:0.6 }}>Gross Profit <strong style={{ opacity:1, color: stats.grossProfit >= 0 ? "#86EFAC" : "#FCA5A5" }}>{fmt(stats.grossProfit)}</strong> <span style={{ opacity:0.5 }}>({margin}%)</span></span>
           <span style={{ opacity:0.6 }}>Proyeksi Bulan Ini <strong style={{ opacity:1 }}>{fmt(stats.projection)}</strong></span>
+          <span style={{ opacity:0.6 }}>Produk Terjual <strong style={{ opacity:1 }}>{stats.totalProductsSold}</strong></span>
         </div>
       </div>
 
-      {/* ── 2-column: Chart + Side panel ─────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 340px", gap:12, marginBottom:12 }}>
+      {/* ── KPI cards ────────────────────────────────── */}
+      <div className="bo-dash-kpi" style={{ gap:10, marginBottom:12 }}>
+        {[
+          { label:"Transaksi Lunas", value:stats.paidOrders,        sub:"orders lunas",  color:"#0052CC" },
+          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),     sub:"per transaksi", color:"var(--ink1)" },
+          { label:"Produk Terjual",  value:stats.totalProductsSold, sub:"total items",   color:"#6554C0" },
+          { label:"Open Bills",      value:stats.openOrders,        sub:"belum dibayar", color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)" },
+        ].map(k => (
+          <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
+            <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.4px" }}>{k.label}</div>
+            <div style={{ fontSize:20, fontWeight:900, color:k.color }}>{k.value}</div>
+            <div style={{ fontSize:10, color:"var(--ink5)", marginTop:4 }}>{k.sub}</div>
+          </div>
+        ))}
+      </div>
 
-        {/* Sales by Hour — taller, with value labels */}
-        <div className="bo-card" style={{ marginBottom:0 }}>
-          <div className="bo-card-title">
-            Penjualan per Jam
-            {hourData.every(h => h.value === 0) && <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>— belum ada data</span>}
-          </div>
-          <div style={{ display:"flex", alignItems:"flex-end", gap:3, height:130, paddingTop:8 }}>
-            {hourData.map(h => {
-              const pct    = h.maxHour > 0 ? Math.max(3, Math.round(h.value / h.maxHour * 100)) : 3
-              const active = h.value > 0
-              return (
-                <div key={h.hour} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3, height:"100%" }}>
-                  <div style={{ flex:1, display:"flex", alignItems:"flex-end", width:"100%" }}>
-                    <div title={active ? fmt(h.value) : ""} style={{
-                      width:"100%", height: pct + "%", minHeight:3,
-                      borderRadius:"3px 3px 0 0",
-                      background: active ? "var(--brand)" : "var(--surface2)",
-                      transition:"height 0.3s",
-                      cursor: active ? "default" : "default",
-                    }} />
-                  </div>
-                  <span style={{ fontSize:8, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00","")}</span>
-                </div>
-              )
-            })}
-          </div>
+      {/* ── Sales by Hour ─────────────────────────────── */}
+      <div className="bo-card" style={{ marginBottom:12 }}>
+        <div className="bo-card-title">
+          Sales by Hour
+          {hourData.every(h => h.value === 0) && <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>— no data yet</span>}
         </div>
-
-        {/* Side panel: payment methods + top products */}
-        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-          {/* Payment methods */}
-          <div className="bo-card" style={{ marginBottom:0, flex:1 }}>
-            <div className="bo-card-title" style={{ marginBottom:10 }}>Metode Pembayaran</div>
-            {payments.length === 0
-              ? <div style={{ fontSize:12, color:"var(--ink5)" }}>Belum ada transaksi</div>
-              : payments.map(p => (
-                <div key={p.method} style={{ marginBottom:10 }}>
-                  <div style={{ display:"flex", justifyContent:"space-between", marginBottom:4, fontSize:12 }}>
-                    <span style={{ fontWeight:600, color:"var(--ink1)" }}>{p.method}</span>
-                    <span style={{ fontWeight:700, color:"var(--brand)" }}>{p.pct}%</span>
-                  </div>
-                  <div style={{ height:5, background:"var(--surface2)", borderRadius:3, overflow:"hidden" }}>
-                    <div style={{ height:"100%", width:p.pct+"%", background:"var(--brand)", borderRadius:3 }}/>
-                  </div>
-                  <div style={{ fontSize:10, color:"var(--ink5)", marginTop:2 }}>{fmt(p.amount)}</div>
-                </div>
-              ))
-            }
-          </div>
-
-          {/* Top products */}
-          <div className="bo-card" style={{ marginBottom:0, flex:1 }}>
-            <div className="bo-card-title" style={{ marginBottom:10 }}>Top Produk</div>
-            {topProds.length === 0
-              ? <div style={{ fontSize:12, color:"var(--ink5)" }}>Belum ada data</div>
-              : topProds.map((p,i) => (
-                <div key={p.name} style={{ display:"flex", alignItems:"center", gap:8, marginBottom:8 }}>
-                  <div style={{ width:20, height:20, borderRadius:"50%", flexShrink:0, background:i===0?"#F59E0B":i===1?"#94A3B8":i===2?"#B45309":"#F1F5F9", color:i<3?"#fff":"#64748B", fontSize:9, fontWeight:800, display:"flex", alignItems:"center", justifyContent:"center" }}>{i+1}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", marginBottom:2 }}>
-                      <span style={{ fontSize:12, fontWeight:600, color:"var(--ink1)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</span>
-                      <span style={{ fontSize:11, fontWeight:700, color:"var(--brand)", flexShrink:0, marginLeft:6 }}>{p.qty}×</span>
-                    </div>
-                    <div style={{ height:4, background:"var(--surface2)", borderRadius:2, overflow:"hidden" }}>
-                      <div style={{ height:"100%", width:Math.round(p.qty/p.max*100)+"%", background:"var(--brand)", borderRadius:2 }}/>
-                    </div>
-                  </div>
-                </div>
-              ))
-            }
-          </div>
+        <div style={{ display:"flex", alignItems:"flex-end", gap:4, height:80 }}>
+          {hourData.map(h => {
+            const pct    = h.maxHour > 0 ? Math.max(4, Math.round(h.value / h.maxHour * 100)) : 4
+            const active = h.value > 0
+            return (
+              <div key={h.hour} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+                <div title={fmt(h.value)} style={{
+                  width:"100%", height: pct * 0.76 + "%", minHeight:4,
+                  borderRadius:"3px 3px 0 0",
+                  background: active ? "var(--brand)" : "var(--surface2)",
+                  transition:"height 0.3s",
+                }} />
+                <span style={{ fontSize:9, color:"var(--ink5)", whiteSpace:"nowrap" }}>{h.hour.replace(":00", "")}</span>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -224,7 +194,7 @@ export default function Dashboard() {
         <div className="bo-card-title">
           Transaksi Terbaru
           <span style={{ fontSize:11, color:"var(--ink5)", fontWeight:400, marginLeft:8 }}>
-            {stats.paidOrders} lunas · {stats.openOrders} open
+            {stats.paidOrders} lunas · {stats.openOrders} open · lihat semua di halaman Orders
           </span>
         </div>
         {selected && (
