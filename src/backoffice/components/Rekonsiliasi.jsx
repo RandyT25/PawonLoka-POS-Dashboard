@@ -39,14 +39,12 @@ export default function Rekonsiliasi() {
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
 
     // Query ORDERS (not shifts — shifts don't have per-method breakdown)
-    const { data: orders, error } = await supabase
-      .from("orders")
-      .select("id, code, total, pay, status, created_at, date, staff, time, table")
-      .gte("created_at", fromStr)
-      .in("status", ["Paid", "paid"])
-      .order("created_at", { ascending: false })
+    // Use select("*") — "table" and "time" are SQL reserved words, explicit select fails
+    let q = supabase.from("orders").select("*").gte("created_at", fromStr)
+    if (toStr) q = q.lte("created_at", toStr)
+    const { data: orders, error } = await q.order("created_at", { ascending: false })
 
-    if (error) { console.error("Rekonsiliasi load error:", error); setLoading(false); return }
+    if (error) { console.error("Rekonsiliasi query error:", error.message); setLoading(false); return }
 
     // Load existing reconciliation records
     let reconMap = {}
@@ -56,10 +54,10 @@ export default function Rekonsiliasi() {
       ;(recons||[]).forEach(r => { reconMap[r.recon_no] = r })
     } catch(e) {} // table might not exist yet
 
-    // Group orders by date × payment method
+    // Group PAID orders by date × payment method
     const groups = {}
     for (const o of orders||[]) {
-      if (toStr && o.created_at > toStr) continue
+      if (o.status && o.status !== "Paid" && o.status !== "paid") continue // skip open/void
       const day = o.date || o.created_at?.slice(0,10) || "?"
       const payRaw = o.pay || "Cash"
       const key = day + "|" + payRaw
