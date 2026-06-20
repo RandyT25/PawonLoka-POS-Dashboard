@@ -6,8 +6,14 @@ import useOrders from './hooks/useOrders'
 import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 
-// Offline-safe write: tries Supabase, queues to IndexedDB if offline
+// Offline-safe write: queues immediately if offline — no hanging network call
 async function dbWrite(table, op, payload, match = null) {
+  // Check FIRST — skip network entirely when offline so orders save instantly
+  if (!navigator.onLine) {
+    await offlineStore.enqueue({ table, op, payload, match })
+    window.dispatchEvent(new Event('offline-queue-updated'))
+    return true
+  }
   try {
     let q = supabase.from(table)[op](payload)
     if (match) Object.entries(match).forEach(([k, v]) => { q = q.eq(k, v) })
@@ -15,10 +21,11 @@ async function dbWrite(table, op, payload, match = null) {
     if (error) throw error
     return true
   } catch {
+    // Went offline during the call — queue the retry
     if (!navigator.onLine) {
       await offlineStore.enqueue({ table, op, payload, match })
       window.dispatchEvent(new Event('offline-queue-updated'))
-      return true // optimistic — queued
+      return true
     }
     return false // real online error
   }
@@ -496,6 +503,10 @@ export default function POS() {
   // Send Order = save as Open Bill + send kitchen tickets
   async function handleSendOrder({ subtotal, tax, discAmt, total, fee }) {
     if (cart.length === 0) return
+    // Snapshot volatile state NOW — prevents table/orderType changing mid-async
+    // (race condition: staff taps another table while this is awaiting)
+    const capturedTable     = tableNo
+    const capturedOrderType = orderType
     const now = new Date()
     // kitchenItems: delta qty only — kitchen staff see only what's new/increased
     const kitchenItems = cart
@@ -552,7 +563,7 @@ export default function POS() {
         id: orderId,
         items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null })),
         subtotal, tax, discount: discAmt, total,
-        pay: '-', staff: staff.name, table: tableNo || null,
+        pay: '-', staff: staff.name, table: capturedTable || null,
         pax: pax || null,
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
@@ -571,7 +582,7 @@ export default function POS() {
       ...Object.entries(stations).map(([station, items]) =>
         dbWrite('kitchen_tickets', 'insert', {
           id: 'KT-' + crypto.randomUUID(),
-          table: tableNo || orderType,
+          table: capturedTable || capturedOrderType,
           items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
           status: 'New', station,
@@ -580,7 +591,7 @@ export default function POS() {
       ...Object.entries(cancelStations).map(([station, items]) =>
         dbWrite('kitchen_tickets', 'insert', {
           id: 'KT-' + crypto.randomUUID(),
-          table: tableNo || orderType,
+          table: capturedTable || capturedOrderType,
           items: items.map(i => ({ name:i.name, qty:i.qty })),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
           status: 'New', station, type: 'cancellation',
@@ -604,7 +615,7 @@ export default function POS() {
       try {
         await printer.printKitchenTicket({
           stationRole, stationName: station,
-          table: tableNo || '-', orderType, type,
+          table: capturedTable || '-', orderType: capturedOrderType, type,
           items:       addItems.map(i => fmtItem(i, i._isAddition ? '+' : '')),
           cancelItems: cItems.map(i => fmtItem(i, '-')),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' | ' + now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }),
@@ -631,8 +642,8 @@ export default function POS() {
         printer.printKitchenTicket({
           stationRole: 'receipt',
           stationName: 'CHECKER',
-          table: tableNo || '-',
-          orderType,
+          table: capturedTable || '-',
+          orderType: capturedOrderType,
           items: cart.map(i => {
             const parts = [i.qty + 'x ' + i.name]
             if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
