@@ -1,14 +1,31 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmt, KITCHEN_STATIONS } from '../shared/constants'
 import './customer.css'
+
+// ── SVG Icons ────────────────────────────────────────────────────────────────
+
+const IconMenu = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+  </svg>
+)
+const IconCart = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+  </svg>
+)
+const IconBill = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+  </svg>
+)
 
 // ── Modifier Sheet ───────────────────────────────────────────────────────────
 
 function ModSheet({ product, mods, onAdd }) {
   const [selected, setSelected] = useState({})
   const [note, setNote] = useState('')
-
   const requiredFilled = mods.filter(m => m.required).every(m => selected[m.id])
 
   return (
@@ -18,16 +35,13 @@ function ModSheet({ product, mods, onAdd }) {
         return (
           <div key={mod.id} className="cust-mod-group">
             <div className="cust-mod-label">
-              {mod.name}
-              {mod.required && <span className="cust-mod-req"> *</span>}
+              {mod.name}{mod.required && <span className="cust-mod-req"> *</span>}
             </div>
             <div className="cust-mod-opts">
               {opts.map(opt => (
-                <button
-                  key={opt.name}
+                <button key={opt.name}
                   className={'cust-mod-opt' + (selected[mod.id] === opt.name ? ' active' : '')}
-                  onClick={() => setSelected(prev => ({ ...prev, [mod.id]: opt.name }))}
-                >
+                  onClick={() => setSelected(prev => ({ ...prev, [mod.id]: opt.name }))}>
                   {opt.name}{opt.price > 0 && <span className="cust-mod-price"> +{fmt(opt.price)}</span>}
                 </button>
               ))}
@@ -37,56 +51,61 @@ function ModSheet({ product, mods, onAdd }) {
       })}
       <div className="cust-mod-group">
         <div className="cust-mod-label">Catatan</div>
-        <input
-          className="cust-mod-note"
-          placeholder="mis. tidak pedas, tanpa bawang..."
-          value={note}
-          onChange={e => setNote(e.target.value)}
-        />
+        <input className="cust-mod-note" placeholder="mis. tidak pedas, tanpa bawang..."
+          value={note} onChange={e => setNote(e.target.value)} />
       </div>
       <div className="cust-modsheet-footer">
-        <button
-          className="cust-btn-primary"
-          disabled={!requiredFilled}
-          onClick={() => onAdd(product, selected, note)}
-        >
-          Tambah ke Pesanan
+        <button className="cust-btn-primary" disabled={!requiredFilled}
+          onClick={() => onAdd(product, selected, note)}>
+          Tambah ke Keranjang
         </button>
       </div>
     </div>
   )
 }
 
-// ── Main Customer App ────────────────────────────────────────────────────────
+// ── Main App ─────────────────────────────────────────────────────────────────
 
 export default function CustomerApp({ tableId }) {
-  const [phase, setPhase] = useState('menu') // menu | cart | done | bill
+  const [tab, setTab] = useState('menu') // menu | cart | bill
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [products, setProducts] = useState([])
+  const [categories, setCategories] = useState([])
+  const [modifierGroups, setModifierGroups] = useState([])
+  const [activeCat, setActiveCat] = useState(null)
 
-  // Fix: #root has overflow:hidden globally for POS — override for customer pages
-  // Also remove the POS manifest so the PWA install prompt doesn't appear
+  // Cart — persisted to localStorage so refresh doesn't lose it
+  const [cart, setCart] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(`cust_cart_${tableId}`) || '[]') }
+    catch { return [] }
+  })
+
+  const [openOrder, setOpenOrder] = useState(null)
+  const [tableRecord, setTableRecord] = useState(null)
+  const [billRequested, setBillRequested] = useState(false)
+  const [ordering, setOrdering] = useState(false)
+  const [orderSentToast, setOrderSentToast] = useState(false)
+  const toastTimer = useRef(null)
+
+  const [taxRate, setTaxRate] = useState(0)
+  const [outletName, setOutletName] = useState('PawonLoka')
+  const [logoUrl, setLogoUrl] = useState('/logo.png')
+  const [modProduct, setModProduct] = useState(null)
+
+  // Fix #root overflow:hidden (set for POS) and remove POS PWA manifest
   useEffect(() => {
     const root = document.getElementById('root')
     if (root) { root.style.overflow = 'auto'; root.style.height = 'auto' }
     const manifest = document.querySelector('link[rel="manifest"]')
     if (manifest) manifest.remove()
-    return () => {
-      if (root) { root.style.overflow = ''; root.style.height = '' }
-    }
+    return () => { if (root) { root.style.overflow = ''; root.style.height = '' } }
   }, [])
-  const [categories, setCategories] = useState([])
-  const [modifierGroups, setModifierGroups] = useState([])
-  const [activeCat, setActiveCat] = useState(null)
-  const [cart, setCart] = useState([])
-  const [modProduct, setModProduct] = useState(null)
-  const [openOrder, setOpenOrder] = useState(null)
-  const [tableRecord, setTableRecord] = useState(null)
-  const [ordering, setOrdering] = useState(false)
-  const [billRequested, setBillRequested] = useState(false)
-  const [taxRate, setTaxRate] = useState(0)
-  const [outletName, setOutletName] = useState('PawonLoka')
+
+  // Persist cart to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem(`cust_cart_${tableId}`, JSON.stringify(cart))
+  }, [cart, tableId])
 
   useEffect(() => { load() }, [tableId])
 
@@ -114,10 +133,10 @@ export default function CustomerApp({ tableId }) {
       setModifierGroups(mods || [])
       if (cats?.length) setActiveCat(cats[0].name)
 
-      // Read tax rate and outlet name from backoffice settings
       const pay = settings?.payments
       setTaxRate(pay?.tax?.enabled ? (pay.tax.rate || 0) / 100 : 0)
-      setOutletName(settings?.outlet?.name || settings?.receipt?.outlet_name || 'PawonLoka')
+      setOutletName(settings?.outlet?.name || 'PawonLoka')
+      if (settings?.outlet?.logo_url) setLogoUrl(settings.outlet.logo_url)
 
       if (tableData?.open_bill_id) {
         const { data: order } = await supabase
@@ -134,6 +153,7 @@ export default function CustomerApp({ tableId }) {
     }
   }
 
+  // Cart calculations
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const subtotal  = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const tax       = Math.round(subtotal * taxRate)
@@ -174,12 +194,17 @@ export default function CustomerApp({ tableId }) {
     )
   }
 
+  function showToast() {
+    setOrderSentToast(true)
+    clearTimeout(toastTimer.current)
+    toastTimer.current = setTimeout(() => setOrderSentToast(false), 3000)
+  }
+
   async function handlePlaceOrder() {
     if (cart.length === 0 || ordering) return
     setOrdering(true)
     const now = new Date()
     const getStation = cat => KITCHEN_STATIONS[cat] || 'Kitchen'
-
     try {
       const orderItems = cart.map(i => ({
         sku: i.sku, name: i.name, qty: i.qty, price: i.price,
@@ -190,9 +215,9 @@ export default function CustomerApp({ tableId }) {
       let orderId = openOrder?.id
 
       if (openOrder) {
-        const merged = [...(openOrder.items || []), ...orderItems]
-        const newSub = merged.reduce((s, i) => s + i.price * i.qty, 0)
-        const newTax = Math.round(newSub * taxRate)
+        const merged  = [...(openOrder.items || []), ...orderItems]
+        const newSub  = merged.reduce((s, i) => s + i.price * i.qty, 0)
+        const newTax  = Math.round(newSub * taxRate)
         await supabase.from('orders').update({
           items: merged, subtotal: newSub, tax: newTax, total: newSub + newTax,
         }).eq('id', openOrder.id)
@@ -200,11 +225,9 @@ export default function CustomerApp({ tableId }) {
       } else {
         orderId = 'ORD-' + Date.now()
         const { error: e } = await supabase.from('orders').insert({
-          id: orderId,
-          items: orderItems, subtotal, tax, discount: 0, total,
+          id: orderId, items: orderItems, subtotal, tax, discount: 0, total,
           pay: '-', staff: 'Self Order', table: tableId,
-          customer: null, customer_id: null,
-          status: 'Open',
+          customer: null, customer_id: null, status: 'Open',
           date: now.toISOString().slice(0, 10),
           time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
           cogs: 0,
@@ -217,25 +240,20 @@ export default function CustomerApp({ tableId }) {
 
       // Kitchen tickets per station
       const stations = {}
-      cart.forEach(i => {
-        const s = getStation(i.cat)
-        if (!stations[s]) stations[s] = []
-        stations[s].push(i)
-      })
-      await Promise.all(
-        Object.entries(stations).map(([station, items]) =>
-          supabase.from('kitchen_tickets').insert({
-            id: 'KT-' + crypto.randomUUID(),
-            table: tableId,
-            items: items.map(i => ({ name: i.name, qty: i.qty, note: i.note || '', modifiers: i.modifiers || {} })),
-            time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            status: 'New', station,
-          })
-        )
-      )
+      cart.forEach(i => { const s = getStation(i.cat); if (!stations[s]) stations[s] = []; stations[s].push(i) })
+      await Promise.all(Object.entries(stations).map(([station, items]) =>
+        supabase.from('kitchen_tickets').insert({
+          id: 'KT-' + crypto.randomUUID(), table: tableId,
+          items: items.map(i => ({ name: i.name, qty: i.qty, note: i.note || '', modifiers: i.modifiers || {} })),
+          time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          status: 'New', station,
+        })
+      ))
 
       setCart([])
-      setPhase('done')
+      localStorage.removeItem(`cust_cart_${tableId}`)
+      showToast()
+      setTab('bill')
     } catch {
       alert('Gagal mengirim pesanan. Silakan coba lagi.')
     } finally {
@@ -248,6 +266,8 @@ export default function CustomerApp({ tableId }) {
     await supabase.from('orders').update({ bill_requested: true }).eq('id', openOrder.id)
     setBillRequested(true)
   }
+
+  const hasOrder = !!openOrder
 
   // ── Loading / Error ──────────────────────────────────────────────────────────
 
@@ -266,213 +286,205 @@ export default function CustomerApp({ tableId }) {
     </div>
   )
 
-  // ── Modifier overlay ─────────────────────────────────────────────────────────
-
-  const modOverlay = modProduct && (
-    <div className="cust-overlay" onClick={() => setModProduct(null)}>
-      <div className="cust-sheet" onClick={e => e.stopPropagation()}>
-        <div className="cust-sheet-hd">
-          <div>
-            <div className="cust-sheet-title">{modProduct.product.name}</div>
-            <div className="cust-sheet-price">{fmt(modProduct.product.price)}</div>
-          </div>
-          <button className="cust-close-btn" onClick={() => setModProduct(null)}>✕</button>
-        </div>
-        <ModSheet product={modProduct.product} mods={modProduct.mods} onAdd={addToCart} />
-      </div>
-    </div>
-  )
-
-  // ── Phase: DONE ──────────────────────────────────────────────────────────────
-
-  if (phase === 'done') return (
-    <div className="cust-root">
-      <div className="cust-center cust-done">
-        <div className="cust-center-icon">✅</div>
-        <div className="cust-center-title">Pesanan dikirim!</div>
-        <div className="cust-center-sub">Dapur sedang menyiapkan pesanan Anda</div>
-        <button className="cust-btn-primary" style={{marginTop:24}} onClick={() => setPhase('bill')}>Lihat Tagihan</button>
-        <button className="cust-btn-ghost" onClick={() => setPhase('menu')}>Tambah Pesanan</button>
-      </div>
-    </div>
-  )
-
-  // ── Phase: BILL ──────────────────────────────────────────────────────────────
-
-  if (phase === 'bill') return (
-    <div className="cust-root">
-      <div className="cust-header">
-        <button className="cust-back-btn" onClick={() => setPhase('menu')}>←</button>
-        <div className="cust-header-info">
-          <div className="cust-header-title">Tagihan Saya</div>
-          <div className="cust-header-sub">Meja {tableId}</div>
-        </div>
-        <div />
-      </div>
-
-      <div className="cust-bill">
-        {!openOrder ? (
-          <div className="cust-empty">Belum ada pesanan</div>
-        ) : (
-          <>
-            <div className="cust-bill-items">
-              {(openOrder.items || []).map((item, idx) => (
-                <div key={idx} className="cust-bill-row">
-                  <div className="cust-bill-name">
-                    <span className="cust-bill-qty">{item.qty}×</span> {item.name}
-                    {item.modifiers && Object.values(item.modifiers).filter(Boolean).length > 0 && (
-                      <div className="cust-bill-mods">{Object.values(item.modifiers).filter(Boolean).join(', ')}</div>
-                    )}
-                  </div>
-                  <div className="cust-bill-price">{fmt(item.price * item.qty)}</div>
-                </div>
-              ))}
-            </div>
-
-            <div className="cust-bill-totals">
-              {taxRate > 0 && <div className="cust-bill-total-row"><span>Subtotal</span><span>{fmt(openOrder.subtotal)}</span></div>}
-              {taxRate > 0 && <div className="cust-bill-total-row"><span>Pajak ({Math.round(taxRate*100)}%)</span><span>{fmt(openOrder.tax)}</span></div>}
-              <div className="cust-bill-total-row cust-bill-grand"><span>Total</span><span>{fmt(openOrder.total)}</span></div>
-            </div>
-
-            {billRequested ? (
-              <div className="cust-requested-badge">
-                🔔 Kasir sedang dihubungi — silakan ke kasir untuk pembayaran
-              </div>
-            ) : (
-              <button className="cust-btn-primary" onClick={handleRequestBill}>
-                🧾 Minta Struk / Bayar di Kasir
-              </button>
-            )}
-          </>
-        )}
-        <button className="cust-btn-ghost" onClick={() => setPhase('menu')}>Kembali ke Menu</button>
-        <div className="cust-bill-footer-pad" />
-      </div>
-    </div>
-  )
-
-  // ── Phase: CART ──────────────────────────────────────────────────────────────
-
-  if (phase === 'cart') return (
-    <div className="cust-root">
-      <div className="cust-header">
-        <button className="cust-back-btn" onClick={() => setPhase('menu')}>←</button>
-        <div className="cust-header-info">
-          <div className="cust-header-title">Pesanan Anda</div>
-          <div className="cust-header-sub">Meja {tableId}</div>
-        </div>
-        <div />
-      </div>
-
-      <div className="cust-cart-body">
-        {cart.length === 0 ? (
-          <div className="cust-empty">Keranjang kosong</div>
-        ) : (
-          cart.map(item => (
-            <div key={item._id} className="cust-cart-row">
-              <div className="cust-cart-info">
-                <div className="cust-cart-name">{item.name}</div>
-                {item.modifiers && Object.values(item.modifiers).filter(Boolean).length > 0 && (
-                  <div className="cust-cart-mods">{Object.values(item.modifiers).filter(Boolean).join(', ')}</div>
-                )}
-                {item.note && <div className="cust-cart-note">📝 {item.note}</div>}
-                <div className="cust-cart-price">{fmt(item.price)}</div>
-              </div>
-              <div className="cust-qty-ctrl">
-                <button className="cust-qty-btn" onClick={() => updateQty(item._id, -1)}>−</button>
-                <span className="cust-qty-val">{item.qty}</span>
-                <button className="cust-qty-btn" onClick={() => updateQty(item._id, 1)}>+</button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
-      {cart.length > 0 && (
-        <div className="cust-cart-summary">
-          {taxRate > 0 && <div className="cust-cart-total-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>}
-          {taxRate > 0 && <div className="cust-cart-total-row"><span>Pajak ({Math.round(taxRate*100)}%)</span><span>{fmt(tax)}</span></div>}
-          <div className="cust-cart-total-row cust-cart-grand"><span>Total</span><span>{fmt(total)}</span></div>
-        </div>
-      )}
-
-      <div className="cust-cart-footer">
-        {openOrder && (
-          <button className="cust-btn-ghost" onClick={() => setPhase('bill')}>
-            Lihat Tagihan Saat Ini
-          </button>
-        )}
-        <button
-          className="cust-btn-primary"
-          onClick={handlePlaceOrder}
-          disabled={cart.length === 0 || ordering}
-        >
-          {ordering ? 'Mengirim...' : `Kirim Pesanan · ${fmt(total)}`}
-        </button>
-      </div>
-    </div>
-  )
-
-  // ── Phase: MENU (default) ────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <div className="cust-root">
-      {modOverlay}
 
-      <div className="cust-header">
-        <div className="cust-header-logo">🍽️</div>
+      {/* Header */}
+      <header className="cust-header">
+        <img
+          className="cust-logo"
+          src={logoUrl}
+          alt={outletName}
+          onError={e => { e.currentTarget.style.display = 'none' }}
+        />
         <div className="cust-header-info">
           <div className="cust-header-title">{outletName}</div>
           <div className="cust-header-sub">Meja {tableId}</div>
         </div>
-        {openOrder ? (
-          <button className="cust-bill-icon-btn" onClick={() => setPhase('bill')}>
-            🧾{billRequested && <span className="cust-bill-check">✓</span>}
-          </button>
-        ) : <div />}
-      </div>
-
-      <div className="cust-cats-wrap">
-        {categories.map(cat => (
-          <button
-            key={cat.name}
-            className={'cust-cat-btn' + (activeCat === cat.name ? ' active' : '')}
-            onClick={() => setActiveCat(cat.name)}
-          >
-            {cat.icon && <span>{cat.icon} </span>}{cat.name}
-          </button>
-        ))}
-      </div>
-
-      <div className="cust-products">
-        {visibleProducts.map(product => (
-          <button key={product.sku} className="cust-product-card" onClick={() => handleTapProduct(product)}>
-            <div className="cust-product-img">
-              {product.image_url
-                ? <img src={product.image_url} alt={product.name} />
-                : <span className="cust-product-emoji">{product.icon || '🍽️'}</span>
-              }
-            </div>
-            <div className="cust-product-body">
-              <div className="cust-product-name">{product.name}</div>
-              {product.desc && <div className="cust-product-desc">{product.desc}</div>}
-              <div className="cust-product-price">{fmt(product.price)}</div>
-            </div>
-            <div className="cust-product-add">+</div>
-          </button>
-        ))}
-        {visibleProducts.length === 0 && (
-          <div className="cust-empty" style={{ gridColumn: '1 / -1' }}>Tidak ada menu</div>
+        {billRequested && (
+          <div className="cust-header-badge">Struk diminta</div>
         )}
-      </div>
+      </header>
 
-      {cartCount > 0 && (
-        <button className="cust-fab" onClick={() => setPhase('cart')}>
-          🛒
-          <span className="cust-fab-badge">{cartCount}</span>
-          <span className="cust-fab-label">Lihat Pesanan · {fmt(total)}</span>
+      {/* ── MENU TAB ── */}
+      {tab === 'menu' && (
+        <>
+          <div className="cust-cats-wrap">
+            {categories.map(cat => (
+              <button key={cat.name}
+                className={'cust-cat-btn' + (activeCat === cat.name ? ' active' : '')}
+                onClick={() => setActiveCat(cat.name)}>
+                {cat.icon && <span>{cat.icon} </span>}{cat.name}
+              </button>
+            ))}
+          </div>
+          <div className="cust-products">
+            {visibleProducts.map(product => (
+              <button key={product.sku} className="cust-product-card" onClick={() => handleTapProduct(product)}>
+                <div className="cust-product-img">
+                  {product.image_url
+                    ? <img src={product.image_url} alt={product.name} />
+                    : <span className="cust-product-emoji">{product.icon || '🍽️'}</span>}
+                </div>
+                <div className="cust-product-body">
+                  <div className="cust-product-name">{product.name}</div>
+                  {product.desc && <div className="cust-product-desc">{product.desc}</div>}
+                  <div className="cust-product-price">{fmt(product.price)}</div>
+                </div>
+                <div className="cust-product-add">+</div>
+              </button>
+            ))}
+            {visibleProducts.length === 0 && (
+              <div className="cust-empty" style={{ gridColumn: '1/-1' }}>Tidak ada menu</div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* ── CART TAB ── */}
+      {tab === 'cart' && (
+        <div className="cust-tab-content">
+          <div className="cust-tab-title">Keranjang</div>
+          {cart.length === 0 ? (
+            <div className="cust-empty-cart">
+              <div className="cust-empty-cart-icon">
+                <IconCart />
+              </div>
+              <div className="cust-empty-cart-text">Keranjang masih kosong</div>
+              <button className="cust-btn-primary" onClick={() => setTab('menu')}>Lihat Menu</button>
+            </div>
+          ) : (
+            <>
+              <div className="cust-cart-list">
+                {cart.map(item => (
+                  <div key={item._id} className="cust-cart-row">
+                    <div className="cust-cart-info">
+                      <div className="cust-cart-name">{item.name}</div>
+                      {item.modifiers && Object.values(item.modifiers).filter(Boolean).length > 0 && (
+                        <div className="cust-cart-mods">{Object.values(item.modifiers).filter(Boolean).join(', ')}</div>
+                      )}
+                      {item.note && <div className="cust-cart-note">📝 {item.note}</div>}
+                      <div className="cust-cart-price">{fmt(item.price * item.qty)}</div>
+                    </div>
+                    <div className="cust-qty-ctrl">
+                      <button className="cust-qty-btn" onClick={() => updateQty(item._id, -1)}>−</button>
+                      <span className="cust-qty-val">{item.qty}</span>
+                      <button className="cust-qty-btn" onClick={() => updateQty(item._id, 1)}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="cust-cart-summary">
+                {taxRate > 0 && <div className="cust-summary-row"><span>Subtotal</span><span>{fmt(subtotal)}</span></div>}
+                {taxRate > 0 && <div className="cust-summary-row"><span>Pajak ({Math.round(taxRate * 100)}%)</span><span>{fmt(tax)}</span></div>}
+                <div className="cust-summary-row cust-summary-grand"><span>Total</span><span>{fmt(total)}</span></div>
+              </div>
+              <div className="cust-cart-actions">
+                <button className="cust-btn-primary" onClick={handlePlaceOrder} disabled={ordering}>
+                  {ordering ? 'Mengirim...' : `Kirim ke Dapur · ${fmt(total)}`}
+                </button>
+                <button className="cust-btn-ghost" onClick={() => setTab('menu')}>Tambah Menu Lain</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── BILL TAB ── */}
+      {tab === 'bill' && (
+        <div className="cust-tab-content">
+          <div className="cust-tab-title">Tagihan</div>
+          {!openOrder ? (
+            <div className="cust-empty-cart">
+              <div className="cust-empty-cart-icon"><IconBill /></div>
+              <div className="cust-empty-cart-text">Belum ada pesanan</div>
+              <button className="cust-btn-primary" onClick={() => setTab('menu')}>Pesan Sekarang</button>
+            </div>
+          ) : (
+            <>
+              <div className="cust-bill-items">
+                {(openOrder.items || []).map((item, idx) => (
+                  <div key={idx} className="cust-bill-row">
+                    <div className="cust-bill-qty">{item.qty}×</div>
+                    <div className="cust-bill-name">
+                      {item.name}
+                      {item.modifiers && Object.values(item.modifiers).filter(Boolean).length > 0 && (
+                        <div className="cust-bill-mods">{Object.values(item.modifiers).filter(Boolean).join(', ')}</div>
+                      )}
+                    </div>
+                    <div className="cust-bill-price">{fmt(item.price * item.qty)}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="cust-bill-totals">
+                {taxRate > 0 && <div className="cust-summary-row"><span>Subtotal</span><span>{fmt(openOrder.subtotal)}</span></div>}
+                {taxRate > 0 && <div className="cust-summary-row"><span>Pajak ({Math.round(taxRate * 100)}%)</span><span>{fmt(openOrder.tax)}</span></div>}
+                <div className="cust-summary-row cust-summary-grand"><span>Total</span><span>{fmt(openOrder.total)}</span></div>
+              </div>
+
+              <div className="cust-bill-actions">
+                {billRequested ? (
+                  <div className="cust-requested-badge">
+                    ✓ Kasir sedang dihubungi — silakan ke kasir untuk pembayaran
+                  </div>
+                ) : (
+                  <button className="cust-btn-request" onClick={handleRequestBill}>
+                    Minta Struk &amp; Bayar di Kasir
+                  </button>
+                )}
+                <button className="cust-btn-ghost" onClick={() => setTab('menu')}>+ Tambah Pesanan</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Bottom tab nav */}
+      <nav className="cust-bottom-nav">
+        <button className={'cust-nav-btn' + (tab === 'menu' ? ' active' : '')} onClick={() => setTab('menu')}>
+          <IconMenu />
+          <span>Menu</span>
         </button>
+        <button className={'cust-nav-btn' + (tab === 'cart' ? ' active' : '')} onClick={() => setTab('cart')}>
+          <div className="cust-nav-icon-wrap">
+            <IconCart />
+            {cartCount > 0 && <span className="cust-nav-badge">{cartCount}</span>}
+          </div>
+          <span>Keranjang</span>
+        </button>
+        <button className={'cust-nav-btn' + (tab === 'bill' ? ' active' : '')} onClick={() => setTab('bill')}>
+          <div className="cust-nav-icon-wrap">
+            <IconBill />
+            {billRequested && <span className="cust-nav-dot" />}
+          </div>
+          <span>Tagihan</span>
+        </button>
+      </nav>
+
+      {/* Order sent toast */}
+      {orderSentToast && (
+        <div className="cust-toast">
+          <span className="cust-toast-icon">✓</span>
+          Pesanan dikirim ke dapur!
+        </div>
+      )}
+
+      {/* Modifier overlay */}
+      {modProduct && (
+        <div className="cust-overlay" onClick={() => setModProduct(null)}>
+          <div className="cust-sheet" onClick={e => e.stopPropagation()}>
+            <div className="cust-sheet-hd">
+              <div>
+                <div className="cust-sheet-title">{modProduct.product.name}</div>
+                <div className="cust-sheet-price">{fmt(modProduct.product.price)}</div>
+              </div>
+              <button className="cust-close-btn" onClick={() => setModProduct(null)}>✕</button>
+            </div>
+            <ModSheet product={modProduct.product} mods={modProduct.mods} onAdd={addToCart} />
+          </div>
+        </div>
       )}
     </div>
   )
