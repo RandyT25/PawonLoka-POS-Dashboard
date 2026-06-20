@@ -64,6 +64,18 @@ export default function CustomerApp({ tableId }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [products, setProducts] = useState([])
+
+  // Fix: #root has overflow:hidden globally for POS — override for customer pages
+  // Also remove the POS manifest so the PWA install prompt doesn't appear
+  useEffect(() => {
+    const root = document.getElementById('root')
+    if (root) { root.style.overflow = 'auto'; root.style.height = 'auto' }
+    const manifest = document.querySelector('link[rel="manifest"]')
+    if (manifest) manifest.remove()
+    return () => {
+      if (root) { root.style.overflow = ''; root.style.height = '' }
+    }
+  }, [])
   const [categories, setCategories] = useState([])
   const [modifierGroups, setModifierGroups] = useState([])
   const [activeCat, setActiveCat] = useState(null)
@@ -270,7 +282,7 @@ export default function CustomerApp({ tableId }) {
         <div className="cust-center-icon">✅</div>
         <div className="cust-center-title">Pesanan dikirim!</div>
         <div className="cust-center-sub">Dapur sedang menyiapkan pesanan Anda</div>
-        <button className="cust-btn-primary" onClick={() => setPhase('bill')}>Lihat Tagihan</button>
+        <button className="cust-btn-primary" style={{marginTop:24}} onClick={() => setPhase('bill')}>Lihat Tagihan</button>
         <button className="cust-btn-ghost" onClick={() => setPhase('menu')}>Tambah Pesanan</button>
       </div>
     </div>
@@ -326,6 +338,7 @@ export default function CustomerApp({ tableId }) {
           </>
         )}
         <button className="cust-btn-ghost" onClick={() => setPhase('menu')}>Kembali ke Menu</button>
+        <div className="cust-bill-footer-pad" />
       </div>
     </div>
   )
