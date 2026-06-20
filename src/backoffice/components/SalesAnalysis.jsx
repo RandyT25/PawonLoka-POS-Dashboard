@@ -8,7 +8,8 @@ const PAY_COLORS = { Cash:"#10B981", QRIS:"#0EA5E9", Card:"#1565C0", GoPay:"#00A
 export default function SalesAnalysis() {
   const todayStr  = new Date().toISOString().slice(0, 10)
   const [range,      setRange]      = useState("today")
-  const [customDate, setCustomDate] = useState(todayStr)
+  const [customDate,   setCustomDate]   = useState(todayStr)
+  const [customDateTo, setCustomDateTo] = useState(todayStr)
   const [loading,      setLoading]      = useState(true)
   const [lastUpdated,  setLastUpdated]  = useState(null)
 
@@ -18,7 +19,7 @@ export default function SalesAnalysis() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { fromStr, toStr } = buildDateRange(range, customDate)
+    const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     let q = supabase.from("orders")
       .select("*")
       .gte("created_at", fromStr)
@@ -60,7 +61,7 @@ export default function SalesAnalysis() {
     setByDay(dayArr)
     setLastUpdated(new Date())
     setLoading(false)
-  }, [range, customDate])
+  }, [range, customDate, customDateTo])
 
   const loadRef = useRef(load)
   useEffect(() => { loadRef.current = load })
@@ -86,7 +87,7 @@ export default function SalesAnalysis() {
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── P&L Summary ───────────────────────────────── */}
       <div className="bo-sa-plrow" style={{ gap:12, marginBottom:16 }}>

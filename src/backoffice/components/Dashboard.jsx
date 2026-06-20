@@ -15,7 +15,8 @@ function statusBadge(s) {
 export default function Dashboard() {
   const todayStr  = new Date().toISOString().slice(0, 10)
   const [range,      setRange]      = useState("today")
-  const [customDate, setCustomDate] = useState(todayStr)
+  const [customDate,   setCustomDate]   = useState(todayStr)
+  const [customDateTo, setCustomDateTo] = useState(todayStr)
   const [loading,    setLoading]    = useState(true)
   const [stats,      setStats]      = useState({ sales:0, unpaidSales:0, paidOrders:0, openOrders:0, avgOrder:0, grossProfit:0, prevSales:0, totalProductsSold:0, projection:0, mtdSales:0 })
   const [hourData,   setHourData]   = useState([])
@@ -25,7 +26,7 @@ export default function Dashboard() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { fromStr, toStr } = buildDateRange(range, customDate)
+    const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     let q = supabase.from("orders").select("*").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("created_at", { ascending: false })
@@ -63,7 +64,7 @@ export default function Dashboard() {
     setRecent(orders.slice(0, 8))
     setLastUpdated(new Date())
     setLoading(false)
-  }, [range, customDate])
+  }, [range, customDate, customDateTo])
 
   // loadRef — always points to latest load(), prevents stale closure in interval/realtime
   const loadRef = useRef(load)
@@ -91,7 +92,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── Hero KPI row ─────────────────────────────── */}
       <div className="bo-dash-hero" style={{ gap:12, marginBottom:12 }}>

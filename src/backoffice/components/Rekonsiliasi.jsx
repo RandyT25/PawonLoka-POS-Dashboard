@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
+import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const fmtDate = d => d ? new Date(d).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"
@@ -19,69 +20,74 @@ function genReconNo(shiftId, method) {
 }
 
 export default function Rekonsiliasi() {
-  const [records,    setRecords]    = useState([])
-  const [loading,    setLoading]    = useState(true)
+  const todayStr = new Date().toISOString().slice(0,10)
+  const [records,      setRecords]      = useState([])
+  const [loading,      setLoading]      = useState(true)
   const [statusFilter, setStatusFilter] = useState("all")
-  const [search,     setSearch]     = useState("")
-  const [period,     setPeriod]     = useState(() => new Date().toISOString().slice(0,7))
-  const [editModal,  setEditModal]  = useState(null)
-  const [saving,     setSaving]     = useState(false)
-  const [editForm,   setEditForm]   = useState({ status:"reconciled", notes:"", bank_ref:"", reconciled_by:"Claudy" })
+  const [search,       setSearch]       = useState("")
+  const [range,        setRange]        = useState("today")
+  const [customDate,   setCustomDate]   = useState(todayStr)
+  const [customDateTo, setCustomDateTo] = useState(todayStr)
+  const [editModal,    setEditModal]    = useState(null)
+  const [saving,       setSaving]       = useState(false)
+  const [editForm,     setEditForm]     = useState({ status:"reconciled", notes:"", bank_ref:"", reconciled_by:"Claudy" })
 
-  useEffect(() => { load() }, [period])
+  useEffect(() => { load() }, [range, customDate, customDateTo])
 
   async function load() {
     setLoading(true)
-    const from = period + "-01T00:00:00+08:00"
-    const d = new Date(period + "-01")
-    d.setMonth(d.getMonth()+1)
-    const to = d.toISOString().slice(0,7) + "-01T00:00:00+08:00"
+    const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
 
-    // Load shifts for the period
-    const { data: shifts } = await supabase
-      .from("shifts").select("*")
-      .gte("opened_at", from).lt("opened_at", to)
-      .not("closed_at", "is", null)
-      .order("closed_at", { ascending:false })
+    // Query ORDERS (not shifts — shifts don't have per-method breakdown)
+    const { data: orders, error } = await supabase
+      .from("orders")
+      .select("id, code, total, pay, status, created_at, date, staff, time, table")
+      .gte("created_at", fromStr)
+      .in("status", ["Paid", "paid"])
+      .order("created_at", { ascending: false })
+
+    if (error) { console.error("Rekonsiliasi load error:", error); setLoading(false); return }
 
     // Load existing reconciliation records
-    const { data: recons } = await supabase
-      .from("reconciliations").select("*")
-      .gte("created_at", from).lt("created_at", to)
+    let reconMap = {}
+    try {
+      const { data: recons } = await supabase
+        .from("reconciliations").select("*").gte("created_at", fromStr)
+      ;(recons||[]).forEach(r => { reconMap[r.recon_no] = r })
+    } catch(e) {} // table might not exist yet
 
-    const reconMap = {}
-    ;(recons||[]).forEach(r => { reconMap[r.recon_no] = r })
-
-    // Build rows from shifts — one row per payment method per shift
-    const rows = []
-    for (const sh of shifts||[]) {
-      const methods = [
-        { method:"Cash",         amount: sh.cash_sales||sh.total_cash||0,  cashier: sh.staff_name||sh.cashier||"—" },
-        { method:"QRIS",         amount: sh.qris_sales||0,                  cashier: sh.staff_name||sh.cashier||"—" },
-        { method:"Debit/Credit", amount: sh.other_sales||0,                 cashier: sh.staff_name||sh.cashier||"—" },
-      ]
-      for (const m of methods) {
-        if (m.amount <= 0) continue
-        const recon_no = genReconNo(sh.id, m.method)
-        const existing = reconMap[recon_no]
-        rows.push({
-          id: existing?.id || null,
-          recon_no,
-          shift_id: sh.id,
-          shift_close_time: sh.closed_at,
-          payment_method: PAY_METHOD_MAP[m.method] || m.method,
-          cashier_name: m.cashier,
-          outlet: "PawonLoka",
-          amount: m.amount,
-          status: existing?.status || "unreconciled",
-          reconciled_at: existing?.reconciled_at || null,
-          reconciled_by: existing?.reconciled_by || null,
-          notes: existing?.notes || "",
-          bank_ref: existing?.bank_ref || "",
-          _shift: sh,
-        })
-      }
+    // Group orders by date × payment method
+    const groups = {}
+    for (const o of orders||[]) {
+      if (toStr && o.created_at > toStr) continue
+      const day = o.date || o.created_at?.slice(0,10) || "?"
+      const payRaw = o.pay || "Cash"
+      const key = day + "|" + payRaw
+      if (!groups[key]) groups[key] = { date:day, pay:payRaw, amount:0, count:0, orders:[], cashier: o.staff||"—" }
+      groups[key].amount += o.total || 0
+      groups[key].count++
+      groups[key].orders.push(o)
     }
+
+    const rows = Object.values(groups).map(g => {
+      const recon_no = `STL/${g.date.replace(/-/g,"").slice(2)}/${g.pay.replace(/[^A-Za-z]/g,"").slice(0,3).toUpperCase()}`
+      const existing = reconMap[recon_no]
+      return {
+        id:             existing?.id || null,
+        recon_no,
+        date:           g.date,
+        payment_method: PAY_METHOD_MAP[g.pay] || g.pay,
+        cashier_name:   g.cashier,
+        outlet:         "PawonLoka",
+        amount:         g.amount,
+        orders_count:   g.count,
+        status:         existing?.status || "unreconciled",
+        reconciled_at:  existing?.reconciled_at || null,
+        reconciled_by:  existing?.reconciled_by || null,
+        notes:          existing?.notes || "",
+        bank_ref:       existing?.bank_ref || "",
+      }
+    }).sort((a,b) => b.date.localeCompare(a.date))
 
     setRecords(rows)
     setLoading(false)
@@ -91,9 +97,8 @@ export default function Rekonsiliasi() {
     if (!editModal) return
     setSaving(true)
     const payload = {
-      recon_no: editModal.recon_no,
-      shift_id: editModal.shift_id,
-      shift_close_time: editModal.shift_close_time,
+      recon_no:       editModal.recon_no,
+      recon_date:     editModal.date,
       payment_method: editModal.payment_method,
       cashier_name: editModal.cashier_name,
       outlet: editModal.outlet,
@@ -115,7 +120,6 @@ export default function Rekonsiliasi() {
   }
 
   const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
-  const MONTHS = Array.from({length:12},(_,i)=>`2026-${String(i+1).padStart(2,"0")}`)
 
   const filtered = records.filter(r => {
     const matchStatus = statusFilter === "all" || r.status === statusFilter
@@ -133,17 +137,14 @@ export default function Rekonsiliasi() {
   return (
     <div>
       {/* Header */}
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:16, flexWrap:"wrap", gap:8 }}>
-        <div>
-          <div style={{ fontSize:18, fontWeight:900, color:"var(--ink1)", marginBottom:4 }}>Rekonsiliasi Penerimaan Penjualan</div>
-          <div style={{ fontSize:12, color:"var(--ink5)", display:"flex", alignItems:"center", gap:6 }}>
-            <span>📅</span>
-            <span>{fmtDateShort(period+"-01")} - {fmtDateShort(new Date(new Date(period+"-01").setMonth(new Date(period+"-01").getMonth()+1)-1).toISOString())}</span>
-          </div>
-        </div>
-        <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ width:140 }}>
-          {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
-        </select>
+      <div style={{ marginBottom:8 }}>
+        <div style={{ fontSize:18, fontWeight:900, color:"var(--ink1)", marginBottom:12 }}>Rekonsiliasi Penerimaan Penjualan</div>
+        <DateRangePicker
+          range={range} setRange={setRange}
+          customDate={customDate} setCustomDate={setCustomDate}
+          customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
+          loading={loading}
+        />
       </div>
 
       {/* KPI cards */}
@@ -195,7 +196,7 @@ export default function Rekonsiliasi() {
                 <tr key={i}>
                   <td style={{ fontFamily:"monospace", fontSize:12, fontWeight:700 }}>{r.recon_no}</td>
                   <td style={{ fontSize:12 }}>{r.reconciled_at ? fmtDate(r.reconciled_at) : "—"}</td>
-                  <td style={{ fontSize:12 }}>{fmtDate(r.shift_close_time)}</td>
+                  <td style={{ fontSize:12 }}>{r.date || "—"}</td>
                   <td style={{ fontSize:13, fontWeight:600 }}>{r.payment_method}</td>
                   <td style={{ fontSize:13 }}>{r.cashier_name}</td>
                   <td style={{ fontSize:12 }}>{r.outlet}</td>
@@ -239,7 +240,7 @@ export default function Rekonsiliasi() {
             <div className="bo-modal-body">
               {/* Info */}
               <div style={{ background:"#F8FAFC", borderRadius:10, padding:"12px 14px", marginBottom:14, display:"grid", gridTemplateColumns:"120px 1fr", gap:"6px 12px", fontSize:13 }}>
-                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Tutup Kasir</span><span>{fmtDate(editModal.shift_close_time)}</span>
+                <span style={{ color:"var(--ink4)", fontWeight:600 }}>Tutup Kasir</span><span>{editModal.date || "—"}</span>
                 <span style={{ color:"var(--ink4)", fontWeight:600 }}>Metode Bayar</span><span style={{ fontWeight:700 }}>{editModal.payment_method}</span>
                 <span style={{ color:"var(--ink4)", fontWeight:600 }}>Kasir</span><span>{editModal.cashier_name}</span>
                 <span style={{ color:"var(--ink4)", fontWeight:600 }}>Jumlah</span><span style={{ fontWeight:900, color:"var(--brand)", fontSize:15 }}>{fmt(editModal.amount)}</span>
