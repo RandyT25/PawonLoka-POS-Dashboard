@@ -128,7 +128,7 @@ export default function MenuPerformance() {
         ))}
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:16, marginBottom:16 }}>
+      <div className="bo-menu-perf-grid" style={{ display:"grid", gridTemplateColumns:"2fr 1fr", gap:16, marginBottom:16 }}>
 
         {/* ── Top 10 Items ──────────────────────────────── */}
         <div className="bo-card" style={{ marginBottom:0 }}>

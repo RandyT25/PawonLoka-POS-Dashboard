@@ -319,7 +319,45 @@ export default function Products() {
           </div>
         ) : (
           /* ── LIST VIEW ── */
-          <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+          <>
+          {/* Mobile card list — visible on small screens, hidden on desktop via CSS */}
+          <div className="bo-products-mobile-list">
+            {filtered.map(p => {
+              const color  = getCatColor(p.cat)
+              const m      = margin(p)
+              const recipe = hasRecipe(p)
+              return (
+                <div key={p.sku + "-m"} className="bo-product-mobile-row">
+                  {/* Image / icon */}
+                  {p.image_url
+                    ? <img src={p.image_url} alt={p.name} style={{ width:44, height:44, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
+                    : <span style={{ fontSize:28, flexShrink:0, width:44, textAlign:"center" }}>{p.icon||"🍽"}</span>
+                  }
+                  {/* Info */}
+                  <div className="bo-product-mobile-row-info">
+                    <div style={{ fontWeight:700, fontSize:13, color:"var(--ink)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{p.name}</div>
+                    <div style={{ display:"flex", gap:5, alignItems:"center", marginTop:3, flexWrap:"wrap" }}>
+                      <span style={{ fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:10, background:color+"18", color }}>{p.cat||"-"}</span>
+                      <span style={{ fontSize:12, fontWeight:800, color:"var(--brand)" }}>{fmt(p.price)}</span>
+                      {m !== null && <span style={{ fontSize:10, fontWeight:700, color: m>=65?"var(--green)":m>=45?"var(--amber)":"var(--red)" }}>{m}%</span>}
+                      {!p.active && <span style={{ fontSize:10, fontWeight:700, color:"var(--amber)" }}>Hidden</span>}
+                      {p.is_consignment && <span style={{ fontSize:9, fontWeight:700, color:"#6D28D9" }}>Consign</span>}
+                    </div>
+                  </div>
+                  {/* Actions */}
+                  <div className="bo-product-mobile-actions">
+                    <button onClick={()=>openQuickEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:11, color:"var(--brand)", padding:"4px 8px" }}>Edit</button>
+                    <button onClick={()=>openEdit(p)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ fontSize:11, padding:"4px 8px" }}>Detail</button>
+                    <button onClick={()=>deleteProduct(p.sku)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ fontSize:11, padding:"4px 8px" }}>✕</button>
+                  </div>
+                </div>
+              )
+            })}
+            {filtered.length === 0 && <div style={{ textAlign:"center", color:"var(--ink5)", padding:"40px 16px" }}>No products found</div>}
+          </div>
+
+          {/* Desktop table — hidden on mobile via CSS */}
+          <div className="bo-products-table-wrap bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             <table className="bo-table">
               <thead>
                 <tr>
@@ -402,6 +440,7 @@ export default function Products() {
               </tbody>
             </table>
           </div>
+          </>
         )
       )}
 

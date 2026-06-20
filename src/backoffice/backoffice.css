@@ -512,3 +512,34 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .receipt-grid { grid-template-columns: 1fr !important; }
   .receipt-preview-panel { position: relative !important; top: auto !important; }
 }
+
+/* ── Dashboard mobile layout ──────────────────────── */
+.bo-dash-hero { display: grid; grid-template-columns: 2fr 1fr 1fr; }
+.bo-dash-kpi  { display: grid; grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 768px) {
+  /* Hero: stack full-width */
+  .bo-dash-hero { grid-template-columns: 1fr !important; }
+  /* Secondary KPIs: 2×2 grid */
+  .bo-dash-kpi  { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Menu Performance: stack 2-col to 1-col */
+  .bo-menu-perf-grid { grid-template-columns: 1fr !important; }
+
+  /* Products: hide desktop table, show mobile cards */
+  .bo-products-table-wrap  { display: none !important; }
+  .bo-products-mobile-list { display: flex !important; flex-direction: column; gap: 1px; background: var(--surface3); border-radius: 12px; overflow: hidden; }
+}
+
+/* Products mobile card — hidden on desktop, flex on mobile */
+.bo-products-mobile-list { display: none; }
+
+.bo-product-mobile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  padding: 10px 12px;
+}
+.bo-product-mobile-row-info { flex: 1; min-width: 0; }
+.bo-product-mobile-actions  { display: flex; gap: 4px; flex-shrink: 0; }

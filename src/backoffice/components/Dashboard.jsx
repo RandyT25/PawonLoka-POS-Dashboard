@@ -94,7 +94,7 @@ export default function Dashboard() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── Hero KPI row ─────────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:12, marginBottom:12 }}>
+      <div className="bo-dash-hero" style={{ gap:12, marginBottom:12 }}>
         <div style={{ background:"linear-gradient(135deg,#0052CC,#0066FF)", borderRadius:14, padding:"20px 24px", color:"#fff" }}>
           <div style={{ fontSize:11, fontWeight:700, opacity:0.8, marginBottom:6, textTransform:"uppercase", letterSpacing:"0.5px" }}>Total Penjualan</div>
           <div style={{ fontSize:28, fontWeight:900, letterSpacing:"-0.5px", marginBottom:4 }}>{fmt(stats.sales)}</div>
@@ -115,7 +115,7 @@ export default function Dashboard() {
       </div>
 
       {/* ── Secondary KPI row ────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4, 1fr)", gap:10, marginBottom:16 }}>
+      <div className="bo-dash-kpi" style={{ gap:10, marginBottom:16 }}>
         {[
           { label:"Transaksi",       value:stats.paidOrders,         sub:"orders lunas",     color:"#0052CC" },
           { label:"Rata-rata/Order", value:fmt(stats.avgOrder),      sub:"per transaksi",    color:"var(--ink1)" },
