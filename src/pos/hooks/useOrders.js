@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
+import { offlineStore } from "../../lib/offlineStore";
 
 export function useOrders() {
   const [orders, setOrders]   = useState([]);
@@ -17,7 +18,12 @@ export function useOrders() {
       if (status) q = q.eq("status", status);
       const { data, error } = await q;
       if (error) throw error;
-      setOrders(data || []);
+      const result = data || [];
+      setOrders(result);
+      offlineStore.setCache("orders_list", result);
+    } catch {
+      const cached = await offlineStore.getCache("orders_list");
+      if (cached) setOrders(cached);
     } finally { setLoading(false); }
   }, []);
 
