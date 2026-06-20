@@ -531,6 +531,44 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   .bo-products-mobile-list { display: flex !important; flex-direction: column; gap: 1px; background: var(--surface3); border-radius: 12px; overflow: hidden; }
 }
 
+/* ── Sales Analysis mobile ───────────────────────── */
+.bo-sa-plrow  { display: grid; grid-template-columns: repeat(3, 1fr); }
+.bo-sa-cards  { display: grid; grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 768px) {
+  /* P&L 3-col → 1-col stack */
+  .bo-sa-plrow  { grid-template-columns: 1fr !important; }
+  /* Payment + Composition → 1-col stack */
+  .bo-sa-cards  { grid-template-columns: 1fr !important; }
+}
+
+/* ── Reports toolbar mobile ─────────────────────── */
+.bo-reports-toolbar {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bo-reports-dates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.bo-reports-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bo-reports-quick { display: flex; gap: 6px; }
+
+@media (min-width: 769px) {
+  /* Desktop: single flex row */
+  .bo-reports-toolbar { flex-direction: row; align-items: center; flex-wrap: wrap; }
+  .bo-reports-dates   { display: contents; } /* children become direct flex items */
+  .bo-reports-actions { flex: 1; }
+}
+
 /* Products mobile card — hidden on desktop, flex on mobile */
 .bo-products-mobile-list { display: none; }
 

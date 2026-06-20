@@ -89,7 +89,7 @@ export default function SalesAnalysis() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── P&L Summary ───────────────────────────────── */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:16 }}>
+      <div className="bo-sa-plrow" style={{ gap:12, marginBottom:16 }}>
         {[
           { label:"Gross Revenue",  value:fmt(summary.revenue), color:"var(--ink)",  sub:`${summary.orders} transaksi · avg ${fmt(summary.avg)}` },
           { label:"Est. COGS",      value:fmt(summary.cogs),    color:"#DC2626",     sub:"Estimasi harga pokok" },
@@ -103,7 +103,7 @@ export default function SalesAnalysis() {
         ))}
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+      <div className="bo-sa-cards" style={{ gap:16, marginBottom:16 }}>
 
         {/* ── Payment Methods ─────────────────────────── */}
         <div className="bo-card" style={{ marginBottom:0 }}>
@@ -147,7 +147,9 @@ export default function SalesAnalysis() {
                   <div key={r.label} style={{ marginBottom:16 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
                       <span style={{ fontSize:13, fontWeight:600, color:"var(--ink)" }}>{r.label}</span>
-                      <span style={{ fontSize:13, fontWeight:700, color:r.color }}>{r.pct}% · {fmt(r.value)}</span>
+                      <span style={{ fontSize:13, fontWeight:700, color:r.color, textAlign:"right", lineHeight:1.4 }}>
+                        {r.pct}%<br /><span style={{ fontSize:11, fontWeight:600 }}>{fmt(r.value)}</span>
+                      </span>
                     </div>
                     <div style={{ height:10, background:"var(--surface2)", borderRadius:6, overflow:"hidden" }}>
                       <div style={{ height:"100%", width: Math.max(r.pct, 0) + "%", background:r.color, borderRadius:6, transition:"width 0.5s" }} />

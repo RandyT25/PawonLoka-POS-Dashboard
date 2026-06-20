@@ -116,26 +116,34 @@ export default function Reports() {
   return (
     <div>
       {/* Date filter toolbar */}
-      <div style={{ display:"flex", gap:10, marginBottom:20, alignItems:"center", flexWrap:"wrap" }}>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <label style={{ fontSize:12, fontWeight:600, color:"var(--ink4)" }}>From</label>
-          <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="bo-input" style={{ width:160 }} />
+      <div className="bo-reports-toolbar">
+        {/* Date inputs */}
+        <div className="bo-reports-dates">
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--ink4)", whiteSpace:"nowrap" }}>From</label>
+            <input type="date" value={from} onChange={e => setFrom(e.target.value)} className="bo-input" style={{ flex:1, minWidth:0 }} />
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+            <label style={{ fontSize:12, fontWeight:600, color:"var(--ink4)", whiteSpace:"nowrap" }}>To</label>
+            <input type="date" value={to} onChange={e => setTo(e.target.value)} className="bo-input" style={{ flex:1, minWidth:0 }} />
+          </div>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-          <label style={{ fontSize:12, fontWeight:600, color:"var(--ink4)" }}>To</label>
-          <input type="date" value={to} onChange={e => setTo(e.target.value)} className="bo-input" style={{ width:160 }} />
-        </div>
-        {[["Today",0],["7 days",7],["30 days",30]].map(([l,d]) => (
-          <button key={l} onClick={() => {
-            const t = new Date(), f = new Date()
-            f.setDate(t.getDate() - d)
-            setTo(t.toISOString().slice(0,10))
-            setFrom(f.toISOString().slice(0,10))
-          }} className="bo-btn bo-btn-ghost bo-btn-sm">{l}</button>
-        ))}
-        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          <button onClick={exportExcel} className="bo-btn bo-btn-ghost">📊 Excel</button>
-          <button onClick={exportPDF}   className="bo-btn bo-btn-primary">📄 PDF</button>
+        {/* Quick filters + export */}
+        <div className="bo-reports-actions">
+          <div className="bo-reports-quick">
+            {[["Today",0],["7 days",7],["30 days",30]].map(([l,d]) => (
+              <button key={l} onClick={() => {
+                const t = new Date(), f = new Date()
+                f.setDate(t.getDate() - d)
+                setTo(t.toISOString().slice(0,10))
+                setFrom(f.toISOString().slice(0,10))
+              }} className="bo-btn bo-btn-ghost bo-btn-sm">{l}</button>
+            ))}
+          </div>
+          <div style={{ display:"flex", gap:8, marginLeft:"auto" }}>
+            <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">📊 Excel</button>
+            <button onClick={exportPDF}   className="bo-btn bo-btn-primary bo-btn-sm">📄 PDF</button>
+          </div>
         </div>
       </div>
 
