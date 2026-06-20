@@ -383,7 +383,7 @@ export default function CustomerApp({ tableId }) {
               </div>
               <div className="cust-cart-actions">
                 <button className="cust-btn-primary" onClick={handlePlaceOrder} disabled={ordering}>
-                  {ordering ? 'Mengirim...' : `Kirim ke Dapur · ${fmt(total)}`}
+                  {ordering ? 'Mengirim...' : `Kirim Pesanan · ${fmt(total)}`}
                 </button>
                 <button className="cust-btn-ghost" onClick={() => setTab('menu')}>Tambah Menu Lain</button>
               </div>
