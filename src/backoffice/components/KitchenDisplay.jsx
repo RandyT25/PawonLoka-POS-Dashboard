@@ -182,6 +182,7 @@ function TicketCard({ ticket, settings, onMarkDone }) {
 export default function KitchenDisplay() {
   const [tickets,   setTickets]   = useState([])
   const [loading,   setLoading]   = useState(true)
+  const [enabled,   setEnabled]   = useState(true)
   const [station,   setStation]   = useState("all")
   const [showDone,  setShowDone]  = useState(false)
   const [settings,  setSettings]  = useState(null)
@@ -259,8 +260,16 @@ export default function KitchenDisplay() {
 
   return (
     <div>
-      {/* ── Toolbar ──────────────────────────────────── */}
+      {/* ── ON/OFF + Toolbar ─────────────────────────── */}
       <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+        {/* ON/OFF toggle */}
+        <button onClick={() => setEnabled(v => !v)}
+          style={{ padding:"8px 16px", borderRadius:8, border:"none", fontWeight:800, fontSize:13, cursor:"pointer",
+            background: enabled ? "#00875A" : "#DE350B", color:"#fff", display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ width:10, height:10, borderRadius:"50%", background:"rgba(255,255,255,0.8)", display:"inline-block" }}/>
+          {enabled ? "ON" : "OFF"}
+        </button>
+        <div style={{ width:1, height:28, background:"#DFE1E6" }}/>
         {/* Station tabs */}
         <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
           {["all", ...knownStations].map(s => {
@@ -338,7 +347,13 @@ export default function KitchenDisplay() {
       )}
 
       {/* ── Ticket grid ──────────────────────────────── */}
-      {loading ? (
+      {!enabled ? (
+        <div style={{ textAlign:"center", padding:80, color:"var(--ink5)" }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>⏸</div>
+          <div style={{ fontSize:18, fontWeight:800, color:"var(--ink2)", marginBottom:6 }}>Kitchen Display OFF</div>
+          <div style={{ fontSize:13 }}>Klik tombol <strong>ON</strong> di atas untuk mengaktifkan</div>
+        </div>
+      ) : loading ? (
         <div style={{ textAlign:"center", padding:60, color:"var(--ink5)" }}>
           <div style={{ fontSize:24, marginBottom:8, animation:"pulse 1.5s infinite" }}>🎫</div>
           Loading tickets…

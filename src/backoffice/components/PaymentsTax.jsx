@@ -13,7 +13,7 @@ const DEFAULTS = {
     { id:"OVO",       name:"OVO",          icon:"🟣", note:"T+1 settlement",  enabled:false, surcharge:0 },
     { id:"ShopeePay", name:"ShopeePay",    icon:"🧡", note:"T+1 settlement",  enabled:false, surcharge:0 },
     { id:"DANA",      name:"DANA",         icon:"🔵", note:"T+1 settlement",  enabled:false, surcharge:0 },
-    { id:"Card",      name:"Debit/Credit", icon:"💳", note:"Surcharge: 1.5%\nT+2 settlement", enabled:true,  surcharge:1.5 },
+    { id:"Card",      name:"Debit/Credit", icon:"💳", note:"",               enabled:true,  surcharge:0 },
     { id:"Transfer",  name:"Bank Transfer",icon:"🏦", note:"T+1 settlement",  enabled:false, surcharge:0 },
   ]
 }

@@ -1,94 +1,73 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
+import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
-function today() { return new Date().toISOString().slice(0,10) }
-function firstOfMonth() {
-  const d = new Date(); d.setDate(1); return d.toISOString().slice(0,10)
-}
+const fmt   = n => "Rp " + Number(n||0).toLocaleString("id-ID")
+const today = () => new Date().toISOString().slice(0,10)
 
 export default function ProductReport() {
-  const [from,     setFrom]     = useState(firstOfMonth())
-  const [to,       setTo]       = useState(today())
-  const [catFilter,setCatFilter]= useState("")
-  const [sortBy,   setSortBy]   = useState("qty") // qty | revenue
-  const [rows,     setRows]     = useState([])
-  const [cats,     setCats]     = useState([])
-  const [loading,  setLoading]  = useState(false)
+  const [range,       setRange]       = useState("month")
+  const [customDate,  setCustomDate]  = useState(today())
+  const [customDateTo,setCustomDateTo]= useState(today())
+  const [catFilter,   setCatFilter]   = useState("")
+  const [sortBy,      setSortBy]      = useState("qty")
+  const [rows,        setRows]        = useState([])
+  const [cats,        setCats]        = useState([])
+  const [loading,     setLoading]     = useState(false)
+  const [lastUpdated, setLastUpdated] = useState(null)
 
-  useEffect(() => { loadCats() }, [])
-  useEffect(() => { load() }, [from, to])
+  useEffect(() => {
+    supabase.from("categories").select("name").order("sort")
+      .then(({ data }) => setCats((data||[]).map(c => c.name)))
+  }, [])
 
-  async function loadCats() {
-    const { data } = await supabase.from("categories").select("name").order("sort")
-    setCats((data||[]).map(c => c.name))
-  }
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from("orders")
-      .select("items,items_snapshot,order_items")
-      .eq("status","Paid")
-      .gte("date", from)
-      .lte("date", to)
-    if (error) { console.error(error); setLoading(false); return }
+    const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
+    let q = supabase.from("orders").select("items,items_snapshot,order_items").eq("status","Paid").gte("created_at", fromStr)
+    if (toStr) q = q.lte("created_at", toStr)
+    const { data, error } = await q
+    if (error) { setLoading(false); return }
 
     const map = {}
     ;(data||[]).forEach(o => {
       const raw = o.items_snapshot||o.order_items||o.items||[]
       const items = typeof raw === "string" ? JSON.parse(raw) : raw
       ;(items||[]).forEach(i => {
-        const key = i.name
-        if (!map[key]) map[key] = { name:i.name, cat:i.cat||"—", qty:0, revenue:0, prices:[] }
-        map[key].qty     += i.qty||1
-        map[key].revenue += (i.price||0)*(i.qty||1)
-        map[key].prices.push(i.price||0)
+        if (!map[i.name]) map[i.name] = { name:i.name, cat:i.cat||"—", qty:0, revenue:0 }
+        map[i.name].qty     += i.qty||1
+        map[i.name].revenue += (i.price||0)*(i.qty||1)
       })
     })
-
-    const result = Object.values(map).map(r => ({
-      ...r,
-      avgPrice: r.qty ? Math.round(r.revenue/r.qty) : 0
-    }))
-    setRows(result)
+    setRows(Object.values(map).map(r => ({ ...r, avgPrice: r.qty ? Math.round(r.revenue/r.qty) : 0 })))
+    setLastUpdated(new Date())
     setLoading(false)
-  }
+  }, [range, customDate, customDateTo])
+
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load })
+  useEffect(() => { load() }, [load])
 
   const filtered = rows
     .filter(r => !catFilter || r.cat === catFilter)
     .sort((a,b) => sortBy === "qty" ? b.qty - a.qty : b.revenue - a.revenue)
-
-  const totals = filtered.reduce((s,r) => ({ qty: s.qty+r.qty, revenue: s.revenue+r.revenue }), { qty:0, revenue:0 })
+  const totals = filtered.reduce((s,r) => ({ qty:s.qty+r.qty, revenue:s.revenue+r.revenue }), { qty:0, revenue:0 })
 
   return (
     <div>
-      <div className="bo-card" style={{ marginBottom:16 }}>
-        <div style={{ display:"flex", gap:12, flexWrap:"wrap", alignItems:"flex-end" }}>
-          <div>
-            <label className="bo-label">Dari</label>
-            <input type="date" value={from} onChange={e=>setFrom(e.target.value)} className="bo-input" style={{width:160}}/>
-          </div>
-          <div>
-            <label className="bo-label">Sampai</label>
-            <input type="date" value={to} onChange={e=>setTo(e.target.value)} className="bo-input" style={{width:160}}/>
-          </div>
-          <div>
-            <label className="bo-label">Kategori</label>
-            <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{width:180}}>
-              <option value="">Semua Kategori</option>
-              {cats.map(c => <option key={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="bo-label">Urut berdasarkan</label>
-            <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="bo-select" style={{width:160}}>
-              <option value="qty">Qty Terjual</option>
-              <option value="revenue">Revenue</option>
-            </select>
-          </div>
-        </div>
-      </div>
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
+        customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
+        loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
+        {/* Extra filters injected into the date picker row */}
+        <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{height:34,fontSize:13}}>
+          <option value="">Semua Kategori</option>
+          {cats.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select value={sortBy} onChange={e=>setSortBy(e.target.value)} className="bo-select" style={{height:34,fontSize:13}}>
+          <option value="qty">Urut: Qty</option>
+          <option value="revenue">Urut: Revenue</option>
+        </select>
+      </DateRangePicker>
 
       <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
         {loading
@@ -99,9 +78,7 @@ export default function ProductReport() {
               <table className="bo-table">
                 <thead>
                   <tr>
-                    <th>#</th>
-                    <th>Produk</th>
-                    <th>Kategori</th>
+                    <th>#</th><th>Produk</th><th>Kategori</th>
                     <th style={{textAlign:"right"}}>Qty Terjual</th>
                     <th style={{textAlign:"right"}}>Revenue</th>
                     <th style={{textAlign:"right"}}>Avg Harga</th>

@@ -111,7 +111,7 @@ export default function Employees() {
   const nonOwners = staff.filter(s=>!ownerRoles.has(s.role))
   const active  = nonOwners.filter(s=>s.active!==false)
   const flagged = nonOwners.filter(s=>s.flagged)
-  const filtered = nonOwners.filter(s => {
+  const filtered = staff.filter(s => {
     const matchFilter = filter==="all" || (filter==="active"&&s.active!==false)
     const matchSearch = !search || s.name?.toLowerCase().includes(search.toLowerCase())
     return matchFilter && matchSearch
