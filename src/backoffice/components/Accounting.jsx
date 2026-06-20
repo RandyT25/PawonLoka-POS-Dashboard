@@ -23,7 +23,15 @@ const EXPENSE_CATEGORIES = [
 
 const STAFF_LIST  = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
 
-const MONTHS = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06","2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"]
+// Generate last 24 months up to current month — never hardcode year
+const MONTHS = (() => {
+  const now = new Date(), list = []
+  for (let i = 23; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    list.push(d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0"))
+  }
+  return list
+})()
 
 function StatCard({label,value,sub,color="#0052CC",big=false}) {
   return (
@@ -37,13 +45,13 @@ function StatCard({label,value,sub,color="#0052CC",big=false}) {
 
 export default function Accounting() {
   const [tab,          setTab]          = useState("overview")
-  const [period,       setPeriod]       = useState("2026-05")
+  const [period,       setPeriod]       = useState(() => new Date().toISOString().slice(0,7))
   const [orders,       setOrders]       = useState([])
   const [expenses,     setExpenses]     = useState([])
   const [pos,          setPos]          = useState([]) // purchase orders
   const [staff,        setStaff]        = useState([])
   const [kasBonList,   setKasBonList]   = useState([])
-  const [openingBal,   setOpeningBal]   = useState({ id:"2026-05", amount:300000 })
+  const [openingBal,   setOpeningBal]   = useState(() => ({ id: new Date().toISOString().slice(0,7), amount:300000 }))
   const [loading,      setLoading]      = useState(true)
   const [expModal,     setExpModal]     = useState(false)
   const [kasBonModal,  setKasBonModal]  = useState(false)
