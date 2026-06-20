@@ -6,29 +6,38 @@ import useOrders from './hooks/useOrders'
 import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 
-// Offline-safe write: queues immediately if offline — no hanging network call
+// Offline-safe write: always queues on any network failure, 5s hard timeout
 async function dbWrite(table, op, payload, match = null) {
-  // Check FIRST — skip network entirely when offline so orders save instantly
+  function isNetworkError(e) {
+    if (!navigator.onLine) return true
+    const msg = (e?.message || '').toLowerCase()
+    return msg.includes('timeout') || msg.includes('fetch') || msg.includes('network') || msg.includes('failed to fetch') || msg.includes('connection')
+  }
+
+  // Fast path: definitely offline
   if (!navigator.onLine) {
     await offlineStore.enqueue({ table, op, payload, match })
     window.dispatchEvent(new Event('offline-queue-updated'))
     return true
   }
+
   try {
+    // Hard 5s timeout — if no internet (WiFi with no data), never hang
+    const timer = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000))
     let q = supabase.from(table)[op](payload)
     if (match) Object.entries(match).forEach(([k, v]) => { q = q.eq(k, v) })
-    const { error } = await q
+    const { error } = await Promise.race([q, timer])
     if (error) throw error
     return true
   } catch(e) {
-    // Went offline during the call — queue the retry
-    if (!navigator.onLine) {
+    if (isNetworkError(e)) {
+      // No real internet — queue for later sync
       await offlineStore.enqueue({ table, op, payload, match })
       window.dispatchEvent(new Event('offline-queue-updated'))
       return true
     }
     console.error('[dbWrite]', table, op, e?.message || e)
-    return false // real online error — caller handles alert
+    return false // real DB error (column missing, RLS, etc.)
   }
 }
 import PinLogin from './components/PinLogin'
