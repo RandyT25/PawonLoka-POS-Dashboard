@@ -198,10 +198,20 @@ export default function POS() {
         .then(({ data }) => {
           if (data && (data.status === 'Open' || data.status === 'open')) {
             recallFromOrder(data)
+          } else if (!data) {
+            // Not in Supabase — might be an offline-created order still in the queue
+            offlineStore.getCache('offline_open_bill_' + savedBill).then(local => {
+              if (local) recallFromOrder(local)
+              else { setOpenBillId(null); setTableNo('') }
+            })
           } else {
-            // Bill was paid or voided while the tab was closed — clear stale session
             setOpenBillId(null); setTableNo('')
           }
+        })
+        .catch(async () => {
+          // Offline — try local cache
+          const local = await offlineStore.getCache('offline_open_bill_' + savedBill)
+          if (local) recallFromOrder(local)
         })
     }
   }, [staff])
@@ -493,6 +503,8 @@ export default function POS() {
       }
       const ok = await dbWrite('orders', 'insert', order)
       if (!ok) { alert('Gagal simpan order'); return }
+      // Cache locally so it survives an offline restart
+      offlineStore.setCache('offline_open_bill_' + orderId, order)
       setOpenBillId(orderId)
     }
 
@@ -1084,7 +1096,7 @@ export default function POS() {
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
           onReprint={handleReprint}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { await supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo) } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); offlineStore.setCache('offline_open_bill_' + paidOrder.id, null) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
