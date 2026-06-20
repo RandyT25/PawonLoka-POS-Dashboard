@@ -349,7 +349,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
       {/* hero */}
       <div className="ow-hero" style={{marginBottom:14}}>
         <div className="ow-hero-label">Total Penjualan · {RLABELS[range]}</div>
-        <div style={{display:"flex",alignItems:"flex-end",gap:20,flexWrap:"wrap",marginBottom:6}}>
+        <div style={{display:"flex",alignItems:"flex-start",gap:20,flexWrap:"wrap",marginBottom:6}}>
           <div>
             <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.5px"}}>Sudah Dibayar</div>
             <div className="ow-hero-amount" style={{marginBottom:0}}>
@@ -357,7 +357,7 @@ function ScreenDashboard({ range, setRange, customDate, setCustomDate, customDat
               {trend!==null&&<span className={"ow-trend "+(trend>=0?"up":"down")}>{trend>=0?"▲":"▼"} {Math.abs(trend)}%</span>}
             </div>
           </div>
-          <div style={{paddingBottom:4}}>
+          <div>
             <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.6)",marginBottom:2,textTransform:"uppercase",letterSpacing:"0.5px"}}>Belum Dibayar</div>
             <div style={{fontSize:24,fontWeight:800,color:stats.unpaid>0?"#FCD34D":"rgba(255,255,255,0.35)"}}>
               {fmt(stats.unpaid)}
