@@ -19,8 +19,9 @@ export default function Dashboard() {
   const [loading,    setLoading]    = useState(true)
   const [stats,      setStats]      = useState({ sales:0, unpaidSales:0, paidOrders:0, openOrders:0, avgOrder:0, grossProfit:0, prevSales:0, totalProductsSold:0, projection:0, mtdSales:0 })
   const [hourData,   setHourData]   = useState([])
-  const [recent,     setRecent]     = useState([])
-  const [selected,   setSelected]   = useState(null)
+  const [recent,       setRecent]       = useState([])
+  const [selected,     setSelected]     = useState(null)
+  const [lastUpdated,  setLastUpdated]  = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,6 +61,7 @@ export default function Dashboard() {
     setStats({ sales:totalSales, unpaidSales, paidOrders:paid.length, openOrders:open.length, avgOrder, grossProfit:totalSales - totalCogs, totalProductsSold:totalProd, projection:proj, mtdSales:totalSales })
     setHourData(hourArr)
     setRecent(orders.slice(0, 8))
+    setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate])
 
@@ -89,7 +91,7 @@ export default function Dashboard() {
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── Hero KPI row ─────────────────────────────── */}
       <div style={{ display:"grid", gridTemplateColumns:"2fr 1fr 1fr", gap:12, marginBottom:12 }}>

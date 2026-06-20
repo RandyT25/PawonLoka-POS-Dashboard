@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
@@ -9,7 +9,8 @@ export default function SalesAnalysis() {
   const todayStr  = new Date().toISOString().slice(0, 10)
   const [range,      setRange]      = useState("today")
   const [customDate, setCustomDate] = useState(todayStr)
-  const [loading,    setLoading]    = useState(true)
+  const [loading,      setLoading]      = useState(true)
+  const [lastUpdated,  setLastUpdated]  = useState(null)
 
   const [summary,  setSummary]  = useState({ revenue:0, cogs:0, profit:0, orders:0, avg:0, margin:0 })
   const [payments, setPayments] = useState([])
@@ -57,25 +58,35 @@ export default function SalesAnalysis() {
     })
     const dayArr = Object.values(dayMap).sort((a, b) => b.date.localeCompare(a.date))
     setByDay(dayArr)
-
+    setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate])
+
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load })
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
     const ch = supabase.channel("sales_analysis_rt")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => loadRef.current())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => loadRef.current())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [load])
+
+  useEffect(() => {
+    const poll = setInterval(() => { if (!document.hidden) loadRef.current() }, 10000)
+    const onVisible = () => { if (!document.hidden) loadRef.current() }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => { clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
+  }, [])
 
   const maxPay = payments[0]?.amount || 1
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
 
       {/* ── P&L Summary ───────────────────────────────── */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:16 }}>

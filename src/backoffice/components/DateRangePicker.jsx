@@ -7,7 +7,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10)
  * Props: range, setRange, customDate, setCustomDate, loading
  * Provides: Today / This Week / This Month / Custom date picker
  */
-export default function DateRangePicker({ range, setRange, customDate, setCustomDate, loading, children }) {
+export default function DateRangePicker({ range, setRange, customDate, setCustomDate, loading, lastUpdated, onRefresh, children }) {
   const dateRef = useRef(null)
 
   function openPicker() {
@@ -56,13 +56,31 @@ export default function DateRangePicker({ range, setRange, customDate, setCustom
         </div>
       </div>
 
-      {/* Right slot — loading indicator + optional extra controls */}
+      {/* Right slot — live indicator + loading + refresh + extra controls */}
       <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
-        {loading && (
+        {loading ? (
           <svg style={{ animation:"spin 0.8s linear infinite", flexShrink:0 }} width="14" height="14" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="var(--surface3)" strokeWidth="3"/>
             <path d="M12 2a10 10 0 0 1 10 10" stroke="var(--brand)" strokeWidth="3" strokeLinecap="round"/>
           </svg>
+        ) : (
+          <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+            <span style={{ width:7, height:7, borderRadius:"50%", background:"#10B981", display:"inline-block", boxShadow:"0 0 0 2px #D1FAE5" }} />
+            <span style={{ fontSize:10, color:"var(--ink5)", fontWeight:600 }}>Live</span>
+            {lastUpdated && (
+              <span style={{ fontSize:10, color:"var(--ink5)" }}>
+                · {lastUpdated.toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit", second:"2-digit" })}
+              </span>
+            )}
+            {onRefresh && (
+              <button onClick={onRefresh} title="Refresh sekarang"
+                style={{ background:"none", border:"none", cursor:"pointer", color:"var(--ink4)", fontSize:14, padding:"2px 4px", lineHeight:1, borderRadius:4 }}
+                onMouseEnter={e=>e.target.style.color="var(--brand)"}
+                onMouseLeave={e=>e.target.style.color="var(--ink4)"}>
+                ↺
+              </button>
+            )}
+          </div>
         )}
         {children}
       </div>

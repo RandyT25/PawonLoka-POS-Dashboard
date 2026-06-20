@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
@@ -13,8 +13,9 @@ export default function MenuPerformance() {
   const todayStr  = new Date().toISOString().slice(0, 10)
   const [range,      setRange]      = useState("today")
   const [customDate, setCustomDate] = useState(todayStr)
-  const [loading,    setLoading]    = useState(true)
-  const [sortBy,     setSortBy]     = useState("qty")   // "qty" | "revenue"
+  const [loading,      setLoading]      = useState(true)
+  const [lastUpdated,  setLastUpdated]  = useState(null)
+  const [sortBy,       setSortBy]       = useState("qty")   // "qty" | "revenue"
 
   const [items,      setItems]      = useState([])
   const [categories, setCategories] = useState([])
@@ -68,19 +69,29 @@ export default function MenuPerformance() {
 
     const catArr = Object.values(catMap).sort((a, b) => b.qty - a.qty)
     setCategories(catArr)
-
+    setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate, sortBy])
+
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load })
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
     const ch = supabase.channel("menu_perf_rt")
-      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => load())
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => load())
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"orders" }, () => loadRef.current())
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"orders" }, () => loadRef.current())
       .subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [load])
+
+  useEffect(() => {
+    const poll = setInterval(() => { if (!document.hidden) loadRef.current() }, 10000)
+    const onVisible = () => { if (!document.hidden) loadRef.current() }
+    document.addEventListener("visibilitychange", onVisible)
+    return () => { clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
+  }, [])
 
   const topItems  = items.slice(0, 10)
   const slowItems = items.slice(-5).reverse()
@@ -89,7 +100,7 @@ export default function MenuPerformance() {
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading}>
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
         {/* Sort toggle in right slot */}
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={() => setSortBy("qty")}
