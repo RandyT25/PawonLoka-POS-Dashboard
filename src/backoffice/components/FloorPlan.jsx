@@ -1,6 +1,37 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
+function QrModal({ table, onClose }) {
+  const url    = `https://pawonloka.pages.dev/q/${encodeURIComponent(table.name)}`
+  const qrImg  = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=16&data=${encodeURIComponent(url)}`
+  const dlImg  = `https://api.qrserver.com/v1/create-qr-code/?size=600x600&margin=20&data=${encodeURIComponent(url)}`
+  function download() {
+    const a = document.createElement('a')
+    a.href = dlImg; a.download = `QR-${table.name}.png`; a.target = '_blank'; a.click()
+  }
+  return (
+    <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="bo-modal" style={{ maxWidth:380,textAlign:"center" }}>
+        <div className="bo-modal-header">
+          <div className="bo-modal-title">📱 QR Code — {table.name}</div>
+          <button className="bo-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="bo-modal-body" style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:14 }}>
+          <img src={qrImg} alt="QR" style={{ width:240,height:240,borderRadius:12,border:"1px solid #E2E8F0" }} />
+          <div style={{ fontSize:11,color:"#6B778C",wordBreak:"break-all",background:"#F4F5F7",padding:"8px 12px",borderRadius:8,width:"100%",boxSizing:"border-box" }}>
+            {url}
+          </div>
+          <div style={{ fontSize:12,color:"#6B778C" }}>Tempel QR ini di meja <strong>{table.name}</strong> agar pelanggan bisa scan dan pesan langsung.</div>
+        </div>
+        <div className="bo-modal-footer" style={{ justifyContent:"center",gap:8 }}>
+          <button onClick={download} className="bo-btn bo-btn-primary">⬇ Download QR</button>
+          <button onClick={()=>window.open(url,'_blank')} className="bo-btn bo-btn-ghost">🔗 Buka Link</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const SHAPES   = ["square","round","rectangle"]
 const EMPTY    = { name:"", capacity:4, shape:"square", area:"Indoor", active:true, status:"Available" }
 
@@ -363,32 +394,7 @@ export default function FloorPlan() {
       )}
 
       {/* QR Code Modal */}
-      {qrTable && (() => {
-        const url = `https://pawonloka.pages.dev/q/${encodeURIComponent(qrTable.name)}`
-        const qrImg = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&margin=16&data=${encodeURIComponent(url)}`
-        return (
-          <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setQrTable(null)}>
-            <div className="bo-modal" style={{ maxWidth:380, textAlign:"center" }}>
-              <div className="bo-modal-header">
-                <div className="bo-modal-title">📱 QR Code — {qrTable.name}</div>
-                <button className="bo-modal-close" onClick={()=>setQrTable(null)}>✕</button>
-              </div>
-              <div className="bo-modal-body" style={{ display:"flex",flexDirection:"column",alignItems:"center",gap:14 }}>
-                <img src={qrImg} alt="QR Code" style={{ width:240,height:240,borderRadius:12,border:"1px solid #E2E8F0" }} />
-                <div style={{ fontSize:11,color:"#6B778C",wordBreak:"break-all",background:"#F4F5F7",padding:"8px 12px",borderRadius:8,width:"100%",boxSizing:"border-box" }}>
-                  {url}
-                </div>
-                <div style={{ fontSize:12,color:"#6B778C" }}>Tempel QR ini di meja <strong>{qrTable.name}</strong> agar pelanggan bisa scan dan pesan langsung.</div>
-              </div>
-              <div className="bo-modal-footer" style={{ justifyContent:"center",gap:8 }}>
-                <button onClick={()=>{ const a=document.createElement('a'); a.href=qrImg.replace('280x280','600x600'); a.download=`QR-${qrTable.name}.png`; a.target='_blank'; a.click() }}
-                  className="bo-btn bo-btn-primary">⬇ Download QR</button>
-                <button onClick={()=>window.open(url,'_blank')} className="bo-btn bo-btn-ghost">🔗 Buka Link</button>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
+      {qrTable && <QrModal table={qrTable} onClose={()=>setQrTable(null)} />}
 
       {/* Add/Edit Modal */}
       {modal && (
