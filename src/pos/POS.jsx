@@ -4,7 +4,7 @@ import { fmt, TAX_RATE, STAFF, KITCHEN_STATIONS } from '../shared/constants'
 import useCart from './hooks/useCart'
 import useOrders from './hooks/useOrders'
 import useOfflineSync from './hooks/useOfflineSync'
-import { offlineStore } from '../lib/offlineStore'
+import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 
 // Offline-safe write: tries Supabase, queues to IndexedDB if offline
 async function dbWrite(table, op, payload, match = null) {
@@ -48,6 +48,26 @@ import './pos.mobile.css'
 import OfflineBar from './components/OfflineBar'
 
 export default function POS() {
+  const [offlineReady,  setOfflineReady]  = useState(false)
+  const [firstSync,     setFirstSync]     = useState(false)
+  const [needsInternet, setNeedsInternet] = useState(false)
+
+  // Check if IndexedDB has been seeded — gate access until it is
+  useEffect(() => {
+    offlineStore.getCache('products').then(async cached => {
+      if (cached?.length) {
+        setOfflineReady(true)
+      } else if (navigator.onLine) {
+        setFirstSync(true)
+        await offlineFullSync(supabase).catch(() => {})
+        setFirstSync(false)
+        setOfflineReady(true)
+      } else {
+        setNeedsInternet(true)
+      }
+    })
+  }, [])
+
   // Persist staff, openBillId, tableNo in sessionStorage so a page refresh doesn't log out
   // or lose the active order. sessionStorage is tab-scoped — clears on tab close (security).
   const [staff, setStaff]           = useState(() => { try { return JSON.parse(sessionStorage.getItem('pos_staff') || 'null') } catch { return null } })
@@ -117,12 +137,14 @@ export default function POS() {
     Promise.all([
       offlineStore.getCache('app_settings'),
       offlineStore.getCache('discounts'),
-    ]).then(([cachedSettings, cachedDiscounts]) => {
+      offlineStore.getCache('bundles'),
+    ]).then(([cachedSettings, cachedDiscounts, cachedBundles]) => {
       if (cachedSettings) {
         setAppSettings(cachedSettings)
         if (cachedSettings.outlet?.logo) prefetchLogo(cachedSettings.outlet.logo, '80mm')
       }
       if (cachedDiscounts) setBackofficeDiscounts(cachedDiscounts)
+      if (cachedBundles)   setBundles(cachedBundles)
     })
     // Staff from localStorage (already cache-first in PinLogin, mirror here)
     try {
@@ -300,11 +322,46 @@ export default function POS() {
       if (prods) { setProducts(prods); offlineStore.setCache('products', prods) }
       if (cats)  { setCategories(cats); offlineStore.setCache('categories', cats) }
       if (mods)  { setModifierGroups(mods); offlineStore.setCache('modifier_groups', mods) }
+      // Eagerly sync everything else in the background
+      offlineFullSync(supabase).catch(() => {})
     } catch {
       // Silent — cache already loaded above
     }
     setLoading(false)
   }
+
+  // First-launch screens — shown before PinLogin until IndexedDB is seeded
+  if (firstSync) return (
+    <div style={{ height:'100dvh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#0A1628', color:'#fff', gap:16, fontFamily:'system-ui,sans-serif' }}>
+      <img src="/logo.png" alt="PawonLoka" style={{ width:72, height:72, borderRadius:16, objectFit:'cover', marginBottom:8 }} />
+      <div style={{ fontSize:20, fontWeight:800 }}>Menyiapkan PawonLoka...</div>
+      <div style={{ fontSize:13, opacity:0.6, textAlign:'center', maxWidth:260 }}>Mengunduh menu & data untuk mode offline. Hanya diperlukan sekali.</div>
+      <div style={{ display:'flex', gap:6, marginTop:8 }}>
+        {[0,1,2].map(i => (
+          <div key={i} style={{ width:8, height:8, borderRadius:'50%', background:'rgba(255,255,255,0.4)', animation:`pulse 1.2s ${i*0.3}s ease-in-out infinite` }}/>
+        ))}
+      </div>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.3}50%{opacity:1}}`}</style>
+    </div>
+  )
+
+  if (needsInternet) return (
+    <div style={{ height:'100dvh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#0A1628', color:'#fff', gap:16, fontFamily:'system-ui,sans-serif', padding:32, textAlign:'center' }}>
+      <img src="/logo.png" alt="PawonLoka" style={{ width:72, height:72, borderRadius:16, objectFit:'cover', marginBottom:8 }} />
+      <div style={{ fontSize:20, fontWeight:800 }}>Koneksi Internet Diperlukan</div>
+      <div style={{ fontSize:13, opacity:0.6, maxWidth:280 }}>Setup pertama memerlukan internet untuk mengunduh menu & data. Setelah itu, app dapat digunakan tanpa internet.</div>
+      <button onClick={async () => {
+        if (!navigator.onLine) return alert('Masih tidak ada koneksi')
+        setNeedsInternet(false); setFirstSync(true)
+        await offlineFullSync(supabase).catch(() => {})
+        setFirstSync(false); setOfflineReady(true)
+      }} style={{ marginTop:8, padding:'14px 28px', background:'#10B981', color:'#fff', border:'none', borderRadius:12, fontSize:15, fontWeight:700, cursor:'pointer' }}>
+        Coba Lagi
+      </button>
+    </div>
+  )
+
+  if (!offlineReady) return null
 
   // PIN Login
   if (!staff) return (

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
+import { offlineStore } from '../../lib/offlineStore'
 
 export default function TablePicker({ current, onSelect, onSelectOccupied, onClose }) {
   const [tables, setTables] = useState([])
@@ -7,11 +8,24 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
 
   useEffect(() => {
     async function load() {
-      const { data: tbls } = await supabase.from('tables').select('*').order('sort')
-      const today = new Date().toISOString().slice(0,10)
-      const { data: open } = await supabase
-        .from('orders').select('id, table, customer')
-        .eq('status','Open').eq('date',today)
+      // Tables — cache first
+      let tbls = []
+      try {
+        const { data, error } = await supabase.from('tables').select('*').order('sort')
+        if (error) throw error
+        tbls = data || []
+        offlineStore.setCache('tables', tbls)
+      } catch {
+        tbls = (await offlineStore.getCache('tables')) || []
+      }
+      // Open orders — best effort
+      let open = []
+      try {
+        const today = new Date().toISOString().slice(0,10)
+        const { data } = await supabase.from('orders').select('id, table, customer')
+          .eq('status','Open').eq('date',today)
+        open = data || []
+      } catch {}
       const occupiedMap = {}
       ;(open||[]).forEach(o => { if(o.table) occupiedMap[o.table] = { id: o.id, customer: o.customer } })
       setTables((tbls||[]).map(t => ({

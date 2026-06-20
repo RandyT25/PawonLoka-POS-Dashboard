@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { offlineStore } from '../../lib/offlineStore'
 
 export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery, onBack }) {
   const [tables,    setTables]    = useState([])
@@ -16,11 +17,30 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
 
   async function load() {
     setLoading(true)
-    const { data: tbls } = await supabase.from('tables').select('*').order('sort')
     const today = new Date().toISOString().slice(0,10)
-    const { data: openOrders } = await supabase
-      .from('orders').select('id, table, created_at, customer, items')
-      .eq('status', 'Open').eq('date', today)
+
+    // Load tables (cache-first for offline)
+    let tbls = []
+    try {
+      const { data, error } = await supabase.from('tables').select('*').order('sort')
+      if (error) throw error
+      tbls = data || []
+      offlineStore.setCache('tables', tbls)
+    } catch {
+      tbls = (await offlineStore.getCache('tables')) || []
+    }
+
+    // Load open orders (best-effort, empty when offline)
+    let openOrders = []
+    try {
+      const { data } = await supabase.from('orders').select('id, table, created_at, customer, items')
+        .eq('status', 'Open').eq('date', today)
+      openOrders = data || []
+    } catch {
+      const cached = await offlineStore.getCache('orders_modal_open')
+      openOrders = cached || []
+    }
+
     const occupiedMap = {}
     ;(openOrders||[]).forEach(o => { if (o.table) occupiedMap[o.table] = o })
     const merged = (tbls||[]).map(t => ({

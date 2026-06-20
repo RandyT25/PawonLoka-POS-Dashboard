@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
+import { offlineStore } from "../lib/offlineStore"
 
 function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
@@ -115,16 +116,28 @@ export default function StaffPortal() {
   useEffect(() => { if (station) loadData() }, [station])
 
   async function loadData() {
-    const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
-      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station").order("name"),
-      supabase.from("sub_recipes").select("*").order("name"),
-      supabase.from("sub_recipe_ingredients").select("*"),
+    // Load from cache immediately for offline startup
+    const [cachedIngs, cachedSubs, cachedSubIngs] = await Promise.all([
+      offlineStore.getCache('ingredients'),
+      offlineStore.getCache('sub_recipes'),
+      offlineStore.getCache('sub_recipe_ingredients'),
     ])
-    setIngredients((ings||[]).filter(i => !i.name.includes("(sub)")))
-    setSubRecipes(subs||[])
-    setSubRecipeIngs(subIngs||[])
-    setOpnameCounts((ings||[]).map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" })))
+    if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
+    if (cachedSubs?.length)   setSubRecipes(cachedSubs)
+    if (cachedSubIngs?.length) setSubRecipeIngs(cachedSubIngs)
     if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
+
+    // Refresh from Supabase in background
+    try {
+      const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
+        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station").order("name"),
+        supabase.from("sub_recipes").select("*").order("name"),
+        supabase.from("sub_recipe_ingredients").select("*"),
+      ])
+      if (ings)    { setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
+      if (subs)    { setSubRecipes(subs); offlineStore.setCache('sub_recipes', subs) }
+      if (subIngs) { setSubRecipeIngs(subIngs); offlineStore.setCache('sub_recipe_ingredients', subIngs) }
+    } catch { /* offline — already loaded from cache */ }
   }
 
   function selectSubRecipe(subId) {
