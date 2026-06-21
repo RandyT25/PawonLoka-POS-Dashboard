@@ -640,7 +640,7 @@ export default function POS() {
     // Mark all cart items as sent; update _printedQty so next comparison is correct
     setCart(prev => prev.map(i => ({ ...i, _sent:true, _station: getStation(i.cat), _printedQty: i.qty })))
 
-    // Auto-print checker to receipt printer — full order, silent (no alert on failure)
+    // Auto-print checker to receipt printer — new items only, silent (no alert on failure)
     // Skip if disabled, or if receipt printer already fired as a station (Kasir routing) — prevents double-print
     const receiptUsedAsStation = [...allStations].some(s => {
       const mapped = ROLE_MAP[s] || ROLE_MAP[s?.charAt(0).toUpperCase() + s?.slice(1)]
@@ -654,7 +654,7 @@ export default function POS() {
           stationName: 'CHECKER',
           table: capturedTable || '-',
           orderType: capturedOrderType,
-          items: cart.map(i => {
+          items: kitchenItems.map(i => {
             const parts = [i.qty + 'x ' + i.name]
             if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
               parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
