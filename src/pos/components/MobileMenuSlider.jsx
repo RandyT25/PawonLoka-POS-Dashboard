@@ -1,12 +1,14 @@
-export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onCashLog, onReprint, onSettings, onLogout }) {
+export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onCashLog, onReprint, onPrintCheck, onSettings, onLogout, onRefresh }) {
   if (!show) return null
 
   const items = [
     ['🕐 Clock In/Out', onClockIn],
     ['💵 Cash In/Out', onCashLog],
     ['🖨 Cetak Ulang Struk', onReprint],
+    onPrintCheck && ['🖨 Cetak Checker', onPrintCheck],
+    onRefresh && ['🔄 Refresh Menu', onRefresh],
     ['⚙️ Settings', onSettings],
-  ]
+  ].filter(Boolean)
 
   return (
     <div onClick={onClose}

@@ -233,7 +233,7 @@ export default function Cart({
           {onPrintCheck && cart.length > 0 && (
             <button onClick={onPrintCheck}
               style={{ width:'100%', padding:10, background:'#fff', color:'#0052CC', border:'1.5px solid #0052CC', borderRadius:10, fontSize:13, fontWeight:700, cursor:'pointer', marginBottom:6 }}>
-              Print Table Check
+              🖨 Cetak Checker
             </button>
           )}
           {/* Charge button */}

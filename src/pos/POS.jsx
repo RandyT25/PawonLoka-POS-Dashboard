@@ -1103,7 +1103,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
-          onPrintCheck={appSettings?.pos_behaviour?.auto_print_checker !== false ? null : printCheck}
+          onPrintCheck={printCheck}
           onPrintBill={printBill}
           orderType={orderType}
           onOrderTypeChange={setOrderType}
@@ -1181,7 +1181,7 @@ export default function POS() {
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}
-          onPrintCheck={appSettings?.pos_behaviour?.auto_print_checker !== false ? null : printCheck}
+          onPrintCheck={printCheck}
           onPrintBill={printBill}
           serviceRate={SERVICE_RATE}
           bundles={bundles}
@@ -1235,6 +1235,7 @@ export default function POS() {
         onClockIn={() => setShowClock(true)}
         onCashLog={() => { if (staff?.permissions && !staff.permissions.cash) { alert('No cash in/out permission'); return } setShowCashLog(true) }}
         onReprint={() => { setShowMobileMenu(false); setShowReprint(true) }}
+        onPrintCheck={cart.length > 0 ? () => { setShowMobileMenu(false); printCheck() } : null}
         onSettings={() => setShowSettings(true)}
         onLogout={() => { setStaff(null); setShift(null) }}
       />
