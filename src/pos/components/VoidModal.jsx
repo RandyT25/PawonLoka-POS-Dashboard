@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
+import { qr } from '../../lib/quickRead'
 
 export default function VoidModal({ onClose, managerPin = '9999' }) {
   const [step, setStep] = useState('search')
@@ -20,15 +21,11 @@ export default function VoidModal({ onClose, managerPin = '9999' }) {
   async function loadOrders() {
     setLoading(true)
     const today = new Date().toISOString().slice(0,10)
-    const { data } = await supabase
-      .from('orders').select('*')
-      .eq('date', today)
-      .in('status', ['Paid', 'Open'])
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setAllOrders(data || [])
-    setOrders(data || [])
-    setLoading(false)
+    const data = (await qr(
+      supabase.from('orders').select('*').eq('date',today).in('status',['Paid','Open']).order('created_at',{ascending:false}).limit(50),
+      { ms:5000 }
+    )) || []
+    setAllOrders(data); setOrders(data); setLoading(false)
   }
 
   async function searchOrders() {

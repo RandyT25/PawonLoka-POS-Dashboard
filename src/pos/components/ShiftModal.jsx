@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
+import { qr } from '../../lib/quickRead'
 import { buildShiftReport, renderToBytes } from '../hooks/usePrinter'
 
 export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
@@ -16,11 +17,11 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
 
   async function loadReport() {
     const today = new Date().toISOString().slice(0, 10)
-    const [{ data: orders }, { data: cashLogs }, { data: openBills }, { data: notClockedOut }] = await Promise.all([
-      supabase.from('orders').select('total,pay,status').eq('date', today).eq('status', 'Paid'),
-      supabase.from('cash_logs').select('*').eq('date', today),
-      supabase.from('orders').select('id,table,total').eq('date', today).eq('status', 'Open'),
-      supabase.from('attendance').select('id,staff_name,clock_in').eq('date', today).not('clock_in', 'is', null).is('clock_out', null),
+    const [orders, cashLogs, openBills, notClockedOut] = await Promise.all([
+      qr(supabase.from('orders').select('total,pay,status').eq('date', today).eq('status', 'Paid'), { ms:5000 }),
+      qr(supabase.from('cash_logs').select('*').eq('date', today), { ms:5000 }),
+      qr(supabase.from('orders').select('id,table,total').eq('date', today).eq('status', 'Open'), { ms:5000 }),
+      qr(supabase.from('attendance').select('id,staff_name,clock_in').eq('date', today).not('clock_in', 'is', null).is('clock_out', null), { ms:5000 }),
     ])
 
     const sales = {}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
-import { offlineStore } from '../../lib/offlineStore'
+import { qr } from '../../lib/quickRead'
 import { fmt, KITCHEN_STATIONS } from '../../shared/constants'
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
@@ -31,24 +31,14 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
   async function load() {
     setLoading(true)
     const today = new Date().toISOString().slice(0, 10)
-    try {
-      let q = supabase.from('orders').select('*').eq('date', today).order('created_at', { ascending: false })
-      if (tab === 'open') q = q.eq('status', 'Open')
-      else if (tab === 'paid') q = q.eq('status', 'Paid')
-      else q = q.in('status', ['Voided', 'Refunded'])
-      const { data, error } = await q.limit(50)
-      if (error) throw error
-      const result = data || []
-      setOrders(result)
-      // Cache all-tab orders for offline fallback
-      offlineStore.setCache('orders_modal_' + tab, result)
-    } catch {
-      // Offline — load from cache
-      const cached = await offlineStore.getCache('orders_modal_' + tab)
-      setOrders(cached || [])
-    } finally {
-      setLoading(false)
-    }
+    let q = supabase.from('orders').select('*').eq('date', today).order('created_at', { ascending: false })
+    if (tab === 'open') q = q.eq('status', 'Open')
+    else if (tab === 'paid') q = q.eq('status', 'Paid')
+    else q = q.in('status', ['Voided', 'Refunded'])
+    q = q.limit(50)
+    const result = (await qr(q, { cache:'orders_modal_'+tab, ms:5000 })) || []
+    setOrders(result)
+    setLoading(false)
   }
 
   async function markPaid(order) {

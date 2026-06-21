@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "../../lib/supabase";
-import { offlineStore } from "../../lib/offlineStore";
+import { qr } from "../../lib/quickRead";
 
 export function useOrders() {
   const [orders, setOrders]   = useState([]);
@@ -9,22 +9,11 @@ export function useOrders() {
 
   const fetchOrders = useCallback(async (status = null) => {
     setLoading(true);
-    try {
-      let q = supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (status) q = q.eq("status", status);
-      const { data, error } = await q;
-      if (error) throw error;
-      const result = data || [];
-      setOrders(result);
-      offlineStore.setCache("orders_list", result);
-    } catch {
-      const cached = await offlineStore.getCache("orders_list");
-      if (cached) setOrders(cached);
-    } finally { setLoading(false); }
+    let q = supabase.from("orders").select("*").order("created_at", { ascending: false }).limit(200);
+    if (status) q = q.eq("status", status);
+    const result = (await qr(q, { cache:"orders_list", ms:5000 })) || [];
+    setOrders(result);
+    setLoading(false);
   }, []);
 
   useEffect(() => {

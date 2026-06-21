@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { qr } from '../../lib/quickRead'
 import { fmt } from '../../shared/constants'
 
 const TYPES = {
@@ -21,11 +22,7 @@ export default function CashInOutModal({ staff, onClose }) {
 
   async function loadLogs() {
     const today = new Date().toISOString().slice(0, 10)
-    const { data } = await supabase
-      .from('cash_logs')
-      .select('*')
-      .eq('date', today)
-      .order('created_at', { ascending: false })
+    const data = await qr(supabase.from('cash_logs').select('*').eq('date',today).order('created_at',{ascending:false}), { ms:5000 })
     setLogs(data || [])
   }
 

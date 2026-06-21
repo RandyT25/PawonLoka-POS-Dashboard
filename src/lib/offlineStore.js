@@ -64,29 +64,29 @@ export const offlineStore = {
 }
 
 // ── Eager full sync — downloads everything needed for offline use ─────────────
+const _syncTimeout = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('sync-timeout')), ms))
+
 export async function offlineFullSync(supabase) {
+  function syncQuery(q, key) {
+    return Promise.race([q, _syncTimeout(8000)])
+      .then(({data}) => data && offlineStore.setCache(key, data))
+      .catch(() => {})
+  }
   await Promise.allSettled([
-    supabase.from('products').select('*').eq('active', true)
-      .then(({data}) => data?.length && offlineStore.setCache('products', data)),
-    supabase.from('categories').select('*').order('sort')
-      .then(({data}) => data?.length && offlineStore.setCache('categories', data)),
-    supabase.from('modifier_groups').select('*')
-      .then(({data}) => data?.length && offlineStore.setCache('modifier_groups', data)),
-    supabase.from('app_settings').select('*').eq('id','main').maybeSingle()
-      .then(({data}) => data && offlineStore.setCache('app_settings', data)),
-    supabase.from('discounts').select('*').eq('active', true)
-      .then(({data}) => data && offlineStore.setCache('discounts', data)),
-    supabase.from('bundles').select('*').eq('active', true)
-      .then(({data}) => data && offlineStore.setCache('bundles', data)),
-    supabase.from('tables').select('*').order('sort')
-      .then(({data}) => data && offlineStore.setCache('tables', data)),
-    supabase.from('sub_recipes').select('*').order('name')
-      .then(({data}) => data && offlineStore.setCache('sub_recipes', data)),
-    supabase.from('sub_recipe_ingredients').select('*')
-      .then(({data}) => data && offlineStore.setCache('sub_recipe_ingredients', data)),
-    supabase.from('ingredients').select('id,name,unit,stock,cost_per_unit,category,station,min_stock').order('name')
-      .then(({data}) => data && offlineStore.setCache('ingredients', data)),
-    supabase.from('staff').select('id,name,role,pin,color,active,permissions').eq('active', true).order('name')
-      .then(({data}) => { if (data?.length) localStorage.setItem('pos_staff_cache', JSON.stringify(data)) }),
+    syncQuery(supabase.from('products').select('*').eq('active', true), 'products'),
+    syncQuery(supabase.from('categories').select('*').order('sort'), 'categories'),
+    syncQuery(supabase.from('modifier_groups').select('*'), 'modifier_groups'),
+    syncQuery(supabase.from('discounts').select('*').eq('active', true), 'discounts'),
+    syncQuery(supabase.from('bundles').select('*').eq('active', true), 'bundles'),
+    syncQuery(supabase.from('tables').select('*').order('sort'), 'tables'),
+    syncQuery(supabase.from('sub_recipes').select('*').order('name'), 'sub_recipes'),
+    syncQuery(supabase.from('sub_recipe_ingredients').select('*'), 'sub_recipe_ingredients'),
+    syncQuery(supabase.from('ingredients').select('id,name,unit,stock,cost_per_unit,category,station,min_stock').order('name'), 'ingredients'),
+    // app_settings is a single object — handle separately
+    Promise.race([supabase.from('app_settings').select('*').eq('id','main').maybeSingle(), _syncTimeout(8000)])
+      .then(({data}) => data && offlineStore.setCache('app_settings', data)).catch(() => {}),
+    // staff goes to localStorage
+    Promise.race([supabase.from('staff').select('id,name,role,pin,color,active,permissions').eq('active', true).order('name'), _syncTimeout(8000)])
+      .then(({data}) => { if (data?.length) localStorage.setItem('pos_staff_cache', JSON.stringify(data)) }).catch(() => {}),
   ])
 }

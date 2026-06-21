@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
+import { qr } from '../../lib/quickRead'
 import { fmt } from '../../shared/constants'
 
 export default function PromoModal({ subtotal, customer, onApply, onClose }) {
@@ -14,7 +15,7 @@ export default function PromoModal({ subtotal, customer, onApply, onClose }) {
   }, [])
 
   async function loadPromos() {
-    const { data: promoData } = await supabase.from('promos').select('*').eq('active', true)
+    const promoData = await qr(supabase.from('promos').select('*').eq('active', true), { ms:5000 })
     const data = (promoData||[]).map(p=>({...p, disc: p.type==='Percentage'||p.type==='percent' ? Math.round(subtotal*p.value/100) : p.value}))
     const all = data || []
     

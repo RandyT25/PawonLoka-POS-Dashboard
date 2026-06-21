@@ -5,6 +5,7 @@ import useCart from './hooks/useCart'
 import useOrders from './hooks/useOrders'
 import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
+import { qr } from '../lib/quickRead'
 
 // Offline-safe write: always queues on any network failure, 5s hard timeout
 async function dbWrite(table, op, payload, match = null) {
@@ -301,7 +302,7 @@ export default function POS() {
       if (!Object.keys(deductions).length) return
       // Batch fetch current stock for all affected ingredients
       const ingIds = Object.keys(deductions)
-      const { data: ings } = await supabase.from('ingredients').select('id, stock').in('id', ingIds)
+      const ings = await qr(supabase.from('ingredients').select('id, stock').in('id', ingIds), { ms:5000 })
       // Parallel updates
       await Promise.all((ings || []).map(ing =>
         supabase.from('ingredients').update({
@@ -326,21 +327,20 @@ export default function POS() {
 
     // Step 2: Refresh from Supabase in background with a 10s timeout
     try {
-      const race = ms => new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))
-      const [{ data: prods, error: e1 }, { data: cats, error: e2 }, { data: mods, error: e3 }] = await Promise.race([
-        Promise.all([
-          supabase.from('products').select('*').eq('active', true),
-          supabase.from('categories').select('*').order('sort'),
-          supabase.from('modifier_groups').select('*').order('name'),
-        ]),
-        race(10000).then(() => { throw new Error('timeout') }),
+      const [prods, cats, mods] = await Promise.all([
+        qr(supabase.from('products').select('*').eq('active', true), { cache:'products', ms:5000 }),
+        qr(supabase.from('categories').select('*').order('sort'), { cache:'categories', ms:5000 }),
+        qr(supabase.from('modifier_groups').select('*').order('name'), { cache:'modifier_groups', ms:5000 }),
       ])
-      if (e1 || e2 || e3) throw new Error('fetch failed')
-      if (prods) { setProducts(prods); offlineStore.setCache('products', prods) }
-      if (cats)  { setCategories(cats); offlineStore.setCache('categories', cats) }
-      if (mods)  { setModifierGroups(mods); offlineStore.setCache('modifier_groups', mods) }
-      // Eagerly sync everything else in the background
-      offlineFullSync(supabase).catch(() => {})
+      // qr() already handles cache + errors; just apply to state
+      if (prods) setProducts(prods)
+      if (cats)  setCategories(cats)
+      if (mods)  setModifierGroups(mods)
+      // Eagerly sync everything else — once per session only (not on every refresh)
+      if (!sessionStorage.getItem('_synced')) {
+        sessionStorage.setItem('_synced', '1')
+        offlineFullSync(supabase).catch(() => {})
+      }
     } catch {
       // Silent — cache already loaded above
     }
@@ -623,7 +623,7 @@ export default function POS() {
         return parts.join('\n')
       }
       try {
-        await printer.printKitchenTicket({
+        const printJob = printer.printKitchenTicket({
           stationRole, stationName: station,
           table: capturedTable || '-', orderType: capturedOrderType, type,
           items:       addItems.map(i => fmtItem(i, i._isAddition ? '+' : '')),
@@ -632,9 +632,10 @@ export default function POS() {
           orderId: openBillId || 'NEW',
           settings: appSettings?.kitchen_ticket,
         })
+        await Promise.race([printJob, new Promise((_, rej) => setTimeout(() => rej(new Error('print timeout')), 15000))])
       } catch(e) {
         console.error('[print] failed for station', station, e)
-        alert('Gagal cetak ke ' + station + ':\n' + e.message + '\n\nPastikan printer sudah di-pair di Pengaturan > Hardware.')
+        alert('⚠️ Gagal cetak ke ' + station + '\nPesanan SUDAH tersimpan di sistem.\nCek koneksi printer, atau gunakan tombol Cetak Checker.')
       }
     }
     // Mark all cart items as sent; update _printedQty so next comparison is correct
