@@ -1,5 +1,5 @@
 # PawonLoka — Project Brain
-> Last updated: 2026-06-01
+> Last updated: 2026-06-22
 > Always read this before building anything new.
 
 ## 🔗 Project Links
@@ -14,6 +14,21 @@
 
 ## 🚀 Deploy Command
 git add -A && git commit -m "msg" && git push && npm run deploy
+
+## 📱 Android APK — ALWAYS DO THIS AFTER CODE CHANGES
+Project path: /Users/randy/POS Android APK   ← SEPARATE copy of src, must be kept in sync with web
+Build steps (run in order):
+```
+cd "/Users/randy/POS Android APK"
+npm run build
+npx cap sync android
+cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
+```
+Output APK: android/app/build/outputs/apk/debug/app-debug.apk
+ALWAYS copy to Desktop when done: cp "...app-debug.apk" ~/Desktop/PawonLoka-POS.apk
+- No keystore → use debug build (signed with ~/.android/debug.keystore, installable via sideload)
+- APK bundles web files at build time (webDir: dist) — no live URL, MUST rebuild for every update
+- Android SDK: ~/Library/Android/sdk  Java: Android Studio bundled JRE (see JAVA_HOME above)
 
 ## 🏗 Stack
 - React 19 + Vite 8 + Supabase + Cloudflare Pages
@@ -241,7 +256,16 @@ Inventory (all 8 sub-screens), Staff Reports, Employees, Users & Access,
 Schedule, Shifts, Performance, Customers, Loyalty, Promotions & Vouchers,
 Bundles, Discounts, Payments & Tax, Floor Plan (Merge/Split/Move),
 Settings (+ Auto-close time), Receipt Designer, Hardware, Import/Export,
-Orders History, Staff Submissions, InvIngredients (Quick Edit + Categories)
+Orders History, Staff Submissions, InvIngredients (Quick Edit + Categories),
+Split Bill (fixed receipt + payments recording), Laporan Produk Terjual (shift close)
+
+## 🧾 Split Bill Architecture (ChargeModal + POS.jsx)
+- Split UI lives inside ChargeModal tabs (not SplitModal.jsx — that file exists but is unused)
+- chargeSplit() → sets activeSplit { amount, label, splitItems } → switches to pay tab
+- handleCharge() in POS.jsx: split path writes payments[] to DB on EVERY split (not just final)
+- Final split: pay='Split', status='Paid', total=billTotal, payments=[all split entries]
+- Receipt: by-item → items filtered to splitItems only; equal/by-amount → full cart + _splitAmount/_splitRemaining metadata printed as "Dibayar / Sisa Tagihan"
+- buildProductSoldReport() in usePrinter.js → called from ShiftModal after shift close prompt
 
 ## 🔧 PENDING / KNOWN ISSUES
 - Printer receipt not printing after payment (GATT drops — 800ms delay workaround deployed)
