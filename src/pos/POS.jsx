@@ -451,13 +451,15 @@ export default function POS() {
   }
 
 
-  // Keep local order cache in sync — called on every create/update/read
+  // Keep local order cache in sync — always merges with existing so partial updates never lose fields
   async function updateOrderCache(order) {
     if (!order?.id) return
-    offlineStore.setCache('offline_open_bill_' + order.id, order)
+    const existing = (await offlineStore.getCache('offline_open_bill_' + order.id)) || {}
+    const merged = { ...existing, ...order }   // existing fields first, then overlay updates
+    offlineStore.setCache('offline_open_bill_' + merged.id, merged)
     const all = (await offlineStore.getCache('orders_today')) || []
-    const idx = all.findIndex(o => o.id === order.id)
-    const updated = idx >= 0 ? all.map(o => o.id === order.id ? { ...o, ...order } : o) : [order, ...all]
+    const idx = all.findIndex(o => o.id === merged.id)
+    const updated = idx >= 0 ? all.map(o => o.id === merged.id ? merged : o) : [merged, ...all]
     offlineStore.setCache('orders_today', updated)
   }
 
