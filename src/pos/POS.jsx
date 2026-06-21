@@ -466,6 +466,11 @@ export default function POS() {
   async function recallFromOrder(order) {
     // Auto-cache every order recalled — makes it available for offline access
     updateOrderCache(order)
+    // If this is already the active bill, preserve any unsent cart items — don't reset
+    if (order.id === openBillId) {
+      const unsent = cart.filter(i => !i._sent)
+      if (unsent.length > 0) return  // cart is correct, nothing to reload
+    }
     setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '', _printedQty: i.qty })))
     setTableNo(order.table || '')
     setPax(order.pax || 0)
@@ -494,6 +499,8 @@ export default function POS() {
     if (table.status === 'Reserved') return
     if (table.status === 'Occupied' && table.open_bill_id) {
       const billId = table.open_bill_id
+      // Already viewing this bill — just close floor plan, don't reload cart
+      if (openBillId === billId) { setShowFloorPlan(false); return }
       // Cache-first: read from device storage instantly, fall back to Supabase with 5s timeout
       offlineStore.getCache('offline_open_bill_' + billId).then(async cached => {
         const data = cached || await qr(
