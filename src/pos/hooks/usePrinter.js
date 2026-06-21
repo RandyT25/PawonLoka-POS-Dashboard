@@ -201,6 +201,14 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   lines.push({ cmd: "BOLD_OFF" });
   lines.push({ text: EQ + "\n" });
 
+  // ── Split partial payment info ───────────────────────
+  if (order._splitAmount) {
+    lines.push({ text: L("Dibayar", fmt(order._splitAmount)) + "\n" });
+    if (order._splitRemaining > 0)
+      lines.push({ text: L("Sisa Tagihan", fmt(order._splitRemaining)) + "\n" });
+    lines.push({ text: HR + "\n" });
+  }
+
   // ── Points earned ────────────────────────────────────
   if (showLoyalty && total > 0) {
     const pts = Math.floor(total / 100);
@@ -434,6 +442,65 @@ export function buildShiftReport({ shift, report, paperSize = "80mm" }) {
     lines.push({ text: EQ + "\n" })
   }
 
+  lines.push({ cmd: "ALIGN_C" })
+  lines.push({ text: "Dicetak: " + dateStr + " " + timeStr + "\n" })
+  lines.push({ text: "\n\n" })
+  lines.push({ cmd: "CUT" })
+  return lines
+}
+
+export function buildProductSoldReport({ shift, productData, paperSize = "80mm" }) {
+  const w   = paperSize === "58mm" ? 32 : 42
+  const EQ  = "=".repeat(w)
+  const HR  = "-".repeat(w)
+  const rpad = (left, right, width) => {
+    const gap = width - left.length - String(right).length
+    return left + " ".repeat(Math.max(1, gap)) + right
+  }
+  const lines = []
+  const now = new Date()
+  const timeStr = now.toLocaleTimeString("id-ID", { hour:"2-digit", minute:"2-digit" })
+  const dateStr = now.toLocaleDateString("id-ID", { day:"numeric", month:"short", year:"numeric" })
+
+  lines.push({ cmd: "ALIGN_C" })
+  lines.push({ cmd: "BOLD_ON" })
+  lines.push({ text: "LAPORAN TUTUP KASIR\n" })
+  lines.push({ text: "PENJUALAN MENU\n" })
+  lines.push({ cmd: "BOLD_OFF" })
+  lines.push({ text: EQ + "\n" })
+  lines.push({ cmd: "ALIGN_L" })
+  lines.push({ text: "Kasir      : " + (shift?.staff || "-") + "\n" })
+  lines.push({ text: "Waktu Buka : " + (shift?.clock_in || "-") + "\n" })
+  lines.push({ text: "Waktu Tutup: " + timeStr + "\n" })
+  lines.push({ text: EQ + "\n" })
+
+  lines.push({ cmd: "BOLD_ON" })
+  lines.push({ text: "Produk Terjual\n" })
+  lines.push({ cmd: "BOLD_OFF" })
+  lines.push({ text: HR + "\n" })
+
+  // Group by category, sort alphabetically
+  const byCategory = {}
+  Object.values(productData || {}).forEach(item => {
+    const cat = item.cat || 'Lainnya'
+    if (!byCategory[cat]) byCategory[cat] = []
+    byCategory[cat].push(item)
+  })
+
+  Object.keys(byCategory).sort().forEach(cat => {
+    lines.push({ cmd: "BOLD_ON" })
+    lines.push({ text: cat + "\n" })
+    lines.push({ cmd: "BOLD_OFF" })
+    byCategory[cat].sort((a, b) => a.name.localeCompare(b.name)).forEach(item => {
+      lines.push({ text: rpad(item.name.slice(0, w - 6), item.qty, w) + "\n" })
+      Object.entries(item.mods || {}).sort().forEach(([mod, qty]) => {
+        const modLabel = "  + " + mod.slice(0, w - 8)
+        lines.push({ text: rpad(modLabel, qty, w) + "\n" })
+      })
+    })
+  })
+
+  lines.push({ text: EQ + "\n" })
   lines.push({ cmd: "ALIGN_C" })
   lines.push({ text: "Dicetak: " + dateStr + " " + timeStr + "\n" })
   lines.push({ text: "\n\n" })

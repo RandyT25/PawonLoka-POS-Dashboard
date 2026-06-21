@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
 import { qr } from '../../lib/quickRead'
-import { buildShiftReport, renderToBytes } from '../hooks/usePrinter'
+import { buildShiftReport, buildProductSoldReport, renderToBytes } from '../hooks/usePrinter'
 
 export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
   const [float, setFloat]     = useState('')
@@ -10,6 +10,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
   const [report, setReport]   = useState(null)
   const [note, setNote]       = useState('')
   const [confirmed, setConfirmed] = useState(false)
+  const [productData, setProductData] = useState(null)
 
   useEffect(() => {
     if (shift) loadReport()
@@ -75,7 +76,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
     ])
     if (stillOpen?.length > 0 || stillClockedIn?.length > 0) {
       setConfirmed(false)
-      await loadReport() // refresh the warning lists in UI
+      await loadReport()
       return
     }
 
@@ -96,9 +97,65 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
         }
       } catch (_) { /* print failure should not block logout */ }
     }
-    onLogout()
-    setSaving(false)
+
+    // Fetch sold items to offer product report print
+    try {
+      const { data: paidOrders } = await supabase
+        .from('orders').select('items').eq('date', today).eq('status', 'Paid')
+      const itemMap = {}
+      ;(paidOrders || []).forEach(order => {
+        ;(order.items || []).forEach(item => {
+          const key = (item.cat || 'Lainnya') + '||' + item.name
+          if (!itemMap[key]) itemMap[key] = { name: item.name, cat: item.cat || 'Lainnya', qty: 0, mods: {} }
+          itemMap[key].qty += item.qty || 1
+          Object.values(item.modifiers || {}).forEach(mod => {
+            if (mod) itemMap[key].mods[mod] = (itemMap[key].mods[mod] || 0) + (item.qty || 1)
+          })
+        })
+      })
+      setSaving(false)
+      setProductData(itemMap)
+      // Stay open — wait for cashier's choice in the product print prompt
+    } catch (_) {
+      setSaving(false)
+      onLogout()
+    }
   }
+
+  async function printProductReport() {
+    if (printer && productData) {
+      try {
+        const rp = printer.printers?.find(p => p.role === 'receipt')
+        if (rp) {
+          const bytes = renderToBytes(buildProductSoldReport({ shift, productData, paperSize: rp.paperSize }))
+          await printer.printBytes(rp.id, bytes)
+        }
+      } catch (_) { /* print failure should not block logout */ }
+    }
+    onLogout()
+  }
+
+  if (productData) return (
+    <div style={S.overlay}>
+      <div style={S.modal}>
+        <div style={{ padding:28, textAlign:'center' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>🖨️</div>
+          <div style={{ fontSize:16, fontWeight:900, color:'#0A1628', marginBottom:8 }}>Shift Berhasil Ditutup</div>
+          <div style={{ fontSize:13, color:'#6B7A8D', marginBottom:24 }}>Cetak laporan produk terjual hari ini?</div>
+          {!printer?.printers?.find(p => p.role === 'receipt') && (
+            <div style={{ fontSize:12, color:'#F59E0B', marginBottom:16, padding:'8px 12px', background:'#FFFBEB', borderRadius:8 }}>
+              Printer tidak terhubung — laporan tidak akan tercetak
+            </div>
+          )}
+          <button onClick={printProductReport}
+            style={{ ...S.primaryBtn, marginBottom:10 }}>
+            Ya, Cetak Laporan Produk
+          </button>
+          <button onClick={onLogout} style={S.ghostBtn}>Tidak, Keluar</button>
+        </div>
+      </div>
+    </div>
+  )
 
   if (!shift) return (
     <div style={S.overlay}>

@@ -79,7 +79,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
     setSaving(true)
     const effectiveFinal = isSplitAmount ? splitFinal : finalTotal
     const effectiveCash = isSplitAmount ? String(splitFinal) : cashGiven
-    const order = await onConfirm({ payMethod, cashGiven: effectiveCash, discount: 0, usePoints, finalTotal: effectiveFinal, splitLabel: activeSplit?.label, orderNote, promoDisc: appliedPromo?.disc || 0, promoName: appliedPromo?.name, multiPay: multiPay.length > 0 ? multiPay : null })
+    const order = await onConfirm({ payMethod, cashGiven: effectiveCash, discount: 0, usePoints, finalTotal: effectiveFinal, splitLabel: activeSplit?.label, splitItems: activeSplit?.splitItems, orderNote, promoDisc: appliedPromo?.disc || 0, promoName: appliedPromo?.name, multiPay: multiPay.length > 0 ? multiPay : null })
     setSaving(false)
     if (order) setPaidOrder(order)
   }
@@ -106,12 +106,16 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
     .reduce((a,i) => a + (i.price-(i.itemDisc||0))*i.qty, 0)
 
   function chargeSplit() {
-    let amt = 0, label = ''
+    let amt = 0, label = '', splitItems = null
     if (splitMode === 'equal') { amt = perPart; label = 'Split '+splitParts+' orang' }
     else if (splitMode === 'by-amount') { amt = parseFloat(splitAmount)||0; label = 'Partial Payment' }
-    else { amt = splitItemsTotal; label = 'Item Split' }
+    else {
+      const selected = cart.filter(i => splitChecked[i._key])
+      if (selected.length === 0) return
+      amt = splitItemsTotal; label = 'Item Split'; splitItems = selected
+    }
     if (amt <= 0) return
-    setActiveSplit({ amount: amt, label })
+    setActiveSplit({ amount: amt, label, splitItems })
     setTab('pay')
   }
 

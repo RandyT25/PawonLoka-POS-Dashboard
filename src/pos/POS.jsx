@@ -858,7 +858,7 @@ export default function POS() {
     }
   }
 
-  async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, orderNote, promoDisc = 0, promoName }) {
+  async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, splitItems, orderNote, promoDisc = 0, promoName, multiPay }) {
     const discAmt = discount ? Math.round(subtotal * discount / 100) : 0
     const orderCogs = cart.reduce((sum, item) => {
       const prod = products.find(p => p.sku === item.sku)
@@ -873,14 +873,17 @@ export default function POS() {
       const isFullyPaid = newSplitPaid >= billTotal
 
       if (openBillId) {
-        const { data: existing } = await supabase.from('orders').select('notes').eq('id', openBillId).maybeSingle()
+        const { data: existing } = await supabase.from('orders').select('notes,payments').eq('id', openBillId).maybeSingle()
         const prevNotes = existing?.notes || ''
+        const prevPayments = existing?.payments || []
         const newNote = (prevNotes ? prevNotes + ' | ' : '') + 'SPLIT: ' + payMethod + ' Rp' + finalTotal
+        const newPayments = [...prevPayments, { method: payMethod, amount: finalTotal, time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) }]
+
         if (isFullyPaid) {
           // All paid — close the bill
           await dbWrite('orders', 'update', {
-            status: 'Paid', pay: payMethod, notes: newNote, total: billTotal,
-            cogs: orderCogs, customer_id: customer?.id || null,
+            status: 'Paid', pay: 'Split', notes: newNote, total: billTotal,
+            payments: newPayments, cogs: orderCogs, customer_id: customer?.id || null,
           }, { id: openBillId })
           if (tableNo) await dbWrite('tables', 'update', { status: 'Available' }, { name: tableNo })
           if (customer?.id) {
@@ -888,7 +891,7 @@ export default function POS() {
             await dbWrite('customers', 'update', { points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }, { id: customer.id })
           }
         } else {
-          await dbWrite('orders', 'update', { notes: newNote }, { id: openBillId })
+          await dbWrite('orders', 'update', { notes: newNote, payments: newPayments }, { id: openBillId })
         }
       }
 
@@ -900,10 +903,13 @@ export default function POS() {
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : 0,
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
-        staff: staff.name, customer: customer?.name || null, items: cart,
+        staff: staff.name, customer: customer?.name || null,
+        items: splitItems || cart,
         subtotal, tax: Math.round(subtotal*TAX_RATE_LIVE), discount: discAmt,
+        payments: [{ method: payMethod, amount: finalTotal }],
         _isSplit: !isFullyPaid, splitLabel, splitPaid: newSplitPaid,
-        _fullyPaid: isFullyPaid
+        _fullyPaid: isFullyPaid,
+        ...(!splitItems && { _splitAmount: finalTotal, _splitRemaining: Math.max(0, billTotal - newSplitPaid) }),
       }
     }
 
