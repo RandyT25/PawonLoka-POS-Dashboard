@@ -336,7 +336,17 @@ export default function POS() {
       if (prods) setProducts(prods)
       if (cats)  setCategories(cats)
       if (mods)  setModifierGroups(mods)
-      // Eagerly sync everything else — once per session only (not on every refresh)
+      // Cache today's orders — critical for offline bill access
+      const todayStr = new Date().toISOString().slice(0,10)
+      qr(supabase.from('orders').select('*').eq('date', todayStr).order('created_at', {ascending:false}).limit(200),
+         { cache:'orders_today', ms:5000 })
+        .then(orders => {
+          if (orders) {
+            orders.filter(o => o.status==='Open'||o.status==='open')
+              .forEach(o => offlineStore.setCache('offline_open_bill_'+o.id, o))
+          }
+        })
+      // Full sync once per session
       if (!sessionStorage.getItem('_synced')) {
         sessionStorage.setItem('_synced', '1')
         offlineFullSync(supabase).catch(() => {})
@@ -441,7 +451,19 @@ export default function POS() {
   }
 
 
+  // Keep local order cache in sync — called on every create/update/read
+  async function updateOrderCache(order) {
+    if (!order?.id) return
+    offlineStore.setCache('offline_open_bill_' + order.id, order)
+    const all = (await offlineStore.getCache('orders_today')) || []
+    const idx = all.findIndex(o => o.id === order.id)
+    const updated = idx >= 0 ? all.map(o => o.id === order.id ? { ...o, ...order } : o) : [order, ...all]
+    offlineStore.setCache('orders_today', updated)
+  }
+
   async function recallFromOrder(order) {
+    // Auto-cache every order recalled — makes it available for offline access
+    updateOrderCache(order)
     setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '', _printedQty: i.qty })))
     setTableNo(order.table || '')
     setPax(order.pax || 0)
@@ -469,8 +491,15 @@ export default function POS() {
   function handleTableSelect(table) {
     if (table.status === 'Reserved') return
     if (table.status === 'Occupied' && table.open_bill_id) {
-      supabase.from('orders').select('*').eq('id', table.open_bill_id).maybeSingle().then(({ data }) => {
+      const billId = table.open_bill_id
+      // Cache-first: read from device storage instantly, fall back to Supabase with 5s timeout
+      offlineStore.getCache('offline_open_bill_' + billId).then(async cached => {
+        const data = cached || await qr(
+          supabase.from('orders').select('*').eq('id', billId).maybeSingle(),
+          { cache: 'offline_open_bill_' + billId, ms: 5000 }
+        )
         if (data) { recallFromOrder(data); setOrderType('Dine-in'); setShowFloorPlan(false) }
+        else alert('Tagihan tidak tersedia.\nPastikan ada koneksi internet saat membuka tagihan pertama kali.')
       })
     } else {
       clearCart(); setOrderType('Dine-in')
@@ -566,6 +595,7 @@ export default function POS() {
       // Rebuild item list from cart — cart is source of truth for the full order state
       const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null }))
       await dbWrite('orders', 'update', { items: allItems, subtotal, tax, discount: discAmt, total }, { id: openBillId })
+      updateOrderCache({ id: openBillId, items: allItems, subtotal, tax, total, status: 'Open' })
     } else {
       // Create new open bill
       const orderId = 'ORD-' + Date.now()
@@ -581,8 +611,7 @@ export default function POS() {
       }
       const ok = await dbWrite('orders', 'insert', order)
       if (!ok) { alert('Gagal simpan order'); return }
-      // Cache locally so it survives an offline restart
-      offlineStore.setCache('offline_open_bill_' + orderId, order)
+      updateOrderCache(order)
       setOpenBillId(orderId)
     }
 
@@ -1036,7 +1065,12 @@ export default function POS() {
                   setTableNo(t); setOrderType('Dine-in')
                 }}
                 onSelectOccupied={async t => {
-                  const { data } = await supabase.from('orders').select('*').eq('id', t.open_bill_id).maybeSingle()
+                  const billId = t.open_bill_id
+                  const cached = await offlineStore.getCache('offline_open_bill_' + billId)
+                  const data = cached || await qr(
+                    supabase.from('orders').select('*').eq('id', billId).maybeSingle(),
+                    { cache: 'offline_open_bill_' + billId, ms: 5000 }
+                  )
                   if (data) await recallFromOrder(data)
                   setOrderType('Dine-in')
                 }}
