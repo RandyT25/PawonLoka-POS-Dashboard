@@ -25,20 +25,27 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
 
     // Open orders — 3s timeout, empty fallback is fine
     const openOrders = (await qr(
-      supabase.from('orders').select('id, table, created_at, customer, items').eq('status','Open').eq('date',today),
+      supabase.from('orders').select('id, table, table_area, created_at, customer, items').eq('status','Open').eq('date',today),
       { cache:'orders_modal_open', ms:3000 }
     )) || []
 
     const occupiedMap = {}
-    ;(openOrders||[]).forEach(o => { if (o.table) occupiedMap[o.table] = o })
-    const merged = (tbls||[]).map(t => ({
-      ...t,
-      status: occupiedMap[t.name] ? 'Occupied' : t.status,
-      open_bill_id:   occupiedMap[t.name]?.id || null,
-      open_since:     occupiedMap[t.name]?.created_at || null,
-      open_customer:  occupiedMap[t.name]?.customer || null,
-      open_items:     occupiedMap[t.name]?.items?.length || 0,
-    }))
+    ;(openOrders||[]).forEach(o => {
+      if (!o.table) return
+      if (o.table_area) occupiedMap[`${o.table_area}::${o.table}`] = o
+      else occupiedMap[o.table] = o
+    })
+    const merged = (tbls||[]).map(t => {
+      const hit = occupiedMap[`${t.area}::${t.name}`] || occupiedMap[t.name]
+      return {
+        ...t,
+        status: hit ? 'Occupied' : t.status,
+        open_bill_id:   hit?.id || null,
+        open_since:     hit?.created_at || null,
+        open_customer:  hit?.customer || null,
+        open_items:     hit?.items?.length || 0,
+      }
+    })
     setTables(merged)
     const uniqueAreas = [...new Set(merged.map(t => t.area).filter(Boolean))]
     setAreas(uniqueAreas.length ? uniqueAreas : ['Indoor'])

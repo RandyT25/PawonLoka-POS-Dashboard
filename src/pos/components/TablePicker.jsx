@@ -10,15 +10,22 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
     async function load() {
       const today = new Date().toISOString().slice(0,10)
       const tbls = (await qr(supabase.from('tables').select('*').order('sort'), { cache:'tables', ms:5000 })) || []
-      const open  = (await qr(supabase.from('orders').select('id,table,customer').eq('status','Open').eq('date',today), { ms:3000 })) || []
+      const open  = (await qr(supabase.from('orders').select('id,table,table_area,customer').eq('status','Open').eq('date',today), { ms:3000 })) || []
       const occupiedMap = {}
-      ;(open||[]).forEach(o => { if(o.table) occupiedMap[o.table] = { id: o.id, customer: o.customer } })
-      setTables((tbls||[]).map(t => ({
-        ...t,
-        occupied: !!occupiedMap[t.name],
-        open_bill_id: occupiedMap[t.name]?.id || null,
-        open_customer: occupiedMap[t.name]?.customer || null,
-      })))
+      ;(open||[]).forEach(o => {
+        if (!o.table) return
+        if (o.table_area) occupiedMap[`${o.table_area}::${o.table}`] = { id: o.id, customer: o.customer }
+        else occupiedMap[o.table] = { id: o.id, customer: o.customer }
+      })
+      setTables((tbls||[]).map(t => {
+        const hit = occupiedMap[`${t.area}::${t.name}`] || occupiedMap[t.name]
+        return {
+          ...t,
+          occupied: !!hit,
+          open_bill_id: hit?.id || null,
+          open_customer: hit?.customer || null,
+        }
+      }))
     }
     load()
 
@@ -36,7 +43,7 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
     if (t.occupied && t.open_bill_id) {
       onSelectOccupied(t)
     } else {
-      onSelect(t.name)
+      onSelect(t)
     }
     onClose()
   }
