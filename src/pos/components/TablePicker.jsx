@@ -25,6 +25,10 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
           open_bill_id: hit?.id || null,
           open_customer: hit?.customer || null,
         }
+      }).sort((a, b) => {
+        const na = a.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
+        const nb = b.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
+        return na.localeCompare(nb)
       }))
     }
     load()

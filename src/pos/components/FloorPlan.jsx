@@ -46,6 +46,11 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
         open_items:     hit?.items?.length || 0,
       }
     })
+    merged.sort((a, b) => {
+      const na = a.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
+      const nb = b.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
+      return na.localeCompare(nb)
+    })
     setTables(merged)
     const uniqueAreas = [...new Set(merged.map(t => t.area).filter(Boolean))]
     setAreas(uniqueAreas.length ? uniqueAreas : ['Indoor'])
