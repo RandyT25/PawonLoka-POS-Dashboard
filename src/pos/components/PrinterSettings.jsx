@@ -14,7 +14,7 @@ export default function PrinterSettings({ hook }) {
   const [busyId, setBusyId]   = useState(null);
   const [editName, setEditName] = useState({});
   const [newRole, setNewRole]  = useState("kitchen1");
-  const btSupported = !!navigator.bluetooth || !!window?.Capacitor?.isNativePlatform?.();
+  const btSupported = !!navigator.bluetooth;
   const isAndroid = /Android/i.test(navigator.userAgent);
 
   async function handleScan() {
