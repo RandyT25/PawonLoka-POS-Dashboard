@@ -1,6 +1,7 @@
 # PawonLoka — Project Brain
-> Last updated: 2026-06-22
+> Last updated: 2026-06-25
 > Always read this before building anything new.
+> For deep POS-specific rules see: PAWONLOKA_POS_BRAIN.md
 
 ## 🔗 Project Links
 | Item | Value |
@@ -17,16 +18,31 @@ git add -A && git commit -m "msg" && git push && npm run deploy
 
 ## 📱 Android APK — ALWAYS DO THIS AFTER CODE CHANGES
 Project path: /Users/randy/POS Android APK   ← SEPARATE copy of src, must be kept in sync with web
-Build steps (run in order):
+
+### Files to sync (src/ only):
+```bash
+cp /Users/randy/PawonLoka-POS-Dashboard/src/pos/... "/Users/randy/POS Android APK/src/pos/..."
+# Sync any changed src/ files. DO NOT copy vite.config.js or index.html — APK has its own versions!
+```
+
+### Build steps (run in order):
 ```
 cd "/Users/randy/POS Android APK"
 npm run build
 npx cap sync android
 cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
+cp app/build/outputs/apk/debug/app-debug.apk ~/Desktop/PawonLoka-POS.apk
 ```
-Output APK: android/app/build/outputs/apk/debug/app-debug.apk
-ALWAYS copy to Desktop when done: cp "...app-debug.apk" ~/Desktop/PawonLoka-POS.apk
-- No keystore → use debug build (signed with ~/.android/debug.keystore, installable via sideload)
+
+### ⚠️ CRITICAL — Files that must NEVER be copied from main to APK:
+- `vite.config.js` — APK version has NO external[] config; main web version externalizes Capacitor packages
+- `index.html` — APK version has safe-area-inset CSS for Android 15 EdgeToEdge; main has PWA banner script
+
+### APK-specific config (already set, do not change):
+- `targetSdkVersion=35` (Android 15) → EdgeToEdge mode → APK index.html has `body { padding-top: env(safe-area-inset-top) }`
+- `AndroidManifest.xml`: ACCESS_FINE_LOCATION has NO maxSdkVersion restriction (needed for BleClient)
+- `capacitor.config.ts`: `BluetoothLe.androidNeverForLocation: true`
+- No keystore → debug build (signed with ~/.android/debug.keystore, installable via sideload)
 - APK bundles web files at build time (webDir: dist) — no live URL, MUST rebuild for every update
 - Android SDK: ~/Library/Android/sdk  Java: Android Studio bundled JRE (see JAVA_HOME above)
 
