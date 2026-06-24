@@ -1081,7 +1081,7 @@ export default function POS() {
                   if (t.name !== tableNo) {
                     if (openBillId) {
                       await supabase.from('orders').update({ table: t.name, table_area: t.area || null }).eq('id', openBillId)
-                      await supabase.from('tables').update({ status: 'Occupied' }).eq('name', t.name)
+                      await supabase.from('tables').update({ status: 'Occupied' }).eq('id', t.id)
                       if (tableNo) { let q = supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo); if (tableArea) q = q.eq('area', tableArea); await q }
                     }
                   }

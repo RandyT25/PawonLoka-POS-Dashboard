@@ -77,20 +77,21 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     const src = mergeMode
     if (!src || !targetTable || src.id === targetTable.id) { setMergeMode(null); return }
     if (!confirm("Merge " + src.name + " into " + targetTable.name + "? All items from " + src.name + " will move to " + targetTable.name + ".")) { setMergeMode(null); return }
-    // Move all open orders from src to target
-    const today = new Date().toISOString().slice(0,10)
-    const { data: srcOrders } = await supabase.from('orders').select('*').eq('table', src.name).eq('status','Open').eq('date',today)
-    const { data: tgtOrders } = await supabase.from('orders').select('*').eq('table', targetTable.name).eq('status','Open').eq('date',today)
-    if (srcOrders?.length) {
-      if (tgtOrders?.length) {
-        // Merge items into target order
-        const tgtOrder = tgtOrders[0]
-        const allItems = [...(tgtOrder.items||[]), ...(srcOrders.flatMap(o=>o.items||[]))]
+    // Fetch orders by ID — never by name, to avoid matching wrong tables
+    const srcOrder = src.open_bill_id
+      ? (await supabase.from('orders').select('*').eq('id', src.open_bill_id).maybeSingle()).data
+      : null
+    const tgtOrder = targetTable.open_bill_id
+      ? (await supabase.from('orders').select('*').eq('id', targetTable.open_bill_id).maybeSingle()).data
+      : null
+    if (srcOrder) {
+      if (tgtOrder) {
+        const allItems = [...(tgtOrder.items||[]), ...(srcOrder.items||[])]
         const newSubtotal = allItems.reduce((s,i)=>s+(i.price*i.qty),0)
         await supabase.from('orders').update({ items:allItems, subtotal:newSubtotal, total:newSubtotal }).eq('id',tgtOrder.id)
-        for (const o of srcOrders) await supabase.from('orders').update({ status:'Voided', table: targetTable.name }).eq('id',o.id)
+        await supabase.from('orders').update({ status:'Voided', table: targetTable.name, table_area: targetTable.area||null }).eq('id',srcOrder.id)
       } else {
-        for (const o of srcOrders) await supabase.from('orders').update({ table: targetTable.name }).eq('id',o.id)
+        await supabase.from('orders').update({ table: targetTable.name, table_area: targetTable.area||null }).eq('id',srcOrder.id)
       }
     }
     await supabase.from('tables').update({ status:'Available', merged_with:null }).eq('id',src.id)
@@ -104,8 +105,9 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
     if (!src || !targetTable || src.id === targetTable.id) { setMoveMode(null); return }
     if (targetTable.status === 'Occupied') { alert("Target table is occupied"); return }
     if (!confirm("Move " + src.name + " to " + targetTable.name + "?")) { setMoveMode(null); return }
-    const today = new Date().toISOString().slice(0,10)
-    await supabase.from('orders').update({ table: targetTable.name }).eq('table',src.name).eq('status','Open').eq('date',today)
+    if (src.open_bill_id) {
+      await supabase.from('orders').update({ table: targetTable.name, table_area: targetTable.area||null }).eq('id', src.open_bill_id)
+    }
     await supabase.from('tables').update({ status:'Available' }).eq('id',src.id)
     setMoveMode(null); await load()
     alert("Moved to " + targetTable.name)
