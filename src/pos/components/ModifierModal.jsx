@@ -72,7 +72,7 @@ const S = {
   modLabel:   { fontSize:11, fontWeight:800, color:'#6B7A8D', textTransform:'uppercase', letterSpacing:'0.5px', marginBottom:8 },
   optBtn:     { padding:'7px 14px', borderRadius:20, border:'1.5px solid #E2E8F0', background:'white', fontSize:13, fontWeight:600, cursor:'pointer', color:'#6B7A8D' },
   optActive:  { background:'#0A1628', borderColor:'#0A1628', color:'white' },
-  noteInput:  { width:'100%', padding:'10px 14px', borderRadius:10, border:'1.5px solid #E2E8F0', fontSize:13, outline:'none', boxSizing:'border-box' },
+  noteInput:  { width:'100%', padding:'10px 14px', borderRadius:10, border:'1.5px solid #E2E8F0', fontSize:13, outline:'none', boxSizing:'border-box', direction:'ltr', unicodeBidi:'plaintext' },
   ft:         { padding:'12px 20px', borderTop:'1px solid #E2E8F0', display:'flex', gap:10 },
   cancelBtn:  { flex:1, padding:14, borderRadius:12, border:'1.5px solid #E2E8F0', background:'white', fontSize:14, fontWeight:700, cursor:'pointer', color:'#6B7A8D' },
   confirmBtn: { flex:2, padding:14, borderRadius:12, border:'none', background:'#0A1628', color:'white', fontSize:14, fontWeight:800, cursor:'pointer' },
