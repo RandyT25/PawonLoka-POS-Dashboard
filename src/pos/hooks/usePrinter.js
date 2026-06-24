@@ -1,6 +1,38 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 
+// Detect Capacitor native Android context (injected by Capacitor bridge at runtime)
+const isNative = () => !!window?.Capacitor?.isNativePlatform?.();
+
+// Lazy-load @capacitor-community/bluetooth-le — only installed in the APK project,
+// not the web project. Dynamic import keeps the web build from failing.
+let _BleClient = null;
+async function getBleClient() {
+  if (_BleClient) return _BleClient;
+  const mod = await import('@capacitor-community/bluetooth-le');
+  _BleClient = mod.BleClient;
+  await _BleClient.initialize();
+  return _BleClient;
+}
+
+// Native equivalent of gattGetChar — discovers a writable characteristic via BleClient.
+async function nativeGetChar(deviceId) {
+  const ble = await getBleClient();
+  const SERVICES = [
+    '000018f0-0000-1000-8000-00805f9b34fb',
+    'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+    '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+  ];
+  for (const serviceUUID of SERVICES) {
+    try {
+      const chars = await ble.getCharacteristics(deviceId, serviceUUID);
+      const w = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+      if (w) return { deviceId, serviceUUID, charUUID: w.uuid, isNative: true };
+    } catch { continue; }
+  }
+  throw new Error('No writable characteristic found on this device.');
+}
+
 const ESC = 0x1B, GS = 0x1D;
 
 function escpos(cmds) {
@@ -629,6 +661,25 @@ export function usePrinter() {
   // When the initial connect fails (common after page refresh — BLE stack needs time),
   // starts a retry loop with backoff instead of silently giving up.
   async function autoConnectAll(loadedPrinters) {
+    if (isNative()) {
+      for (const printer of loadedPrinters) {
+        if (!printer.deviceId) continue;
+        try {
+          const ble = await getBleClient();
+          deviceRefs.current[printer.id] = printer.deviceId;
+          await ble.connect(printer.deviceId, () => {
+            delete charRefs.current[printer.id];
+            setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: false } : p));
+            // Auto-retry after disconnect
+            setTimeout(() => autoConnectAll([printer]), 5000);
+          });
+          const charInfo = await nativeGetChar(printer.deviceId);
+          charRefs.current[printer.id] = charInfo;
+          setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
+        } catch {}
+      }
+      return;
+    }
     if (!navigator.bluetooth?.getDevices) return;
     let permitted;
     try { permitted = await navigator.bluetooth.getDevices(); } catch { return; }
@@ -710,9 +761,42 @@ export function usePrinter() {
   }, []);
 
   const scanAndPair = useCallback(async (role = "receipt") => {
-    if (!navigator.bluetooth) throw new Error("Web Bluetooth not supported. Use Chrome on Android or desktop.");
     setScanning(true);
     try {
+      if (isNative()) {
+        const ble = await getBleClient();
+        const device = await ble.requestDevice({
+          services: ['000018f0-0000-1000-8000-00805f9b34fb'],
+          optionalServices: [
+            'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+            '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+          ],
+        });
+        const existing = printers.find(p => p.deviceId === device.deviceId);
+        const np = {
+          id:        existing?.id || crypto.randomUUID(),
+          name:      device.name || 'Printer',
+          deviceId:  device.deviceId,
+          role,
+          paperSize: /58/i.test(device.name || '') ? '58mm' : '80mm',
+          connected: false,
+          type:      role === 'receipt' ? 'receipt_printer' : 'kitchen_printer',
+        };
+        deviceRefs.current[np.id] = device.deviceId;
+        await ble.connect(device.deviceId, () => {
+          delete charRefs.current[np.id];
+          setPrinters(prev => prev.map(p => p.id === np.id ? { ...p, connected: false } : p));
+          setTimeout(() => autoConnectAll([np]), 5000);
+        });
+        const charInfo = await nativeGetChar(device.deviceId);
+        charRefs.current[np.id] = charInfo;
+        await savePrinterToDb(np);
+        setPrinters(prev => existing
+          ? prev.map(p => p.id === existing.id ? { ...p, name: device.name || p.name, connected: true } : p)
+          : [...prev, { ...np, connected: true }]);
+        return np;
+      }
+      if (!navigator.bluetooth) throw new Error("Web Bluetooth not supported. Use Chrome on Android or desktop.");
       const device = await navigator.bluetooth.requestDevice({
         filters: [
           { services: ["000018f0-0000-1000-8000-00805f9b34fb"] },
@@ -760,6 +844,20 @@ export function usePrinter() {
   const connect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
+    if (isNative()) {
+      const deviceId = deviceRefs.current[printerId] || printer.deviceId;
+      if (!deviceId) throw new Error("Printer '" + (printer.name||printerId) + "' tidak ditemukan. Buka Pengaturan > Hardware lalu tap Reconnect.");
+      const ble = await getBleClient();
+      deviceRefs.current[printerId] = deviceId;
+      await ble.connect(deviceId, () => {
+        delete charRefs.current[printerId];
+        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
+      });
+      const charInfo = await nativeGetChar(deviceId);
+      charRefs.current[printerId] = charInfo;
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+      return charInfo;
+    }
     let device = deviceRefs.current[printerId];
     if (!device) {
       if (navigator.bluetooth?.getDevices) {
@@ -785,6 +883,29 @@ export function usePrinter() {
   const reconnect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
+    if (isNative()) {
+      const ble = await getBleClient();
+      const device = await ble.requestDevice({
+        services: ['000018f0-0000-1000-8000-00805f9b34fb'],
+        optionalServices: [
+          'e7810a71-73ae-499d-8c15-faa9aef0c3f2',
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+        ],
+      });
+      if (device.deviceId !== printer.deviceId) {
+        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.deviceId } : p));
+        savePrinterToDb({ ...printer, deviceId: device.deviceId }).catch(() => {});
+      }
+      deviceRefs.current[printerId] = device.deviceId;
+      await ble.connect(device.deviceId, () => {
+        delete charRefs.current[printerId];
+        setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
+      });
+      const charInfo = await nativeGetChar(device.deviceId);
+      charRefs.current[printerId] = charInfo;
+      setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: true } : p));
+      return charInfo;
+    }
     if (!navigator.bluetooth) throw new Error("Web Bluetooth not supported.");
     const printerName = printer.name || "";
     const filters = printerName
@@ -807,8 +928,13 @@ export function usePrinter() {
     clearTimeout(reconnectTimers.current[printerId]);
     delete reconnectTimers.current[printerId];
     listenersAdded.current.delete(printerId);
-    const device = deviceRefs.current[printerId];
-    if (device?.gatt?.connected) device.gatt.disconnect();
+    if (isNative()) {
+      const deviceId = deviceRefs.current[printerId];
+      if (deviceId) getBleClient().then(ble => ble.disconnect(deviceId)).catch(() => {});
+    } else {
+      const device = deviceRefs.current[printerId];
+      if (device?.gatt?.connected) device.gatt.disconnect();
+    }
     delete charRefs.current[printerId];
     delete deviceRefs.current[printerId];
     setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p));
@@ -841,11 +967,11 @@ export function usePrinter() {
       if (!char) {
         console.log('no cached char — calling connect()');
         char = await connect(printerId);
-        console.log('connect() succeeded, char:', char?.uuid);
+        console.log('connect() succeeded');
       } else {
-        // Verify the cached char's GATT server is still connected
-        const gattOk = char.service?.device?.gatt?.connected;
-        console.log('cached char GATT connected:', gattOk);
+        // Verify connection is still alive
+        const gattOk = char?.isNative ? true : char?.service?.device?.gatt?.connected;
+        console.log('cached char connected:', gattOk);
         if (!gattOk) {
           console.log('stale char — reconnecting');
           delete charRefs.current[printerId];
@@ -856,6 +982,15 @@ export function usePrinter() {
 
       const CHUNK = 20;
       async function writeBytes(c) {
+        if (c?.isNative) {
+          const ble = await getBleClient();
+          for (let i = 0; i < bytes.length; i += CHUNK) {
+            const chunk = bytes.slice(i, i + CHUNK);
+            const dv = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+            await ble.writeWithoutResponse(c.deviceId, c.serviceUUID, c.charUUID, dv);
+          }
+          return;
+        }
         for (let i = 0; i < bytes.length; i += CHUNK) {
           const chunk = bytes.slice(i, i + CHUNK);
           for (let attempt = 0; ; attempt++) {
