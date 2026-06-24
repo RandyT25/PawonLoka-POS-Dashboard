@@ -23,10 +23,22 @@ const BLE_SERVICES_NATIVE = [
 
 async function nativeGetChar(deviceId) {
   const ble = await getBleClient();
+  // First try: discover all services automatically (works regardless of UUID)
+  try {
+    const services = await ble.getServices(deviceId);
+    for (const svc of (services || [])) {
+      for (const c of (svc.characteristics || [])) {
+        if (c.properties?.writeWithoutResponse || c.properties?.write) {
+          return { deviceId, serviceUUID: svc.uuid, charUUID: c.uuid, isNative: true };
+        }
+      }
+    }
+  } catch {}
+  // Fallback: try known ESC/POS service UUIDs directly
   for (const svc of BLE_SERVICES_NATIVE) {
     try {
       const chars = await ble.getCharacteristics(deviceId, svc);
-      const w = chars.find(c => c.properties.writeWithoutResponse || c.properties.write);
+      const w = chars.find(c => c.properties?.writeWithoutResponse || c.properties?.write);
       if (w) return { deviceId, serviceUUID: svc, charUUID: w.uuid, isNative: true };
     } catch { continue; }
   }
@@ -765,8 +777,7 @@ export function usePrinter() {
       try {
         const ble = await getBleClient();
         const device = await ble.requestDevice({
-          services: ['000018f0-0000-1000-8000-00805f9b34fb'],
-          optionalServices: ['e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455'],
+          optionalServices: BLE_SERVICES_NATIVE,
         });
         const existing = printers.find(p => p.deviceId === device.deviceId);
         const np = { id: existing?.id || crypto.randomUUID(), name: device.name || 'Printer', deviceId: device.deviceId, role, paperSize: /58/i.test(device.name || '') ? '58mm' : '80mm', connected: false, type: role === 'receipt' ? 'receipt_printer' : 'kitchen_printer' };
@@ -867,7 +878,7 @@ export function usePrinter() {
     if (!printer) throw new Error("Printer not found");
     if (isNative()) {
       const ble = await getBleClient();
-      const device = await ble.requestDevice({ services: ['000018f0-0000-1000-8000-00805f9b34fb'], optionalServices: ['e7810a71-73ae-499d-8c15-faa9aef0c3f2', '49535343-fe7d-4ae5-8fa9-9fafd205e455'] });
+      const device = await ble.requestDevice({ optionalServices: BLE_SERVICES_NATIVE });
       if (device.deviceId !== printer.deviceId) { setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.deviceId } : p)); savePrinterToDb({ ...printer, deviceId: device.deviceId }).catch(() => {}); }
       deviceRefs.current[printerId] = device.deviceId;
       await ble.connect(device.deviceId, () => { delete charRefs.current[printerId]; setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, connected: false } : p)); });
