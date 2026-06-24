@@ -232,7 +232,10 @@ export default function Orders() {
                       )}
                       {item.note && <div style={{ fontSize:11, color:"var(--ink4)", fontStyle:"italic" }}>{item.note}</div>}
                     </div>
-                    <span style={{ fontWeight:700, whiteSpace:"nowrap" }}>{fmt(item.price * item.qty)}</span>
+                    <div style={{ textAlign:'right', whiteSpace:'nowrap' }}>
+                      {(item.itemDisc||0)>0&&<div style={{ fontSize:11, color:'#16A34A', fontWeight:600 }}>Diskon -{fmt((item.itemDisc||0)*item.qty)}</div>}
+                      <span style={{ fontWeight:700 }}>{fmt((item.price-(item.itemDisc||0))*item.qty)}</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -245,7 +248,7 @@ export default function Orders() {
                 </div>
                 {selected.discount > 0 && (
                   <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#16A34A" }}>
-                    <span>Discount</span><span>-{fmt(selected.discount)}</span>
+                    <span>{selected.promo||"Discount"}</span><span>-{fmt(selected.discount)}</span>
                   </div>
                 )}
                 {selected.tax > 0 && (

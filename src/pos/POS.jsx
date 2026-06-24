@@ -971,7 +971,7 @@ export default function POS() {
     const newOrderId = 'ORD-' + Date.now()
     const newOrder = {
       id: newOrderId,
-      items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0 })),
+      items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
       subtotal, tax: Math.round(subtotal * TAX_RATE_LIVE),
       discount: discAmt + promoDisc, total: finalTotal,
       pay: payMethod, staff: staff.name,

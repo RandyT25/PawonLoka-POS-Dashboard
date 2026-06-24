@@ -64,13 +64,14 @@ function OrderDetailModal({ order, onClose }) {
               </div>
               <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
                 <div style={{fontSize:12,color:"#64748B"}}>{i.qty||1} × {fmt(i.price||0)}</div>
-                <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{fmt((i.price||0)*(i.qty||1))}</div>
+                {(i.itemDisc||0)>0&&<div style={{fontSize:11,color:"#10B981",fontWeight:600}}>Diskon -{fmt((i.itemDisc||0)*(i.qty||1))}</div>}
+                <div style={{fontSize:13,fontWeight:700,color:"#0F172A"}}>{fmt(((i.price||0)-(i.itemDisc||0))*(i.qty||1))}</div>
               </div>
             </div>
           ))}
           {(!parsed||!parsed.length)&&<div style={{textAlign:"center",color:"#94A3B8",padding:"16px 0",fontSize:13}}>No items</div>}
           <div style={{marginTop:12,paddingTop:10,borderTop:"2px solid #E2E8F0"}}>
-            {order.discount>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#EF4444",marginBottom:4}}><span>Diskon</span><span>-{fmt(order.discount)}</span></div>}
+            {order.discount>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#EF4444",marginBottom:4}}><span>{order.promo||"Diskon"}</span><span>-{fmt(order.discount)}</span></div>}
             {order.tax>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:13,color:"#64748B",marginBottom:4}}><span>Pajak</span><span>{fmt(order.tax)}</span></div>}
             <div style={{display:"flex",justifyContent:"space-between",fontSize:15,fontWeight:800,color:"#0F172A"}}><span>Total</span><span>{fmt(order.total)}</span></div>
             {isPaid&&<div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#64748B",marginTop:6}}><span>Pembayaran</span><span style={{fontWeight:700,color:"#10B981"}}>{order.pay||"—"}</span></div>}

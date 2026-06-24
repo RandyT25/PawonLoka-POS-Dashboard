@@ -182,7 +182,7 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
     lines.push({ text: L("  " + item.qty + " x " + fmt(item.price), fmt(item.qty * item.price)) + "\n" });
     if (item.note) lines.push({ text: "  * " + item.note + "\n" });
     const itemDiscAmt = item.itemDisc || item.discount || 0;
-    if (itemDiscAmt > 0) lines.push({ text: L("  Diskon", "-" + fmt(itemDiscAmt * item.qty)) + "\n" });
+    if (itemDiscAmt > 0) lines.push({ text: L("  " + (item.itemDiscLabel || "Diskon"), "-" + fmt(itemDiscAmt * item.qty)) + "\n" });
   }
 
   // ── Totals ──────────────────────────────────────────
@@ -194,7 +194,7 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   lines.push({ text: L("Subtotal", fmt(subtotal)) + "\n" });
   if (taxAmt && showTax)     lines.push({ text: L((tax.label || "PPN") + " " + tax.rate + "%", fmt(taxAmt)) + "\n" });
   if (svcAmt && showService) lines.push({ text: L("Service " + service.rate + "%", fmt(svcAmt)) + "\n" });
-  if (order.discount)        lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
+  if (order.discount)        lines.push({ text: L(order.promo || "Diskon", "-" + fmt(order.discount)) + "\n" });
   lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "BOLD_ON" });
   lines.push({ text: L("TOTAL", fmt(total)) + "\n" });
@@ -287,7 +287,7 @@ export function buildPreBillData({ order, outlet, tax, service, paperSize = "80m
   if (taxAmt || order.discount || svcAmt) lines.push({ text: L("Subtotal", fmt(subtotal)) + "\n" });
   if (taxAmt)        lines.push({ text: L((tax?.label || "PPN") + " " + (tax?.rate || "") + "%", fmt(taxAmt)) + "\n" });
   if (svcAmt)        lines.push({ text: L("Service " + (service?.rate || "") + "%", fmt(svcAmt)) + "\n" });
-  if (order.discount) lines.push({ text: L("Diskon", "-" + fmt(order.discount)) + "\n" });
+  if (order.discount) lines.push({ text: L(order.promo || "Diskon", "-" + fmt(order.discount)) + "\n" });
   lines.push({ text: EQ + "\n" });
   lines.push({ cmd: "BOLD_ON" });
   lines.push({ text: L("TOTAL", fmt(total)) + "\n" });

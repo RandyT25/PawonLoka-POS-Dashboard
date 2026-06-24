@@ -184,7 +184,10 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             {cart.map(i => (
               <div key={i._key} style={S.summaryRow}>
                 <span style={{ fontSize:12 }}>{i.qty}x {i.name}{Object.keys(i.modifiers||{}).length>0?' ('+Object.values(i.modifiers).join(', ')+')':''}</span>
-                <span style={{ fontWeight:600, fontSize:12 }}>{fmt((i.price-(i.itemDisc||0)) * i.qty)}</span>
+                <div style={{ textAlign:'right' }}>
+                  {(i.itemDisc||0)>0&&<div style={{ fontSize:10, color:'#10B981' }}>Disc -{fmt((i.itemDisc||0)*i.qty)}</div>}
+                  <span style={{ fontWeight:600, fontSize:12 }}>{fmt((i.price-(i.itemDisc||0))*i.qty)}</span>
+                </div>
               </div>
             ))}
             <div style={S.divider}/>
