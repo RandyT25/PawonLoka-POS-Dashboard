@@ -44,6 +44,11 @@ export default function ModifierModal({ product, onConfirm, onCancel, modifierGr
               onChange={e => setNote(e.target.value)}
               placeholder="e.g. no onion, extra spicy..."
               style={S.noteInput}
+              dir="ltr"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
           </div>
         </div>

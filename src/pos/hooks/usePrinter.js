@@ -210,7 +210,7 @@ export function buildReceiptData({ order, outlet, tax, service, logoBytes, paper
   }
 
   // ── Points earned ────────────────────────────────────
-  if (showLoyalty && total > 0) {
+  if (showLoyalty && order.customer_id && total > 0) {
     const pts = Math.floor(total / 100);
     if (pts > 0) lines.push({ text: L("Points earned", "+" + pts + " pts") + "\n" });
   }

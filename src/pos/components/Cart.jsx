@@ -143,7 +143,8 @@ export default function Cart({
                   <div style={{ display:'flex', gap:4, marginTop:4 }}>
                     <input autoFocus value={noteText} onChange={e=>setNoteText(e.target.value)}
                       onKeyDown={e=>e.key==='Enter'&&applyNote(item._key)}
-                      placeholder="Add note..." style={{ ...S.tableInput, flex:1, fontSize:12, padding:'4px 8px' }} />
+                      placeholder="Add note..." style={{ ...S.tableInput, flex:1, fontSize:12, padding:'4px 8px' }}
+                      dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
                     <button onClick={()=>applyNote(item._key)} style={S.miniBtn}>OK</button>
                     <button onClick={()=>setItemNote(null)} style={S.miniBtn}>x</button>
                   </div>
