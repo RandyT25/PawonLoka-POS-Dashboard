@@ -555,7 +555,7 @@ export function usePrinter() {
         id:        d.id,
         name:      d.name,
         deviceId:  d.mac || d.deviceId || "",
-        role:      d.role || (d.type === "receipt_printer" ? "receipt" : "kitchen1"),
+        role:      d.role || (d.type === "receipt_printer" ? "receipt" : "kitchen"),
         paperSize: d.paper?.includes("58") ? "58mm" : "80mm",
         connected: false,
         type:      d.type,
@@ -714,14 +714,7 @@ export function usePrinter() {
     setScanning(true);
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { services: ["000018f0-0000-1000-8000-00805f9b34fb"] },
-          { namePrefix: "VSC" }, { namePrefix: "H-58" },
-          { namePrefix: "Epson" }, { namePrefix: "Star" },
-          { namePrefix: "MUNBYN" }, { namePrefix: "Rongta" },
-          { namePrefix: "RPP" }, { namePrefix: "MTP" },
-          { namePrefix: "PT" }, { namePrefix: "Sewoo" },
-        ],
+        acceptAllDevices: true,
         optionalServices: [
           "000018f0-0000-1000-8000-00805f9b34fb",
           "e7810a71-73ae-499d-8c15-faa9aef0c3f2",
@@ -910,7 +903,7 @@ export function usePrinter() {
   const printKitchenTicket = useCallback(async (ticket) => {
     const role = ticket.stationRole || "kitchen1";
     const printer = printers.find(p => p.role === role)
-                 || printers.find(p => p.role === "kitchen1" || p.role === "kitchen2" || p.role === "bar");
+                 || printers.find(p => p.role === "kitchen" || p.role === "snack" || p.role === "bar");
     if (!printer) throw new Error("No kitchen printer configured for " + (ticket.stationName || role) + ". Check Hardware settings.");
     await printBytes(printer.id, renderToBytes(buildKitchenData({ ticket, paperSize: printer.paperSize })));
   }, [printers, printBytes]);

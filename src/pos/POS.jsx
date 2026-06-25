@@ -633,7 +633,7 @@ export default function POS() {
     }
 
     // Save kitchen tickets (offline-safe — queued if no connection)
-    const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+    const ROLE_MAP = { Kitchen:'kitchen', kitchen:'kitchen', Snack:'snack', snack:'snack', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
     await Promise.all([
       ...Object.entries(stations).map(([station, items]) =>
         dbWrite('kitchen_tickets', 'insert', {
@@ -722,7 +722,7 @@ export default function POS() {
     if (!items?.length) return
     const catRouting = appSettings?.cat_routing || (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
     const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
-    const ROLE_MAP = { Kitchen:'kitchen1', kitchen:'kitchen1', Snack:'kitchen2', snack:'kitchen2', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
+    const ROLE_MAP = { Kitchen:'kitchen', kitchen:'kitchen', Snack:'snack', snack:'snack', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
     const now = new Date()
     const nowTime = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' | ' + now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' })
     const stns = {}

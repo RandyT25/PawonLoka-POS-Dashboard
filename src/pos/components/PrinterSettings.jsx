@@ -3,8 +3,8 @@ import { useState } from "react";
 
 const ROLES = [
   { id: "receipt",  label: "Cashier — Receipt Printer" },
-  { id: "kitchen1", label: "Kitchen Station" },
-  { id: "kitchen2", label: "Snack Station" },
+  { id: "kitchen", label: "Kitchen Station" },
+  { id: "snack",   label: "Snack Station" },
   { id: "bar",      label: "Bar Station" },
 ];
 
