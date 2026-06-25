@@ -21,9 +21,19 @@ const BLE_SERVICES_NATIVE = [
   '49535343-fe7d-4ae5-8fa9-9fafd205e455',
 ];
 
+// Known service+characteristic pairs for common cheap BT thermal printers
+// (e.g. "BlueTooth Printer" generic Chinese model)
+const KNOWN_PRINTER_CHARS = [
+  { svc: '000018f0-0000-1000-8000-00805f9b34fb', char: '00002af1-0000-1000-8000-00805f9b34fb' },
+  { svc: 'e7810a71-73ae-499d-8c15-faa9aef0c3f2', char: 'bef8d6c9-9c21-4c9e-b632-bd58c1009f9f' },
+  { svc: '49535343-fe7d-4ae5-8fa9-9fafd205e455', char: '49535343-8841-43f4-a8d4-ecbe34729bb3' },
+];
+
 async function nativeGetChar(deviceId) {
   const ble = await getBleClient();
-  // First try: discover all services automatically (works regardless of UUID)
+  // Wait for Android service discovery to complete (critical for cheap BT printers)
+  await new Promise(r => setTimeout(r, 800));
+  // Pass 1: auto-discover all services
   try {
     const services = await ble.getServices(deviceId);
     for (const svc of (services || [])) {
@@ -34,7 +44,7 @@ async function nativeGetChar(deviceId) {
       }
     }
   } catch {}
-  // Fallback: try known ESC/POS service UUIDs directly
+  // Pass 2: try known service UUIDs directly
   for (const svc of BLE_SERVICES_NATIVE) {
     try {
       const chars = await ble.getCharacteristics(deviceId, svc);
@@ -42,7 +52,16 @@ async function nativeGetChar(deviceId) {
       if (w) return { deviceId, serviceUUID: svc, charUUID: w.uuid, isNative: true };
     } catch { continue; }
   }
-  throw new Error('No writable characteristic found on this device.');
+  // Pass 3: use hardcoded service+char pairs for generic cheap printers
+  // (getServices/getCharacteristics may fail but write still works)
+  for (const { svc, char } of KNOWN_PRINTER_CHARS) {
+    try {
+      await ble.getCharacteristics(deviceId, svc);
+      return { deviceId, serviceUUID: svc, charUUID: char, isNative: true };
+    } catch { continue; }
+  }
+  // Pass 4: last resort — return first known pair and let write attempt reveal if it works
+  return { deviceId, serviceUUID: KNOWN_PRINTER_CHARS[0].svc, charUUID: KNOWN_PRINTER_CHARS[0].char, isNative: true };
 }
 
 const ESC = 0x1B, GS = 0x1D;
