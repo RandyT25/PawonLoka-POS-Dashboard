@@ -3,6 +3,11 @@ import { supabase } from "../../lib/supabase";
 
 // Detect Capacitor native Android — injected by Capacitor bridge at runtime
 const isNative = () => !!window?.Capacitor?.isNativePlatform?.();
+// Only use BleClient when navigator.bluetooth is NOT available.
+// Chrome WebView on Android supports navigator.bluetooth natively — prefer it,
+// as it has better compatibility with cheap BLE printers (VSC TM-58V etc).
+// BleClient is only the fallback for WebViews without Web Bluetooth support.
+const useNativeBle = () => isNative() && !navigator.bluetooth;
 
 // Lazy-load BLE plugin (only installed in APK project, not web project)
 let _BleClient = null;
@@ -695,7 +700,7 @@ export function usePrinter() {
   // When the initial connect fails (common after page refresh — BLE stack needs time),
   // starts a retry loop with backoff instead of silently giving up.
   async function autoConnectAll(loadedPrinters) {
-    if (isNative()) {
+    if (useNativeBle()) {
       let ble;
       try { ble = await getBleClient(); } catch(e) { console.warn('[BLE] init failed:', e?.message); return; }
       for (const printer of loadedPrinters) {
@@ -804,7 +809,7 @@ export function usePrinter() {
 
   const scanAndPair = useCallback(async (role = "receipt") => {
     setScanning(true);
-    if (isNative()) {
+    if (useNativeBle()) {
       try {
         const ble = await getBleClient();
         const device = await ble.requestDevice({
@@ -871,7 +876,7 @@ export function usePrinter() {
   const connect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
-    if (isNative()) {
+    if (useNativeBle()) {
       const deviceId = deviceRefs.current[printerId] || printer.deviceId;
       if (!deviceId) throw new Error("Printer '" + (printer.name || printerId) + "' tidak ditemukan. Buka Pengaturan > Hardware lalu tap Reconnect.");
       const ble = await getBleClient();
@@ -907,7 +912,7 @@ export function usePrinter() {
   const reconnect = useCallback(async (printerId) => {
     const printer = printers.find(p => p.id === printerId);
     if (!printer) throw new Error("Printer not found");
-    if (isNative()) {
+    if (useNativeBle()) {
       const ble = await getBleClient();
       const device = await ble.requestDevice({ optionalServices: BLE_SERVICES_NATIVE });
       if (device.deviceId !== printer.deviceId) { setPrinters(prev => prev.map(p => p.id === printerId ? { ...p, deviceId: device.deviceId } : p)); savePrinterToDb({ ...printer, deviceId: device.deviceId }).catch(() => {}); }
@@ -940,7 +945,7 @@ export function usePrinter() {
     clearTimeout(reconnectTimers.current[printerId]);
     delete reconnectTimers.current[printerId];
     listenersAdded.current.delete(printerId);
-    if (isNative()) {
+    if (useNativeBle()) {
       const deviceId = deviceRefs.current[printerId];
       if (deviceId) getBleClient().then(ble => ble.disconnect(deviceId)).catch(() => {});
     } else {
