@@ -674,20 +674,29 @@ export function usePrinter() {
   // starts a retry loop with backoff instead of silently giving up.
   async function autoConnectAll(loadedPrinters) {
     if (isNative()) {
+      let ble;
+      try { ble = await getBleClient(); } catch(e) { console.warn('[BLE] init failed:', e?.message); return; }
       for (const printer of loadedPrinters) {
         if (!printer.deviceId) continue;
-        try {
-          const ble = await getBleClient();
-          deviceRefs.current[printer.id] = printer.deviceId;
-          await ble.connect(printer.deviceId, () => {
-            delete charRefs.current[printer.id];
-            setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: false } : p));
-            setTimeout(() => autoConnectAll([printer]), 5000);
-          });
-          const ch = await nativeGetChar(printer.deviceId);
-          charRefs.current[printer.id] = ch;
-          setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
-        } catch {}
+        deviceRefs.current[printer.id] = printer.deviceId;
+        const tryConnect = async (attempt = 1) => {
+          try {
+            await ble.connect(printer.deviceId, () => {
+              delete charRefs.current[printer.id];
+              setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: false } : p));
+              if (deviceRefs.current[printer.id]) setTimeout(() => tryConnect(1), 5000);
+            });
+            const ch = await nativeGetChar(printer.deviceId);
+            charRefs.current[printer.id] = ch;
+            setPrinters(prev => prev.map(p => p.id === printer.id ? { ...p, connected: true } : p));
+          } catch(e) {
+            console.warn('[BLE] connect failed for', printer.name, 'attempt', attempt, e?.message);
+            if (attempt < 4 && deviceRefs.current[printer.id]) {
+              setTimeout(() => tryConnect(attempt + 1), attempt * 3000);
+            }
+          }
+        };
+        tryConnect();
       }
       return;
     }
