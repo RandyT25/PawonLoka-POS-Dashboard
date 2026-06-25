@@ -39,7 +39,8 @@ async function nativeGetChar(deviceId) {
     for (const svc of (services || [])) {
       for (const c of (svc.characteristics || [])) {
         if (c.properties?.writeWithoutResponse || c.properties?.write) {
-          return { deviceId, serviceUUID: svc.uuid, charUUID: c.uuid, isNative: true };
+          const writeType = c.properties.writeWithoutResponse ? 'wwr' : 'wr';
+          return { deviceId, serviceUUID: svc.uuid, charUUID: c.uuid, isNative: true, writeType };
         }
       }
     }
@@ -49,19 +50,21 @@ async function nativeGetChar(deviceId) {
     try {
       const chars = await ble.getCharacteristics(deviceId, svc);
       const w = chars.find(c => c.properties?.writeWithoutResponse || c.properties?.write);
-      if (w) return { deviceId, serviceUUID: svc, charUUID: w.uuid, isNative: true };
+      if (w) {
+        const writeType = w.properties.writeWithoutResponse ? 'wwr' : 'wr';
+        return { deviceId, serviceUUID: svc, charUUID: w.uuid, isNative: true, writeType };
+      }
     } catch { continue; }
   }
-  // Pass 3: use hardcoded service+char pairs for generic cheap printers
-  // (getServices/getCharacteristics may fail but write still works)
+  // Pass 3: hardcoded known pairs — default to 'wr' (write with response) which VSC/generic printers need
   for (const { svc, char } of KNOWN_PRINTER_CHARS) {
     try {
       await ble.getCharacteristics(deviceId, svc);
-      return { deviceId, serviceUUID: svc, charUUID: char, isNative: true };
+      return { deviceId, serviceUUID: svc, charUUID: char, isNative: true, writeType: 'wr' };
     } catch { continue; }
   }
-  // Pass 4: last resort — return first known pair and let write attempt reveal if it works
-  return { deviceId, serviceUUID: KNOWN_PRINTER_CHARS[0].svc, charUUID: KNOWN_PRINTER_CHARS[0].char, isNative: true };
+  // Pass 4: last resort — try 'wr' first since VSC TM-58V requires write-with-response
+  return { deviceId, serviceUUID: KNOWN_PRINTER_CHARS[0].svc, charUUID: KNOWN_PRINTER_CHARS[0].char, isNative: true, writeType: 'wr' };
 }
 
 const ESC = 0x1B, GS = 0x1D;
@@ -995,7 +998,14 @@ export function usePrinter() {
           const ble = await getBleClient();
           for (let i = 0; i < bytes.length; i += CHUNK) {
             const chunk = bytes.slice(i, i + CHUNK);
-            await ble.writeWithoutResponse(c.deviceId, c.serviceUUID, c.charUUID, new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength));
+            const dv = new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+            // Use write-with-response for printers that require it (e.g. VSC TM-58V)
+            // Use writeWithoutResponse for faster printers (e.g. RPP02N)
+            if (c.writeType === 'wr') {
+              await ble.write(c.deviceId, c.serviceUUID, c.charUUID, dv);
+            } else {
+              await ble.writeWithoutResponse(c.deviceId, c.serviceUUID, c.charUUID, dv);
+            }
           }
           return;
         }
