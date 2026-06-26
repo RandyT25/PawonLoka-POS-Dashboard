@@ -12,15 +12,17 @@ export default function TopSlowReport() {
   const [tab,         setTab]         = useState("food")
   const [allItems,    setAllItems]    = useState([])
   const [loading,     setLoading]     = useState(false)
+  const [err,         setErr]         = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setErr(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
-    let q = supabase.from("orders").select("items,items_snapshot,order_items").eq("status","Paid").gte("created_at", fromStr)
+    let q = supabase.from("orders").select("items").eq("status","Paid").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q
-    if (error) { setLoading(false); return }
+    if (error) { setErr(error.message); setLoading(false); return }
 
     const map = {}
     ;(data||[]).forEach(o => {
@@ -54,6 +56,8 @@ export default function TopSlowReport() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
         loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+
+      {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       <div style={{ display:"flex", gap:8, marginBottom:14 }}>
         <button onClick={()=>setTab("food")}   className={"bo-btn bo-btn-sm "+(tab==="food"  ?"bo-btn-primary":"bo-btn-ghost")}>🍽 Makanan ({food.length})</button>

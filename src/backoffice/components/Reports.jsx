@@ -9,11 +9,13 @@ function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 export default function Reports() {
   const [orders,  setOrders]  = useState([])
   const [loading, setLoading] = useState(true)
+  const [err,     setErr]     = useState(null)
   const [from,    setFrom]    = useState(new Date().toISOString().slice(0,10))
   const [to,      setTo]      = useState(new Date().toISOString().slice(0,10))
 
   const load = useCallback(async () => {
     setLoading(true)
+    setErr(null)
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -21,7 +23,7 @@ export default function Reports() {
       .gte("created_at", from + "T00:00:00+08:00")
       .lte("created_at", to   + "T23:59:59+08:00")
       .order("created_at", { ascending: false })
-    if (error) console.error("Reports load error:", error)
+    if (error) { console.error("Reports load error:", error); setErr(error.message) }
     setOrders(data || [])
     setLoading(false)
   }, [from, to])
@@ -146,6 +148,8 @@ export default function Reports() {
           </div>
         </div>
       </div>
+
+      {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       {/* KPI Cards */}
       <div className="bo-metrics">

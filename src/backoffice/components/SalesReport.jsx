@@ -11,15 +11,17 @@ export default function SalesReport() {
   const [customDateTo,setCustomDateTo]= useState(today())
   const [rows,        setRows]        = useState([])
   const [loading,     setLoading]     = useState(false)
+  const [err,         setErr]         = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
 
   const load = useCallback(async () => {
     setLoading(true)
+    setErr(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     let q = supabase.from("orders").select("date,total,subtotal,tax,discount,status").eq("status","Paid").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("date", { ascending: false })
-    if (error) { setLoading(false); return }
+    if (error) { setErr(error.message); setLoading(false); return }
 
     const map = {}
     ;(data||[]).forEach(o => {
@@ -49,6 +51,8 @@ export default function SalesReport() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
         loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+
+      {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       {/* Summary strip */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:10, marginBottom:14 }}>

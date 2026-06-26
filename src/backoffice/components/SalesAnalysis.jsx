@@ -11,6 +11,7 @@ export default function SalesAnalysis() {
   const [customDate,   setCustomDate]   = useState(todayStr)
   const [customDateTo, setCustomDateTo] = useState(todayStr)
   const [loading,      setLoading]      = useState(true)
+  const [err,          setErr]          = useState(null)
   const [lastUpdated,  setLastUpdated]  = useState(null)
 
   const [summary,  setSummary]  = useState({ revenue:0, cogs:0, profit:0, orders:0, avg:0, margin:0 })
@@ -19,13 +20,14 @@ export default function SalesAnalysis() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setErr(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     let q = supabase.from("orders")
       .select("*")
       .gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("created_at", { ascending: false })
-    if (error) { console.error(error); setLoading(false); return }
+    if (error) { console.error(error); setErr(error.message); setLoading(false); return }
 
     const orders = (data || []).filter(o => !o.status || o.status === "Paid" || o.status === "paid")
 
@@ -88,6 +90,8 @@ export default function SalesAnalysis() {
   return (
     <div>
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+
+      {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       {/* ── P&L Summary ───────────────────────────────── */}
       <div className="bo-sa-plrow" style={{ gap:12, marginBottom:16 }}>

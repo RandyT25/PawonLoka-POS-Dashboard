@@ -307,13 +307,30 @@ export default function POS() {
       if (!Object.keys(deductions).length) return
       // Batch fetch current stock for all affected ingredients
       const ingIds = Object.keys(deductions)
-      const ings = await qr(supabase.from('ingredients').select('id, stock').in('id', ingIds), { ms:5000 })
+      const ings = await qr(supabase.from('ingredients').select('id, stock, name, unit').in('id', ingIds), { ms:5000 })
       // Parallel updates
       await Promise.all((ings || []).map(ing =>
         supabase.from('ingredients').update({
           stock: Math.max(0, (ing.stock || 0) - (deductions[ing.id] || 0))
         }).eq('id', ing.id)
       ))
+      // Log deductions to stock_movements for consumption history
+      const movDate = new Date().toISOString().slice(0, 10)
+      const movTime = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })
+      const ts = Date.now()
+      const movements = (ings || []).map((ing, idx) => ({
+        id: `MOV-${ts}-${idx}`,
+        type: 'Sale',
+        ingredient_id: ing.id,
+        ingredient_name: ing.name,
+        qty: -Math.abs(deductions[ing.id] || 0),
+        unit: ing.unit,
+        ref: items[0]?.orderId || `ORD-${ts}`,
+        note: 'Auto dari penjualan',
+        date: movDate,
+        time: movTime,
+      }))
+      await supabase.from('stock_movements').insert(movements).catch(() => {})
     } catch(e) { console.error('Stock deduction error:', e) }
   }
 

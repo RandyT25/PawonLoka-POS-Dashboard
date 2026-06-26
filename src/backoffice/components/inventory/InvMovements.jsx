@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { supabase } from "../../../lib/supabase"
+import DateRangePicker, { buildDateRange } from "../DateRangePicker"
 
 const TYPE_COLORS = { Sale:"var(--brand)", Purchase:"var(--green)", Waste:"var(--red)", Production:"#6554C0", Adjustment:"var(--amber)" }
+const today = () => new Date().toISOString().slice(0, 10)
 
 export default function InvMovements() {
   const [movements,   setMovements]   = useState([])
@@ -11,24 +13,48 @@ export default function InvMovements() {
   const [form,        setForm]        = useState({ ingredient_id:"", qty:"", unit:"", reason:"" })
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
+  const [showSummary, setShowSummary] = useState(true)
 
-  useEffect(() => { load() }, [])
+  const [range,        setRange]        = useState("month")
+  const [customDate,   setCustomDate]   = useState(today())
+  const [customDateTo, setCustomDateTo] = useState(today())
+  const [lastUpdated,  setLastUpdated]  = useState(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
+    const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
+    const fromDate = fromStr.slice(0, 10)
+    const toDate   = toStr ? toStr.slice(0, 10) : today()
+
     const [{ data:m }, { data:i }] = await Promise.all([
-      supabase.from("stock_movements").select("*").order("created_at", { ascending:false }).limit(500),
+      supabase.from("stock_movements").select("*")
+        .gte("date", fromDate).lte("date", toDate)
+        .order("date", { ascending:false }).order("time", { ascending:false }).limit(1000),
       supabase.from("ingredients").select("id,name,unit,stock"),
     ])
-    setMovements(m||[]); setIngredients(i||[])
+    setMovements(m||[])
+    setIngredients(i||[])
+    setLastUpdated(new Date())
     setLoading(false)
-  }
+  }, [range, customDate, customDateTo])
+
+  useEffect(() => { load() }, [load])
 
   const types = ["all","Sale","Purchase","Waste","Production","Adjustment"]
-  const filtered = filter==="all" ? movements : movements.filter(m=>m.type===filter)
+  const filtered = filter === "all" ? movements : movements.filter(m => m.type === filter)
+
+  // Consumption summary: group Sale movements by ingredient
+  const saleMoves = movements.filter(m => m.type === "Sale")
+  const consumptionMap = {}
+  saleMoves.forEach(m => {
+    const key = m.ingredient_name || m.ingredient_id
+    if (!consumptionMap[key]) consumptionMap[key] = { name:key, unit:m.unit, total:0 }
+    consumptionMap[key].total += Math.abs(m.qty || 0)
+  })
+  const consumption = Object.values(consumptionMap).sort((a, b) => b.total - a.total)
 
   async function submitAdjustment() {
-    const ing = ingredients.find(i=>i.id===form.ingredient_id)
+    const ing = ingredients.find(i => i.id === form.ingredient_id)
     if (!ing || !form.qty || !form.reason) { alert("Fill all fields"); return }
     setSaving(true)
     const qty = parseFloat(form.qty)
@@ -48,14 +74,43 @@ export default function InvMovements() {
 
   return (
     <div>
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
+        customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
+        loading={loading} lastUpdated={lastUpdated} onRefresh={load} />
+
+      {/* Consumption Summary */}
+      {consumption.length > 0 && (
+        <div className="bo-card" style={{ marginBottom:16, padding:"14px 16px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom: showSummary ? 12 : 0, cursor:"pointer" }}
+               onClick={() => setShowSummary(s => !s)}>
+            <span style={{ fontSize:13, fontWeight:700 }}>📦 Ringkasan Konsumsi Bahan (dari penjualan)</span>
+            <span style={{ marginLeft:"auto", fontSize:12, color:"var(--ink5)" }}>{showSummary ? "▲ Sembunyikan" : "▼ Tampilkan"}</span>
+          </div>
+          {showSummary && (
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:8 }}>
+              {consumption.map(c => (
+                <div key={c.name} style={{ background:"var(--surface2)", borderRadius:10, padding:"10px 12px" }}>
+                  <div style={{ fontSize:11, fontWeight:600, color:"var(--ink4)", marginBottom:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{c.name}</div>
+                  <div style={{ fontSize:18, fontWeight:900, color:"var(--brand)" }}>
+                    {c.total % 1 === 0 ? c.total : c.total.toFixed(2)}
+                    <span style={{ fontSize:11, fontWeight:600, color:"var(--ink5)", marginLeft:4 }}>{c.unit}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Type filter + add button */}
       <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
         <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
           {types.map(t => {
-            const cnt = t==="all" ? movements.length : movements.filter(m=>m.type===t).length
-            return <button key={t} onClick={()=>setFilter(t)} className={"bo-btn bo-btn-sm "+(filter===t?"bo-btn-primary":"bo-btn-ghost")}>{t} ({cnt})</button>
+            const cnt = t === "all" ? movements.length : movements.filter(m => m.type === t).length
+            return <button key={t} onClick={() => setFilter(t)} className={"bo-btn bo-btn-sm "+(filter===t?"bo-btn-primary":"bo-btn-ghost")}>{t} ({cnt})</button>
           })}
         </div>
-        <button onClick={()=>setModal(true)} className="bo-btn bo-btn-primary" style={{ marginLeft:"auto" }}>+ Manual Adjustment</button>
+        <button onClick={() => setModal(true)} className="bo-btn bo-btn-primary" style={{ marginLeft:"auto" }}>+ Manual Adjustment</button>
       </div>
 
       <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
@@ -75,7 +130,7 @@ export default function InvMovements() {
                   <td style={{ fontSize:11, color:"var(--ink4)" }}>{m.note||"—"}</td>
                 </tr>
               ))}
-              {filtered.length===0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No movement records</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>Tidak ada data pada periode ini</td></tr>}
             </tbody>
           </table>
         )}
