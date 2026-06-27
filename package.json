@@ -11,6 +11,7 @@
     "deploy": "npm run build && npx wrangler pages deploy dist --project-name=pawonloka --branch=main --commit-dirty=true"
   },
   "dependencies": {
+    "@capacitor/core": "^8.4.1",
     "@supabase/supabase-js": "^2.105.4",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
