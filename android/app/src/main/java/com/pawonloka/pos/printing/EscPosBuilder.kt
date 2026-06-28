@@ -365,8 +365,11 @@ object EscPosBuilder {
                 }
             }
             addLine(dash(w))
-            if (d.settings.showFooter && d.settings.footerText.isNotBlank())
+            if (d.settings.showFooter && d.settings.footerText.isNotBlank()) {
+                add(Cmd.ALIGN_C)
                 addLine(d.settings.footerText)
+                add(Cmd.ALIGN_L)
+            }
             add(Cmd.LF); add(Cmd.LF); add(Cmd.LF)
             add(Cmd.CUT)
         }

@@ -1103,7 +1103,7 @@ export default function POS() {
           <span style={S.badge}>{staff.name} · {staff.role}</span>
           {shift && <span style={{ fontSize:11, color:'#86EFAC', fontWeight:600 }}>Shift Open</span>}
         </div>
-        <div style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
+        <div className="pos-header-row" style={{ display:'flex', gap:6, alignItems:'center', flexShrink:0 }}>
           <div style={{ position:'relative' }}>
             <button onClick={() => setShowFloorPlan(true)}
               style={{ ...S.headerBtn, background: tableNo ? '#10B981' : 'rgba(255,255,255,0.15)', color:'white', fontWeight:700 }}>

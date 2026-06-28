@@ -83,12 +83,22 @@
 
 @media (max-width: 768px) {
   .pos-hide-mobile { display: none !important; }
+}
 
-  /* Compact header */
+/* Also hide secondary header buttons on tablets in portrait */
+@media (orientation: portrait) and (max-width: 1024px) {
+  .pos-hide-mobile { display: none !important; }
+}
+
+/* Right-side header button row: scrollable safety net on narrow/portrait screens */
+@media (orientation: portrait) and (max-width: 1024px), (max-width: 768px) {
   .pos-header-row {
-    flex-wrap: nowrap !important;
-    overflow: hidden;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    max-width: 100%;
   }
+  .pos-header-row::-webkit-scrollbar { display: none; }
 }
 
 /* Desktop: menu panel scrollable */

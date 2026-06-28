@@ -66,7 +66,25 @@ export default function ClockInOutModal({ show, onClose, staff, staffList }) {
               <div style={{ fontSize:14,fontWeight:600,color:'#666' }}>Tap to take selfie</div>
             </div>
             <input type="file" accept="image/*" capture="user" style={{ display:'none' }}
-              onChange={e=>{ const f=e.target.files[0]; if(f){const r=new FileReader();r.onload=ev=>setClockPhoto(ev.target.result);r.readAsDataURL(f)} }} />
+              onChange={e => {
+                const f = e.target.files[0]
+                if (!f) return
+                const reader = new FileReader()
+                reader.onload = ev => {
+                  const img = new Image()
+                  img.onload = () => {
+                    const MAX = 640
+                    const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+                    const canvas = document.createElement('canvas')
+                    canvas.width  = Math.round(img.width  * scale)
+                    canvas.height = Math.round(img.height * scale)
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+                    setClockPhoto(canvas.toDataURL('image/jpeg', 0.82))
+                  }
+                  img.src = ev.target.result
+                }
+                reader.readAsDataURL(f)
+              }} />
           </label>
         ) : null}
         {clockStaff && <button disabled={clockSaving} onClick={async()=>{
