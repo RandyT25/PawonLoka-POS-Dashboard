@@ -74,16 +74,12 @@ class PrinterConnection(
         }
     }
 
-    private fun tryConnectSocket(s: BluetoothSocket): Boolean {
+    private suspend fun tryConnectSocket(s: BluetoothSocket): Boolean {
         return try {
-            val ok = runBlocking(Dispatchers.IO) {
-                withTimeoutOrNull(10_000L) {
-                    s.connect()
-                    true
-                }
-            } ?: false
-            if (!ok) try { s.close() } catch (_: Exception) {}
-            ok
+            withTimeoutOrNull(10_000L) { s.connect(); true } ?: run {
+                try { s.close() } catch (_: Exception) {}
+                false
+            }
         } catch (e: Exception) {
             try { s.close() } catch (_: Exception) {}
             false

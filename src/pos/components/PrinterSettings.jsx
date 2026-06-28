@@ -141,11 +141,14 @@ export default function PrinterSettings() {
   const [selPort,      setSelPort]     = useState("9100");
   const [search,       setSearch]      = useState("");
   const [discovered,   setFound]       = useState([]);
+  const [scanning,     setScanning]    = useState(false);
+  const [scanDone,     setScanDone]    = useState(false);
   const [config,       setConfig]      = useState({});
   const [serviceOn,    setService]     = useState(false);
   const [busy,         setBusy]        = useState(null);
   const [toast,        setToast]       = useState(null);
-  const toastTimer = useRef(null);
+  const toastTimer  = useRef(null);
+  const listenerRef = useRef([]);
 
   function showToast(msg) {
     clearTimeout(toastTimer.current);
@@ -214,11 +217,42 @@ export default function PrinterSettings() {
     finally { setBusy(null); }
   }
 
+  // ── Scan helpers ──────────────────────────────────────────────────────────
+  function stopScan() {
+    PrintBridge.stopDiscovery().catch(() => {});
+    listenerRef.current.forEach(l => l.remove());
+    listenerRef.current = [];
+    setScanning(false);
+  }
+
+  async function startScan() {
+    setScanning(true); setScanDone(false); setFound([]);
+    listenerRef.current.forEach(l => l.remove());
+    listenerRef.current = [];
+    try {
+      const l1 = await PrintBridge.addListener("deviceFound", (dev) => {
+        setFound(prev => prev.some(d => d.address === dev.mac)
+          ? prev
+          : [...prev, { address: dev.mac, name: dev.name || dev.mac }]);
+      });
+      const l2 = await PrintBridge.addListener("discoveryFinished", () => {
+        setScanning(false); setScanDone(true);
+        listenerRef.current.forEach(l => l.remove());
+        listenerRef.current = [];
+      });
+      listenerRef.current = [l1, l2];
+      await PrintBridge.startDiscovery();
+    } catch (e) {
+      setScanning(false);
+      showToast("Scan gagal: " + (e.message || String(e)));
+    }
+  }
+
   // ── Navigation helpers ────────────────────────────────────────────────────
   function openAdd(id) {
     setEditId(id); setSelMac(""); setSelPs("80mm"); setSelName(""); setSearch("");
+    setFound([]); setScanning(false); setScanDone(false);
     setView("configure");
-    loadConfig();
   }
 
   function openAddLan(id) {
@@ -236,13 +270,14 @@ export default function PrinterSettings() {
       setView("configure-lan");
     } else {
       setSelMac(st.mac || ""); setSearch("");
+      setFound([]); setScanning(false); setScanDone(false);
       setView("configure");
-      loadConfig();
     }
   }
 
   async function saveDevice() {
     if (!selMac) return;
+    stopScan();
     await assignPrinter(editId, selMac, selPs, selName);
     setView("list");
   }
@@ -291,15 +326,19 @@ export default function PrinterSettings() {
   // ── Configure view (Bluetooth) ────────────────────────────────────────────
   if (view === "configure") {
     const st = STATIONS.find(s => s.id === editId) || {};
-    const isEditing = !!(config[editId]?.mac);
     const q = search.toLowerCase();
     const filtered = discovered.filter(d =>
       !q || d.name.toLowerCase().includes(q) || d.address.toLowerCase().includes(q)
     );
+    const savedMac = config[editId]?.mac;
+    const savedEntry = savedMac && !discovered.find(d => d.address === savedMac)
+      ? { address: savedMac, name: config[editId]?.name || savedMac, saved: true }
+      : null;
+    const displayList = savedEntry ? [savedEntry, ...filtered] : filtered;
 
     return (
       <div style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}>
-        <TealHeader label={st.label || "Pilih Perangkat"} onBack={() => setView("list")} />
+        <TealHeader label={st.label || "Pilih Perangkat"} onBack={() => { stopScan(); setView("list"); }} />
 
         {/* Custom name */}
         <div style={{ fontSize: 11, fontWeight: 700, color: "#6B7A8D", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
@@ -319,48 +358,59 @@ export default function PrinterSettings() {
             style={{ border: "none", outline: "none", flex: 1, fontSize: 14, color: "#374151", background: "transparent" }} />
         </div>
 
-        {/* Reload button */}
-        <button onClick={loadConfig} style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: `1.5px solid ${TEAL}`, background: "white", color: TEAL, fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 16 }}>
-          Muat Ulang Daftar Printer
+        {/* Scan button */}
+        <button
+          onClick={scanning ? stopScan : startScan}
+          style={{ width: "100%", padding: "13px 0", borderRadius: 10, border: `1.5px solid ${TEAL}`, background: scanning ? "#F0FDFA" : "white", color: TEAL, fontWeight: 700, fontSize: 14, cursor: "pointer", marginBottom: 16 }}>
+          {scanning ? `Cari Ulang (${discovered.length} ditemukan...)` : "Muat Ulang Daftar Printer"}
         </button>
 
+        {/* Scanning spinner */}
+        {scanning && (
+          <div style={{ textAlign: "center", paddingBottom: 8, fontSize: 12, color: "#6B7A8D" }}>
+            Memindai perangkat Bluetooth terdekat...
+          </div>
+        )}
+
         {/* Device list / empty state */}
-        {filtered.length === 0 && !(isEditing && config[editId]?.mac) ? (
+        {displayList.length === 0 ? (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "20px 0 32px" }}>
             <PrinterIllustration />
-            <div style={{ fontWeight: 700, fontSize: 16, color: "#1E293B", marginTop: 16, marginBottom: 8 }}>Perangkat Tidak Tersedia</div>
-            <div style={{ fontSize: 13, color: "#6B7A8D", textAlign: "center", lineHeight: 1.6, maxWidth: 240 }}>
-              Pair printer di Pengaturan Bluetooth Android lalu tekan <strong>Muat Ulang Daftar Printer</strong>
-            </div>
+            {scanDone
+              ? <>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1E293B", marginTop: 16, marginBottom: 8 }}>Tidak Ada Printer Ditemukan</div>
+                  <div style={{ fontSize: 13, color: "#6B7A8D", textAlign: "center", lineHeight: 1.6, maxWidth: 240 }}>
+                    Pastikan printer menyala dan dalam jangkauan, lalu tekan <strong>Muat Ulang</strong>
+                  </div>
+                </>
+              : <>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1E293B", marginTop: 16, marginBottom: 8 }}>
+                    {scanning ? "Sedang Mencari..." : "Belum Ada Perangkat"}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#6B7A8D", textAlign: "center", lineHeight: 1.6, maxWidth: 240 }}>
+                    {scanning ? "Menunggu respons printer..." : "Nyalakan printer lalu tekan Muat Ulang Daftar Printer"}
+                  </div>
+                </>
+            }
           </div>
         ) : (
           <div style={{ borderRadius: 12, border: "1px solid #E5E7EB", overflowY: "auto", maxHeight: 260, marginBottom: 16 }}>
-            {filtered.map((dev, i) => (
+            {displayList.map((dev, i) => (
               <div key={dev.address} onClick={() => setSelMac(dev.address)} style={{
                 display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-                borderBottom: i < filtered.length - 1 ? "1px solid #F1F5F9" : "none",
-                cursor: "pointer", background: selMac === dev.address ? "#F0FDFA" : "white",
+                borderBottom: i < displayList.length - 1 ? "1px solid #F1F5F9" : "none",
+                cursor: "pointer",
+                background: selMac === dev.address ? "#F0FDFA" : dev.saved ? "#FFFBEB" : "white",
               }}>
                 <Radio selected={selMac === dev.address} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>{dev.name}</div>
-                  <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace", marginTop: 2 }}>{dev.address}</div>
+                  <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace", marginTop: 2 }}>
+                    {dev.address}{dev.saved ? " · tersimpan" : ""}
+                  </div>
                 </div>
               </div>
             ))}
-            {isEditing && config[editId]?.mac && !discovered.find(d => d.address === config[editId].mac) && (
-              <div onClick={() => setSelMac(config[editId].mac)} style={{
-                display: "flex", alignItems: "center", gap: 12, padding: "14px 16px",
-                cursor: "pointer", background: selMac === config[editId].mac ? "#F0FDFA" : "#FFFBEB",
-                borderTop: "1px solid #F1F5F9",
-              }}>
-                <Radio selected={selMac === config[editId].mac} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: "#111827" }}>{config[editId].name || config[editId].mac}</div>
-                  <div style={{ fontSize: 11, color: "#94A3B8", fontFamily: "monospace", marginTop: 2 }}>{config[editId].mac} · tersimpan</div>
-                </div>
-              </div>
-            )}
           </div>
         )}
 

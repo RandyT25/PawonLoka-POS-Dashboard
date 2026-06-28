@@ -1,5 +1,16 @@
 package com.pawonloka.pos.printing
 
+import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.app.ActivityCompat
 import com.getcapacitor.*
 import com.getcapacitor.annotation.CapacitorPlugin
 import kotlinx.coroutines.*
@@ -8,6 +19,7 @@ import kotlinx.coroutines.*
 class PrintBridgePlugin : Plugin() {
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private var discoveryReceiver: BroadcastReceiver? = null
 
     // ── Service control ───────────────────────────────────────────────────────
     @PluginMethod
@@ -24,7 +36,6 @@ class PrintBridgePlugin : Plugin() {
 
     @PluginMethod
     fun getServiceStatus(call: PluginCall) {
-        // Service is running if PrinterManager is initialised (connections exist)
         call.resolve(JSObject().put("running", true))
     }
 
@@ -37,6 +48,68 @@ class PrintBridgePlugin : Plugin() {
             arr.put(JSObject().put("mac", d["mac"]).put("name", d["name"]))
         }
         call.resolve(JSObject().put("devices", arr))
+    }
+
+    @PluginMethod
+    fun startDiscovery(call: PluginCall) {
+        // Check BLUETOOTH_SCAN permission on Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
+                != PackageManager.PERMISSION_GRANTED) {
+            return call.reject("BLUETOOTH_SCAN permission not granted")
+        }
+
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+            ?: return call.reject("Bluetooth not available")
+
+        // Cancel any running scan first
+        adapter.cancelDiscovery()
+        unregisterDiscoveryReceiver()
+
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
+                when (intent.action) {
+                    BluetoothDevice.ACTION_FOUND -> {
+                        val device: BluetoothDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+                            intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                        else
+                            @Suppress("DEPRECATION") intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                        device?.let {
+                            val name = it.name ?: it.address
+                            notifyListeners("deviceFound", JSObject()
+                                .put("mac",  it.address)
+                                .put("name", name))
+                        }
+                    }
+                    BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                        notifyListeners("discoveryFinished", JSObject())
+                        unregisterDiscoveryReceiver()
+                    }
+                }
+            }
+        }
+        discoveryReceiver = receiver
+        val filter = IntentFilter().apply {
+            addAction(BluetoothDevice.ACTION_FOUND)
+            addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        }
+        context.registerReceiver(receiver, filter)
+        adapter.startDiscovery()
+        call.resolve(JSObject().put("started", true))
+    }
+
+    @PluginMethod
+    fun stopDiscovery(call: PluginCall) {
+        context.getSystemService(BluetoothManager::class.java)?.adapter?.cancelDiscovery()
+        unregisterDiscoveryReceiver()
+        call.resolve(JSObject().put("ok", true))
+    }
+
+    private fun unregisterDiscoveryReceiver() {
+        discoveryReceiver?.let {
+            try { context.unregisterReceiver(it) } catch (_: Exception) {}
+            discoveryReceiver = null
+        }
     }
 
     // ── Printer config ────────────────────────────────────────────────────────
