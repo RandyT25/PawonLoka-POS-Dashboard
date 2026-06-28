@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
@@ -31,40 +31,34 @@ export default function Rekonsiliasi() {
   const [editModal,    setEditModal]    = useState(null)
   const [saving,       setSaving]       = useState(false)
   const [editForm,     setEditForm]     = useState({ status:"reconciled", notes:"", bank_ref:"", reconciled_by:"Claudy" })
+  const [toast,        setToast]        = useState(null)
 
-  useEffect(() => { load() }, [range, customDate, customDateTo])
-
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
 
-    // Query ORDERS (not shifts — shifts don't have per-method breakdown)
-    // Use select("*") — "table" and "time" are SQL reserved words, explicit select fails
     let q = supabase.from("orders").select("*").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data: orders, error } = await q.order("created_at", { ascending: false })
 
     if (error) { console.error("Rekonsiliasi query error:", error.message); setLoading(false); return }
 
-    // Load existing reconciliation records
-    let reconMap = {}
-    try {
-      const { data: recons } = await supabase
-        .from("reconciliations").select("*").gte("created_at", fromStr)
-      ;(recons||[]).forEach(r => { reconMap[r.recon_no] = r })
-    } catch(e) {} // table might not exist yet
+    // Load existing reconciliation records for the same period
+    const { data: recons } = await supabase
+      .from("reconciliations").select("*").gte("created_at", fromStr)
+    const reconMap = {}
+    ;(recons || []).forEach(r => { reconMap[r.recon_no] = r })
 
     // Group PAID orders by date × payment method
     const groups = {}
-    for (const o of orders||[]) {
-      if (o.status && o.status !== "Paid" && o.status !== "paid") continue // skip open/void
+    for (const o of orders || []) {
+      if (o.status && o.status !== "Paid" && o.status !== "paid") continue
       const day = o.date || o.created_at?.slice(0,10) || "?"
       const payRaw = o.pay || "Cash"
       const key = day + "|" + payRaw
-      if (!groups[key]) groups[key] = { date:day, pay:payRaw, amount:0, count:0, orders:[], cashier: o.staff||"—" }
+      if (!groups[key]) groups[key] = { date:day, pay:payRaw, amount:0, count:0, cashier: o.staff||"—" }
       groups[key].amount += o.total || 0
       groups[key].count++
-      groups[key].orders.push(o)
     }
 
     const rows = Object.values(groups).map(g => {
@@ -89,32 +83,55 @@ export default function Rekonsiliasi() {
 
     setRecords(rows)
     setLoading(false)
-  }
+  }, [range, customDate, customDateTo])
+
+  const loadRef = useRef(load)
+  useEffect(() => { loadRef.current = load })
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(t)
+  }, [toast])
 
   async function saveRecon() {
     if (!editModal) return
     setSaving(true)
+    setToast(null)
+
     const payload = {
       recon_no:       editModal.recon_no,
       recon_date:     editModal.date,
       payment_method: editModal.payment_method,
-      cashier_name: editModal.cashier_name,
-      outlet: editModal.outlet,
-      amount: editModal.amount,
-      status: editForm.status,
-      notes: editForm.notes,
-      bank_ref: editForm.bank_ref,
-      reconciled_by: editForm.reconciled_by,
-      reconciled_at: editForm.status === "reconciled" ? new Date().toISOString() : null,
+      cashier_name:   editModal.cashier_name,
+      outlet:         editModal.outlet,
+      amount:         editModal.amount,
+      status:         editForm.status,
+      notes:          editForm.notes,
+      bank_ref:       editForm.bank_ref,
+      reconciled_by:  editForm.reconciled_by,
+      reconciled_at:  editForm.status === "reconciled" ? new Date().toISOString() : null,
+      updated_at:     new Date().toISOString(),
     }
+
+    let error
     if (editModal.id) {
-      await supabase.from("reconciliations").update(payload).eq("id", editModal.id)
+      ;({ error } = await supabase.from("reconciliations").update(payload).eq("id", editModal.id))
     } else {
-      await supabase.from("reconciliations").insert(payload)
+      ;({ error } = await supabase.from("reconciliations").insert(payload))
     }
+
     setSaving(false)
+    if (error) {
+      console.error("saveRecon error:", error)
+      setToast({ type:"error", message: "Gagal menyimpan: " + (error.message || "unknown error") })
+      return
+    }
+
     setEditModal(null)
-    load()
+    setToast({ type:"success", message: "Rekonsiliasi berhasil disimpan" })
+    loadRef.current()
   }
 
   const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
@@ -146,7 +163,7 @@ export default function Rekonsiliasi() {
       </div>
 
       {/* KPI cards */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:10, marginBottom:16 }}>
+      <div className="bo-rekon-kpi">
         {[
           ["Total Penerimaan", fmt(totalAll), "#0052CC", records.length+" transaksi"],
           ["Terekonsiliasi",   fmt(totalRecon), "#00875A", records.filter(r=>r.status==="reconciled").length+" transaksi"],
@@ -223,6 +240,21 @@ export default function Rekonsiliasi() {
           </table>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position:"fixed", bottom:28, left:"50%", transform:"translateX(-50%)",
+          background: toast.type === "success" ? "#00875A" : "#DE350B",
+          color:"#fff", borderRadius:10, padding:"12px 22px",
+          fontSize:13, fontWeight:600, whiteSpace:"nowrap",
+          boxShadow:"0 4px 20px rgba(0,0,0,0.25)", zIndex:99999,
+          animation:"fadeInUp 0.2s ease",
+        }}>
+          {toast.type === "success" ? "✓ " : "⚠ "}{toast.message}
+        </div>
+      )}
+      <style>{`@keyframes fadeInUp{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
 
       {/* Edit Modal */}
       {editModal && (

@@ -1,5 +1,5 @@
 # PawonLoka — Project Brain
-> Last updated: 2026-06-25
+> Last updated: 2026-06-28
 > Always read this before building anything new.
 > For deep POS-specific rules see: PAWONLOKA_POS_BRAIN.md
 
@@ -17,34 +17,32 @@
 git add -A && git commit -m "msg" && git push && npm run deploy
 
 ## 📱 Android APK — ALWAYS DO THIS AFTER CODE CHANGES
-Project path: /Users/randy/POS Android APK   ← SEPARATE copy of src, must be kept in sync with web
+Project path: `/Users/randy/PawonLoka-POS-Dashboard` (SINGLE project — android/ is a subfolder, NOT a separate copy)
 
-### Files to sync (src/ only):
+### ⚠️ Architecture change (2026-06-28): NO MORE dual-project setup
+The old `/Users/randy/POS Android APK` separate project is OBSOLETE. The main web project now has Capacitor 8 integrated directly:
+- `android/` subfolder contains the native Android project
+- `capacitor.config.ts` at root
+- No file syncing needed — `npm run build && npx cap sync android` handles it
+
+### Build steps (run from /Users/randy/PawonLoka-POS-Dashboard):
 ```bash
-cp /Users/randy/PawonLoka-POS-Dashboard/src/pos/... "/Users/randy/POS Android APK/src/pos/..."
-# Sync any changed src/ files. DO NOT copy vite.config.js or index.html — APK has its own versions!
-```
-
-### Build steps (run in order):
-```
-cd "/Users/randy/POS Android APK"
 npm run build
 npx cap sync android
-cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
-cp app/build/outputs/apk/debug/app-debug.apk ~/Desktop/PawonLoka-POS.apk
+JAVA_HOME=/Users/randy/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home \
+  ./android/gradlew -p ./android assembleDebug
+cp ./android/app/build/outputs/apk/debug/app-debug.apk ~/Desktop/PawonLoka-debug.apk
 ```
 
-### ⚠️ CRITICAL — Files that must NEVER be copied from main to APK:
-- `vite.config.js` — APK version has NO external[] config; main web version externalizes Capacitor packages
-- `index.html` — APK version has safe-area-inset CSS for Android 15 EdgeToEdge; main has PWA banner script
-
 ### APK-specific config (already set, do not change):
-- `targetSdkVersion=35` (Android 15) → EdgeToEdge mode → APK index.html has `body { padding-top: env(safe-area-inset-top) }`
+- `targetSdkVersion=35` (Android 15) → EdgeToEdge mode → `index.html` has `body { padding-top: env(safe-area-inset-top) }`
 - `AndroidManifest.xml`: ACCESS_FINE_LOCATION has NO maxSdkVersion restriction (needed for BleClient)
 - `capacitor.config.ts`: `BluetoothLe.androidNeverForLocation: true`
 - No keystore → debug build (signed with ~/.android/debug.keystore, installable via sideload)
-- APK bundles web files at build time (webDir: dist) — no live URL, MUST rebuild for every update
-- Android SDK: ~/Library/Android/sdk  Java: Android Studio bundled JRE (see JAVA_HOME above)
+- APK bundles web files at build time (webDir: dist) — no live URL, MUST rebuild for every web change
+- JAVA_HOME: Eclipse Adoptium JDK 17 at `~/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home`
+- Gradle: run as `./android/gradlew -p ./android ...` from project root — never `cd android && ./gradlew`
+- Custom Kotlin plugin: `PrintBridge` (registered via Capacitor) → `EscPosBuilder.kt` builds ESC/POS byte sequences
 
 ## 🏗 Stack
 - React 19 + Vite 8 + Supabase + Cloudflare Pages
@@ -263,6 +261,12 @@ Cashier Closing: reads from shifts table, shows float/cash/total/status
 22. ingredients.station is TEXT[] — use array operations not string comparison
 23. Sub-recipe unit (sub_recipes.unit) must match what parent dish recipe row uses
 24. FloorPlan merge/split needs merged_with column: ALTER TABLE tables ADD COLUMN IF NOT EXISTS merged_with TEXT DEFAULT NULL
+25. APK Gradle: ALWAYS set JAVA_HOME explicitly — Java not found in system PATH for Gradle tasks
+26. APK Gradle: run `./android/gradlew -p ./android assembleDebug` from project root, NOT `cd android && ./gradlew`
+27. printBill() outlet object must include ALL receipt designer fields (name, address, phone, website, tagline, showOrderId, showTable, showCashier, showDatetime) — not just 3 fields
+28. Checker print (printCheck) calls printKitchenTicket() with stationRole='receipt', NOT printPreBill() — kitchen settings apply, not receipt settings
+29. Kitchen ticket TALL_ON double-height: only applied when stationRole != 'receipt' in EscPosBuilder.kt
+30. Long item names: use truncLine() not padLine() in EscPosBuilder.kt — padLine wraps, truncLine cuts at available width
 
 ## ✅ Completed Modules (Current)
 Dashboard, Accounting (+ Cashier Closing tab), Products (+ Quick Edit + Bulk Modifiers),
@@ -291,10 +295,23 @@ Split Bill (fixed receipt + payments recording), Laporan Produk Terjual (shift c
 - Bundle size 1.85MB — no code splitting (React.lazy not yet implemented)
 - Supabase anon key hardcoded in src/lib/supabase.js (security risk for production)
 - No per-user auth (PIN only, no sessions)
+- Deferred printer settings (require new EscPosBuilder.kt sections): show_loyalty, show_sku, show_qr/qr_url, print_copies, station_colors, show_pax
+
+## 🖨 ESC/POS Print Functions (EscPosBuilder.kt)
+- `buildPreBill()` — Cetak Tagihan (pre-payment bill with prices, no payment)
+- `buildReceipt()` — Cetak Struk (full receipt after payment)
+- `buildKitchenTicket()` — kitchen tickets AND checker (stationRole="receipt" → no TALL_ON, no double-height)
+- `buildProductSoldReport()` — shift close product sold summary
+- Key helpers: `padLine(left, right, width)`, `truncLine(left, right, width)` (truncates left at width - right - 1)
+- ESC/POS cmds: BOLD_ON/OFF, TALL_ON/OFF (double-height), DOUBLE_ON/OFF (double height+width), ALIGN_C/L
+- Logo sizes: 58mm paper = 200px width, 80mm paper = 300px width (reduced from 384/576px to avoid slowness)
 
 ## 🔧 TODO NEXT
-- Test FloorPlan merge/split/move with real tables
-- Test Market Prices save flow end-to-end
+- Physical device testing for current APK (built 2026-06-28 20:02, at ~/Desktop/PawonLoka-debug.apk):
+  - Portrait mode header: Customer/Void hidden, Table/Orders/Printer/☰ visible
+  - Checker print: normal item height (no double), long names truncated
+  - Kitchen footer: text centered on physical print
+  - Cetak Tagihan: receipt designer fields (tagline, show_table toggle, etc.) reflected
 - Fill in remaining recipes (most dishes still have no recipe entered)
 - Fill in ingredient unit information (buy unit + conversion) for all 200+ ingredients
 - Kitchen station printing test

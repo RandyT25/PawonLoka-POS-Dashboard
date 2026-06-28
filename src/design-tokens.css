@@ -1,0 +1,51 @@
+/* PawonLoka Design Tokens — v1
+   Single source of truth for brand palette, typography, and radius.
+   Import in each app CSS: @import "../design-tokens.css";
+*/
+:root {
+  /* ── Brand ──────────────────────────────── */
+  --pl-brand:    #0052CC;
+  --pl-brand-hv: #0066FF;
+  --pl-brand-lt: #E8F0FF;
+  --pl-brand-dk: #003A99;
+
+  /* ── Semantic status ─────────────────────── */
+  --pl-success:    #00875A;
+  --pl-success-lt: #E3FCEF;
+  --pl-warning:    #FF8B00;
+  --pl-warning-lt: #FFF7E6;
+  --pl-danger:     #DE350B;
+  --pl-danger-lt:  #FFEBE6;
+  --pl-purple:     #8B5CF6;
+  --pl-purple-lt:  #EDE9FE;
+
+  /* ── Ink (text) scale ────────────────────── */
+  --pl-ink:  #091E42;
+  --pl-ink2: #253858;
+  --pl-ink3: #42526E;
+  --pl-ink4: #6B778C;
+  --pl-ink5: #97A0AF;
+
+  /* ── Surface scale ───────────────────────── */
+  --pl-surface:  #F4F5F7;
+  --pl-surface2: #EBECF0;
+  --pl-surface3: #DFE1E6;
+
+  /* ── App chrome ──────────────────────────── */
+  --pl-sidebar: #0A1628;
+  --pl-white:   #ffffff;
+
+  /* ── Typography ──────────────────────────── */
+  --pl-font: "Inter", system-ui, sans-serif;
+
+  /* ── Border radius ───────────────────────── */
+  --pl-r-sm: 6px;
+  --pl-r:    8px;
+  --pl-r-md: 12px;
+  --pl-r-lg: 16px;
+
+  /* ── Shadows ─────────────────────────────── */
+  --pl-shadow-sm: 0 1px 3px rgba(9,30,66,0.12);
+  --pl-shadow:    0 3px 8px rgba(9,30,66,0.15);
+  --pl-shadow-lg: 0 8px 24px rgba(9,30,66,0.18);
+}

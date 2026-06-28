@@ -10,17 +10,6 @@ const fmtRange = (from, to) => {
   return fmtD(from) + " → " + fmtD(to)
 }
 
-/**
- * Shared date range picker.
- * Quick buttons: Hari Ini / Minggu Ini / Bulan Ini
- * Custom: opens full-screen CalendarRangePicker (From → To with visual range)
- *
- * Props:
- *   range, setRange
- *   customDate, setCustomDate        — from date "YYYY-MM-DD"
- *   customDateTo, setCustomDateTo    — to date  "YYYY-MM-DD"
- *   loading, lastUpdated, onRefresh, children
- */
 export default function DateRangePicker({
   range, setRange,
   customDate, setCustomDate,
@@ -29,10 +18,6 @@ export default function DateRangePicker({
 }) {
   const [showCal, setShowCal] = useState(false)
 
-  function openCalendar() {
-    setShowCal(true)
-  }
-
   function onSave(from, to) {
     setCustomDate(from)
     setCustomDateTo?.(to)
@@ -40,17 +25,60 @@ export default function DateRangePicker({
     setShowCal(false)
   }
 
-  function clearCustom() {
-    setRange("today")
+  function navigate(dir) {
+    const now = new Date()
+    let fromDate, toDate
+
+    if (range === "today") {
+      const d = new Date()
+      d.setDate(d.getDate() + dir)
+      fromDate = toDate = d.toISOString().slice(0, 10)
+    } else if (range === "week") {
+      const dow = (now.getDay() + 6) % 7
+      const weekStart = new Date()
+      weekStart.setDate(now.getDate() - dow + dir * 7)
+      weekStart.setHours(0, 0, 0, 0)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      fromDate = weekStart.toISOString().slice(0, 10)
+      toDate = weekEnd.toISOString().slice(0, 10)
+    } else if (range === "month") {
+      const d = new Date(now.getFullYear(), now.getMonth() + dir, 1)
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+      fromDate = d.toISOString().slice(0, 10)
+      toDate = end.toISOString().slice(0, 10)
+    } else {
+      const a = new Date((customDate || todayStr()) + "T12:00:00")
+      const b = new Date((customDateTo || customDate || todayStr()) + "T12:00:00")
+      const spanDays = Math.max(1, Math.round((b - a) / 86400000) + 1)
+      a.setDate(a.getDate() + dir * spanDays)
+      b.setDate(b.getDate() + dir * spanDays)
+      fromDate = a.toISOString().slice(0, 10)
+      toDate = b.toISOString().slice(0, 10)
+    }
+
+    setCustomDate(fromDate)
+    setCustomDateTo?.(toDate)
+    setRange("custom")
   }
 
   const isCustom = range === "custom"
   const rangeLabel = isCustom ? fmtRange(customDate, customDateTo) : "Tanggal"
 
+  const navBtnStyle = {
+    background:"none", border:"1px solid var(--surface3)", borderRadius:6,
+    padding:"2px 8px", fontSize:15, cursor:"pointer", color:"var(--ink3)",
+    lineHeight:1, fontWeight:700,
+  }
+
   return (
     <>
       <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
         <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+
+          {/* Prev / Next navigation */}
+          <button style={navBtnStyle} onClick={() => navigate(-1)}>‹</button>
+          <button style={navBtnStyle} onClick={() => navigate(1)}>›</button>
 
           {/* Quick range buttons */}
           {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v, l]) => (
@@ -61,7 +89,7 @@ export default function DateRangePicker({
           ))}
 
           {/* Tanggal button — opens full calendar */}
-          <button onClick={openCalendar}
+          <button onClick={() => setShowCal(true)}
             className={"bo-btn bo-btn-sm " + (isCustom ? "bo-btn-primary" : "bo-btn-ghost")}
             style={{ display:"flex", alignItems:"center", gap:5 }}>
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -73,17 +101,17 @@ export default function DateRangePicker({
             {rangeLabel}
           </button>
 
-          {/* ✕ clear */}
+          {/* ✕ clear custom */}
           {isCustom && (
-            <button onClick={clearCustom}
+            <button onClick={() => setRange("today")}
               style={{ background:"none", border:"1px solid var(--surface3)", borderRadius:6,
                        padding:"3px 8px", fontSize:12, cursor:"pointer", color:"var(--ink4)", lineHeight:1 }}>
               ✕
             </button>
           )}
 
-          {/* Right: live indicator + refresh */}
-          <div style={{ marginLeft:"auto", display:"flex", alignItems:"center", gap:8 }}>
+          {/* Right: live indicator + refresh + extra children */}
+          <div className="bo-drp-right">
             {loading ? (
               <svg style={{ animation:"spin 0.8s linear infinite", flexShrink:0 }} width="14" height="14" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="var(--surface3)" strokeWidth="3"/>
@@ -116,7 +144,6 @@ export default function DateRangePicker({
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
 
-      {/* Full-screen calendar overlay */}
       {showCal && (
         <CalendarRangePicker
           initialFrom={customDate}
@@ -129,9 +156,6 @@ export default function DateRangePicker({
   )
 }
 
-/**
- * Returns { fromStr, toStr } for Supabase queries.
- */
 export function buildDateRange(range, customDate, customDateTo = null) {
   const now = new Date()
   const today = now.toISOString().slice(0, 10)
@@ -139,7 +163,10 @@ export function buildDateRange(range, customDate, customDateTo = null) {
     return { fromStr: today + "T00:00:00+08:00", toStr: today + "T23:59:59+08:00" }
   }
   if (range === "week") {
-    const d = new Date(); d.setDate(now.getDate() - now.getDay()); d.setHours(0, 0, 0, 0)
+    const dow = (now.getDay() + 6) % 7
+    const d = new Date()
+    d.setDate(now.getDate() - dow)
+    d.setHours(0, 0, 0, 0)
     return { fromStr: d.toISOString().slice(0, 10) + "T00:00:00+08:00", toStr: null }
   }
   if (range === "month") {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { supabase } from "../lib/supabase"
+import NavIcon from "./components/NavIcon"
 
 import "./backoffice.css"
 
@@ -44,6 +45,7 @@ const Rekonsiliasi    = lazy(() => import("./components/Rekonsiliasi"))
 const Orders          = lazy(() => import("./components/Orders"))
 const MarketPrices    = lazy(() => import("./components/MarketPrices"))
 const Profitability   = lazy(() => import("./components/Profitability"))
+const InvStockCompare = lazy(() => import("./components/inventory/InvStockCompare"))
 
 function useNotifications() {
   const [pending, setPending] = useState(0)
@@ -93,7 +95,7 @@ function useNotifications() {
   return { pending, notes, markRead }
 }
 
-const TYPE_ICONS = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
+const TYPE_ICONS = { opname:"opname", waste:"waste", production:"production", requisition:"requisition" }
 const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", production:"Production", requisition:"Request" }
 
 function BellMenu({ pending, notes, onNav, markRead }) {
@@ -129,7 +131,7 @@ function BellMenu({ pending, notes, onNav, markRead }) {
                   style={{ padding:"10px 16px", borderBottom:"1px solid var(--surface)", cursor:"pointer", background:n.read?"#fff":"var(--brand-lt)", display:"flex", gap:10, alignItems:"flex-start" }}
                   onMouseEnter={e=>e.currentTarget.style.background="var(--surface)"}
                   onMouseLeave={e=>e.currentTarget.style.background=n.read?"#fff":"var(--brand-lt)"}>
-                  <span style={{ fontSize:18, flexShrink:0 }}>{TYPE_ICONS[n.type]||"📄"}</span>
+                  <span style={{ flexShrink:0, color:"var(--brand)", opacity:0.8 }}><NavIcon id={TYPE_ICONS[n.type]||"default"} /></span>
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:12, fontWeight:700 }}>{TYPE_LABELS[n.type]||n.type} — {n.by}</div>
                     <div style={{ fontSize:11, color:"var(--ink4)" }}>{n.station && n.station+" · "}{n.time}</div>
@@ -152,60 +154,89 @@ const SESSION_KEY = "bo_auth"
 
 const NAV = [
   { group:"Overview" },
-  { id:"dashboard",         label:"Dashboard",          icon:"📊" },
-  { id:"sales-analysis",    label:"Sales Analysis",     icon:"📈" },
-  { id:"menu-performance",  label:"Menu Performance",   icon:"🍽" },
-  { id:"sales-report",      label:"Sales Report",        icon:"📅" },
-  { id:"product-report",    label:"Product Report",      icon:"🧾" },
-  { id:"top-slow",          label:"Top & Slow Moving",   icon:"📊" },
-  { id:"reports",           label:"Reports & Export",   icon:"📋" },
+  { id:"dashboard" },
+  { id:"sales-analysis",    label:"Sales Analysis" },
+  { id:"menu-performance",  label:"Menu Performance" },
+  { id:"sales-report",      label:"Sales Report" },
+  { id:"product-report",    label:"Product Report" },
+  { id:"top-slow",          label:"Top & Slow Moving" },
+  { id:"reports",           label:"Reports & Export" },
   { group:"Finance" },
-  { id:"accounting",       label:"Accounting",         icon:"🧾" },
-  { id:"rekonsiliasi",     label:"Rekonsiliasi",       icon:"🔄" },
+  { id:"accounting" },
+  { id:"rekonsiliasi" },
   { group:"Menu" },
-  { id:"products",         label:"Products",           icon:"🍽" },
-  { id:"categories",       label:"Categories",         icon:"🏷" },
-  { id:"modifiers",        label:"Modifiers",          icon:"✏️" },
-  { id:"recipes",          label:"Recipes & COGS",     icon:"📒" },
-  { id:"market-prices",     label:"Market Prices",       icon:"🛒" },
-  { id:"profitability",     label:"Profitability",       icon:"📊" },
+  { id:"products" },
+  { id:"categories" },
+  { id:"modifiers" },
+  { id:"recipes",           label:"Recipes & COGS" },
+  { id:"market-prices",     label:"Market Prices" },
+  { id:"profitability" },
   { group:"Inventory" },
-  { id:"inv-overview",     label:"Overview",           icon:"📦" },
-  { id:"inv-ingredients",  label:"Ingredients",        icon:"🧂" },
-  { id:"inv-po",           label:"Purchase Orders",    icon:"🛒" },
-  { id:"inv-suppliers",    label:"Suppliers",          icon:"🏭" },
-  { id:"inv-production",   label:"Production",         icon:"⚙️" },
-  { id:"inv-opname",       label:"Stock Opname",       icon:"🔢" },
-  { id:"inv-waste",        label:"Waste Recording",    icon:"🗑" },
-  { id:"inv-movements",    label:"Movement History",   icon:"📋" },
-  { id:"staff-submissions", label:"Staff Reports",       icon:"📱" },
+  { id:"inv-overview",      label:"Overview" },
+  { id:"inv-ingredients",   label:"Ingredients" },
+  { id:"inv-po",            label:"Purchase Orders" },
+  { id:"inv-suppliers",     label:"Suppliers" },
+  { id:"inv-production",    label:"Production" },
+  { id:"inv-opname",        label:"Stock Opname" },
+  { id:"inv-waste",         label:"Waste Recording" },
+  { id:"inv-movements",      label:"Movement History" },
+  { id:"inv-stock-compare", label:"Stock vs Purchase" },
+  { id:"staff-submissions", label:"Staff Reports" },
   { group:"People" },
-  { id:"employees",        label:"Employees",          icon:"👤" },
-  { id:"departments",      label:"Departments",        icon:"🏢" },
-  { id:"shifts",           label:"Shifts",             icon:"🕐" },
-  { id:"schedule",         label:"Schedule",           icon:"📅" },
-  { id:"attendance",        label:"Attendance",         icon:"🕐" },
-  { id:"performance",      label:"Performance",        icon:"📉" },
-  { id:"customers",        label:"Customers",          icon:"⭐" },
-  { id:"loyalty",          label:"Loyalty & Vouchers", icon:"🏆" },
+  { id:"employees" },
+  { id:"departments" },
+  { id:"shifts" },
+  { id:"schedule" },
+  { id:"attendance" },
+  { id:"performance" },
+  { id:"customers" },
+  { id:"loyalty",           label:"Loyalty & Vouchers" },
   { group:"Sales" },
-  { id:"promotions",       label:"Promotions",         icon:"🎁" },
-  { id:"bundles",          label:"Bundle Packages",    icon:"📦" },
-  { id:"discounts",        label:"Discounts",          icon:"✂️" },
-  { id:"payments",         label:"Payments & Tax",     icon:"💳" },
+  { id:"promotions" },
+  { id:"bundles",           label:"Bundle Packages" },
+  { id:"discounts" },
+  { id:"payments",          label:"Payments & Tax" },
   { group:"Operations" },
-  { id:"floorplan",        label:"Floor Plan",         icon:"🪑" },
-  { id:"kitchen-display",  label:"Kitchen Display",    icon:"🎫" },
+  { id:"floorplan",         label:"Floor Plan" },
+  { id:"kitchen-display",   label:"Kitchen Display" },
   { group:"System" },
-  { id:"import-export",     label:"Import / Export",    icon:"📂" },
-  { id:"settings",         label:"Settings",           icon:"⚙️" },
-  { id:"receipt-designer",       label:"Receipt Designer",        icon:"🖨" },
-  { id:"kitchen-ticket-designer", label:"Kitchen Ticket Designer", icon:"🎫" },
-  { id:"hardware",         label:"Hardware",           icon:"🔧" },
-  { id:"users-access",     label:"Users & Access",     icon:"🔑" },
-  { id:"audit-log",        label:"Audit Log",          icon:"📜" },
-  { id:"integrations",     label:"Integrations",       icon:"🔌" },
+  { id:"import-export",     label:"Import / Export" },
+  { id:"settings" },
+  { id:"receipt-designer",         label:"Receipt Designer" },
+  { id:"kitchen-ticket-designer",  label:"Kitchen Ticket Designer" },
+  { id:"hardware" },
+  { id:"users-access",      label:"Users & Access" },
+  { id:"audit-log",         label:"Audit Log" },
+  { id:"integrations" },
 ]
+
+const NAV_LABELS = {
+  dashboard: "Dashboard", "sales-analysis": "Sales Analysis",
+  "menu-performance": "Menu Performance", "sales-report": "Sales Report",
+  "product-report": "Product Report", "top-slow": "Top & Slow Moving",
+  reports: "Reports & Export", accounting: "Accounting",
+  rekonsiliasi: "Rekonsiliasi", products: "Products",
+  categories: "Categories", modifiers: "Modifiers",
+  recipes: "Recipes & COGS", "market-prices": "Market Prices",
+  profitability: "Profitability", "inv-overview": "Overview",
+  "inv-ingredients": "Ingredients", "inv-po": "Purchase Orders",
+  "inv-suppliers": "Suppliers", "inv-production": "Production",
+  "inv-opname": "Stock Opname", "inv-waste": "Waste Recording",
+  "inv-movements": "Movement History", "inv-stock-compare": "Stock vs Purchase",
+  "staff-submissions": "Staff Reports",
+  employees: "Employees", departments: "Departments",
+  shifts: "Shifts", schedule: "Schedule",
+  attendance: "Attendance", performance: "Performance",
+  customers: "Customers", loyalty: "Loyalty & Vouchers",
+  promotions: "Promotions", bundles: "Bundle Packages",
+  discounts: "Discounts", payments: "Payments & Tax",
+  floorplan: "Floor Plan", "kitchen-display": "Kitchen Display",
+  "import-export": "Import / Export", settings: "Settings",
+  "receipt-designer": "Receipt Designer",
+  "kitchen-ticket-designer": "Kitchen Ticket Designer",
+  hardware: "Hardware", "users-access": "Users & Access",
+  "audit-log": "Audit Log", integrations: "Integrations",
+}
 
 const SCREENS = {
   dashboard:          Dashboard,
@@ -228,8 +259,9 @@ const SCREENS = {
   "inv-production":  () => <Inventory initialTab="inv-production" />,
   "inv-opname":      () => <Inventory initialTab="inv-opname" />,
   "inv-waste":       () => <Inventory initialTab="inv-waste" />,
-  "inv-movements":   () => <Inventory initialTab="inv-movements" />,
-  "staff-submissions": StaffSubmissions,
+  "inv-movements":      () => <Inventory initialTab="inv-movements" />,
+  "inv-stock-compare":  InvStockCompare,
+  "staff-submissions":  StaffSubmissions,
   "import-export":      ImportExport,
   employees:         Employees,
   departments:       DepartmentsPage,
@@ -352,8 +384,8 @@ export default function Backoffice() {
             ?<div key={i} className="bo-nav-group">{n.group}</div>
             :(
               <button key={n.id} className={"bo-nav-item"+(active===n.id?" active":"")} onClick={()=>navTo(n.id)}>
-                <span className="bo-nav-icon">{n.icon}</span>
-                <span>{n.label}</span>
+                <span className="bo-nav-icon"><NavIcon id={n.id} /></span>
+                <span>{n.label || NAV_LABELS[n.id] || n.id}</span>
               </button>
             )
           )}
@@ -365,8 +397,10 @@ export default function Backoffice() {
       </div>
       <div className="bo-main">
         <div className="bo-topbar">
-          <button className="bo-hamburger" onClick={()=>setMobileSidebar(true)}>☰</button>
-          <div className="bo-topbar-title">{NAV.find(n=>n.id===active)?.label}</div>
+          <button className="bo-hamburger" onClick={()=>setMobileSidebar(true)}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          <div className="bo-topbar-title">{NAV_LABELS[active] || active}</div>
           <div style={{ display:"flex", alignItems:"center", gap:12, marginLeft:"auto" }}>
             <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
             <BellMenu pending={pending} notes={notes} onNav={navTo} markRead={markRead} />
@@ -404,15 +438,16 @@ export default function Backoffice() {
                         background:active===n.id?"rgba(0,102,255,0.25)":"none",
                         border:"none",cursor:"pointer",width:"100%",textAlign:"left",
                         fontSize:13,fontWeight:active===n.id?700:400,marginBottom:1 }}>
-                      <span style={{ fontSize:16,width:20,textAlign:"center" }}>{n.icon}</span>
-                      <span>{n.label}</span>
+                      <span style={{ width:20,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}><NavIcon id={n.id} /></span>
+                      <span>{n.label || NAV_LABELS[n.id] || n.id}</span>
                     </button>
                 )}
               </nav>
               {/* Footer */}
               <div style={{ padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,0.08)" }}>
                 <button onClick={logout} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,color:"rgba(255,255,255,0.5)",background:"none",border:"none",cursor:"pointer",width:"100%",fontSize:13 }}>
-                  <span>🚪</span><span>Log Out</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  <span>Log Out</span>
                 </button>
               </div>
             </div>

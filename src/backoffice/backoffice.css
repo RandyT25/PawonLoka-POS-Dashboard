@@ -1,3 +1,4 @@
+@import "../design-tokens.css";
 
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -581,3 +582,32 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 }
 .bo-product-mobile-row-info { flex: 1; min-width: 0; }
 .bo-product-mobile-actions  { display: flex; gap: 4px; flex-shrink: 0; }
+
+/* ── Dashboard hero inner 3-col grid ───────────────── */
+.bo-dash-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr 1px 1fr;
+}
+
+/* ── Two-column layout helpers ─────────────────────── */
+.bo-report-2col  { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.bo-topslow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.bo-rekon-kpi    { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+
+/* ── DateRangePicker right group ───────────────────── */
+.bo-drp-right { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+
+@media (max-width: 768px) {
+  /* Hero: collapse to single column, hide 1px dividers */
+  .bo-dash-hero-grid { grid-template-columns: 1fr !important; gap: 12px 0 !important; }
+  .bo-dash-hero-grid > *:nth-child(2),
+  .bo-dash-hero-grid > *:nth-child(4) { display: none !important; }
+
+  /* 2-col report sections → single column */
+  .bo-report-2col  { grid-template-columns: 1fr !important; }
+  .bo-topslow-grid { grid-template-columns: 1fr !important; }
+
+  /* Rekonsiliasi KPI: 3-col → 2-col; last card spans both */
+  .bo-rekon-kpi { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+  .bo-rekon-kpi > *:last-child { grid-column: span 2; }
+}

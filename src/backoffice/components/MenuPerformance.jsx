@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
+import MultiItemSelect from "./MultiItemSelect"
+import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
 const fmt  = n  => "Rp " + Number(n || 0).toLocaleString("id-ID")
 const fmtK = n  => n >= 1_000_000 ? "Rp " + (n / 1_000_000).toFixed(1) + " jt"
@@ -19,6 +21,7 @@ export default function MenuPerformance() {
   const [lastUpdated,  setLastUpdated]  = useState(null)
   const [sortBy,       setSortBy]       = useState("qty")   // "qty" | "revenue"
 
+  const [itemFilter, setItemFilter] = useState(new Set())
   const [items,      setItems]      = useState([])
   const [categories, setCategories] = useState([])
   const [totals,     setTotals]     = useState({ orders:0, itemsSold:0, revenue:0 })
@@ -96,16 +99,67 @@ export default function MenuPerformance() {
     return () => { clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
   }, [])
 
-  const topItems  = items.slice(0, 10)
-  const slowItems = items.slice(-5).reverse()
+  const displayItems = useMemo(() =>
+    itemFilter.size > 0 ? items.filter(i => itemFilter.has(i.name)) : items,
+  [items, itemFilter])
+
+  const allItemNames = useMemo(() => items.map(i => i.name), [items])
+
+  const filterLabel = itemFilter.size > 0 ? [...itemFilter].join(", ") : null
+  const periodLabel = formatPeriodLabel(range, customDate, customDateTo)
+  const slug = filenameSlug(range, customDate, customDateTo)
+
+  function handleExportExcel() {
+    exportExcel({
+      title: "Performa Menu", periodLabel, filterLabel,
+      filename: "pawonloka-menu-" + slug + ".xlsx",
+      sheets: [
+        {
+          name: "Menu",
+          columns: ["Produk","Kategori","Qty Terjual","Revenue","Avg Harga","Transaksi"],
+          colWidths: [28,18,14,20,18,14],
+          rows: displayItems.map(i => [
+            i.name, i.cat || "—", i.qty, fmtIDR(i.revenue),
+            fmtIDR(i.qty ? Math.round(i.revenue/i.qty) : 0), i.orders,
+          ]),
+        },
+        {
+          name: "Kategori",
+          columns: ["Kategori","Qty","Revenue"],
+          colWidths: [22,12,20],
+          rows: categories.map(c => [c.cat, c.qty, fmtIDR(c.revenue)]),
+        },
+      ],
+    })
+  }
+
+  function handleExportPdf() {
+    exportPDF({
+      title: "Performa Menu", periodLabel, filterLabel,
+      filename: "pawonloka-menu-" + slug + ".pdf",
+      tables: [
+        {
+          label: "Semua Menu",
+          head: ["#","Produk","Kategori","Qty","Revenue"],
+          body: displayItems.map((i, idx) => [idx+1, i.name, i.cat||"—", i.qty+"×", fmtIDR(i.revenue)]),
+        },
+        ...(categories.length > 0 ? [{
+          label: "Kategori",
+          head: ["Kategori","Qty","Revenue"],
+          body: categories.map(c => [c.cat, c.qty+"×", fmtIDR(c.revenue)]),
+        }] : []),
+      ],
+    })
+  }
+
+  const topItems  = displayItems.slice(0, 10)
+  const slowItems = displayItems.slice(-5).reverse()
   const maxQty    = topItems[0]?.qty    || 1
   const maxRev    = topItems[0]?.revenue || 1
 
   return (
     <div>
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
-        {/* Sort toggle in right slot */}
-
         <div style={{ display:"flex", gap:6 }}>
           <button onClick={() => setSortBy("qty")}
             className={"bo-btn bo-btn-sm " + (sortBy === "qty" ? "bo-btn-primary" : "bo-btn-ghost")}>
@@ -115,6 +169,9 @@ export default function MenuPerformance() {
             className={"bo-btn bo-btn-sm " + (sortBy === "revenue" ? "bo-btn-primary" : "bo-btn-ghost")}>
             by Revenue
           </button>
+          <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
+          <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
+          <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
         </div>
       </DateRangePicker>
 

@@ -1,28 +1,40 @@
 # PawonLoka POS — Deep Reference Brain
-> Created: 2026-06-25
+> Created: 2026-06-25 | Last updated: 2026-06-28
 > Read this before touching ANYTHING in the POS, usePrinter.js, APK build, or FloorPlan.
 
 ---
 
-## 1. DUAL-PROJECT ARCHITECTURE
+## 1. PROJECT ARCHITECTURE (UPDATED 2026-06-28)
 
-There are TWO separate projects:
+**SINGLE PROJECT** at `/Users/randy/PawonLoka-POS-Dashboard`. The old separate `/Users/randy/POS Android APK` project is OBSOLETE — do not use it.
 
-| | Main Web Project | APK Project |
+| | Web (Cloudflare) | Android APK |
 |---|---|---|
-| Path | `/Users/randy/PawonLoka-POS-Dashboard` | `/Users/randy/POS Android APK` |
-| Deploy | Cloudflare Pages (auto on push) | `~/Desktop/PawonLoka-POS.apk` (manual install) |
-| `vite.config.js` | Has `external: ['@capacitor-community/bluetooth-le', '@capacitor/core']` | Plain config — NO external array |
-| `index.html` | Complex PWA version with service worker, install banner | Simple version with `body { padding-top: env(safe-area-inset-top) }` for Android 15 EdgeToEdge |
-| Capacitor | Not installed | `@capacitor/android`, `@capacitor-community/bluetooth-le` installed |
+| Same source | ✅ same `src/` | ✅ same `src/` |
+| Build command | `npm run build && git push` | `npm run build && npx cap sync android && ./android/gradlew` |
+| Output | Auto-deploys to pawonloka.pages.dev | `~/Desktop/PawonLoka-debug.apk` (sideload install) |
+| Capacitor | PWA mode (isNativePlatform = false) | Native mode (isNativePlatform = true) |
+| Native plugin | — | `PrintBridge` (custom Kotlin, registered via Capacitor 8) |
 
-### ✅ DO sync (copy src/ files after changes):
-All files under `src/` can be copied freely between projects.
+### Key Android files:
+```
+android/app/src/main/java/com/pawonloka/pos/
+  printing/EscPosBuilder.kt    ← ESC/POS byte sequence builder (ALL print templates)
+  PrintBridgePlugin.kt         ← Capacitor plugin bridge (JS → Kotlin)
+  MainActivity.kt              ← registers PrintBridge plugin
+android/app/src/main/AndroidManifest.xml
+capacitor.config.ts            ← at project root
+```
 
-### ❌ NEVER copy these from main to APK:
-- `vite.config.js` — different build configs, copying it breaks the APK with "Failed to resolve module specifier"
-- `index.html` — APK needs safe-area CSS; overwriting loses it and the status bar overlaps content
-- `package.json` — different dependencies
+### `index.html` is shared (NOT separate):
+- Contains `body { padding-top: env(safe-area-inset-top) }` for Android 15 EdgeToEdge
+- Also has PWA install banner script (harmless in APK context)
+- No separate APK index.html needed anymore
+
+### vite.config.js note:
+The main `vite.config.js` has `external: ['@capacitor-community/bluetooth-le', '@capacitor/core']`.
+This works for the APK because `@capacitor/core` is now BUNDLED (not external) via the PrintBridge plugin path.
+Do NOT remove the external array — it's intentional for the web build.
 
 ---
 
@@ -190,25 +202,21 @@ L(order.promo || "Diskon", "-" + fmt(order.discount))
 
 ## 6. APK BUILD CHECKLIST
 
-Run this sequence every time code changes:
+Run this from `/Users/randy/PawonLoka-POS-Dashboard` every time code changes:
 
 ```bash
-# 1. Sync changed src/ files (never sync vite.config.js or index.html)
-cp /Users/randy/PawonLoka-POS-Dashboard/src/pos/hooks/usePrinter.js "/Users/randy/POS Android APK/src/pos/hooks/usePrinter.js"
-# ... repeat for each changed file
-
-# 2. Build
-cd "/Users/randy/POS Android APK"
+# 1. Build web assets
 npm run build
 
-# 3. Sync to Android
+# 2. Sync to Android (copies dist/ into android/ + syncs plugins)
 npx cap sync android
 
-# 4. Compile APK
-cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew assembleDebug
+# 3. Compile APK (JAVA_HOME required — not in system PATH)
+JAVA_HOME=/Users/randy/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home \
+  ./android/gradlew -p ./android assembleDebug
 
-# 5. Deploy to Desktop
-cp app/build/outputs/apk/debug/app-debug.apk ~/Desktop/PawonLoka-POS.apk
+# 4. Copy to Desktop
+cp ./android/app/build/outputs/apk/debug/app-debug.apk ~/Desktop/PawonLoka-debug.apk
 ```
 
 Also push to GitHub for Cloudflare Pages:
@@ -216,26 +224,99 @@ Also push to GitHub for Cloudflare Pages:
 git add -A && git commit -m "msg" && git push
 ```
 
+### If Kotlin/EscPosBuilder.kt changed but src/ did not:
+Skip step 1 (npm run build) — go straight to step 3 (gradlew). Kotlin is compiled separately from web assets. Step 2 (cap sync) is only needed if src/ or capacitor.config.ts changed.
+
 ---
 
-## 7. WHAT NOT TO DO — MISTAKES MADE 2026-06-24/25
+## 7. ESC/POS PRINT ARCHITECTURE (EscPosBuilder.kt)
 
-1. **NEVER copy `vite.config.js` from main to APK.** The APK build needs to bundle Capacitor packages; externalizing them causes "Failed to resolve module specifier" at runtime.
+### Print functions and when they're called
 
-2. **NEVER copy `index.html` from main to APK.** The APK's index.html has critical safe-area CSS that prevents the app from drawing under the Android 15 status bar.
+| JS function | Kotlin builder | Triggered by |
+|---|---|---|
+| `printKitchenTicket({stationRole:'receipt',...})` | `buildKitchenTicket()` | Cetak Checker (printCheck) + auto-checker on order send |
+| `printKitchenTicket({stationRole:'kitchen',...})` | `buildKitchenTicket()` | Kitchen dapur ticket |
+| `printPreBill(...)` | `buildPreBill()` | Cetak Tagihan (bill before payment) |
+| `printReceipt(...)` | `buildReceipt()` | Cetak Struk (receipt after payment) |
+| `printProductSoldReport(...)` | `buildProductSoldReport()` | ShiftModal after shift close |
 
-3. **NEVER query orders by table name.** Always use `open_bill_id` / order `id`. Table names are not unique across areas — same name in two areas = cross-contamination and data corruption.
+### Key ESC/POS commands (Cmd enum in EscPosBuilder.kt)
+```
+BOLD_ON/BOLD_OFF     — bold text
+TALL_ON/TALL_OFF     — double-height only (kitchen items; NOT on checker stationRole='receipt')
+DOUBLE_ON/DOUBLE_OFF — double-height + double-width (was used for "TAGIHAN" header, now removed)
+ALIGN_C / ALIGN_L    — center / left align (reset to ALIGN_L after every centered block)
+```
 
-4. **NEVER update `tables` status by name.** Use `.eq('id', t.id)`. Updating by name marks all tables with the same name.
+### Data classes (Kotlin)
+- `OutletSettings` — name, address, phone, website, tagline, thankYou, wifi, promo, social, customLine1/2, showOrderId, showTable, showCashier, showDatetime, showTax, showService, showLoyalty
+- `KitchenSettings` — showOutletName, outletName, showOrderId, showOrderType, showTable, showDatetime, showFooter, footerText
 
-5. **NEVER add `maxSdkVersion` restriction to `ACCESS_FINE_LOCATION` in AndroidManifest.xml.** BleClient's native permission check fails to find the permission when it's SDK-limited.
+### Helper functions
+```kotlin
+padLine(left, right, width)   // pads left+right to fit width — wraps if left is too long
+truncLine(left, right, width) // same but TRUNCATES left side to fit on single line — always use for items
+```
 
-6. **NEVER call `BleClient.initialize()` without calling `BleClient.requestPermissions()` first.** Initialize throws if permissions aren't granted; requestPermissions shows the dialog.
+### Checker specifics
+- Checker items print at NORMAL height (no TALL_ON): gated by `d.stationRole != "receipt"` in EscPosBuilder.kt
+- Footer note on checker: piped from `appSettings.receipt.pre_bill_note` as `footer_text` in JS before calling `printKitchenTicket()`
+- Kitchen footer text: always ALIGN_C (centered) + ALIGN_L reset after
 
-7. **NEVER hardcode service UUIDs as the only way to find printer characteristics.** Use `BleClient.getServices(deviceId)` to auto-discover — the printer model determines its UUIDs.
+### Logo bitmap sizing
+- 58mm paper: 200px max width (printable ~48mm @ 203dpi; was 384px, caused slowness)
+- 80mm paper: 300px max width (printable ~72mm @ 203dpi; was 576px)
 
-8. **NEVER print "Points earned" on receipts without checking `order.customer_id`.** Walk-in orders should not show points.
+### Settings wiring (JS → Kotlin)
+```js
+// In printBill() / handleReprint() — outlet object must have ALL fields:
+const outlet = {
+  name, address, phone, website, tagline,
+  showOrderId, showTable, showCashier, showDatetime,
+  // also: thankYou, wifi, promo, social, customLine1/2 (read from appSettings.outlet)
+}
 
-9. **NEVER add note inputs without `dir="ltr"` and `direction: 'ltr'` CSS.** Android WebView renders text RTL without these, producing reversed text.
+// In printCheck() — kitchen settings + footer from receipt designer:
+await printer.printKitchenTicket({
+  stationRole: 'receipt',
+  settings: {
+    ...kt,  // appSettings.kitchen_ticket
+    show_footer: !!(footerNote || kt.show_footer),
+    footer_text: footerNote || kt.footer_text || '',
+    // show_modifiers + show_note applied in JS before building item strings
+  }
+})
+```
 
-10. **NEVER deploy only to web (Cloudflare) without also rebuilding the APK.** The APK bundles web files at build time — it doesn't load from the live URL.
+---
+
+## 8. WHAT NOT TO DO — MISTAKES MADE 2026-06-24/28
+
+1. **NEVER use the old separate `/Users/randy/POS Android APK` project.** It is obsolete. All work is in `/Users/randy/PawonLoka-POS-Dashboard` with `android/` as a subfolder (Capacitor 8).
+
+2. **NEVER run Gradle as `cd android && ./gradlew`.** Run from project root: `./android/gradlew -p ./android assembleDebug`. The subshell cd approach fails with "No such file or directory".
+
+3. **NEVER run Gradle without JAVA_HOME set.** Java is not in the system PATH for Gradle. Always prefix: `JAVA_HOME=/Users/randy/.gradle/jdks/eclipse_adoptium-17-aarch64-os_x.2/jdk-17.0.19+10/Contents/Home`.
+
+4. **NEVER query orders by table name.** Always use `open_bill_id` / order `id`. Table names are not unique across areas — same name in two areas = cross-contamination and data corruption.
+
+5. **NEVER update `tables` status by name.** Use `.eq('id', t.id)`. Updating by name marks all tables with the same name.
+
+6. **NEVER add `maxSdkVersion` restriction to `ACCESS_FINE_LOCATION` in AndroidManifest.xml.** BleClient's native permission check fails to find the permission when it's SDK-limited.
+
+7. **NEVER call `BleClient.initialize()` without calling `BleClient.requestPermissions()` first.** Initialize throws if permissions aren't granted; requestPermissions shows the dialog.
+
+8. **NEVER hardcode service UUIDs as the only way to find printer characteristics.** Use `BleClient.getServices(deviceId)` to auto-discover — the printer model determines its UUIDs.
+
+9. **NEVER print "Points earned" on receipts without checking `order.customer_id`.** Walk-in orders should not show points.
+
+10. **NEVER add note inputs without `dir="ltr"` and `direction: 'ltr'` CSS.** Android WebView renders text RTL without these, producing reversed text.
+
+11. **NEVER deploy only to web (Cloudflare) without also rebuilding the APK.** The APK bundles web files at build time — it doesn't load from the live URL.
+
+12. **NEVER use `padLine()` for item lines in EscPosBuilder.kt.** Use `truncLine()` — `padLine` wraps long names to a second line which breaks receipt formatting. `truncLine` cuts the left side to fit on one line.
+
+13. **NEVER pass only 3 fields in `printBill()` outlet object.** The receipt designer has ~20 settings (name, address, phone, website, tagline, showOrderId, showTable, showCashier, showDatetime, etc.) — all must be wired through.
+
+14. **NEVER assume checker print uses receipt settings.** `printCheck()` calls `printKitchenTicket()` with `stationRole='receipt'`. Kitchen ticket settings apply; only `pre_bill_note` from receipt designer pipes in as the footer.

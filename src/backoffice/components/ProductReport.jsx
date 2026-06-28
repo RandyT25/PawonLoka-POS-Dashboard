@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
+import MultiItemSelect from "./MultiItemSelect"
+import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
 const fmt   = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const today = () => new Date().toISOString().slice(0,10)
@@ -10,6 +12,7 @@ export default function ProductReport() {
   const [customDate,  setCustomDate]  = useState(today())
   const [customDateTo,setCustomDateTo]= useState(today())
   const [catFilter,   setCatFilter]   = useState("")
+  const [itemFilter,  setItemFilter]  = useState(new Set())
   const [sortBy,      setSortBy]      = useState("qty")
   const [rows,        setRows]        = useState([])
   const [cats,        setCats]        = useState([])
@@ -50,8 +53,41 @@ export default function ProductReport() {
   useEffect(() => { loadRef.current = load })
   useEffect(() => { load() }, [load])
 
+  const allItemNames = useMemo(() => rows.map(r => r.name).sort(), [rows])
+
+  const filterLabel = [
+    catFilter ? "Kategori: " + catFilter : null,
+    itemFilter.size > 0 ? [...itemFilter].join(", ") : null,
+  ].filter(Boolean).join(" | ") || null
+  const periodLabel = formatPeriodLabel(range, customDate, customDateTo)
+  const slug = filenameSlug(range, customDate, customDateTo)
+
+  function handleExportExcel() {
+    exportExcel({
+      title: "Laporan Produk", periodLabel, filterLabel,
+      filename: "pawonloka-produk-" + slug + ".xlsx",
+      sheets: [{
+        name: "Produk",
+        columns: ["#","Produk","Kategori","Qty Terjual","Revenue","Avg Harga"],
+        colWidths: [6,28,18,14,20,18],
+        rows: filtered.map((r,i) => [i+1, r.name, r.cat, r.qty, fmtIDR(r.revenue), fmtIDR(r.avgPrice)]),
+      }],
+    })
+  }
+
+  function handleExportPdf() {
+    exportPDF({
+      title: "Laporan Produk", periodLabel, filterLabel,
+      filename: "pawonloka-produk-" + slug + ".pdf",
+      tables: [{
+        head: ["#","Produk","Kategori","Qty","Revenue","Avg"],
+        body: filtered.map((r,i) => [i+1, r.name, r.cat, r.qty+"×", fmtIDR(r.revenue), fmtIDR(r.avgPrice)]),
+      }],
+    })
+  }
+
   const filtered = rows
-    .filter(r => !catFilter || r.cat === catFilter)
+    .filter(r => (!catFilter || r.cat === catFilter) && (itemFilter.size === 0 || itemFilter.has(r.name)))
     .sort((a,b) => sortBy === "qty" ? b.qty - a.qty : b.revenue - a.revenue)
   const totals = filtered.reduce((s,r) => ({ qty:s.qty+r.qty, revenue:s.revenue+r.revenue }), { qty:0, revenue:0 })
 
@@ -60,7 +96,6 @@ export default function ProductReport() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
         loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
-        {/* Extra filters injected into the date picker row */}
         <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{height:34,fontSize:13}}>
           <option value="">Semua Kategori</option>
           {cats.map(c => <option key={c}>{c}</option>)}
@@ -69,6 +104,9 @@ export default function ProductReport() {
           <option value="qty">Urut: Qty</option>
           <option value="revenue">Urut: Revenue</option>
         </select>
+        <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
+        <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
+        <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
       </DateRangePicker>
 
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}

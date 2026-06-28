@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
+import MultiItemSelect from "./MultiItemSelect"
+import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
 const PAY_COLORS = { Cash:"#10B981", QRIS:"#0EA5E9", Card:"#1565C0", GoPay:"#00ADE0", OVO:"#8B5CF6", Other:"#94A3B8" }
@@ -14,6 +16,8 @@ export default function SalesAnalysis() {
   const [err,          setErr]          = useState(null)
   const [lastUpdated,  setLastUpdated]  = useState(null)
 
+  const [itemFilter,  setItemFilter]  = useState(new Set())
+  const [rawOrders,   setRawOrders]  = useState([])
   const [summary,  setSummary]  = useState({ revenue:0, cogs:0, profit:0, orders:0, avg:0, margin:0 })
   const [payments, setPayments] = useState([])
   const [byDay,    setByDay]    = useState([])
@@ -22,48 +26,55 @@ export default function SalesAnalysis() {
     setLoading(true)
     setErr(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
-    let q = supabase.from("orders")
-      .select("*")
-      .gte("created_at", fromStr)
+    let q = supabase.from("orders").select("*").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("created_at", { ascending: false })
     if (error) { console.error(error); setErr(error.message); setLoading(false); return }
+    setRawOrders((data || []).filter(o => !o.status || o.status === "Paid" || o.status === "paid"))
+    setLastUpdated(new Date())
+    setLoading(false)
+  }, [range, customDate, customDateTo])
 
-    const orders = (data || []).filter(o => !o.status || o.status === "Paid" || o.status === "paid")
+  const parseItems = o => {
+    const raw = o.items_snapshot || o.items || []
+    return typeof raw === "string" ? JSON.parse(raw || "[]") : (raw || [])
+  }
 
-    // Summary
-    const revenue = orders.reduce((s, o) => s + (o.total || 0), 0)
-    const cogs    = orders.reduce((s, o) => s + (o.cogs  || 0), 0)
+  const allItemNames = useMemo(() => {
+    const names = new Set()
+    rawOrders.forEach(o => parseItems(o).forEach(i => { if (i.name) names.add(i.name) }))
+    return [...names].sort()
+  }, [rawOrders])
+
+  const filteredOrders = useMemo(() => {
+    if (itemFilter.size === 0) return rawOrders
+    return rawOrders.filter(o => parseItems(o).some(i => itemFilter.has(i.name)))
+  }, [rawOrders, itemFilter])
+
+  useEffect(() => {
+    const revenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0)
+    const cogs    = filteredOrders.reduce((s, o) => s + (o.cogs  || 0), 0)
     const profit  = revenue - cogs
-    const avg     = orders.length ? Math.round(revenue / orders.length) : 0
+    const avg     = filteredOrders.length ? Math.round(revenue / filteredOrders.length) : 0
     const margin  = revenue > 0 ? Math.round(profit / revenue * 100) : 0
-    setSummary({ revenue, cogs, profit, orders:orders.length, avg, margin })
+    setSummary({ revenue, cogs, profit, orders:filteredOrders.length, avg, margin })
 
-    // Payment methods
     const payMap = {}
-    orders.forEach(o => {
-      const m = o.pay || "Other"
-      payMap[m] = (payMap[m] || 0) + (o.total || 0)
-    })
-    const payArr = Object.entries(payMap)
+    filteredOrders.forEach(o => { const m = o.pay || "Other"; payMap[m] = (payMap[m] || 0) + (o.total || 0) })
+    setPayments(Object.entries(payMap)
       .map(([method, amount]) => ({ method, amount, pct: revenue ? Math.round(amount / revenue * 100) : 0 }))
-      .sort((a, b) => b.amount - a.amount)
-    setPayments(payArr)
+      .sort((a, b) => b.amount - a.amount))
 
-    // Day-by-day (only meaningful for week/month)
     const dayMap = {}
-    orders.forEach(o => {
+    filteredOrders.forEach(o => {
       const d = o.created_at?.slice(0, 10) || "?"
       if (!dayMap[d]) dayMap[d] = { date:d, orders:0, revenue:0, cogs:0 }
       dayMap[d].orders++
       dayMap[d].revenue += o.total || 0
       dayMap[d].cogs    += o.cogs  || 0
     })
-    const dayArr = Object.values(dayMap).sort((a, b) => b.date.localeCompare(a.date))
-    setByDay(dayArr)
-    setLastUpdated(new Date())
-    setLoading(false)
-  }, [range, customDate, customDateTo])
+    setByDay(Object.values(dayMap).sort((a, b) => b.date.localeCompare(a.date)))
+  }, [filteredOrders])
 
   const loadRef = useRef(load)
   useEffect(() => { loadRef.current = load })
@@ -86,10 +97,93 @@ export default function SalesAnalysis() {
   }, [])
 
   const maxPay = payments[0]?.amount || 1
+  const filterLabel = itemFilter.size > 0 ? [...itemFilter].join(", ") : null
+  const periodLabel = formatPeriodLabel(range, customDate, customDateTo)
+  const slug = filenameSlug(range, customDate, customDateTo)
+
+  function handleExportExcel() {
+    exportExcel({
+      title: "Analisis Penjualan", periodLabel, filterLabel,
+      filename: "pawonloka-analisis-" + slug + ".xlsx",
+      sheets: [
+        {
+          name: "Ringkasan",
+          columns: ["Metrik", "Nilai"],
+          colWidths: [28, 22],
+          rows: [
+            ["Gross Revenue",  fmtIDR(summary.revenue)],
+            ["Est. COGS",      fmtIDR(summary.cogs)],
+            ["Gross Profit",   fmtIDR(summary.profit)],
+            ["Margin",         summary.margin + "%"],
+            ["Total Transaksi",summary.orders],
+            ["Avg per Order",  fmtIDR(summary.avg)],
+          ],
+        },
+        {
+          name: "Per Hari",
+          columns: ["Tanggal","Transaksi","Revenue","COGS","Profit","Margin"],
+          colWidths: [20,14,20,20,20,12],
+          rows: byDay.map(d => {
+            const p = d.revenue - d.cogs
+            return [
+              new Date(d.date + "T12:00:00").toLocaleDateString("id-ID"),
+              d.orders, fmtIDR(d.revenue), fmtIDR(d.cogs),
+              fmtIDR(p), (d.revenue > 0 ? Math.round(p/d.revenue*100) : 0) + "%",
+            ]
+          }),
+        },
+        {
+          name: "Pembayaran",
+          columns: ["Metode","Jumlah","Persen"],
+          colWidths: [20,22,12],
+          rows: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+        },
+      ],
+    })
+  }
+
+  function handleExportPdf() {
+    const tables = [
+      {
+        label: "Ringkasan P&L",
+        head: ["Metrik", "Nilai"],
+        body: [
+          ["Gross Revenue",  fmtIDR(summary.revenue)],
+          ["Est. COGS",      fmtIDR(summary.cogs)],
+          ["Gross Profit",   fmtIDR(summary.profit)],
+          ["Margin",         summary.margin + "%"],
+          ["Total Transaksi",summary.orders],
+          ["Avg per Order",  fmtIDR(summary.avg)],
+        ],
+      },
+      ...(payments.length > 0 ? [{
+        label: "Metode Pembayaran",
+        head: ["Metode", "Jumlah", "Persen"],
+        body: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+      }] : []),
+      ...(byDay.length > 0 ? [{
+        label: "Penjualan per Hari",
+        head: ["Tanggal","Transaksi","Revenue","COGS","Profit","Margin"],
+        body: byDay.map(d => {
+          const p = d.revenue - d.cogs
+          return [
+            new Date(d.date + "T12:00:00").toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"}),
+            d.orders, fmtIDR(d.revenue), fmtIDR(d.cogs),
+            fmtIDR(p), (d.revenue > 0 ? Math.round(p/d.revenue*100) : 0) + "%",
+          ]
+        }),
+      }] : []),
+    ]
+    exportPDF({ title:"Analisis Penjualan", periodLabel, filterLabel, tables, filename:"pawonloka-analisis-" + slug + ".pdf" })
+  }
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
+        <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
+        <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
+        <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
+      </DateRangePicker>
 
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 

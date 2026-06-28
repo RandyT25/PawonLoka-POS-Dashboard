@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
+import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
 
@@ -109,17 +110,119 @@ export default function Dashboard() {
   }, [])
 
   const margin = stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0
+  const periodLabel = formatPeriodLabel(range, customDate, customDateTo)
+  const slug = filenameSlug(range, customDate, customDateTo)
+
+  function handleExportExcel() {
+    exportExcel({
+      title: "Dashboard Penjualan", periodLabel, filterLabel: null,
+      filename: "pawonloka-dashboard-" + slug + ".xlsx",
+      sheets: [
+        {
+          name: "Ringkasan",
+          columns: ["Metrik", "Nilai"],
+          colWidths: [28, 24],
+          rows: [
+            ["Total Keseluruhan",  fmtIDR(stats.sales + stats.unpaidSales)],
+            ["Sudah Dibayar",      fmtIDR(stats.sales)],
+            ["Belum Dibayar",      fmtIDR(stats.unpaidSales)],
+            ["Transaksi Lunas",    stats.paidOrders],
+            ["Open Bills",         stats.openOrders],
+            ["Avg per Order",      fmtIDR(stats.avgOrder)],
+            ["Gross Profit",       fmtIDR(stats.grossProfit)],
+            ["Margin",             margin + "%"],
+            ["Produk Terjual",     stats.totalProductsSold],
+            ["Proyeksi Bulan Ini", fmtIDR(stats.projection)],
+          ],
+        },
+        {
+          name: "Pembayaran",
+          columns: ["Metode","Jumlah","Persen"],
+          colWidths: [20,22,12],
+          rows: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+        },
+        {
+          name: "Top Produk",
+          columns: ["Produk","Qty Terjual"],
+          colWidths: [28,16],
+          rows: topProds.map(t => [t.name, t.qty]),
+        },
+        {
+          name: "Transaksi",
+          columns: ["Order","Status","Meja","Staff","Pembayaran","Total","Waktu"],
+          colWidths: [16,12,12,14,14,20,14],
+          rows: recent.map(o => [
+            o.code || "#" + String(o.id).slice(-6),
+            o.status || "Paid",
+            o.table_name || o.table || "Walk-in",
+            o.staff || "—",
+            o.pay || "—",
+            fmtIDR(o.total),
+            new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+          ]),
+        },
+      ],
+    })
+  }
+
+  function handleExportPdf() {
+    exportPDF({
+      title: "Dashboard Penjualan", periodLabel, filterLabel: null,
+      filename: "pawonloka-dashboard-" + slug + ".pdf",
+      tables: [
+        {
+          label: "Ringkasan",
+          head: ["Metrik","Nilai"],
+          body: [
+            ["Total Keseluruhan",  fmtIDR(stats.sales + stats.unpaidSales)],
+            ["Sudah Dibayar",      fmtIDR(stats.sales)],
+            ["Belum Dibayar",      fmtIDR(stats.unpaidSales)],
+            ["Transaksi Lunas",    stats.paidOrders],
+            ["Avg per Order",      fmtIDR(stats.avgOrder)],
+            ["Gross Profit",       fmtIDR(stats.grossProfit)],
+            ["Margin",             margin + "%"],
+          ],
+        },
+        ...(payments.length > 0 ? [{
+          label: "Metode Pembayaran",
+          head: ["Metode","Jumlah","Persen"],
+          body: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+        }] : []),
+        ...(topProds.length > 0 ? [{
+          label: "Top Produk",
+          head: ["Produk","Qty"],
+          body: topProds.map(t => [t.name, t.qty + "×"]),
+        }] : []),
+        {
+          label: "Transaksi Terbaru",
+          head: ["Order","Status","Meja","Staff","Pembayaran","Total","Waktu"],
+          body: recent.map(o => [
+            o.code || "#" + String(o.id).slice(-6),
+            o.status || "Paid",
+            o.table_name || o.table || "Walk-in",
+            o.staff || "—",
+            o.pay || "—",
+            fmtIDR(o.total),
+            new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+          ]),
+        },
+      ],
+    })
+  }
 
   return (
     <div>
-      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+      <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate} customDateTo={customDateTo} setCustomDateTo={setCustomDateTo} loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
+        <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
+        <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
+      </DateRangePicker>
 
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       {/* ── Hero ─────────────────────────────────────── */}
       <div style={{ background:"linear-gradient(135deg,#0A1628,#0052CC)", borderRadius:16, padding:"22px 24px", color:"#fff", marginBottom:12 }}>
         {/* 3-column grid fills the full width */}
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1px 1fr 1px 1fr", gap:"0 20px", marginBottom:16 }}>
+        <div className="bo-dash-hero-grid" style={{ gap:"0 20px", marginBottom:16 }}>
           {/* Col 1 — Grand Total */}
           <div>
             <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>Total Keseluruhan</div>
@@ -130,7 +233,7 @@ export default function Dashboard() {
           <div style={{ background:"rgba(255,255,255,0.15)" }}/>
           {/* Col 2 — Sudah Dibayar */}
           <div>
-            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>✓ Sudah Dibayar</div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>Sudah Dibayar</div>
             <div style={{ fontSize:26, fontWeight:900, letterSpacing:"-0.5px", lineHeight:1 }}>{fmt(stats.sales)}</div>
             <div style={{ fontSize:11, opacity:0.4, marginTop:5 }}>{stats.paidOrders} transaksi lunas</div>
           </div>
@@ -138,7 +241,7 @@ export default function Dashboard() {
           <div style={{ background:"rgba(255,255,255,0.15)" }}/>
           {/* Col 3 — Belum Dibayar */}
           <div>
-            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>⏳ Belum Dibayar</div>
+            <div style={{ fontSize:10, fontWeight:700, opacity:0.5, textTransform:"uppercase", letterSpacing:"0.6px", marginBottom:6 }}>Belum Dibayar</div>
             <div style={{ fontSize:26, fontWeight:900, letterSpacing:"-0.5px", lineHeight:1, color: stats.unpaidSales > 0 ? "#FCD34D" : "rgba(255,255,255,0.3)" }}>{fmt(stats.unpaidSales)}</div>
             <div style={{ fontSize:11, opacity:0.4, marginTop:5 }}>{stats.openOrders} open bill</div>
           </div>
