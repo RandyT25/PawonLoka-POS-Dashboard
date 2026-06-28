@@ -95,10 +95,10 @@ function PrinterIllustration() {
 
 // ── Station config ────────────────────────────────────────────────────────────
 const STATIONS = [
-  { id: "kitchen", label: "Printer Kasir",   Icon: IconReceipt },
-  { id: "snack",   label: "Printer Dapur 1", Icon: IconChef    },
-  { id: "bar",     label: "Printer Dapur 2", Icon: IconDrink   },
-  { id: "receipt", label: "Printer Struk",   Icon: IconPrinter },
+  { id: "receipt", label: "Printer Kasir",   Icon: IconReceipt },
+  { id: "kitchen", label: "Printer Dapur 1", Icon: IconChef    },
+  { id: "snack",   label: "Printer Dapur 2", Icon: IconDrink   },
+  { id: "bar",     label: "Printer Dapur 3", Icon: IconDrink   },
 ];
 
 const CONNECTION_TYPES = [

@@ -31,7 +31,7 @@ class PrintBridgePlugin : Plugin() {
     // ── Device discovery ──────────────────────────────────────────────────────
     @PluginMethod
     fun getBondedDevices(call: PluginCall) {
-        val devices = PrinterManager.getBondedDevices()
+        val devices = PrinterManager.getBondedDevices(context)
         val arr = JSArray()
         for (d in devices) {
             arr.put(JSObject().put("mac", d["mac"]).put("name", d["name"]))
@@ -91,6 +91,9 @@ class PrintBridgePlugin : Plugin() {
     @PluginMethod
     fun testPrint(call: PluginCall) {
         val station = call.getString("station") ?: return call.reject("station required")
+        if (!PrinterManager.isStationConnected(station)) {
+            return call.reject("Printer tidak terhubung — pastikan printer menyala dan dalam jangkauan Bluetooth")
+        }
         val paperSize = (PrinterManager.getStatus()[station] as? Map<*, *>)?.get("paperSize") as? String ?: "80mm"
         val payload = """{"station":"$station","paperSize":"$paperSize"}"""
         scope.launch {

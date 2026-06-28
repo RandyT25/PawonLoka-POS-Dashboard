@@ -1,10 +1,13 @@
 package com.pawonloka.pos.printing
 
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothDevice
+import android.Manifest
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothSocket
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.util.Log
+import androidx.core.app.ActivityCompat
 import kotlinx.coroutines.*
 import java.io.IOException
 import java.util.UUID
@@ -31,19 +34,31 @@ class PrinterConnection(
     suspend fun connect(): Boolean = withContext(Dispatchers.IO) {
         if (status == ConnectionStatus.CONNECTED && socket?.isConnected == true) return@withContext true
         status = ConnectionStatus.CONNECTING
+
+        // Permission guard — Android 12+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
+                != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "[$station] BLUETOOTH_CONNECT not granted — skipping connect")
+            status = ConnectionStatus.DISCONNECTED
+            return@withContext false
+        }
+
         try {
-            val adapter = BluetoothAdapter.getDefaultAdapter()
-                ?: return@withContext false.also { status = ConnectionStatus.ERROR }
-            val device: BluetoothDevice = adapter.getRemoteDevice(mac)
+            val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter
+                ?: return@withContext false.also { status = ConnectionStatus.DISCONNECTED }
+            val device = adapter.getRemoteDevice(mac)
             adapter.cancelDiscovery()
-            // Insecure RFCOMM skips PIN/security handshake — thermal printers don't need it
-            val s = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID)
-            val connected = kotlinx.coroutines.withTimeoutOrNull(10_000L) {
-                s.connect()
-                true
-            } ?: false
-            if (!connected) {
-                try { s.close() } catch (_: Exception) {}
+
+            // Try insecure RFCOMM first (no PIN), then fall back to secure
+            var s: BluetoothSocket = device.createInsecureRfcommSocketToServiceRecord(SPP_UUID)
+            var ok = tryConnectSocket(s)
+            if (!ok) {
+                Log.d(TAG, "[$station] Insecure RFCOMM failed, trying secure...")
+                s = device.createRfcommSocketToServiceRecord(SPP_UUID)
+                ok = tryConnectSocket(s)
+            }
+            if (!ok) {
                 status = ConnectionStatus.DISCONNECTED
                 return@withContext false
             }
@@ -55,6 +70,22 @@ class PrinterConnection(
             Log.w(TAG, "[$station] Connect failed: ${e.message}")
             closeSocket()
             status = ConnectionStatus.DISCONNECTED
+            false
+        }
+    }
+
+    private fun tryConnectSocket(s: BluetoothSocket): Boolean {
+        return try {
+            val ok = runBlocking(Dispatchers.IO) {
+                withTimeoutOrNull(10_000L) {
+                    s.connect()
+                    true
+                }
+            } ?: false
+            if (!ok) try { s.close() } catch (_: Exception) {}
+            ok
+        } catch (e: Exception) {
+            try { s.close() } catch (_: Exception) {}
             false
         }
     }

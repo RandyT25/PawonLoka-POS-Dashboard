@@ -1,6 +1,6 @@
 package com.pawonloka.pos.printing
 
-import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -32,8 +32,25 @@ object PrinterManager {
     private fun prefs(context: Context): SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
+    private fun migrateKitchenToReceipt(p: SharedPreferences) {
+        val hasReceipt = p.getString("receipt_mac", null) != null || p.getString("receipt_ip", null) != null
+        val kitchenMac = p.getString("kitchen_mac", null)
+        if (!hasReceipt && kitchenMac != null) {
+            p.edit()
+                .putString("receipt_type", p.getString("kitchen_type", "bluetooth"))
+                .putString("receipt_mac",  kitchenMac)
+                .putString("receipt_name", p.getString("kitchen_name", "") ?: "")
+                .putString("receipt_size", p.getString("kitchen_size", "80mm") ?: "80mm")
+                .remove("kitchen_type").remove("kitchen_mac")
+                .remove("kitchen_name").remove("kitchen_size")
+                .apply()
+            Log.i(TAG, "Migrated kitchen printer → receipt station")
+        }
+    }
+
     fun loadPrintersFromPrefs(context: Context) {
         val p = prefs(context)
+        migrateKitchenToReceipt(p)
         btConnections.clear()
         lanConnections.clear()
         for (station in STATIONS) {
@@ -106,8 +123,8 @@ object PrinterManager {
     }
 
     // ── Bonded devices (for Bluetooth picker in UI) ───────────────────────────
-    fun getBondedDevices(): List<Map<String, String>> {
-        val adapter = BluetoothAdapter.getDefaultAdapter() ?: return emptyList()
+    fun getBondedDevices(context: Context): List<Map<String, String>> {
+        val adapter = context.getSystemService(BluetoothManager::class.java)?.adapter ?: return emptyList()
         return adapter.bondedDevices.map { mapOf("mac" to it.address, "name" to (it.name ?: it.address)) }
     }
 
@@ -147,8 +164,8 @@ object PrinterManager {
         }
     }
 
-    // ── Send helper (used by drain loop) ─────────────────────────────────────
-    private fun isStationConnected(station: String): Boolean =
+    // ── Send helper (used by drain loop and plugin) ───────────────────────────
+    fun isStationConnected(station: String): Boolean =
         btConnections[station]?.status == ConnectionStatus.CONNECTED ||
         lanConnections[station]?.status == ConnectionStatus.CONNECTED
 
