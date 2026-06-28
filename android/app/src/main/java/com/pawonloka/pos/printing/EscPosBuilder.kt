@@ -162,8 +162,8 @@ object EscPosBuilder {
     private val gson = Gson()
 
     fun initLogo(context: Context) {
-        logoBytes58 = renderLogoBytes(context, 384)   // 48 mm @ 203 dpi
-        logoBytes80 = renderLogoBytes(context, 576)   // 72 mm @ 203 dpi
+        logoBytes58 = renderLogoBytes(context, 200)
+        logoBytes80 = renderLogoBytes(context, 300)
     }
 
     private fun renderLogoBytes(context: Context, printWidthPx: Int): ByteArray? {
@@ -287,7 +287,7 @@ object EscPosBuilder {
         return buf {
             add(Cmd.INIT)
             add(Cmd.ALIGN_C)
-            add(Cmd.BOLD_ON); add(Cmd.DOUBLE_ON); addLine("TAGIHAN"); add(Cmd.DOUBLE_OFF); add(Cmd.BOLD_OFF)
+            add(Cmd.BOLD_ON); addLine("TAGIHAN"); add(Cmd.BOLD_OFF)
             if (!d.outlet.name.isNullOrBlank()) addLine(d.outlet.name)
             if (!d.datetime.isNullOrBlank())    addLine(d.datetime)
             if (!d.table.isNullOrBlank())       addLine("Meja: ${d.table}")

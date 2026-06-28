@@ -41,7 +41,7 @@ export default function Cart({
   }
 
   return (
-    <div style={S.cart}>
+    <div style={S.cart} className="cart-inner">
       {/* Order Type */}
       <div style={S.typeRow}>
         {['Dine-in','Takeaway','Delivery'].map(t => (
