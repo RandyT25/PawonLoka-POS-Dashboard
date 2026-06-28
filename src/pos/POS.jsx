@@ -111,13 +111,11 @@ export default function POS() {
   const [shiftAsked, setShiftAsked]       = useState(false)
   const [showClock, setShowClock]         = useState(false)
   const [showSettings, setShowSettings]   = useState(false)
-  const [pwaInstallable, setPwaInstallable] = useState(false)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [voidAuth, setVoidAuth] = useState(null) // {orderId, reason, pin}
 
   useEffect(() => {
-    window.addEventListener('pwa-installable', () => setPwaInstallable(true))
     const goOffline = () => setIsOffline(true)
     const goOnline = () => setIsOffline(false)
     window.addEventListener('offline', goOffline)
@@ -1359,7 +1357,7 @@ export default function POS() {
           <div onClick={e => { if(e.target===e.currentTarget) setShowSettings(false) }}
             style={{ position:'fixed', inset:0, background:'rgba(9,30,66,0.6)', zIndex:2000, display:'flex', justifyContent:'flex-end' }}>
             <div style={{ width:'min(360px,100vw)', background:'#fff', display:'flex', flexDirection:'column', boxShadow:'-4px 0 24px rgba(9,30,66,0.2)', overflowY:'auto' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', background:'#0A1628', flexShrink:0 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'16px 20px', paddingTop:'calc(16px + env(safe-area-inset-top))', background:'#0A1628', flexShrink:0 }}>
                 <div>
                   <div style={{ fontSize:16, fontWeight:900, color:'white' }}>POS Settings</div>
                   <div style={{ fontSize:11, color:'rgba(255,255,255,0.4)', marginTop:2 }}>Terminal configuration</div>
@@ -1368,20 +1366,6 @@ export default function POS() {
                   style={{ background:'rgba(255,255,255,0.1)', border:'none', color:'white', width:32, height:32, borderRadius:'50%', fontSize:18, cursor:'pointer' }}>x</button>
               </div>
               <div style={{ flex:1, overflowY:'auto', padding:16, display:'flex', flexDirection:'column', gap:16 }}>
-                <div style={{ background:'#EFF6FF', borderRadius:10, padding:'12px 14px', marginBottom:16 }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:'#0052CC', marginBottom:6 }}>📲 Install PawonLoka App — Recommended</div>
-                  <div style={{ fontSize:12, color:'#42526E', lineHeight:1.7, marginBottom:8 }}>
-                    Installing as an app <b>prevents accidental page refreshes</b> that disconnect the printer. The app reconnects automatically when opened.<br/><br/>
-                    <b>Android Chrome:</b> Menu (⋮) → Add to Home Screen<br/>
-                    <b>iPhone/iPad:</b> Share (□↑) → Add to Home Screen
-                  </div>
-                  {pwaInstallable && (
-                    <button onClick={()=>window.installPWA()}
-                      style={{ width:'100%', padding:'8px 0', borderRadius:8, border:'none', background:'#0052CC', color:'#fff', fontWeight:700, fontSize:13, cursor:'pointer' }}>
-                      Install Now
-                    </button>
-                  )}
-                </div>
                 <div style={{ fontSize:13, fontWeight:700, color:'#091E42', paddingBottom:8, borderBottom:'1px solid #DFE1E6' }}>Printer & Hardware</div>
                 <PrinterSettings hook={printer} />
               </div>

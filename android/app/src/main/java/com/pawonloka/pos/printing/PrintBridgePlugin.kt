@@ -61,6 +61,9 @@ class PrintBridgePlugin : Plugin() {
                 .put("name",      s["name"])
                 .put("paperSize", s["paperSize"])
                 .put("connected", s["connected"])
+                .put("type",      s["type"] ?: "bluetooth")
+                .put("ip",        s["ip"]   ?: "")
+                .put("port",      s["port"] ?: 9100)
             )
         }
         call.resolve(result)
@@ -94,6 +97,18 @@ class PrintBridgePlugin : Plugin() {
             PrinterManager.enqueuePrint(station, "test", payload)
         }
         call.resolve(JSObject().put("queued", true))
+    }
+
+    // ── Network printer config ────────────────────────────────────────────────
+    @PluginMethod
+    fun setNetworkPrinter(call: PluginCall) {
+        val station   = call.getString("station")       ?: return call.reject("station required")
+        val ip        = call.getString("ip")            ?: return call.reject("ip required")
+        val port      = call.getInt("port", 9100)!!
+        val name      = call.getString("name", ip)!!
+        val paperSize = call.getString("paperSize", "80mm")!!
+        PrinterManager.saveNetworkPrinter(context, station, ip, port, name, paperSize)
+        call.resolve(JSObject().put("ok", true))
     }
 
     // ── Queue status ──────────────────────────────────────────────────────────
