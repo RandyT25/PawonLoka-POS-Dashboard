@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">PawonLoka POS</string>
+    <string name="title_activity_main">PawonLoka POS</string>
+    <string name="package_name">com.pawonloka.pos</string>
+    <string name="custom_url_scheme">com.pawonloka.pos</string>
+</resources>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmt } from '../../shared/constants'
 import { qr } from '../../lib/quickRead'
-import { buildShiftReport, buildProductSoldReport, renderToBytes } from '../hooks/usePrinter'
+import { printShiftReport, printProductSoldReport } from '../hooks/usePrinter'
 
 export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
   const [float, setFloat]     = useState('')
@@ -91,10 +91,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
     if (printer) {
       try {
         const rp = printer.printers?.find(p => p.role === 'receipt')
-        if (rp) {
-          const bytes = renderToBytes(buildShiftReport({ shift, report, paperSize: rp.paperSize }))
-          await printer.printBytes(rp.id, bytes)
-        }
+        if (rp) await printShiftReport({ shift, report, paperSize: rp.paperSize })
       } catch (_) { /* print failure should not block logout */ }
     }
 
@@ -126,10 +123,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
     if (printer && productData) {
       try {
         const rp = printer.printers?.find(p => p.role === 'receipt')
-        if (rp) {
-          const bytes = renderToBytes(buildProductSoldReport({ shift, productData, paperSize: rp.paperSize }))
-          await printer.printBytes(rp.id, bytes)
-        }
+        if (rp) await printProductSoldReport({ shift, productData, paperSize: rp.paperSize })
       } catch (_) { /* print failure should not block logout */ }
     }
     onLogout()
