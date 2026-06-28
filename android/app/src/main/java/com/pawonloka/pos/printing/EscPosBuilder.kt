@@ -239,7 +239,7 @@ object EscPosBuilder {
             // Items
             for (item in d.items) {
                 val itemTotal = item.price * item.qty - item.itemDisc
-                addLine(padLine("${item.qty}x ${item.name}", fmt(item.price), w))
+                addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price), w))
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
                 if (item.qty > 1 || item.itemDisc > 0)
@@ -289,12 +289,12 @@ object EscPosBuilder {
             add(Cmd.ALIGN_C)
             add(Cmd.BOLD_ON); addLine("TAGIHAN"); add(Cmd.BOLD_OFF)
             if (!d.outlet.name.isNullOrBlank()) addLine(d.outlet.name)
-            if (!d.datetime.isNullOrBlank())    addLine(d.datetime)
-            if (!d.table.isNullOrBlank())       addLine("Meja: ${d.table}")
+            if (d.outlet.showDatetime && !d.datetime.isNullOrBlank()) addLine(d.datetime)
+            if (d.outlet.showTable    && !d.table.isNullOrBlank())    addLine("Meja: ${d.table}")
             addLine(dash(w))
             add(Cmd.ALIGN_L)
             for (item in d.items) {
-                addLine(padLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
+                addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
             }
@@ -355,10 +355,13 @@ object EscPosBuilder {
                     for (item in d.cancelItems) addLines(item)
                 }
             } else {
+                val useTall = d.stationRole != "receipt"
                 for (item in (d.items + d.cancelItems)) {
-                    add(Cmd.BOLD_ON); add(Cmd.TALL_ON)
+                    add(Cmd.BOLD_ON)
+                    if (useTall) add(Cmd.TALL_ON)
                     addLines(item)
-                    add(Cmd.TALL_OFF); add(Cmd.BOLD_OFF)
+                    if (useTall) add(Cmd.TALL_OFF)
+                    add(Cmd.BOLD_OFF)
                 }
             }
             addLine(dash(w))
@@ -483,6 +486,12 @@ object EscPosBuilder {
     private fun fmt(amount: Long): String {
         val nf = NumberFormat.getNumberInstance(Locale("id", "ID"))
         return "Rp ${nf.format(amount)}"
+    }
+
+    private fun truncLine(left: String, right: String, width: Int): String {
+        val avail = width - right.length - 1
+        val l = if (left.length > avail) left.take(avail) else left
+        return padLine(l, right, width)
     }
 
     private fun padLine(left: String, right: String, width: Int): String {

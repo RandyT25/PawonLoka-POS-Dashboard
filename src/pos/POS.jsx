@@ -711,6 +711,8 @@ export default function POS() {
     if (appSettings?.pos_behaviour?.auto_print_checker !== false && !receiptUsedAsStation) {
       const rp = printer.printers?.find(p => p.role === 'receipt')
       if (rp) {
+        const _kt = appSettings?.kitchen_ticket || {}
+        const _footerNote = (appSettings?.receipt?.pre_bill_note || '').trim()
         printer.printKitchenTicket({
           stationRole: 'receipt',
           stationName: 'CHECKER',
@@ -718,11 +720,16 @@ export default function POS() {
           orderType: capturedOrderType,
           items: kitchenItems.map(i => {
             const parts = [i.qty + 'x ' + i.name]
-            if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
+            if (_kt.show_modifiers !== false && i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
               parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
-            if (i.note) parts.push('  * ' + i.note)
+            if (_kt.show_note !== false && i.note) parts.push('  * ' + i.note)
             return parts.join('\n')
           }),
+          settings: {
+            ..._kt,
+            show_footer: !!(_footerNote || _kt.show_footer),
+            footer_text: _footerNote || _kt.footer_text || '',
+          }
         }).catch(e => console.error('[auto-checker]', e.message))
       }
     }
@@ -775,11 +782,13 @@ export default function POS() {
   async function printCheck() {
     const receiptPrinter = printer.printers?.find(p=>p.role==='receipt')
     if (!receiptPrinter) { alert('No receipt printer configured'); return }
+    const kt = appSettings?.kitchen_ticket || {}
+    const footerNote = (appSettings?.receipt?.pre_bill_note || '').trim()
     const items = cart.map(i => {
       const parts = [i.qty + 'x ' + i.name]
-      if (i.modifiers && Object.values(i.modifiers).length)
+      if (kt.show_modifiers !== false && i.modifiers && Object.values(i.modifiers).length)
         parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
-      if (i.note) parts.push('  * ' + i.note)
+      if (kt.show_note !== false && i.note) parts.push('  * ' + i.note)
       return parts.join('\n')
     })
     try {
@@ -790,6 +799,11 @@ export default function POS() {
         orderType,
         paperSize: receiptPrinter.paperSize,
         items,
+        settings: {
+          ...kt,
+          show_footer: !!(footerNote || kt.show_footer),
+          footer_text: footerNote || kt.footer_text || '',
+        }
       })
     } catch(e) { alert('Print failed: ' + e.message) }
   }
@@ -806,9 +820,15 @@ export default function POS() {
       discount: discount ? Math.round(subtotal * discount / 100) : 0,
     }
     const outlet = {
-      name: rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
-      address: rs.address || appSettings?.outlet?.address || '',
-      phone: rs.phone || appSettings?.outlet?.phone || '',
+      name:     rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
+      address:  rs.address     || appSettings?.outlet?.address || '',
+      phone:    rs.phone       || appSettings?.outlet?.phone || '',
+      website:  rs.website     || '',
+      tagline:  rs.tagline     || '',
+      showOrderId:  rs.show_order_id  !== false,
+      showTable:    rs.show_table     !== false,
+      showCashier:  rs.show_cashier   !== false,
+      showDatetime: rs.show_datetime  !== false,
     }
     try {
       await printer.printPreBill(order, {
