@@ -95,7 +95,9 @@ export default function ProductReport() {
     <div>
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
-        loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
+        loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()} />
+
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center", marginBottom:16 }}>
         <select value={catFilter} onChange={e=>setCatFilter(e.target.value)} className="bo-select" style={{height:34,fontSize:13}}>
           <option value="">Semua Kategori</option>
           {cats.map(c => <option key={c}>{c}</option>)}
@@ -105,9 +107,11 @@ export default function ProductReport() {
           <option value="revenue">Urut: Revenue</option>
         </select>
         <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
-        <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
-        <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
-      </DateRangePicker>
+        <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
+          <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
+          <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
+        </div>
+      </div>
 
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 

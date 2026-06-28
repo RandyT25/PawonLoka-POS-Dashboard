@@ -183,7 +183,10 @@ export default function ReceiptDesigner() {
           {[["footer_thank_you","Thank you message"],["footer_promo","Promo message"],["footer_wifi","WiFi info"],["custom_line_1","Custom line 1"],["custom_line_2","Custom line 2"],["pre_bill_note","Pre-bill message (customer tagihan)"]].map(([k,l])=>(
             <div key={k} className="bo-form-row">
               <label className="bo-label">{l}</label>
-              <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />
+              {k === "pre_bill_note"
+                ? <textarea rows={2} value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" style={{ resize:"vertical" }} />
+                : <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />
+              }
             </div>
           ))}
         </div>

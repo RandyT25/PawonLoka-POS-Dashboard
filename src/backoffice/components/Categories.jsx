@@ -189,25 +189,23 @@ export default function Categories() {
               <button className="bo-modal-close" onClick={closeModal}>✕</button>
             </div>
             <div className="bo-modal-body">
-              <div style={{ display:"grid", gridTemplateColumns:"80px 1fr", gap:12, marginBottom:14 }}>
-                <div>
-                  <label className="bo-label">Emoji Icon</label>
-                  <input value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))}
-                    className="bo-input" style={{ textAlign:"center", fontSize:28, padding:"8px 4px" }}
-                    placeholder="🏷" />
-                  <div style={{ fontSize:10, color:"var(--ink5)", marginTop:3, textAlign:"center" }}>Paste any emoji</div>
-                </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 64px", gap:12, marginBottom:14 }}>
                 <div>
                   <label className="bo-label">Category Name *</label>
                   <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
                     className="bo-input" placeholder="e.g. Drinks" autoFocus />
-                  {/* Live preview */}
                   {form.name && (
-                    <div style={{ marginTop:8, height:50, background:form.color||"#0066FF", borderRadius:10, display:"flex", alignItems:"center", padding:"0 14px", gap:10 }}>
-                      <span style={{ fontSize:22 }}>{form.icon}</span>
+                    <div style={{ marginTop:8, height:44, background:form.color||"#0066FF", borderRadius:10, display:"flex", alignItems:"center", padding:"0 14px", gap:10 }}>
+                      <span style={{ fontSize:20 }}>{form.icon}</span>
                       <span style={{ color:"#fff", fontWeight:800, fontSize:13 }}>{form.name}</span>
                     </div>
                   )}
+                </div>
+                <div>
+                  <label className="bo-label">Icon</label>
+                  <input value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))}
+                    className="bo-input" style={{ textAlign:"center", fontSize:20, padding:"6px 4px" }}
+                    placeholder="🏷" />
                 </div>
               </div>
               <div className="bo-form-row">

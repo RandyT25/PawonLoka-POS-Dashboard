@@ -258,12 +258,12 @@ export default function Dashboard() {
       {/* ── KPI cards ────────────────────────────────── */}
       <div className="bo-dash-kpi" style={{ gap:10, marginBottom:12 }}>
         {[
-          { label:"Transaksi Lunas", value:stats.paidOrders,        sub:"orders lunas",  color:"#0052CC" },
-          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),     sub:"per transaksi", color:"var(--ink1)" },
-          { label:"Produk Terjual",  value:stats.totalProductsSold, sub:"total items",   color:"#6554C0" },
-          { label:"Open Bills",      value:stats.openOrders,        sub:"belum dibayar", color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)" },
+          { label:"Transaksi Lunas", value:stats.paidOrders,        sub:"orders lunas",  color:"#0052CC", accent:"#0052CC" },
+          { label:"Rata-rata/Order", value:fmt(stats.avgOrder),     sub:"per transaksi", color:"var(--ink1)", accent:"#00875A" },
+          { label:"Produk Terjual",  value:stats.totalProductsSold, sub:"total items",   color:"#6554C0", accent:"#6554C0" },
+          { label:"Open Bills",      value:stats.openOrders,        sub:"belum dibayar", color: stats.openOrders > 0 ? "#FF8B00" : "var(--ink4)", accent: stats.openOrders > 0 ? "#FF8B00" : "var(--surface3)" },
         ].map(k => (
-          <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)" }}>
+          <div key={k.label} style={{ background:"#fff", borderRadius:12, padding:"14px 16px", border:"1px solid var(--surface3)", borderTop:`3px solid ${k.accent}` }}>
             <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", marginBottom:6, textTransform:"uppercase", letterSpacing:"0.4px" }}>{k.label}</div>
             <div style={{ fontSize:20, fontWeight:900, color:k.color }}>{k.value}</div>
             <div style={{ fontSize:10, color:"var(--ink5)", marginTop:4 }}>{k.sub}</div>

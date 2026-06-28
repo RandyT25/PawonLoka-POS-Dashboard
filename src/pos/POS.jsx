@@ -648,30 +648,36 @@ export default function POS() {
     }
 
     // Save kitchen tickets (offline-safe — queued if no connection)
+    // Skipped entirely when Kitchen Display is disabled in Settings
     const ROLE_MAP = { Kitchen:'kitchen', kitchen:'kitchen', Snack:'snack', snack:'snack', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
-    await Promise.all([
-      ...Object.entries(stations).map(([station, items]) =>
-        dbWrite('kitchen_tickets', 'insert', {
-          id: 'KT-' + crypto.randomUUID(),
-          table: capturedTable || capturedOrderType,
-          items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
-          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
-          status: 'New', station,
-        })
-      ),
-      ...Object.entries(cancelStations).map(([station, items]) =>
-        dbWrite('kitchen_tickets', 'insert', {
-          id: 'KT-' + crypto.randomUUID(),
-          table: capturedTable || capturedOrderType,
-          items: items.map(i => ({ name:i.name, qty:i.qty })),
-          time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
-          status: 'New', station, type: 'cancellation',
-        }).catch(() => {})
-      ),
-    ])
+    const kdsOn = appSettings?.pos_behaviour?.kitchen_display !== false
+    if (kdsOn) {
+      await Promise.all([
+        ...Object.entries(stations).map(([station, items]) =>
+          dbWrite('kitchen_tickets', 'insert', {
+            id: 'KT-' + crypto.randomUUID(),
+            table: capturedTable || capturedOrderType,
+            items: items.map(i => ({ name:i.name, qty:i.qty, note:i.note, modifiers:i.modifiers })),
+            time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+            status: 'New', station,
+          })
+        ),
+        ...Object.entries(cancelStations).map(([station, items]) =>
+          dbWrite('kitchen_tickets', 'insert', {
+            id: 'KT-' + crypto.randomUUID(),
+            table: capturedTable || capturedOrderType,
+            items: items.map(i => ({ name:i.name, qty:i.qty })),
+            time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+            status: 'New', station, type: 'cancellation',
+          }).catch(() => {})
+        ),
+      ])
+    }
 
     // Print per station — combine add+cancel into one ticket when both exist
-    const allStations = new Set([...Object.keys(stations), ...Object.keys(cancelStations)])
+    const allStations = kdsOn
+      ? new Set([...Object.keys(stations), ...Object.keys(cancelStations)])
+      : new Set()
     for (const station of allStations) {
       const addItems = stations[station] || []
       const cItems   = cancelStations[station] || []

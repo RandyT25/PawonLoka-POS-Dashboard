@@ -338,9 +338,12 @@ function pageFromPath() {
   return segment || sessionStorage.getItem("bo_active") || "dashboard"
 }
 
+const KDS_IDS = new Set(["kitchen-display", "kitchen-ticket-designer"])
+
 export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState(pageFromPath)
+  const [kdsEnabled, setKdsEnabled] = useState(true)
 
   const { pending, notes, markRead } = useNotifications(navTo)
 
@@ -349,6 +352,33 @@ export default function Backoffice() {
     sessionStorage.setItem("bo_active", id)
     history.pushState(null, "", "/backoffice/" + id)
   }
+
+  // Load appSettings and subscribe for realtime KDS toggle
+  useEffect(() => {
+    async function loadSettings() {
+      const { data } = await supabase.from("app_settings").select("pos_behaviour").eq("id","main").maybeSingle()
+      const enabled = data?.pos_behaviour?.kitchen_display !== false
+      setKdsEnabled(enabled)
+      if (!enabled && KDS_IDS.has(pageFromPath())) {
+        setActive("dashboard")
+        sessionStorage.setItem("bo_active", "dashboard")
+        history.replaceState(null, "", "/backoffice/dashboard")
+      }
+    }
+    loadSettings()
+    const ch = supabase.channel("bo_app_settings")
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"app_settings", filter:"id=eq.main" }, payload => {
+        const enabled = payload.new?.pos_behaviour?.kitchen_display !== false
+        setKdsEnabled(enabled)
+        if (!enabled && KDS_IDS.has(sessionStorage.getItem("bo_active") || "")) {
+          setActive("dashboard")
+          sessionStorage.setItem("bo_active", "dashboard")
+          history.replaceState(null, "", "/backoffice/dashboard")
+        }
+      })
+      .subscribe()
+    return () => supabase.removeChannel(ch)
+  }, [])
 
   // Back / Forward browser buttons
   useEffect(() => {
@@ -362,6 +392,7 @@ export default function Backoffice() {
     if (el) el.scrollIntoView({ block:"nearest", behavior:"instant" })
   }, [])
 
+  const visibleNav = kdsEnabled ? NAV : NAV.filter(n => !n.id || !KDS_IDS.has(n.id))
 
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
@@ -380,7 +411,7 @@ export default function Backoffice() {
           <div className="bo-sidebar-logo-sub">Back Office</div>
         </div>
         <nav className="bo-nav">
-          {NAV.map((n,i)=>n.group
+          {visibleNav.map((n,i)=>n.group
             ?<div key={i} className="bo-nav-group">{n.group}</div>
             :(
               <button key={n.id} className={"bo-nav-item"+(active===n.id?" active":"")} onClick={()=>navTo(n.id)}>
@@ -400,6 +431,7 @@ export default function Backoffice() {
           <button className="bo-hamburger" onClick={()=>setMobileSidebar(true)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           </button>
+          <img src="/logo-backoffice.png" alt="" className="bo-topbar-logo" onError={e=>e.target.style.display="none"} />
           <div className="bo-topbar-title">{NAV_LABELS[active] || active}</div>
           <div style={{ display:"flex", alignItems:"center", gap:12, marginLeft:"auto" }}>
             <div className="bo-topbar-date">{new Date().toLocaleDateString("id-ID",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
@@ -429,7 +461,7 @@ export default function Backoffice() {
               </div>
               {/* Nav items */}
               <nav style={{ flex:1,padding:"8px 8px",overflowY:"auto" }}>
-                {NAV.map((n,i) => n.group
+                {visibleNav.map((n,i) => n.group
                   ? <div key={i} style={{ fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.25)",letterSpacing:"1.5px",textTransform:"uppercase",padding:"14px 16px 4px",marginTop:4 }}>{n.group}</div>
                   : <button key={n.id}
                       onClick={()=>{ navTo(n.id); setMobileSidebar(false) }}
