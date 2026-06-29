@@ -22,6 +22,8 @@ const STATUS_COLORS = {
 
 function todayStr() { return new Date().toISOString().slice(0,10) }
 
+const VOID_REASONS = ["Customer changed mind","Wrong order","Item unavailable","Kitchen error","Other"]
+
 export default function Orders() {
   const [orders,       setOrders]       = useState([])
   const [loading,      setLoading]      = useState(true)
@@ -31,6 +33,30 @@ export default function Orders() {
   const [dateTo,       setDateTo]       = useState(todayStr)
   const [selected,     setSelected]     = useState(null)
   const [exporting,    setExporting]    = useState(false)
+  const [voidModal,    setVoidModal]    = useState(null)
+  const [voidReason,   setVoidReason]   = useState("")
+  const [voidNote,     setVoidNote]     = useState("")
+  const [voiding,      setVoiding]      = useState(false)
+
+  async function doVoidOrder() {
+    if (!voidReason) return
+    setVoiding(true)
+    const fullReason = voidNote ? voidReason + ": " + voidNote : voidReason
+    await supabase.from("orders").update({
+      status: "void",
+      void_reason: fullReason,
+      voided_by: "Backoffice",
+    }).eq("id", voidModal.id)
+    supabase.from("audit_logs").insert({
+      action: "void",
+      module: "orders",
+      user_name: "Backoffice",
+      details: JSON.stringify({ order_id: voidModal.id, reason: fullReason, amount: voidModal.total }),
+    }).catch(() => {})
+    await load()
+    setSelected(null); setVoidModal(null); setVoidReason(""); setVoidNote("")
+    setVoiding(false)
+  }
 
   useEffect(() => { load() }, [dateFrom, dateTo])
 
@@ -289,12 +315,43 @@ export default function Orders() {
                 <button onClick={()=>sendWA(selected)} className="bo-btn bo-btn-primary">WA Receipt</button>
               )}
               {selected.status === "paid" && (
-                <button onClick={async()=>{
-                  if (!confirm("Void this order?")) return
-                  await supabase.from("orders").update({ status:"void" }).eq("id", selected.id)
-                  await load(); setSelected(null)
-                }} className="bo-btn bo-btn-danger">Void Order</button>
+                <button onClick={()=>{ setVoidModal(selected); setVoidReason(""); setVoidNote("") }}
+                  className="bo-btn bo-btn-danger">Void Order</button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Void reason modal */}
+      {voidModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setVoidModal(null)}>
+          <div className="bo-modal">
+            <div className="bo-modal-header">
+              <div className="bo-modal-title" style={{ color:"#DC2626" }}>Void Order</div>
+              <button className="bo-modal-close" onClick={()=>setVoidModal(null)}>✕</button>
+            </div>
+            <div className="bo-modal-body">
+              <div style={{ background:"#FEF2F2", borderRadius:8, padding:"10px 12px", marginBottom:14, fontSize:13, color:"#DC2626" }}>
+                ⚠ Order <strong>#{voidModal.id?.slice(-6)}</strong> · {fmt(voidModal.total)} akan di-void dan tidak dapat dikembalikan.
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Alasan Void *</label>
+                <select value={voidReason} onChange={e=>setVoidReason(e.target.value)} className="bo-select">
+                  <option value="">— Pilih alasan —</option>
+                  {VOID_REASONS.map(r=><option key={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Catatan tambahan</label>
+                <input value={voidNote} onChange={e=>setVoidNote(e.target.value)} className="bo-input" placeholder="Optional..." />
+              </div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>setVoidModal(null)} className="bo-btn bo-btn-ghost">Batal</button>
+              <button onClick={doVoidOrder} disabled={!voidReason||voiding} className="bo-btn bo-btn-danger">
+                {voiding?"Memproses...":"Konfirmasi Void"}
+              </button>
             </div>
           </div>
         </div>

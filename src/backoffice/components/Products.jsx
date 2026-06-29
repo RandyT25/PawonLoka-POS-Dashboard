@@ -29,6 +29,7 @@ export default function Products() {
   const [uploading,   setUploading]   = useState(false)
   const [preview,     setPreview]     = useState(null)
   const [syncing,     setSyncing]     = useState(false)
+  const [priceHistory,setPriceHistory]= useState([])
   const fileRef = useRef()
 
   useEffect(() => { load() }, [])
@@ -82,9 +83,12 @@ export default function Products() {
     setForm({ ...p, price: String(p.price), cogs: String(p.cogs||0) })
     setVariants(p.variants || [])
     setPreview(p.image_url || null)
+    setPriceHistory([])
     setModal("edit")
+    supabase.from("price_history").select("*").eq("sku", p.sku).order("changed_at", { ascending:false }).limit(10)
+      .then(({ data }) => setPriceHistory(data || []))
   }
-  function closeModal(){ setModal(null); setForm(EMPTY); setVariants([]); setPreview(null) }
+  function closeModal(){ setModal(null); setForm(EMPTY); setVariants([]); setPreview(null); setPriceHistory([]) }
   function openQuickEdit(p) {
     setQForm({ sku:p.sku, name:p.name, price:p.price, active:p.active??true, linked_modifiers:p.linked_modifiers||[] })
     setQuickEdit(p)
@@ -139,6 +143,16 @@ export default function Products() {
       const sku = (form.cat||"PRD").slice(0,3).toUpperCase().replace(/\s/g,"") + Date.now().toString().slice(-6)
       await supabase.from("products").insert({ ...payload, sku })
     } else {
+      const existing = products.find(p => p.sku === form.sku)
+      if (existing && existing.price !== parseInt(form.price)) {
+        supabase.from("price_history").insert({
+          sku: form.sku,
+          product_name: existing.name,
+          old_price: existing.price,
+          new_price: parseInt(form.price),
+          changed_by: "Backoffice",
+        }).catch(() => {})
+      }
       await supabase.from("products").update(payload).eq("sku", form.sku)
     }
     await load(); closeModal(); setSaving(false)
@@ -574,6 +588,19 @@ export default function Products() {
                 <div style={{ fontSize:11, color:"var(--ink5)", marginTop:6 }}>Selected modifiers will appear when this product is ordered in POS</div>
               </div>
             </div>
+
+            {modal === "edit" && priceHistory.length > 0 && (
+              <div style={{ padding:"12px 20px 0" }}>
+                <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>Price History</div>
+                {priceHistory.map(h => (
+                  <div key={h.id} style={{ display:"flex", justifyContent:"space-between", fontSize:12, padding:"3px 0", borderBottom:"1px solid var(--surface2)" }}>
+                    <span style={{ color:"var(--ink5)" }}>{new Date(h.changed_at).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"})}</span>
+                    <span>{fmt(h.old_price)} → <strong>{fmt(h.new_price)}</strong></span>
+                    <span style={{ color:"var(--ink5)" }}>{h.changed_by}</span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="bo-modal-footer">
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>

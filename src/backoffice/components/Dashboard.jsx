@@ -13,7 +13,7 @@ function statusBadge(s) {
   return { label: s, bg:"#F1F5F9", color:"#64748B" }
 }
 
-export default function Dashboard() {
+export default function Dashboard({ onNavChange }) {
   const todayStr  = new Date().toISOString().slice(0, 10)
   const [range,      setRange]      = useState("today")
   const [customDate,   setCustomDate]   = useState(todayStr)
@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [recent,     setRecent]     = useState([])
   const [selected,   setSelected]   = useState(null)
   const [lastUpdated,setLastUpdated]= useState(null)
+  const [lowStockCount, setLowStockCount] = useState(0)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -107,6 +108,15 @@ export default function Dashboard() {
     const onVisible = () => { if (!document.hidden) loadRef.current() }
     document.addEventListener("visibilitychange", onVisible)
     return () => { clearInterval(poll); document.removeEventListener("visibilitychange", onVisible) }
+  }, [])
+
+  useEffect(() => {
+    supabase.from("ingredients").select("id,stock,min_stock")
+      .then(({ data }) => {
+        if (!data) return
+        const low = data.filter(i => (i.stock <= 0) || (i.min_stock > 0 && i.stock <= i.min_stock))
+        setLowStockCount(low.length)
+      })
   }, [])
 
   const margin = stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0
@@ -218,6 +228,13 @@ export default function Dashboard() {
       </DateRangePicker>
 
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
+
+      {lowStockCount > 0 && (
+        <div style={{ background:"#FFFBEB", border:"1px solid #FCD34D", borderRadius:10, padding:"10px 14px", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontSize:13, fontWeight:600, color:"#92400E" }}>⚠️ <strong>{lowStockCount} bahan</strong> stok di bawah minimum</span>
+          {onNavChange && <button onClick={()=>onNavChange("inv-overview")} style={{ fontSize:12, fontWeight:700, color:"#B45309", background:"none", border:"none", cursor:"pointer", padding:0 }}>Lihat →</button>}
+        </div>
+      )}
 
       {/* ── Hero ─────────────────────────────────────── */}
       <div style={{ background:"linear-gradient(135deg,#0A1628,#0052CC)", borderRadius:16, padding:"22px 24px", color:"#fff", marginBottom:12 }}>

@@ -75,6 +75,14 @@ export default function VoidModal({ onClose, managerPin = '9999' }) {
       })
     }
 
+    // Audit trail
+    supabase.from('audit_logs').insert({
+      action: refundType === 'full' ? 'void' : 'refund',
+      module: 'pos',
+      user_name: 'Manager',
+      details: JSON.stringify({ order_id: selected.id, reason, amount }),
+    }).catch(() => {})
+
     setStep('done')
     setLoading(false)
   }

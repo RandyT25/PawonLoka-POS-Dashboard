@@ -5,10 +5,11 @@ import { qr } from '../../lib/quickRead'
 import { printShiftReport, printProductSoldReport } from '../hooks/usePrinter'
 
 export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
-  const [float, setFloat]     = useState('')
-  const [saving, setSaving]   = useState(false)
-  const [report, setReport]   = useState(null)
-  const [note, setNote]       = useState('')
+  const [float, setFloat]         = useState('')
+  const [saving, setSaving]       = useState(false)
+  const [report, setReport]       = useState(null)
+  const [note, setNote]           = useState('')
+  const [actualCash, setActualCash] = useState('')
   const [confirmed, setConfirmed] = useState(false)
   const [productData, setProductData] = useState(null)
 
@@ -81,11 +82,14 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
     }
 
     setSaving(true)
+    const parsedActual = actualCash !== '' ? parseInt(actualCash) : null
     await supabase.from('shifts').update({
-      clock_out:    new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
-      float_close:  report?.expectedCash || 0,
-      sales:        report?.totalSales || 0,
-      notes:        note || null,
+      clock_out:         new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }),
+      float_close:       report?.expectedCash || 0,
+      actual_cash:       parsedActual,
+      cash_discrepancy:  parsedActual !== null ? parsedActual - (report?.expectedCash || 0) : null,
+      sales:             report?.totalSales || 0,
+      notes:             note || null,
     }).eq('id', shift.id)
     // Print shift closing report if printer is connected
     if (printer) {
@@ -284,11 +288,42 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
                 </div>
               )}
 
-              <div style={{ background:'#F0FDF4', borderRadius:12, padding:14, marginBottom:14, textAlign:'center' }}>
-                <div style={{ fontSize:12, color:'#16A34A' }}>Kas yang seharusnya ada di laci</div>
-                <div style={{ fontSize:28, fontWeight:900, color:'#16A34A' }}>{fmt(report.expectedCash)}</div>
-                <div style={{ fontSize:11, color:'#6B7A8D', marginTop:4 }}>Sistem menghitung otomatis — tidak perlu input manual</div>
+              <div style={{ background:'#F0FDF4', borderRadius:12, padding:'12px 14px', marginBottom:10 }}>
+                <div style={{ ...S.row, marginBottom:0 }}>
+                  <span style={{ fontSize:13, color:'#16A34A', fontWeight:700 }}>Ekspektasi Kas (sistem)</span>
+                  <span style={{ fontSize:16, fontWeight:900, color:'#16A34A' }}>{fmt(report.expectedCash)}</span>
+                </div>
               </div>
+
+              {/* Actual cash counted */}
+              <div style={{ marginBottom:10 }}>
+                <label style={{ fontSize:11, fontWeight:700, color:'#64748B', textTransform:'uppercase', letterSpacing:'0.5px', display:'block', marginBottom:6 }}>Kas Aktual (Hitung Manual)</label>
+                <input
+                  type="number"
+                  value={actualCash}
+                  onChange={e=>setActualCash(e.target.value)}
+                  placeholder={String(report.expectedCash)}
+                  style={{ ...S.input, marginBottom:0, fontWeight:700, fontSize:15 }}
+                />
+              </div>
+
+              {/* Variance display */}
+              {actualCash !== '' && (() => {
+                const variance = parseInt(actualCash) - (report.expectedCash || 0)
+                return (
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', borderRadius:10, marginBottom:10,
+                    background: variance === 0 ? '#F0FDF4' : variance > 0 ? '#F0FDF4' : '#FEF2F2',
+                    border: `1.5px solid ${variance === 0 ? '#86EFAC' : variance > 0 ? '#86EFAC' : '#FCA5A5'}` }}>
+                    <span style={{ fontSize:13, fontWeight:700, color: variance === 0 ? '#16A34A' : variance > 0 ? '#16A34A' : '#DC2626' }}>
+                      {variance === 0 ? '✓ Kas sesuai' : variance > 0 ? '↑ Over' : '↓ Short'}
+                    </span>
+                    <span style={{ fontSize:16, fontWeight:900, color: variance === 0 ? '#16A34A' : variance > 0 ? '#16A34A' : '#DC2626' }}>
+                      {variance >= 0 ? '+' : ''}{fmt(variance)}
+                    </span>
+                  </div>
+                )
+              })()}
+
               <input value={note} onChange={e=>setNote(e.target.value)}
                 placeholder="Catatan (opsional, misal: ada selisih Rp X)" style={S.input} />
               {confirmed && (

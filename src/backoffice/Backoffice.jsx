@@ -148,7 +148,6 @@ function BellMenu({ pending, notes, onNav, markRead }) {
 }
 
 
-const BO_PIN      = "1999"
 const SESSION_KEY = "bo_auth"
 
 
@@ -290,21 +289,33 @@ const SCREENS = {
 }
 
 function BackofficeLogin({ onAuth }) {
-  const [pin,   setPin]   = useState("")
-  const [error, setError] = useState("")
-  const [shake, setShake] = useState(false)
+  const [pin,     setPin]     = useState("")
+  const [error,   setError]   = useState("")
+  const [shake,   setShake]   = useState(false)
+  const [loading, setLoading] = useState(false)
 
   function press(val) {
-    if (val==="del") { setPin(p=>p.slice(0,-1)); setError(""); return }
-    if (pin.length>=6) return
-    const next = pin+val
-    setPin(next)
-    if (next.length===BO_PIN.length) setTimeout(()=>check(next),120)
+    if (val === "del") { setPin(p => p.slice(0,-1)); setError(""); return }
+    if (val === "ok") { if (pin.length >= 4) check(pin); return }
+    if (pin.length >= 8) return
+    setPin(p => p + val)
   }
 
-  function check(code) {
-    if (code===BO_PIN) { sessionStorage.setItem(SESSION_KEY,"1"); onAuth() }
-    else { setShake(true); setError("Wrong PIN"); setPin(""); setTimeout(()=>setShake(false),500) }
+  async function check(code) {
+    if (!code || code.length < 4) return
+    setLoading(true)
+    const { data } = await supabase.from("staff").select("id,name,role,permissions").eq("pin", code).maybeSingle()
+    setLoading(false)
+    if (!data) { fail("PIN tidak ditemukan"); return }
+    if (data.permissions?.backoffice !== true) { fail("Akses backoffice tidak diizinkan"); return }
+    sessionStorage.setItem(SESSION_KEY, "1")
+    sessionStorage.setItem("bo_staff", JSON.stringify({ id:data.id, name:data.name, role:data.role, permissions:data.permissions }))
+    onAuth()
+  }
+
+  function fail(msg) {
+    setShake(true); setError(msg); setPin("")
+    setTimeout(() => setShake(false), 500)
   }
 
   return (
@@ -314,17 +325,20 @@ function BackofficeLogin({ onAuth }) {
           onError={e=>e.target.style.display="none"}
           style={{ width:80, height:80, objectFit:"contain", borderRadius:16, marginBottom:8 }} />
         <div className="bo-login-logo">PawonLoka</div>
-        <div className="bo-login-sub">Back Office · Staff Access</div>
+        <div className="bo-login-sub">Back Office · Masukkan PIN Anda</div>
         <div className="bo-pin-dots">
-          {Array.from({length:BO_PIN.length},(_,i)=>(
+          {Array.from({length:Math.max(pin.length, 4)},(_,i)=>(
             <div key={i} className={"bo-pin-dot"+(i<pin.length?" filled":"")} />
           ))}
         </div>
-        <div className="bo-pin-err">{error}</div>
+        <div className="bo-pin-err">{loading ? "Memeriksa..." : error}</div>
         <div className="bo-pin-pad">
-          {["1","2","3","4","5","6","7","8","9","","0","del"].map((k,i)=>(
-            k===""?<div key={i}/>:
-            <button key={k+i} className="bo-pin-key" onClick={()=>press(k)}>{k==="del"?"⌫":k}</button>
+          {["1","2","3","4","5","6","7","8","9","del","0","ok"].map((k,i)=>(
+            <button key={k+i} className={"bo-pin-key"+(k==="ok"?" bo-pin-ok":"")}
+              onClick={()=>press(k)}
+              style={k==="ok"?{background:"var(--brand)",color:"#fff",fontWeight:900}:{}}>
+              {k==="del"?"⌫":k==="ok"?"▶":k}
+            </button>
           ))}
         </div>
       </div>
@@ -340,10 +354,16 @@ function pageFromPath() {
 
 const KDS_IDS = new Set(["kitchen-display", "kitchen-ticket-designer"])
 
+function getStoredStaff() {
+  try { return JSON.parse(sessionStorage.getItem("bo_staff") || "null") } catch { return null }
+}
+
 export default function Backoffice() {
   const [authed, setAuthed] = useState(()=>sessionStorage.getItem(SESSION_KEY)==="1")
   const [active, setActive] = useState(pageFromPath)
   const [kdsEnabled, setKdsEnabled] = useState(true)
+  const [lowStockCount, setLowStockCount] = useState(0)
+  const [boStaff, setBoStaff] = useState(getStoredStaff)
 
   const { pending, notes, markRead } = useNotifications(navTo)
 
@@ -388,17 +408,37 @@ export default function Backoffice() {
   }, [])
 
   useEffect(() => {
+    supabase.from("ingredients").select("id,stock,min_stock")
+      .then(({ data }) => {
+        if (!data) return
+        setLowStockCount(data.filter(i => (i.stock <= 0) || (i.min_stock > 0 && i.stock <= i.min_stock)).length)
+      })
+  }, [])
+
+  useEffect(() => {
     const el = document.querySelector(".bo-nav-item.active")
     if (el) el.scrollIntoView({ block:"nearest", behavior:"instant" })
   }, [])
 
-  const visibleNav = kdsEnabled ? NAV : NAV.filter(n => !n.id || !KDS_IDS.has(n.id))
+  const boModules = boStaff?.permissions?.bo_modules || {}
+  const isOwner   = !boStaff || boStaff.role === "Owner"
+  const visibleNav = NAV.filter(n => {
+    if (!n.id) return true
+    if (!kdsEnabled && KDS_IDS.has(n.id)) return false
+    if (isOwner) return true
+    return boModules[n.id] !== false
+  })
 
   const [mobileSidebar, setMobileSidebar] = useState(false)
 
-  function logout() { sessionStorage.removeItem(SESSION_KEY); setAuthed(false) }
+  function logout() {
+    sessionStorage.removeItem(SESSION_KEY)
+    sessionStorage.removeItem("bo_staff")
+    setBoStaff(null)
+    setAuthed(false)
+  }
 
-  if (!authed) return <BackofficeLogin onAuth={()=>setAuthed(true)} />
+  if (!authed) return <BackofficeLogin onAuth={()=>{ setBoStaff(getStoredStaff()); setAuthed(true) }} />
 
   const Screen = SCREENS[active] || Dashboard
 
@@ -417,6 +457,9 @@ export default function Backoffice() {
               <button key={n.id} className={"bo-nav-item"+(active===n.id?" active":"")} onClick={()=>navTo(n.id)}>
                 <span className="bo-nav-icon"><NavIcon id={n.id} /></span>
                 <span>{n.label || NAV_LABELS[n.id] || n.id}</span>
+                {n.id === "inv-overview" && lowStockCount > 0 && (
+                  <span style={{ marginLeft:"auto", background:"var(--amber)", color:"#fff", fontSize:10, fontWeight:800, borderRadius:10, padding:"1px 6px", lineHeight:"16px" }}>{lowStockCount}</span>
+                )}
               </button>
             )
           )}
@@ -472,6 +515,9 @@ export default function Backoffice() {
                         fontSize:13,fontWeight:active===n.id?700:400,marginBottom:1 }}>
                       <span style={{ width:20,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0 }}><NavIcon id={n.id} /></span>
                       <span>{n.label || NAV_LABELS[n.id] || n.id}</span>
+                      {n.id === "inv-overview" && lowStockCount > 0 && (
+                        <span style={{ marginLeft:"auto", background:"#F59E0B", color:"#fff", fontSize:10, fontWeight:800, borderRadius:10, padding:"1px 6px", lineHeight:"16px" }}>{lowStockCount}</span>
+                      )}
                     </button>
                 )}
               </nav>

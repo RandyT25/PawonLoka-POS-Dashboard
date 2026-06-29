@@ -22,6 +22,30 @@ const ROLE_DEFAULTS = {
 
 const ROLES = Object.keys(ROLE_DEFAULTS)
 
+const BO_MODULES = [
+  { id:"dashboard",       label:"Dashboard",          group:"Overview" },
+  { id:"sales-analysis",  label:"Sales Analysis",     group:"Overview" },
+  { id:"sales-report",    label:"Sales Report",       group:"Overview" },
+  { id:"reports",         label:"Reports & Export",   group:"Overview" },
+  { id:"accounting",      label:"Accounting",         group:"Finance" },
+  { id:"rekonsiliasi",    label:"Rekonsiliasi",        group:"Finance" },
+  { id:"products",        label:"Products",           group:"Menu" },
+  { id:"categories",      label:"Categories",         group:"Menu" },
+  { id:"recipes",         label:"Recipes & COGS",     group:"Menu" },
+  { id:"inv-overview",    label:"Inventory Overview", group:"Inventory" },
+  { id:"inv-ingredients", label:"Ingredients",        group:"Inventory" },
+  { id:"inv-po",          label:"Purchase Orders",    group:"Inventory" },
+  { id:"shifts",          label:"Shifts",             group:"People" },
+  { id:"employees",       label:"Employees",          group:"People" },
+  { id:"customers",       label:"Customers",          group:"People" },
+  { id:"promotions",      label:"Promotions",         group:"Sales" },
+  { id:"discounts",       label:"Discounts",          group:"Sales" },
+  { id:"floorplan",       label:"Floor Plan",         group:"Operations" },
+  { id:"settings",        label:"Settings",           group:"System" },
+  { id:"users-access",    label:"Users & Access",     group:"System" },
+  { id:"audit-log",       label:"Audit Log",          group:"System" },
+]
+
 const ROLE_COLORS = {
   Owner:"var(--red)", Manager:"var(--brand)", Cashier:"var(--green)",
   Waiter:"var(--amber)", Kitchen:"#6554C0"
@@ -74,9 +98,20 @@ export default function UsersAccess() {
     setForm(f => ({ ...f, permissions: { ...f.permissions, [key]: !f.permissions[key] } }))
   }
 
+  function toggleBOMod(id) {
+    setForm(f => {
+      const mods = f.permissions?.bo_modules || {}
+      return { ...f, permissions: { ...f.permissions, bo_modules: { ...mods, [id]: mods[id] === false ? true : false } } }
+    })
+  }
+
+  function isModOn(id) {
+    return form.permissions?.bo_modules?.[id] !== false
+  }
+
   async function save() {
     setError("")
-    if (form.pin && form.pin.length !== 4) { setError("PIN must be exactly 4 digits"); return }
+    if (form.pin && (form.pin.length < 4 || form.pin.length > 8)) { setError("PIN must be 4–8 digits"); return }
     if (form.pin && form.pin !== form.confirmPin) { setError("PINs do not match"); return }
     setSaving(true)
     const update = { role:form.role, permissions:form.permissions }
@@ -220,17 +255,17 @@ export default function UsersAccess() {
                 <label className="bo-label">Change PIN (leave blank to keep current)</label>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12 }}>
                   <div>
-                    <label className="bo-label" style={{ fontSize:10 }}>New PIN</label>
+                    <label className="bo-label" style={{ fontSize:10 }}>New PIN (4–8 digits)</label>
                     <div style={{ position:"relative" }}>
-                      <input type={pinShow?"text":"password"} maxLength={4} value={form.pin}
-                        onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))}
-                        className="bo-input" placeholder="4 digits" style={{ letterSpacing:4, fontSize:18, fontWeight:700 }} />
+                      <input type={pinShow?"text":"password"} maxLength={8} value={form.pin}
+                        onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,8)}))}
+                        className="bo-input" placeholder="4–8 digits" style={{ letterSpacing:4, fontSize:18, fontWeight:700 }} />
                     </div>
                   </div>
                   <div>
                     <label className="bo-label" style={{ fontSize:10 }}>Confirm PIN</label>
-                    <input type={pinShow?"text":"password"} maxLength={4} value={form.confirmPin}
-                      onChange={e=>setForm(f=>({...f,confirmPin:e.target.value.replace(/\D/g,"").slice(0,4)}))}
+                    <input type={pinShow?"text":"password"} maxLength={8} value={form.confirmPin}
+                      onChange={e=>setForm(f=>({...f,confirmPin:e.target.value.replace(/\D/g,"").slice(0,8)}))}
                       className="bo-input" placeholder="Repeat PIN" style={{ letterSpacing:4, fontSize:18, fontWeight:700 }} />
                   </div>
                 </div>
@@ -257,6 +292,37 @@ export default function UsersAccess() {
               {form.permissions.backoffice && (
                 <div style={{ marginTop:12, padding:"10px 14px", background:"var(--amber-lt)", borderRadius:"var(--r)", fontSize:12, color:"var(--amber)", fontWeight:600 }}>
                   This staff will have full backoffice access using their PIN
+                </div>
+              )}
+
+              {/* Backoffice Modules */}
+              {form.permissions.backoffice && form.role !== "Owner" && (
+                <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:16, marginTop:12 }}>
+                  <label className="bo-label">Backoffice Modules</label>
+                  <div style={{ fontSize:12, color:"var(--ink5)", marginBottom:10 }}>Select which sections this staff can access. All enabled by default.</div>
+                  {["Overview","Finance","Menu","Inventory","People","Sales","Operations","System"].map(grp => {
+                    const items = BO_MODULES.filter(m => m.group === grp)
+                    if (!items.length) return null
+                    return (
+                      <div key={grp} style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:6 }}>{grp}</div>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                          {items.map(m => {
+                            const on = isModOn(m.id)
+                            return (
+                              <button key={m.id} type="button" onClick={()=>toggleBOMod(m.id)}
+                                style={{ fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:20, cursor:"pointer", fontFamily:"inherit",
+                                  background: on ? "var(--brand-lt)" : "var(--surface)",
+                                  color: on ? "var(--brand)" : "var(--ink5)",
+                                  border: "1.5px solid " + (on ? "var(--brand)" : "var(--surface3)") }}>
+                                {on ? "✓ " : ""}{m.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </div>

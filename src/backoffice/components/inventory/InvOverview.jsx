@@ -84,9 +84,14 @@ export default function InvOverview({ onNav }) {
                         <div style={{ height:"100%", width:pct+"%", background:i.stock<=0?"var(--red)":"var(--amber)", borderRadius:2 }} />
                       </div>
                     </div>
-                    <span style={{ marginLeft:12, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:i.stock<=0?"var(--red-lt)":"var(--amber-lt)", color:i.stock<=0?"var(--red)":"var(--amber)" }}>
-                      {i.stock} {i.unit}
-                    </span>
+                    <div style={{ marginLeft:12, textAlign:"right", flexShrink:0 }}>
+                      <span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:i.stock<=0?"var(--red-lt)":"var(--amber-lt)", color:i.stock<=0?"var(--red)":"var(--amber)" }}>
+                        {i.stock} {i.unit}
+                      </span>
+                      <div style={{ fontSize:10, color:"var(--ink5)", marginTop:2, fontWeight:600 }}>
+                        Reorder: {Math.max(0,(i.min_stock||0)-(i.stock||0))} {i.unit}
+                      </div>
+                    </div>
                   </div>
                 )
               })

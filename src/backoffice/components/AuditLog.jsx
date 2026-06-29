@@ -1,24 +1,46 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
+const QUICK_FILTERS = [
+  { label:"All",         value:"" },
+  { label:"Void/Refund", value:"void|refund" },
+  { label:"Login",       value:"LOGIN" },
+  { label:"Create",      value:"CREATE" },
+  { label:"Delete",      value:"DELETE" },
+]
+
 export default function AuditLog() {
-  const [logs,   setLogs]   =useState([])
-  const [loading,setLoading]=useState(true)
-  const [search, setSearch] =useState("")
+  const [logs,        setLogs]        = useState([])
+  const [loading,     setLoading]     = useState(true)
+  const [search,      setSearch]      = useState("")
+  const [quickFilter, setQuickFilter] = useState("")
 
   useEffect(()=>{load()},[])
 
   async function load(){
     setLoading(true)
-    const {data}=await supabase.from("audit_logs").select("*").order("created_at",{ascending:false}).limit(200)
+    const {data}=await supabase.from("audit_logs").select("*").order("created_at",{ascending:false}).limit(500)
     setLogs(data||[]); setLoading(false)
   }
 
-  const filtered=logs.filter(l=>!search||JSON.stringify(l).toLowerCase().includes(search.toLowerCase()))
-  const actionColor={CREATE:"var(--green)",UPDATE:"var(--brand)",DELETE:"var(--red)",LOGIN:"var(--amber)",VOID:"var(--red)"}
+  const filtered = logs.filter(l => {
+    if (search && !JSON.stringify(l).toLowerCase().includes(search.toLowerCase())) return false
+    if (quickFilter === "void|refund") return l.action?.toLowerCase() === "void" || l.action?.toLowerCase() === "refund"
+    if (quickFilter) return l.action?.toUpperCase() === quickFilter
+    return true
+  })
+  const actionColor = { CREATE:"var(--green)", UPDATE:"var(--brand)", DELETE:"var(--red)", LOGIN:"var(--amber)", void:"var(--red)", refund:"var(--amber)", VOID:"var(--red)" }
 
   return (
     <div>
+      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+        {QUICK_FILTERS.map(f=>(
+          <button key={f.value} onClick={()=>setQuickFilter(f.value)}
+            className={"bo-btn bo-btn-sm "+(quickFilter===f.value?"bo-btn-primary":"bo-btn-ghost")}>
+            {f.label}
+          </button>
+        ))}
+      </div>
       <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"center"}}>
         <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" placeholder="Search logs..." style={{maxWidth:300}} />
         <span style={{fontSize:12,color:"var(--ink5)",marginLeft:"auto"}}>{filtered.length} entries</span>

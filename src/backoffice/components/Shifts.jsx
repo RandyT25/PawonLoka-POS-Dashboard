@@ -75,12 +75,14 @@ export default function Shifts() {
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>
-              <tr><th>Staff</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Float Open</th><th>Float Close</th><th>Sales</th><th>Status</th></tr>
+              <tr><th>Staff</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Duration</th><th>Modal</th><th>Ekspektasi</th><th>Aktual</th><th>Selisih</th><th>Sales</th><th>Status</th></tr>
             </thead>
             <tbody>
               {shifts.map(s => {
                 const isOpen = !s.clock_out || s.clock_out===s.clock_in
                 const dur = duration(s)
+                const hasActual = s.actual_cash !== null && s.actual_cash !== undefined
+                const discrepancy = s.cash_discrepancy
                 return (
                   <tr key={s.id}>
                     <td style={{ fontWeight:700 }}>{s.staff||"—"}</td>
@@ -90,12 +92,16 @@ export default function Shifts() {
                     <td style={{ fontSize:12 }}>{dur}</td>
                     <td style={{ fontSize:12 }}>{s.float_open||s.floatOpen?fmt(s.float_open||s.floatOpen):"—"}</td>
                     <td style={{ fontSize:12 }}>{s.float_close||s.floatClose?fmt(s.float_close||s.floatClose):"—"}</td>
+                    <td style={{ fontSize:12, fontWeight:hasActual?700:400, color:hasActual?"var(--ink)":"var(--ink5)" }}>{hasActual?fmt(s.actual_cash):"—"}</td>
+                    <td style={{ fontSize:12, fontWeight:hasActual?700:400, color: discrepancy==null?"var(--ink5)":discrepancy===0?"var(--green)":discrepancy>0?"var(--green)":"var(--red)" }}>
+                      {discrepancy==null?"—":(discrepancy>=0?"+":"")+fmt(discrepancy)}
+                    </td>
                     <td style={{ fontWeight:700 }}>{fmt(s.sales||0)}</td>
                     <td><span className={"bo-badge "+(isOpen?"bo-badge-amber":"bo-badge-green")}>{isOpen?"Open":"Closed"}</span></td>
                   </tr>
                 )
               })}
-              {shifts.length===0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No shifts in this period</td></tr>}
+              {shifts.length===0 && <tr><td colSpan={11} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No shifts in this period</td></tr>}
             </tbody>
           </table>
         )}
