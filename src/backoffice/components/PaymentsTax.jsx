@@ -68,7 +68,7 @@ export default function PaymentsTax() {
 
   async function save() {
     localStorage.setItem(KEY, JSON.stringify(s))
-    await supabase.from("app_settings").upsert({ id:"main", payments:s, updated_at:new Date().toISOString() })
+    await supabase.from("app_settings").upsert({ id:"main", payments:s, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 

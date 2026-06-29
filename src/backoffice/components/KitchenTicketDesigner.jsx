@@ -220,7 +220,7 @@ export default function KitchenTicketDesigner() {
 
   async function save() {
     setSaving(true)
-    await supabase.from("app_settings").upsert({ id:"main", kitchen_ticket:s, updated_at:new Date().toISOString() })
+    await supabase.from("app_settings").upsert({ id:"main", kitchen_ticket:s, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2200)
   }

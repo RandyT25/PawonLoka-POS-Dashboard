@@ -39,7 +39,7 @@ export default function Settings() {
 
   async function save() {
     setSaving(true)
-    await supabase.from("app_settings").upsert({ id:"main", ...settings, cat_routing:catRouting, updated_at:new Date().toISOString() })
+    await supabase.from("app_settings").upsert({ id:"main", ...settings, cat_routing:catRouting, updated_at:new Date().toISOString() }, { onConflict:"id" })
     localStorage.setItem("pl_cat_routing", JSON.stringify(catRouting))
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)

@@ -36,7 +36,7 @@ export default function Loyalty() {
   }
 
   async function saveSettings() {
-    await supabase.from("app_settings").upsert({ id:"main", loyalty:settings, updated_at:new Date().toISOString() })
+    await supabase.from("app_settings").upsert({ id:"main", loyalty:settings, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 

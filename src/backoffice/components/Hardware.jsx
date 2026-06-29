@@ -55,7 +55,7 @@ export default function Hardware() {
     setDevices(data||[])
     alert("Imported "+legacyDevices.length+" devices!")
   }
-  const [form,    setForm]    = useState({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
+  const [form,    setForm]    = useState({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", role:"", station:"", notes:"" })
   const [saved,   setSaved]   = useState(false)
   const [editDevice, setEditDevice] = useState(null)
   const [testing, setTesting] = useState(null)
@@ -71,15 +71,16 @@ export default function Hardware() {
     if (error) { alert("Error: "+error.message); return }
     setDevices(d => [...d, newDevice])
     setModal(false)
-    setForm({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", station:"", notes:"" })
+    setForm({ type:"receipt_printer", name:"", connection:"Bluetooth", ip:"", port:"9100", mac:"", paper:"80mm (standard)", role:"", station:"", notes:"" })
   }
 
   async function saveEditDevice() {
     if (!editDevice) return
     const { error } = await supabase.from("hardware_devices").update({
-      name:  editDevice.name,
-      role:  editDevice.role,
-      paper: editDevice.paper,
+      name:    editDevice.name,
+      role:    editDevice.role,
+      paper:   editDevice.paper,
+      station: editDevice.station,
     }).eq("id", editDevice.id)
     if (error) { alert("Error: " + error.message); return }
     setDevices(d => d.map(x => x.id === editDevice.id ? { ...x, ...editDevice } : x))
@@ -183,10 +184,17 @@ export default function Hardware() {
               <div className="bo-form-row">
                 <label className="bo-label">Role</label>
                 <select value={editDevice.role||""} onChange={e=>setEditDevice(d=>({...d,role:e.target.value}))} className="bo-select">
-                  <option value="receipt">Cashier — Receipt Printer</option>
-                  <option value="kitchen1">Kitchen Station</option>
-                  <option value="kitchen2">Snack Station</option>
+                  <option value="receipt">Kasir — Receipt Printer</option>
+                  <option value="kitchen">Kitchen Station</option>
+                  <option value="snack">Snack Station</option>
                   <option value="bar">Bar Station</option>
+                </select>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">Station</label>
+                <select value={editDevice.station||""} onChange={e=>setEditDevice(d=>({...d,station:e.target.value}))} className="bo-select">
+                  <option value="">— Select station —</option>
+                  {["Kitchen","Bar","Snack","Kasir"].map(s=><option key={s}>{s}</option>)}
                 </select>
               </div>
               <div className="bo-form-row">
@@ -291,15 +299,29 @@ export default function Hardware() {
                 </div>
               )}
 
-              {/* Station for kitchen printer */}
-              {form.type==="kitchen_printer" && (
-                <div className="bo-form-row">
-                  <label className="bo-label">Assigned Station</label>
-                  <select value={form.station} onChange={e=>setForm(f=>({...f,station:e.target.value}))} className="bo-select">
-                    <option value="">— Select station —</option>
-                    {["Kitchen","Bar","Snack","Kasir"].map(s=><option key={s}>{s}</option>)}
-                  </select>
-                </div>
+              {/* Role + Station for printers */}
+              {form.type.includes("printer") && (
+                <>
+                  <div className="bo-form-row">
+                    <label className="bo-label">Printer Role</label>
+                    <select value={form.role||""} onChange={e=>setForm(f=>({...f,role:e.target.value}))} className="bo-select">
+                      <option value="">— Select role —</option>
+                      <option value="receipt">Kasir — Receipt Printer</option>
+                      <option value="kitchen">Kitchen Station</option>
+                      <option value="snack">Snack Station</option>
+                      <option value="bar">Bar Station</option>
+                    </select>
+                  </div>
+                  {form.type==="kitchen_printer" && (
+                    <div className="bo-form-row">
+                      <label className="bo-label">Assigned Station</label>
+                      <select value={form.station} onChange={e=>setForm(f=>({...f,station:e.target.value}))} className="bo-select">
+                        <option value="">— Select station —</option>
+                        {["Kitchen","Bar","Snack","Kasir"].map(s=><option key={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  )}
+                </>
               )}
 
               <div className="bo-form-row"><label className="bo-label">Notes</label><input value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))} className="bo-input" placeholder="Optional notes" /></div>

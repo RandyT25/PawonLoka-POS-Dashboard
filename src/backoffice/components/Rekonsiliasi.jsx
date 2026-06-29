@@ -111,7 +111,6 @@ export default function Rekonsiliasi() {
       bank_ref:       editForm.bank_ref,
       reconciled_by:  editForm.reconciled_by,
       reconciled_at:  editForm.status === "reconciled" ? new Date().toISOString() : null,
-      updated_at:     new Date().toISOString(),
     }
 
     let error

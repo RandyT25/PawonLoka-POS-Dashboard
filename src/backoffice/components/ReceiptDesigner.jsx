@@ -69,7 +69,7 @@ export default function ReceiptDesigner() {
 
   async function save() {
     setSaving(true)
-    const { error } = await supabase.from("app_settings").upsert({ id:"main", receipt:s, updated_at:new Date().toISOString() })
+    const { error } = await supabase.from("app_settings").upsert({ id:"main", receipt:s, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setSaving(false)
     if (error) { alert('Gagal menyimpan: ' + error.message); return }
     setSaved(true)
@@ -110,7 +110,7 @@ export default function ReceiptDesigner() {
   if (loading) return <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div>
 
   return (
-    <div className="receipt-grid" style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:20, alignItems:"start" }}>
+    <div className="receipt-grid" style={{ display:"grid", gridTemplateColumns:"1fr 360px", gap:20, alignItems:"start" }}>
 
       {/* Left: Settings */}
       <div>
@@ -245,11 +245,11 @@ export default function ReceiptDesigner() {
 
       {/* Right: Preview */}
       <div style={{ position:"sticky", top:16 }} className="receipt-preview-panel">
-        <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+        <div className="bo-card" style={{ padding:0, overflow:"hidden" }}>
           <div style={{ padding:"8px 12px", background:"var(--surface)", borderBottom:"1px solid var(--surface3)", fontSize:12, fontWeight:700, color:"var(--ink4)" }}>
             RECEIPT PREVIEW ({s.paper_size})
           </div>
-          <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?180:280, margin:"0 auto" }}>
+          <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?200:320, margin:"0 auto" }}>
             {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:2 }}><img src={s.logo_bw} style={{ width:80, height:80, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
             <div style={{ textAlign:"center", fontWeight:700, fontSize:13 }}>{s.outlet_name}</div>
             {s.tagline && <div style={{ textAlign:"center", fontSize:10 }}>{s.tagline}</div>}
