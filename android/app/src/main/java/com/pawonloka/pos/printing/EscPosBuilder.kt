@@ -242,14 +242,12 @@ object EscPosBuilder {
                 val itemTotal = item.price * item.qty - item.itemDisc
                 if (d.paperSize == "58mm") {
                     addLine("${item.qty}x ${item.name.take(w)}")
-                    addLine(padLine("", fmt(item.price), w))
+                    addLine(padLine("", fmt(itemTotal), w))
                 } else {
-                    addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price), w))
+                    addLine(truncLine("${item.qty}x ${item.name}", fmt(itemTotal), w))
                 }
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
-                if (item.qty > 1 || item.itemDisc > 0)
-                    addLine(padLine("", fmt(itemTotal), w))
                 if (item.itemDisc > 0 && !item.itemDiscLabel.isNullOrBlank())
                     addLine("  Disc: ${item.itemDiscLabel}")
             }
