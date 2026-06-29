@@ -169,7 +169,7 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
                   if (!items.length) { alert('Pilih item dulu'); return }
                   const catRouting = (() => { try { return JSON.parse(localStorage.getItem('pl_cat_routing')||'{}') } catch { return {} } })()
                   const getStation = cat => catRouting[cat] || KITCHEN_STATIONS[cat] || 'Kitchen'
-                  const ROLE_MAP = { Kitchen:'kitchen1', Snack:'kitchen2', Bar:'bar', Kasir:'receipt' }
+                  const ROLE_MAP = { Kitchen:'kitchen', kitchen:'kitchen', Snack:'snack', snack:'snack', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
                   const stations = {}
                   items.forEach(i => {
                     const st = getStation(i.cat)
@@ -188,7 +188,7 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
                     if (onPrintKitchen) {
                       try {
                         await onPrintKitchen({
-                          stationRole: ROLE_MAP[station] || 'kitchen1',
+                          stationRole: ROLE_MAP[station] || 'kitchen',
                           stationName: station,
                           table: reprintOrder.table || '-',
                           orderType: reprintOrder.table ? 'Dine-in' : 'Takeaway',
@@ -201,6 +201,9 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
                           }),
                           time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
                           orderId: reprintOrder.id,
+                          type: 'reprint',
+                          cancelItems: [],
+                          settings: {},
                         })
                       } catch(e) { console.warn('Reprint print failed:', e.message) }
                     }

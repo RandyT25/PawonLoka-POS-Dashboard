@@ -678,11 +678,12 @@ export default function POS() {
     const allStations = kdsOn
       ? new Set([...Object.keys(stations), ...Object.keys(cancelStations)])
       : new Set()
+    const isFirstSend = cart.every(i => !i._sent)
     for (const station of allStations) {
       const addItems = stations[station] || []
       const cItems   = cancelStations[station] || []
-      const type     = addItems.length && cItems.length ? 'update' : addItems.length ? 'addition' : 'cancellation'
-      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen1'
+      const type     = addItems.length && cItems.length ? 'update' : cItems.length ? 'cancellation' : isFirstSend ? 'new' : 'addition'
+      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen'
       const fmtItem = (i, prefix) => {
         const parts = [prefix + i.qty + 'x ' + i.name]
         if (i.modifiers && Object.values(i.modifiers).length) parts.push('  [' + Object.values(i.modifiers).join(', ') + ']')
@@ -697,7 +698,7 @@ export default function POS() {
           cancelItems: cItems.map(i => fmtItem(i, '-')),
           time: now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) + ' | ' + now.toLocaleDateString('id-ID', { day:'numeric', month:'short', year:'numeric' }),
           orderId: openBillId || 'NEW',
-          settings: appSettings?.kitchen_ticket,
+          settings: appSettings?.kitchen_ticket || {},
         })
         await Promise.race([printJob, new Promise((_, rej) => setTimeout(() => rej(new Error('print timeout')), 15000))])
       } catch(e) {
@@ -761,13 +762,13 @@ export default function POS() {
         items: stItems.map(i => ({ name:i.name, qty:i.qty })),
         time: nowTime, status: 'New', station, type: 'cancellation',
       }).catch(() => {})
-      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen1'
+      const stationRole = ROLE_MAP[station] || ROLE_MAP[station?.charAt(0).toUpperCase()+station?.slice(1)] || 'kitchen'
       try {
         await printer.printKitchenTicket({
           stationRole, stationName: station,
           table: tableNo || '-', orderType,
           type: 'cancellation', time: nowTime,
-          settings: appSettings?.kitchen_ticket,
+          settings: appSettings?.kitchen_ticket || {},
           cancelItems: stItems.map(i => {
             const parts = ['-' + i.qty + 'x ' + i.name]
             if (i.modifiers && Object.values(i.modifiers).filter(Boolean).length)
@@ -826,22 +827,31 @@ export default function POS() {
       discount: discount ? Math.round(subtotal * discount / 100) : 0,
     }
     const outlet = {
-      name:     rs.outlet_name || appSettings?.outlet?.name || 'PawonLoka',
-      address:  rs.address     || appSettings?.outlet?.address || '',
-      phone:    rs.phone       || appSettings?.outlet?.phone || '',
-      website:  rs.website     || '',
-      tagline:  rs.tagline     || '',
+      name:         rs.outlet_name  || appSettings?.outlet?.name || 'PawonLoka',
+      address:      rs.address      || appSettings?.outlet?.address || '',
+      phone:        rs.phone        || appSettings?.outlet?.phone || '',
+      website:      rs.website      || '',
+      tagline:      rs.tagline      || '',
+      wifi:         rs.footer_wifi  || '',
+      promo:        rs.footer_promo || '',
+      social:       rs.social       || '',
+      customLine1:  rs.custom_line_1 || '',
+      customLine2:  rs.custom_line_2 || '',
+      thankYou:     rs.footer_thank_you || '',
       showOrderId:  rs.show_order_id  !== false,
       showTable:    rs.show_table     !== false,
       showCashier:  rs.show_cashier   !== false,
       showDatetime: rs.show_datetime  !== false,
+      showTax:      rs.show_tax       !== false,
+      showService:  rs.show_service   !== false,
     }
     try {
       await printer.printPreBill(order, {
         outlet,
         tax: { enabled: TAX_RATE_LIVE > 0, rate: Math.round(TAX_RATE_LIVE * 100), label: 'PPN' },
         service: { enabled: SERVICE_RATE > 0, rate: Math.round(SERVICE_RATE * 100) },
-        preBillNote: rs.pre_bill_note || 'Ini bukan struk pembayaran',
+        preBillNote:  rs.pre_bill_note  || 'Ini bukan struk pembayaran',
+        preBillNote2: rs.pre_bill_note_2 || '',
       })
     } catch(e) { alert('Print failed: ' + e.message) }
   }

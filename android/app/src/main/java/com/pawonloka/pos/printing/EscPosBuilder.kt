@@ -89,7 +89,8 @@ data class ReceiptData(
     val staff: String? = null,
     val datetime: String? = null,
     @SerializedName("paperSize") val paperSize: String = "80mm",
-    @SerializedName("preBillNote") val preBillNote: String? = null,
+    @SerializedName("preBillNote")  val preBillNote:  String? = null,
+    @SerializedName("preBillNote2") val preBillNote2: String? = null,
     val customer: String? = null,
     val points: Int = 0
 )
@@ -115,7 +116,7 @@ data class KitchenTicketData(
     val cancelItems: List<String> = emptyList(),
     val time: String = "",
     val orderId: String = "",
-    val settings: KitchenSettings = KitchenSettings(),
+    val settings: KitchenSettings? = null,
     @SerializedName("paperSize") val paperSize: String = "80mm"
 )
 
@@ -239,7 +240,12 @@ object EscPosBuilder {
             // Items
             for (item in d.items) {
                 val itemTotal = item.price * item.qty - item.itemDisc
-                addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price), w))
+                if (d.paperSize == "58mm") {
+                    addLine("${item.qty}x ${item.name.take(w)}")
+                    addLine(padLine("", fmt(item.price), w))
+                } else {
+                    addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price), w))
+                }
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
                 if (item.qty > 1 || item.itemDisc > 0)
@@ -288,13 +294,22 @@ object EscPosBuilder {
             add(Cmd.INIT)
             add(Cmd.ALIGN_C)
             add(Cmd.BOLD_ON); addLine("TAGIHAN"); add(Cmd.BOLD_OFF)
-            if (!d.outlet.name.isNullOrBlank()) addLine(d.outlet.name)
+            if (!d.outlet.name.isNullOrBlank()) {
+                add(Cmd.BOLD_ON); add(Cmd.DOUBLE_ON)
+                addLine(d.outlet.name)
+                add(Cmd.DOUBLE_OFF); add(Cmd.BOLD_OFF)
+            }
             if (d.outlet.showDatetime && !d.datetime.isNullOrBlank()) addLine(d.datetime)
             if (d.outlet.showTable    && !d.table.isNullOrBlank())    addLine("Meja: ${d.table}")
             addLine(dash(w))
             add(Cmd.ALIGN_L)
             for (item in d.items) {
-                addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
+                if (d.paperSize == "58mm") {
+                    addLine("${item.qty}x ${item.name.take(w)}")
+                    addLine(padLine("", fmt(item.price * item.qty), w))
+                } else {
+                    addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
+                }
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
             }
@@ -308,6 +323,13 @@ object EscPosBuilder {
             add(Cmd.ALIGN_C)
             val note = d.preBillNote?.takeIf { it.isNotBlank() } ?: "Ini bukan struk pembayaran"
             addLine(note)
+            val note2 = d.preBillNote2?.takeIf { it.isNotBlank() }
+            if (note2 != null) addLine(note2)
+            if (!d.outlet.wifi.isNullOrBlank())        addLine("WiFi: ${d.outlet.wifi}")
+            if (!d.outlet.promo.isNullOrBlank())       addLine(d.outlet.promo)
+            if (!d.outlet.social.isNullOrBlank())      addLine(d.outlet.social)
+            if (!d.outlet.customLine1.isNullOrBlank()) addLine(d.outlet.customLine1)
+            if (!d.outlet.customLine2.isNullOrBlank()) addLine(d.outlet.customLine2)
             add(Cmd.LF); add(Cmd.LF); add(Cmd.LF)
             add(Cmd.CUT)
         }
@@ -316,30 +338,34 @@ object EscPosBuilder {
     // ── Kitchen ticket ───────────────────────────────────────────────────────
     fun buildKitchenTicket(json: String): ByteArray {
         val d = gson.fromJson(json, KitchenTicketData::class.java)
+        val s = d.settings ?: KitchenSettings()
         val w = lineWidth(d.paperSize)
         return buf {
             add(Cmd.INIT)
             add(Cmd.ALIGN_C)
             // Type header
             when (d.type) {
-                "addition"     -> { add(Cmd.BOLD_ON); addLine("** TAMBAHAN **"); add(Cmd.BOLD_OFF) }
-                "cancellation" -> { add(Cmd.BOLD_ON); addLine("*** BATALKAN ***"); add(Cmd.BOLD_OFF) }
+                "new"          -> { add(Cmd.BOLD_ON); addLine("** PESANAN BARU **");  add(Cmd.BOLD_OFF) }
+                "addition"     -> { add(Cmd.BOLD_ON); addLine("** TAMBAHAN **");      add(Cmd.BOLD_OFF) }
+                "cancellation" -> { add(Cmd.BOLD_ON); addLine("*** BATALKAN ***");    add(Cmd.BOLD_OFF) }
+                "update"       -> { add(Cmd.BOLD_ON); addLine("** UPDATE PESANAN **");add(Cmd.BOLD_OFF) }
+                "reprint"      -> { add(Cmd.BOLD_ON); addLine("** CETAK ULANG **");   add(Cmd.BOLD_OFF) }
             }
             // Station header
-            if (d.settings.showOutletName && d.settings.outletName.isNotBlank())
-                addLine(d.settings.outletName)
+            if (s.showOutletName && s.outletName.isNotBlank())
+                addLine(s.outletName)
             add(Cmd.BOLD_ON); add(Cmd.DOUBLE_ON)
             addLine(d.stationName.uppercase())
             add(Cmd.DOUBLE_OFF); add(Cmd.BOLD_OFF)
             addLine(dash(w))
             add(Cmd.ALIGN_L)
-            if (d.settings.showTable && d.table.isNotBlank() && d.table != "-")
+            if (s.showTable && d.table.isNotBlank() && d.table != "-")
                 addLine("Meja: ${d.table}")
-            if (d.settings.showOrderType && d.orderType.isNotBlank())
+            if (s.showOrderType && d.orderType.isNotBlank())
                 addLine(d.orderType)
-            if (d.settings.showDatetime && d.time.isNotBlank())
+            if (s.showDatetime && d.time.isNotBlank())
                 addLine(d.time)
-            if (d.settings.showOrderId && d.orderId.isNotBlank())
+            if (s.showOrderId && d.orderId.isNotBlank())
                 addLine("Order: ${d.orderId.takeLast(8)}")
             addLine(dash(w))
             // Items
@@ -355,19 +381,16 @@ object EscPosBuilder {
                     for (item in d.cancelItems) addLines(item)
                 }
             } else {
-                val useTall = d.stationRole != "receipt"
                 for (item in (d.items + d.cancelItems)) {
                     add(Cmd.BOLD_ON)
-                    if (useTall) add(Cmd.TALL_ON)
                     addLines(item)
-                    if (useTall) add(Cmd.TALL_OFF)
                     add(Cmd.BOLD_OFF)
                 }
             }
             addLine(dash(w))
-            if (d.settings.showFooter && d.settings.footerText.isNotBlank()) {
+            if (s.showFooter && s.footerText.isNotBlank()) {
                 add(Cmd.ALIGN_C)
-                addLine(d.settings.footerText)
+                addLine(s.footerText)
                 add(Cmd.ALIGN_L)
             }
             add(Cmd.LF); add(Cmd.LF); add(Cmd.LF)

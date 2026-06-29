@@ -488,16 +488,10 @@ export default function Products() {
                 </div>
               </div>
 
-              {/* Name + Icon */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", gap:12, marginBottom:14 }}>
-                <div>
-                  <label className="bo-label">Product Name *</label>
-                  <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus />
-                </div>
-                <div>
-                  <label className="bo-label">Icon</label>
-                  <input value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))} className="bo-input" style={{ textAlign:"center", fontSize:24, padding:"6px" }} />
-                </div>
+              {/* Name */}
+              <div style={{ marginBottom:14 }}>
+                <label className="bo-label">Product Name *</label>
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus />
               </div>
 
               {/* Category + Price */}

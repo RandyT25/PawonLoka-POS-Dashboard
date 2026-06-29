@@ -33,6 +33,7 @@ object PrinterManager {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     private fun migrateKitchenToReceipt(p: SharedPreferences) {
+        if (p.getBoolean("migration_kitchen_to_receipt_done", false)) return
         val hasReceipt = p.getString("receipt_mac", null) != null || p.getString("receipt_ip", null) != null
         val kitchenMac = p.getString("kitchen_mac", null)
         if (!hasReceipt && kitchenMac != null) {
@@ -46,6 +47,7 @@ object PrinterManager {
                 .apply()
             Log.i(TAG, "Migrated kitchen printer → receipt station")
         }
+        p.edit().putBoolean("migration_kitchen_to_receipt_done", true).apply()
     }
 
     fun loadPrintersFromPrefs(context: Context) {
@@ -209,21 +211,27 @@ object PrinterManager {
             try {
                 val jobs = db.printJobDao().getPendingJobs(station)
                 val job = jobs.firstOrNull()
-                if (job != null && isStationConnected(station)) {
-                    db.printJobDao().updateStatusNoError(job.id, "printing")
-                    try {
-                        val bytes = EscPosBuilder.build(job.type, job.payload)
-                        val ok = sendToStation(station, bytes)
-                        if (ok) {
-                            db.printJobDao().updateStatusNoError(job.id, "done")
-                            Log.i(TAG, "[$station] Printed job ${job.id.take(8)}")
-                        } else {
-                            handleRetry(job)
+                if (job != null) {
+                    val hasAny = btConnections.containsKey(station) || lanConnections.containsKey(station)
+                    if (!hasAny) {
+                        handleRetry(job, "No printer configured for station: $station")
+                    } else if (isStationConnected(station)) {
+                        db.printJobDao().updateStatusNoError(job.id, "printing")
+                        try {
+                            val bytes = EscPosBuilder.build(job.type, job.payload)
+                            val ok = sendToStation(station, bytes)
+                            if (ok) {
+                                db.printJobDao().updateStatusNoError(job.id, "done")
+                                Log.i(TAG, "[$station] Printed job ${job.id.take(8)}")
+                            } else {
+                                handleRetry(job)
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "[$station] Build/send error: ${e.message}")
+                            handleRetry(job, e.message)
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "[$station] Build/send error: ${e.message}")
-                        handleRetry(job, e.message)
                     }
+                    // else: printer registered but not yet connected — wait and retry
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Drain loop error [$station]: ${e.message}")

@@ -3,6 +3,13 @@ import { supabase } from "../../lib/supabase"
 
 const COLORS = ["#0066FF","#00875A","#FF8B00","#DE350B","#6554C0","#00B8D9","#FF5630","#36B37E","#0A1628","#E91E8C"]
 const EMPTY  = { name:"", icon:"🏷", color:"#0066FF" }
+const FOOD_EMOJIS = [
+  "🍛","🍜","🍝","🍣","🍱","🍔","🍟","🍕","🌮","🌯","🥗","🍲",
+  "🥩","🍗","🍖","🌭","🥪","🥙","🍳","🥞","🧇","🧆","🫕","🍞",
+  "🥐","🥖","🧁","🍰","🎂","🍩","🍪","🍫","☕","🍵","🧋","🥤",
+  "🍹","🍸","🍺","🥂","🍷","🥃","🧃","🥛","🍴","🥄","🍽️","🥢",
+  "🌿","🔥","⭐","🏆","🎉","💯","❤️","🌈","🌺","🌸","🍀","✨",
+]
 
 export default function Categories() {
   const [cats,     setCats]     = useState([])
@@ -12,6 +19,7 @@ export default function Categories() {
   const [saving,   setSaving]   = useState(false)
   const [loading,  setLoading]  = useState(true)
   const [dragIdx,  setDragIdx]  = useState(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [addProdModal, setAddProdModal] = useState(null) // category to add product to
   const [prodForm, setProdForm] = useState({ name:"", price:"", icon:"🍽", desc:"" })
   const [savingProd, setSavingProd] = useState(false)
@@ -34,7 +42,7 @@ export default function Categories() {
 
   function openAdd()   { setForm(EMPTY); setModal("add") }
   function openEdit(c) { setForm({ ...c }); setModal("edit") }
-  function closeModal(){ setModal(false); setForm(EMPTY) }
+  function closeModal(){ setModal(false); setForm(EMPTY); setShowEmojiPicker(false) }
 
   async function save() {
     if (!form.name) return
@@ -203,9 +211,32 @@ export default function Categories() {
                 </div>
                 <div>
                   <label className="bo-label">Icon</label>
-                  <input value={form.icon} onChange={e=>setForm(f=>({...f,icon:e.target.value}))}
-                    className="bo-input" style={{ textAlign:"center", fontSize:20, padding:"6px 4px" }}
-                    placeholder="🏷" />
+                  <div style={{ position:"relative" }}>
+                    <button type="button" onClick={()=>setShowEmojiPicker(p=>!p)}
+                      className="bo-input"
+                      style={{ fontSize:22, textAlign:"center", cursor:"pointer", width:"100%", display:"block" }}>
+                      {form.icon || "🏷"}
+                    </button>
+                    {showEmojiPicker && (
+                      <div style={{
+                        position:"absolute", top:"calc(100% + 4px)", left:0, zIndex:999,
+                        background:"var(--surface1)", border:"1px solid var(--surface3)",
+                        borderRadius:12, padding:8, boxShadow:"0 8px 24px rgba(0,0,0,0.18)",
+                        display:"grid", gridTemplateColumns:"repeat(6,36px)", gap:2
+                      }}>
+                        {FOOD_EMOJIS.map(e=>(
+                          <button key={e} type="button"
+                            onClick={()=>{ setForm(f=>({...f,icon:e})); setShowEmojiPicker(false) }}
+                            style={{ fontSize:20, background:"none", border:"none", borderRadius:6,
+                              cursor:"pointer", padding:4, lineHeight:1 }}
+                            onMouseEnter={ev=>ev.currentTarget.style.background="var(--surface2)"}
+                            onMouseLeave={ev=>ev.currentTarget.style.background="none"}>
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="bo-form-row">

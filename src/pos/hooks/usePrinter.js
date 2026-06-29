@@ -76,7 +76,8 @@ function buildReceiptPayload(order, opts = {}, paperSize = "80mm") {
 function buildPreBillPayload(order, opts = {}, paperSize = "80mm") {
   return {
     ...buildReceiptPayload(order, opts, paperSize),
-    preBillNote: opts.preBillNote || "Ini bukan struk pembayaran",
+    preBillNote:  opts.preBillNote  || "Ini bukan struk pembayaran",
+    preBillNote2: opts.preBillNote2 || "",
     payments: [],
     change: 0,
   };

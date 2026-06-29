@@ -102,7 +102,6 @@ export default function Rekonsiliasi() {
 
     const payload = {
       recon_no:       editModal.recon_no,
-      recon_date:     editModal.date,
       payment_method: editModal.payment_method,
       cashier_name:   editModal.cashier_name,
       outlet:         editModal.outlet,

@@ -8,7 +8,8 @@ const DEFAULTS = {
   address:"Bali, Indonesia", phone:"", website:"", social:"@pawonloka",
   footer_thank_you:"Terima kasih telah berkunjung!", footer_promo:"", footer_wifi:"",
   custom_line_1:"", custom_line_2:"",
-  pre_bill_note:"Ini bukan struk pembayaran — mohon bayar di kasir",
+  pre_bill_note:"Ini bukan struk pembayaran",
+  pre_bill_note_2:"mohon bayar di kasir",
   show_order_id:true, show_cashier:true, show_table:true, show_datetime:true,
   show_sku:false, show_tax:true, show_service:true, show_loyalty:true, show_qr:false,
   qr_url:"", qr_label:"Scan to review us",
@@ -68,8 +69,10 @@ export default function ReceiptDesigner() {
 
   async function save() {
     setSaving(true)
-    await supabase.from("app_settings").upsert({ id:"main", receipt:s, updated_at:new Date().toISOString() })
-    setSaving(false); setSaved(true)
+    const { error } = await supabase.from("app_settings").upsert({ id:"main", receipt:s, updated_at:new Date().toISOString() })
+    setSaving(false)
+    if (error) { alert('Gagal menyimpan: ' + error.message); return }
+    setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
@@ -180,15 +183,20 @@ export default function ReceiptDesigner() {
         {/* Footer */}
         <div className="bo-card">
           <div className="bo-card-title">Footer</div>
-          {[["footer_thank_you","Thank you message"],["footer_promo","Promo message"],["footer_wifi","WiFi info"],["custom_line_1","Custom line 1"],["custom_line_2","Custom line 2"],["pre_bill_note","Pre-bill message (customer tagihan)"]].map(([k,l])=>(
+          {[["footer_thank_you","Thank you message"],["footer_promo","Promo message"],["footer_wifi","WiFi info"],["custom_line_1","Custom line 1"],["custom_line_2","Custom line 2"]].map(([k,l])=>(
             <div key={k} className="bo-form-row">
               <label className="bo-label">{l}</label>
-              {k === "pre_bill_note"
-                ? <textarea rows={2} value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" style={{ resize:"vertical" }} />
-                : <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />
-              }
+              <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />
             </div>
           ))}
+          <div className="bo-form-row">
+            <label className="bo-label">Pre-bill message line 1</label>
+            <input value={s.pre_bill_note||""} onChange={e=>update("pre_bill_note",e.target.value)} className="bo-input" />
+          </div>
+          <div className="bo-form-row">
+            <label className="bo-label">Pre-bill message line 2</label>
+            <input value={s.pre_bill_note_2||""} onChange={e=>update("pre_bill_note_2",e.target.value)} className="bo-input" />
+          </div>
         </div>
 
         {/* Print options */}
@@ -249,19 +257,27 @@ export default function ReceiptDesigner() {
             {s.phone && <div style={{ textAlign:"center", fontSize:10 }}>{s.phone}</div>}
             {s.website && <div style={{ textAlign:"center", fontSize:10 }}>{s.website}</div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            {s.show_order_id && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Order #</span><span>#1001</span></div>}
-            {s.show_datetime && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Date</span><span>22/05/2026 10:30</span></div>}
-            {s.show_cashier && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Cashier</span><span>Nita</span></div>}
-            {s.show_table && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Table</span><span>Table 3</span></div>}
+            {s.show_order_id && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Order #</span><span style={{flexShrink:0}}>#1001</span></div>}
+            {s.show_datetime && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Date</span><span style={{flexShrink:0}}>22/05/2026 10:30</span></div>}
+            {s.show_cashier && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Cashier</span><span style={{flexShrink:0}}>Nita</span></div>}
+            {s.show_table && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Table</span><span style={{flexShrink:0}}>Table 3</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            <div style={{ display:"flex", justifyContent:"space-between" }}><span>Nasi Goreng x1</span><span>Rp 25.000</span></div>
-            <div style={{ display:"flex", justifyContent:"space-between" }}><span>Teh Manis x2</span><span>Rp 14.000</span></div>
+            {s.paper_size === "58mm" ? (<>
+              <div>Nasi Goreng x1</div>
+              <div style={{ textAlign:"right" }}>Rp 25.000</div>
+              <div style={{ height:2 }} />
+              <div>Teh Manis x2</div>
+              <div style={{ textAlign:"right" }}>Rp 14.000</div>
+            </>) : (<>
+              <div style={{ display:"flex", justifyContent:"space-between" }}><span>Nasi Goreng x1</span><span>Rp 25.000</span></div>
+              <div style={{ display:"flex", justifyContent:"space-between" }}><span>Teh Manis x2</span><span>Rp 14.000</span></div>
+            </>)}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            {s.show_sku && <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#888" }}><span>SKU: NGR-001</span><span>SKU: TEH-001</span></div>}
-            {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Tax 10%</span><span>Rp 3.900</span></div>}
-            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between" }}><span>Service</span><span>Rp 2.000</span></div>}
-            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700 }}><span>TOTAL</span><span>Rp 42.900</span></div>
-            {s.show_loyalty && <div style={{ display:"flex", justifyContent:"space-between", fontSize:10 }}><span>Points earned</span><span>+42 pts</span></div>}
+            {s.show_sku && <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#888", whiteSpace:"nowrap" }}><span>SKU: NGR-001</span><span style={{flexShrink:0}}>SKU: TEH-001</span></div>}
+            {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Tax 10%</span><span style={{flexShrink:0}}>Rp 3.900</span></div>}
+            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Service</span><span style={{flexShrink:0}}>Rp 2.000</span></div>}
+            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 42.900</span></div>
+            {s.show_loyalty && <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, whiteSpace:"nowrap" }}><span>Points earned</span><span style={{flexShrink:0}}>+42 pts</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.footer_thank_you && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_thank_you}</div>}
             {s.footer_promo && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_promo}</div>}
@@ -270,6 +286,39 @@ export default function ReceiptDesigner() {
             {s.custom_line_1 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_1}</div>}
             {s.custom_line_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_2}</div>}
             {s.show_qr && s.qr_url && <div style={{ textAlign:"center", marginTop:6 }}><img src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(s.qr_url)}`} style={{ width:64, height:64 }} alt="QR" /><div style={{fontSize:9,marginTop:2}}>{s.qr_label||"Scan to review us"}</div></div>}
+          </div>
+        </div>
+        {/* Pre-bill preview */}
+        <div className="bo-card" style={{ padding:0, overflowX:"auto", WebkitOverflowScrolling:"touch", marginTop:12 }}>
+          <div style={{ padding:"8px 12px", background:"var(--surface)", borderBottom:"1px solid var(--surface3)", fontSize:12, fontWeight:700, color:"var(--ink4)" }}>
+            PRE-BILL PREVIEW ({s.paper_size})
+          </div>
+          <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?180:280, margin:"0 auto" }}>
+            <div style={{ textAlign:"center", fontWeight:700 }}>TAGIHAN</div>
+            <div style={{ textAlign:"center", fontWeight:700, fontSize:14 }}>{s.outlet_name}</div>
+            {s.show_datetime && <div style={{ textAlign:"center", fontSize:10 }}>22/05/2026 10:30</div>}
+            {s.show_table && <div style={{ textAlign:"center", fontSize:10 }}>Meja: Table 3</div>}
+            <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
+            {s.paper_size === "58mm" ? (<>
+              <div>Nasi Goreng x1</div>
+              <div style={{ textAlign:"right" }}>Rp 25.000</div>
+              <div style={{ height:2 }} />
+              <div>Teh Manis x2</div>
+              <div style={{ textAlign:"right" }}>Rp 14.000</div>
+            </>) : (<>
+              <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Nasi Goreng x1</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
+              <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Teh Manis x2</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
+            </>)}
+            <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
+            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 42.900</span></div>
+            <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
+            {s.pre_bill_note && <div style={{ textAlign:"center", fontSize:10 }}>{s.pre_bill_note}</div>}
+            {s.pre_bill_note_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.pre_bill_note_2}</div>}
+            {s.footer_wifi && <div style={{ textAlign:"center", fontSize:10 }}>WiFi: {s.footer_wifi}</div>}
+            {s.footer_promo && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_promo}</div>}
+            {s.social && <div style={{ textAlign:"center", fontSize:10 }}>{s.social}</div>}
+            {s.custom_line_1 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_1}</div>}
+            {s.custom_line_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.custom_line_2}</div>}
           </div>
         </div>
       </div>

@@ -23,7 +23,7 @@ interface PrintJobDao {
     @Query("UPDATE print_jobs SET retryCount = retryCount + 1, status = 'pending' WHERE id = :id")
     suspend fun incrementRetry(id: String)
 
-    @Query("DELETE FROM print_jobs WHERE status = 'done' AND createdAt < :cutoff")
+    @Query("DELETE FROM print_jobs WHERE status IN ('done', 'failed') AND createdAt < :cutoff")
     suspend fun deleteDoneJobsBefore(cutoff: Long)
 }
 
