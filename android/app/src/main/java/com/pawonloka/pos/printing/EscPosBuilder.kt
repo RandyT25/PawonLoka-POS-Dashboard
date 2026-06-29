@@ -240,12 +240,7 @@ object EscPosBuilder {
             // Items
             for (item in d.items) {
                 val itemTotal = item.price * item.qty - item.itemDisc
-                if (d.paperSize == "58mm") {
-                    addLine("${item.qty}x ${item.name.take(w)}")
-                    addLine(padLine("", fmt(itemTotal), w))
-                } else {
-                    addLine(truncLine("${item.qty}x ${item.name}", fmt(itemTotal), w))
-                }
+                addLine(truncLine("${item.qty}x ${item.name}", fmt(itemTotal), w))
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
                 if (item.itemDisc > 0 && !item.itemDiscLabel.isNullOrBlank())
@@ -302,12 +297,7 @@ object EscPosBuilder {
             addLine(dash(w))
             add(Cmd.ALIGN_L)
             for (item in d.items) {
-                if (d.paperSize == "58mm") {
-                    addLine("${item.qty}x ${item.name.take(w)}")
-                    addLine(padLine("", fmt(item.price * item.qty), w))
-                } else {
-                    addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
-                }
+                addLine(truncLine("${item.qty}x ${item.name}", fmt(item.price * item.qty), w))
                 item.modifiers?.values?.forEach { mod -> addLine("  [$mod]") }
                 if (!item.note.isNullOrBlank()) addLine("  * ${item.note}")
             }

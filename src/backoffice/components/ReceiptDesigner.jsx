@@ -13,7 +13,7 @@ const DEFAULTS = {
   show_order_id:true, show_cashier:true, show_table:true, show_datetime:true,
   show_sku:false, show_tax:true, show_service:true, show_loyalty:true, show_qr:false,
   qr_url:"", qr_label:"Scan to review us",
-  paper_size:"80mm", print_copies:1
+  paper_size:"58mm", print_copies:1
 }
 
 function imgToBlackWhite(dataUrl) {
@@ -262,16 +262,8 @@ export default function ReceiptDesigner() {
             {s.show_cashier && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Cashier</span><span style={{flexShrink:0}}>Nita</span></div>}
             {s.show_table && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Table</span><span style={{flexShrink:0}}>Table 3</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            {s.paper_size === "58mm" ? (<>
-              <div>Nasi Goreng x1</div>
-              <div style={{ textAlign:"right" }}>Rp 25.000</div>
-              <div style={{ height:2 }} />
-              <div>Teh Manis x2</div>
-              <div style={{ textAlign:"right" }}>Rp 14.000</div>
-            </>) : (<>
-              <div style={{ display:"flex", justifyContent:"space-between" }}><span>Nasi Goreng x1</span><span>Rp 25.000</span></div>
-              <div style={{ display:"flex", justifyContent:"space-between" }}><span>Teh Manis x2</span><span>Rp 14.000</span></div>
-            </>)}
+            <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>1x Nasi Goreng</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
+            <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>2x Teh Manis</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.show_sku && <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#888", whiteSpace:"nowrap" }}><span>SKU: NGR-001</span><span style={{flexShrink:0}}>SKU: TEH-001</span></div>}
             {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Tax 10%</span><span style={{flexShrink:0}}>Rp 3.900</span></div>}
@@ -293,22 +285,14 @@ export default function ReceiptDesigner() {
           <div style={{ padding:"8px 12px", background:"var(--surface)", borderBottom:"1px solid var(--surface3)", fontSize:12, fontWeight:700, color:"var(--ink4)" }}>
             PRE-BILL PREVIEW ({s.paper_size})
           </div>
-          <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?180:280, margin:"0 auto" }}>
+          <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?200:320, margin:"0 auto" }}>
             <div style={{ textAlign:"center", fontWeight:700 }}>TAGIHAN</div>
             <div style={{ textAlign:"center", fontWeight:700, fontSize:14 }}>{s.outlet_name}</div>
             {s.show_datetime && <div style={{ textAlign:"center", fontSize:10 }}>22/05/2026 10:30</div>}
             {s.show_table && <div style={{ textAlign:"center", fontSize:10 }}>Meja: Table 3</div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            {s.paper_size === "58mm" ? (<>
-              <div>Nasi Goreng x1</div>
-              <div style={{ textAlign:"right" }}>Rp 25.000</div>
-              <div style={{ height:2 }} />
-              <div>Teh Manis x2</div>
-              <div style={{ textAlign:"right" }}>Rp 14.000</div>
-            </>) : (<>
-              <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Nasi Goreng x1</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
-              <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Teh Manis x2</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
-            </>)}
+            <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>1x Nasi Goreng</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
+            <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>2x Teh Manis</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 42.900</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
