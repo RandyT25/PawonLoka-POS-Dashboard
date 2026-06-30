@@ -65,7 +65,8 @@ data class OutletSettings(
     @SerializedName("showDatetime") val showDatetime: Boolean = true,
     @SerializedName("showTax") val showTax: Boolean = true,
     @SerializedName("showService") val showService: Boolean = true,
-    @SerializedName("showLoyalty") val showLoyalty: Boolean = false
+    @SerializedName("showLoyalty") val showLoyalty: Boolean = false,
+    @SerializedName("show_outlet_name") val showOutletName: Boolean = true
 )
 
 data class TaxSettings(val enabled: Boolean = false, val rate: Double = 0.0, val label: String = "PPN")
@@ -218,9 +219,11 @@ object EscPosBuilder {
             // Header
             add(Cmd.ALIGN_C)
             logoForPaper(d.paperSize)?.let { write(it); add(Cmd.LF) }
-            add(Cmd.BOLD_ON); add(Cmd.DOUBLE_ON)
-            addLine(d.outlet.name.uppercase())
-            add(Cmd.DOUBLE_OFF); add(Cmd.BOLD_OFF)
+            if (d.outlet.showOutletName) {
+                add(Cmd.BOLD_ON); add(Cmd.DOUBLE_ON)
+                addLine(d.outlet.name.uppercase())
+                add(Cmd.DOUBLE_OFF); add(Cmd.BOLD_OFF)
+            }
             if (!d.outlet.tagline.isNullOrBlank())  addLine(d.outlet.tagline)
             if (!d.outlet.address.isNullOrBlank())  addLine(d.outlet.address)
             if (!d.outlet.phone.isNullOrBlank())    addLine("Telp: ${d.outlet.phone}")
@@ -267,13 +270,13 @@ object EscPosBuilder {
             addLine(dash(w))
             // Footer
             add(Cmd.ALIGN_C)
-            if (!d.outlet.wifi.isNullOrBlank())   addLine("WiFi: ${d.outlet.wifi}")
-            if (!d.outlet.promo.isNullOrBlank())  addLine(d.outlet.promo)
-            if (!d.outlet.social.isNullOrBlank()) addLine(d.outlet.social)
-            if (!d.outlet.customLine1.isNullOrBlank()) addLine(d.outlet.customLine1)
-            if (!d.outlet.customLine2.isNullOrBlank()) addLine(d.outlet.customLine2)
             val thanks = d.outlet.thankYou?.takeIf { it.isNotBlank() } ?: "Terima kasih!"
             add(Cmd.BOLD_ON); addLine(thanks); add(Cmd.BOLD_OFF)
+            if (!d.outlet.promo.isNullOrBlank())       addLine(d.outlet.promo)
+            if (!d.outlet.wifi.isNullOrBlank())        addLine("WiFi: ${d.outlet.wifi}")
+            if (!d.outlet.social.isNullOrBlank())      addLine(d.outlet.social)
+            if (!d.outlet.customLine1.isNullOrBlank()) addLine(d.outlet.customLine1)
+            if (!d.outlet.customLine2.isNullOrBlank()) addLine(d.outlet.customLine2)
             add(Cmd.LF); add(Cmd.LF); add(Cmd.LF)
             add(Cmd.CUT)
         }
@@ -306,6 +309,10 @@ object EscPosBuilder {
                 addLine(padLine("Subtotal", fmt(d.subtotal + d.discount), w))
                 addLine(padLine("Diskon", "-${fmt(d.discount)}", w))
             }
+            if ((d.taxSettings?.enabled == true) && d.tax > 0)
+                addLine(padLine(d.taxSettings.label, fmt(d.tax), w))
+            if ((d.serviceSettings?.enabled == true) && d.service > 0)
+                addLine(padLine("Service", fmt(d.service), w))
             add(Cmd.BOLD_ON); addLine(padLine("TOTAL", fmt(d.total), w)); add(Cmd.BOLD_OFF)
             addLine(dash(w))
             add(Cmd.ALIGN_C)

@@ -835,8 +835,8 @@ export default function POS() {
       wifi:         rs.footer_wifi  || '',
       promo:        rs.footer_promo || '',
       social:       rs.social       || '',
-      customLine1:  rs.custom_line_1 || '',
-      customLine2:  rs.custom_line_2 || '',
+      custom_line_1: rs.custom_line_1 || '',
+      custom_line_2: rs.custom_line_2 || '',
       thankYou:     rs.footer_thank_you || '',
       showOrderId:  rs.show_order_id  !== false,
       showTable:    rs.show_table     !== false,
@@ -844,6 +844,7 @@ export default function POS() {
       showDatetime: rs.show_datetime  !== false,
       showTax:      rs.show_tax       !== false,
       showService:  rs.show_service   !== false,
+      show_outlet_name: rs.show_outlet_name !== false,
     }
     try {
       await printer.printPreBill(order, {
@@ -1072,6 +1073,7 @@ export default function POS() {
         showService: rs.show_service !== false,
         showLoyalty: rs.show_loyalty !== false,
         showSku: rs.show_sku === true,
+        show_outlet_name: rs.show_outlet_name !== false,
       }
       await printer.printReceipt(order, { outlet, tax: { enabled: TAX_RATE_LIVE>0, rate: Math.round(TAX_RATE_LIVE*100), label:'PPN' }, service: { enabled: SERVICE_RATE>0, rate: Math.round(SERVICE_RATE*100) } })
     } catch(e) { alert('Print failed: ' + e.message) }

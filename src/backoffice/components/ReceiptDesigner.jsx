@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase"
 const KEY = "pl_receipt_settings"
 const DEFAULTS = {
   show_logo:true, logo_color:"", logo_bw:"",
+  show_outlet_name:true,
   outlet_name:"PawonLoka", tagline:"Rasa yang lahir dari dapur penuh cerita",
   address:"Bali, Indonesia", phone:"", website:"", social:"@pawonloka",
   footer_thank_you:"Terima kasih telah berkunjung!", footer_promo:"", footer_wifi:"",
@@ -117,11 +118,18 @@ export default function ReceiptDesigner() {
         {/* Logo */}
         <div className="bo-card">
           <div className="bo-card-title">Header</div>
-          <label style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, cursor:"pointer" }}>
+          <label style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12, cursor:"pointer" }}>
             <span style={{ fontSize:13, fontWeight:600 }}>Show Logo</span>
             <div onClick={()=>update("show_logo",!s.show_logo)}
               style={{ width:44,height:24,borderRadius:12,background:s.show_logo?"var(--green)":"var(--surface3)",position:"relative",cursor:"pointer",transition:"background 0.2s" }}>
               <div style={{ width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:s.show_logo?22:2,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
+            </div>
+          </label>
+          <label style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16, cursor:"pointer" }}>
+            <span style={{ fontSize:13, fontWeight:600 }}>Show Outlet Name</span>
+            <div onClick={()=>update("show_outlet_name",!s.show_outlet_name)}
+              style={{ width:44,height:24,borderRadius:12,background:s.show_outlet_name?"var(--green)":"var(--surface3)",position:"relative",cursor:"pointer",transition:"background 0.2s" }}>
+              <div style={{ width:20,height:20,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:s.show_outlet_name?22:2,transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }} />
             </div>
           </label>
 
@@ -172,12 +180,16 @@ export default function ReceiptDesigner() {
             </div>
           </div>
 
-          {[["outlet_name","Outlet Name"],["tagline","Tagline"],["address","Address"],["phone","Phone"],["website","Website"],["social","Social Media"]].map(([k,l])=>(
+          {[["outlet_name","Outlet Name"],["address","Address"],["phone","Phone"],["website","Website"],["social","Social Media"]].map(([k,l])=>(
             <div key={k} className="bo-form-row">
               <label className="bo-label">{l}</label>
               <input value={s[k]||""} onChange={e=>update(k,e.target.value)} className="bo-input" />
             </div>
           ))}
+          <div className="bo-form-row">
+            <label className="bo-label">Tagline</label>
+            <textarea value={s.tagline||""} onChange={e=>update("tagline",e.target.value)} className="bo-input" rows={2} style={{ resize:"vertical" }} />
+          </div>
         </div>
 
         {/* Footer */}
@@ -251,7 +263,7 @@ export default function ReceiptDesigner() {
           </div>
           <div style={{ padding:16, fontFamily:"monospace", fontSize:11, lineHeight:1.6, maxWidth: s.paper_size==="58mm"?200:320, margin:"0 auto" }}>
             {s.show_logo && s.logo_bw && <div style={{ textAlign:"center", marginBottom:2 }}><img src={s.logo_bw} style={{ width:80, height:80, objectFit:"contain", filter:"grayscale(100%)" }} /></div>}
-            <div style={{ textAlign:"center", fontWeight:700, fontSize:13 }}>{s.outlet_name}</div>
+            {s.show_outlet_name !== false && <div style={{ textAlign:"center", fontWeight:700, fontSize:13 }}>{s.outlet_name}</div>}
             {s.tagline && <div style={{ textAlign:"center", fontSize:10 }}>{s.tagline}</div>}
             {s.address && <div style={{ textAlign:"center", fontSize:10 }}>{s.address}</div>}
             {s.phone && <div style={{ textAlign:"center", fontSize:10 }}>{s.phone}</div>}
@@ -263,12 +275,16 @@ export default function ReceiptDesigner() {
             {s.show_table && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Table</span><span style={{flexShrink:0}}>Table 3</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>1x Nasi Goreng</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
+            <div style={{ fontSize:9, color:"#888" }}>{"  [Extra Telur]"}</div>
+            <div style={{ fontSize:9, color:"#888" }}>{"  * extra pedas"}</div>
             <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>2x Teh Manis</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.show_sku && <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:"#888", whiteSpace:"nowrap" }}><span>SKU: NGR-001</span><span style={{flexShrink:0}}>SKU: TEH-001</span></div>}
-            {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Tax 10%</span><span style={{flexShrink:0}}>Rp 3.900</span></div>}
-            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Service</span><span style={{flexShrink:0}}>Rp 2.000</span></div>}
-            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 42.900</span></div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#888", whiteSpace:"nowrap" }}><span>Subtotal</span><span style={{flexShrink:0}}>Rp 39.000</span></div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#c00", whiteSpace:"nowrap" }}><span>Diskon 10%</span><span style={{flexShrink:0}}>-Rp 3.900</span></div>
+            {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Tax 10%</span><span style={{flexShrink:0}}>Rp 3.510</span></div>}
+            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Service 5%</span><span style={{flexShrink:0}}>Rp 1.755</span></div>}
+            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 40.365</span></div>
             {s.show_loyalty && <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, whiteSpace:"nowrap" }}><span>Points earned</span><span style={{flexShrink:0}}>+42 pts</span></div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.footer_thank_you && <div style={{ textAlign:"center", fontSize:10 }}>{s.footer_thank_you}</div>}
@@ -292,9 +308,13 @@ export default function ReceiptDesigner() {
             {s.show_table && <div style={{ textAlign:"center", fontSize:10 }}>Meja: Table 3</div>}
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>1x Nasi Goreng</span><span style={{flexShrink:0}}>Rp 25.000</span></div>
+            <div style={{ fontSize:9, color:"#888" }}>{"  [Extra Telur]"}</div>
+            <div style={{ fontSize:9, color:"#888" }}>{"  * extra pedas"}</div>
             <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>2x Teh Manis</span><span style={{flexShrink:0}}>Rp 14.000</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
-            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 42.900</span></div>
+            {s.show_tax && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Tax 10%</span><span style={{flexShrink:0}}>Rp 3.900</span></div>}
+            {s.show_service && <div style={{ display:"flex", justifyContent:"space-between", whiteSpace:"nowrap" }}><span>Service 5%</span><span style={{flexShrink:0}}>Rp 1.950</span></div>}
+            <div style={{ display:"flex", justifyContent:"space-between", fontWeight:700, whiteSpace:"nowrap" }}><span>TOTAL</span><span style={{flexShrink:0}}>Rp 44.850</span></div>
             <div style={{ borderTop:"1px dashed #ccc", margin:"8px 0" }} />
             {s.pre_bill_note && <div style={{ textAlign:"center", fontSize:10 }}>{s.pre_bill_note}</div>}
             {s.pre_bill_note_2 && <div style={{ textAlign:"center", fontSize:10 }}>{s.pre_bill_note_2}</div>}

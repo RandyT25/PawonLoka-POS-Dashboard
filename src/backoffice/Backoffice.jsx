@@ -352,7 +352,7 @@ function pageFromPath() {
   return segment || sessionStorage.getItem("bo_active") || "dashboard"
 }
 
-const KDS_IDS = new Set(["kitchen-display", "kitchen-ticket-designer"])
+const KDS_IDS = new Set(["kitchen-display"])
 
 function getStoredStaff() {
   try { return JSON.parse(sessionStorage.getItem("bo_staff") || "null") } catch { return null }
