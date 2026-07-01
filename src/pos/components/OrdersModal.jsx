@@ -98,7 +98,7 @@ export default function OrdersModal({ onClose, onRecall, onPrintKitchen }) {
                   <div style={{ fontSize:12, color:'#6B7A8D' }}>
                     {o.time} · {o.table ? 'Table ' + o.table : 'Takeaway'} · {o.customer || 'Walk-in'}
                   </div>
-                  <div style={{ fontSize:12, color:'#6B7A8D' }}>{o.staff} · {o.pay}</div>
+                  <div style={{ fontSize:12, color:'#6B7A8D' }}>{o.staff} · {o.payments?.length > 1 ? o.payments.map(p=>p.method+' '+fmt(p.amount)).join(' + ') : o.pay}</div>
                   {o.notes && <div style={{ fontSize:11, color:'#DC2626', marginTop:2 }}>{o.notes}</div>}
                 </div>
                 <div style={{ textAlign:'right' }}>

@@ -138,7 +138,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
           <button onClick={handleWhatsApp} style={S.waBtn}>Kirim Struk WhatsApp</button>
           <button onClick={()=>{ if(onReprint) onReprint(paidOrder) }} style={{ ...S.doneBtn, background:'#374151', color:'#fff', marginBottom:8 }}>Cetak Ulang Struk</button>
           {paidOrder._isSplit && !paidOrder._fullyPaid
-            ? <button onClick={() => { setPaidOrder(null); setTab('pay') }}
+            ? <button onClick={() => { setActiveSplit({ amount: finalTotal, label: 'Partial Payment' }); setPaidOrder(null); setTab('pay') }}
                 style={{ ...S.doneBtn, background:'#6366F1', color:'white' }}>
                 Lanjut Split — Sisa {fmt(grossTotal - (paidOrder.splitPaid||0))}
               </button>
