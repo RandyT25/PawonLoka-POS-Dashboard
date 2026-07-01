@@ -952,19 +952,25 @@ export default function POS() {
         const newNote = (prevNotes ? prevNotes + ' | ' : '') + 'SPLIT: ' + payMethod + ' Rp' + finalTotal
         const newPayments = [...prevPayments, { method: payMethod, amount: finalTotal, time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) }]
 
+        const saved = isFullyPaid
+          ? await dbWrite('orders', 'update', {
+              status: 'Paid', pay: 'Split', notes: newNote, total: billTotal,
+              payments: newPayments, cogs: orderCogs, customer_id: customer?.id || null,
+            }, { id: openBillId })
+          : await dbWrite('orders', 'update', { notes: newNote, payments: newPayments }, { id: openBillId })
+
+        if (!saved) {
+          alert('⚠️ Gagal menyimpan pembayaran split — cek koneksi dan coba lagi. Pesanan BELUM tercatat sebagai dibayar.')
+          return null
+        }
+
         if (isFullyPaid) {
           // All paid — close the bill
-          await dbWrite('orders', 'update', {
-            status: 'Paid', pay: 'Split', notes: newNote, total: billTotal,
-            payments: newPayments, cogs: orderCogs, customer_id: customer?.id || null,
-          }, { id: openBillId })
           if (tableNo) await dbWrite('tables', 'update', { status: 'Available' }, tableArea ? { name: tableNo, area: tableArea } : { name: tableNo })
           if (customer?.id) {
             const pts = Math.floor(billTotal / 100)
             await dbWrite('customers', 'update', { points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }, { id: customer.id })
           }
-        } else {
-          await dbWrite('orders', 'update', { notes: newNote, payments: newPayments }, { id: openBillId })
         }
       }
 
