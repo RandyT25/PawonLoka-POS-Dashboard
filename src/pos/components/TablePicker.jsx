@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabase'
 import { qr } from '../../lib/quickRead'
 
-export default function TablePicker({ current, onSelect, onSelectOccupied, onClose }) {
+export default function TablePicker({ current, onSelect, onSelectOccupied, onClose, appSettings }) {
   const [tables, setTables] = useState([])
   const ref = useRef(null)
 
@@ -26,6 +26,7 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
           open_customer: hit?.customer || null,
         }
       }).sort((a, b) => {
+        if ((a.sort||0) !== (b.sort||0)) return (a.sort||0) - (b.sort||0)
         const na = a.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
         const nb = b.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
         return na.localeCompare(nb)
@@ -40,7 +41,9 @@ export default function TablePicker({ current, onSelect, onSelectOccupied, onClo
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const areas = [...new Set(tables.map(t => t.area).filter(Boolean))]
+  const uniqueAreas = [...new Set(tables.map(t => t.area).filter(Boolean))]
+  const areaOrder = appSettings?.floor_plan?.area_order || []
+  const areas = [...areaOrder.filter(a => uniqueAreas.includes(a)), ...uniqueAreas.filter(a => !areaOrder.includes(a))]
 
   function handleClick(t) {
     if (t.status === 'Reserved') return

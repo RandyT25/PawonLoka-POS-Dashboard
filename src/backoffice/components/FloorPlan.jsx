@@ -72,33 +72,98 @@ export default function FloorPlan() {
   const [areaForm,  setAreaForm]  = useState({ old:"", name:"" })
   const [selected,  setSelected]  = useState(new Set())
   const [qrTable,   setQrTable]   = useState(null)
+  const [dragIdx,     setDragIdx]     = useState(null)
+  const [dragAreaIdx, setDragAreaIdx] = useState(null)
 
   useEffect(() => { load() }, [])
 
+  function naturalSort(a, b) {
+    const na = a.name.replace(/(\d+)/g, n => n.padStart(10, "0"))
+    const nb = b.name.replace(/(\d+)/g, n => n.padStart(10, "0"))
+    return na.localeCompare(nb)
+  }
+
   async function load() {
     setLoading(true)
-    const { data } = await supabase.from("tables").select("*").order("sort").order("name")
-    // Natural sort client-side
-    if (data) data.sort((a,b)=>{
-      const na=a.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
-      const nb=b.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
-      return na.localeCompare(nb)
-    })
-    // Natural sort client-side
-    if (data) data.sort((a,b)=>{
-      const na=a.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
-      const nb=b.name.replace(/(\d+)/g,n=>n.padStart(10,"0"))
-      return na.localeCompare(nb)
-    })
-    const tbls = data||[]
+    const [{ data }, { data: settingsRow }] = await Promise.all([
+      supabase.from("tables").select("*").order("sort").order("name"),
+      supabase.from("app_settings").select("floor_plan").eq("id", "main").maybeSingle(),
+    ])
+    let tbls = data || []
+
+    // One-time migration: assign sequential sort per area for installs that never had it
+    if (tbls.some(t => !t.sort)) {
+      const naturalSorted = [...tbls].sort(naturalSort)
+      const counters = {}
+      const updates = []
+      naturalSorted.forEach(t => {
+        const a = t.area || "Indoor"
+        counters[a] = (counters[a] || 0) + 1
+        t.sort = counters[a]
+        updates.push(supabase.from("tables").update({ sort: t.sort }).eq("id", t.id))
+      })
+      await Promise.all(updates)
+    }
+
+    // Order by persisted sort; natural-by-name is only a tiebreaker for equal/missing sort
+    tbls = [...tbls].sort((a, b) => (a.sort || 0) !== (b.sort || 0) ? (a.sort || 0) - (b.sort || 0) : naturalSort(a, b))
     setTables(tbls)
-    // Collect unique areas from DB
-    const dbAreas = [...new Set(tbls.map(t=>t.area).filter(Boolean))]
-    setAreas(prev => {
-      const merged = [...new Set([...prev, ...dbAreas])]
-      return merged
-    })
+
+    // Areas ordered by the persisted area_order, unknown/new areas appended at the end
+    const dbAreas   = [...new Set(tbls.map(t => t.area).filter(Boolean))]
+    const areaOrder = settingsRow?.floor_plan?.area_order || []
+    const known     = areaOrder.filter(a => dbAreas.includes(a))
+    const unknown   = dbAreas.filter(a => !areaOrder.includes(a))
+    setAreas([...known, ...unknown])
     setLoading(false)
+  }
+
+  // Drag reorder — tables within the active section (persists `sort`)
+  function onDragStart(i) { setDragIdx(i) }
+  function onDragOver(e, i) {
+    e.preventDefault()
+    if (dragIdx === null || dragIdx === i) return
+    const areaTables = [...filtered]
+    const [moved] = areaTables.splice(dragIdx, 1)
+    areaTables.splice(i, 0, moved)
+    setDragIdx(i)
+    const areaIds = new Set(areaTables.map(t => t.id))
+    setTables(prev => [...areaTables, ...prev.filter(t => !areaIds.has(t.id))])
+  }
+  async function onDragEnd() {
+    setDragIdx(null)
+    await Promise.all(filtered.map((t, i) => supabase.from("tables").update({ sort: i + 1 }).eq("id", t.id)))
+  }
+
+  // Drag reorder — section/area tabs (persists app_settings.floor_plan.area_order)
+  function onAreaDragStart(i) { setDragAreaIdx(i) }
+  function onAreaDragOver(e, i) {
+    e.preventDefault()
+    if (dragAreaIdx === null || dragAreaIdx === i) return
+    const r = [...areas]; const [m] = r.splice(dragAreaIdx, 1); r.splice(i, 0, m)
+    setDragAreaIdx(i); setAreas(r)
+  }
+  async function onAreaDragEnd() {
+    setDragAreaIdx(null)
+    await supabase.from("app_settings").upsert({ id: "main", floor_plan: { area_order: areas } }, { onConflict: "id" })
+  }
+
+  // Move a table up/down within its own area group — works on any device/input,
+  // regardless of which tab ("All" or a specific section) is currently active.
+  function tableGroup(t) {
+    return tables.filter(x => (x.area||"Indoor")===(t.area||"Indoor")).sort((a,b)=>(a.sort||0)-(b.sort||0))
+  }
+  async function moveTable(t, dir) {
+    const group = tableGroup(t)
+    const idx = group.findIndex(x=>x.id===t.id)
+    const other = group[idx+dir]
+    if (!other) return
+    const aSort = t.sort||0, bSort = other.sort||0
+    await Promise.all([
+      supabase.from("tables").update({ sort:bSort }).eq("id", t.id),
+      supabase.from("tables").update({ sort:aSort }).eq("id", other.id),
+    ])
+    setTables(prev => prev.map(x => x.id===t.id ? {...x,sort:bSort} : x.id===other.id ? {...x,sort:aSort} : x))
   }
 
   const filtered = tables.filter(t => activeArea==="All" || t.area===activeArea)
@@ -110,9 +175,17 @@ export default function FloorPlan() {
   async function save() {
     if (!form.name?.trim()) return
     setSaving(true)
+    const targetArea = form.area||"Indoor"
+    const original = modal==="edit" ? tables.find(t=>t.id===form.id) : null
+    const areaChanged = original && (original.area||"Indoor") !== targetArea
+    let sortVal = form.sort
+    if (modal==="add" || areaChanged) {
+      const areaTables = tables.filter(t => (t.area||"Indoor")===targetArea && t.id!==form.id)
+      sortVal = areaTables.length ? Math.max(...areaTables.map(t=>t.sort||0)) + 1 : 1
+    }
     const payload = { name:form.name.trim(), capacity:parseInt(form.capacity)||4,
-      shape:form.shape||"square", area:form.area||"Indoor",
-      active:form.active!==false, status:form.status||"Available" }
+      shape:form.shape||"square", area:targetArea,
+      active:form.active!==false, status:form.status||"Available", sort:sortVal }
     let error
     if (modal==="add") {
       ({ error } = await supabase.from("tables").insert(payload))
@@ -144,12 +217,14 @@ export default function FloorPlan() {
   async function bulkAdd() {
     if (!bulkForm.prefix || bulkForm.count<1) return
     setSaving(true)
+    const areaTables = tables.filter(t => (t.area||"Indoor")===bulkForm.area)
+    let nextSort = areaTables.length ? Math.max(...areaTables.map(t=>t.sort||0)) + 1 : 1
     const rows = []
     for (let i=0; i<parseInt(bulkForm.count); i++) {
       rows.push({ name:`${bulkForm.prefix} ${parseInt(bulkForm.start)+i}`,
         capacity:parseInt(bulkForm.capacity)||4,
         shape:bulkForm.shape, area:bulkForm.area,
-        active:true, status:"Available" })
+        active:true, status:"Available", sort:nextSort++ })
     }
     const { error } = await supabase.from("tables").insert(rows)
     if (error) alert("Error: "+error.message)
@@ -206,10 +281,11 @@ export default function FloorPlan() {
       {/* Section tabs with edit */}
       <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap", alignItems:"center" }}>
         <button onClick={()=>setActiveArea("All")} className={"bo-btn bo-btn-sm "+(activeArea==="All"?"bo-btn-primary":"bo-btn-ghost")}>All</button>
-        {areas.map(a=>(
-          <div key={a} style={{ position:"relative", display:"inline-flex" }} className="area-pill-wrap">
-            <button onClick={()=>setActiveArea(a)}
-              style={{ padding:"6px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"pointer",
+        {areas.map((a,ai)=>(
+          <div key={a} style={{ position:"relative", display:"inline-flex", opacity: dragAreaIdx===ai?0.5:1 }} className="area-pill-wrap"
+            draggable onDragStart={()=>onAreaDragStart(ai)} onDragOver={e=>onAreaDragOver(e,ai)} onDragEnd={onAreaDragEnd}>
+            <button onClick={()=>setActiveArea(a)} title="Drag to reorder sections"
+              style={{ padding:"6px 14px", borderRadius:20, fontSize:13, fontWeight:600, cursor:"grab",
                 border:"1.5px solid "+(activeArea===a?"var(--brand)":"#DFE1E6"),
                 background:activeArea===a?"var(--brand)":"#fff",
                 color:activeArea===a?"#fff":"#42526E",
@@ -263,8 +339,13 @@ export default function FloorPlan() {
             <span style={{ color:st.text,fontWeight:600 }}>{s}</span>
           </div>
         ))}
-        <span style={{ fontSize:12,color:"#6B778C",marginLeft:8 }}>Click table to select · Click Edit to modify</span>
+        <span style={{ fontSize:12,color:"#6B778C",marginLeft:8 }}>Click table to select · Click Edit to modify · Use ▲▼ or drag ⋮⋮ to reorder</span>
       </div>
+      {activeArea==="All" && (
+        <div style={{ fontSize:12,color:"#6B778C",marginBottom:12,padding:"8px 12px",background:"var(--surface)",borderRadius:8 }}>
+          ▲▼ buttons reorder within a table's section from any tab. To drag ⋮⋮ with the mouse, pick a specific section tab above first.
+        </div>
+      )}
 
       {/* Content */}
       {loading ? <div style={{ padding:40,textAlign:"center",color:"var(--ink5)" }}>Loading...</div>
@@ -274,12 +355,17 @@ export default function FloorPlan() {
         </div>
       ) : view==="grid" ? (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:14 }}>
-          {filtered.map(t=>(
+          {filtered.map((t,i)=>{
+            const group = tableGroup(t)
+            const gIdx = group.findIndex(x=>x.id===t.id)
+            return (
             <div key={t.id} onClick={()=>toggleSelect(t.id)}
+              draggable={activeArea!=="All"} onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
               style={{ background:"#fff", border:"2px solid "+(selected.has(t.id)?"var(--brand)":"#f0f0f0"),
-                borderRadius:16, overflow:"hidden", opacity:t.active!==false?1:0.6, cursor:"pointer",
+                borderRadius:16, overflow:"hidden", opacity:(t.active!==false?1:0.6)*(dragIdx===i?0.5:1), cursor:activeArea!=="All"?"grab":"pointer",
                 boxShadow:selected.has(t.id)?"0 0 0 2px var(--brand-lt)":"none" }}>
-              <div style={{ padding:16,display:"flex",justifyContent:"center",alignItems:"center",background:"var(--surface)",minHeight:110 }}>
+              <div style={{ padding:16,display:"flex",justifyContent:"center",alignItems:"center",background:"var(--surface)",minHeight:110,position:"relative" }}>
+                {activeArea!=="All" && <span title="Drag to reorder" style={{ position:"absolute",top:6,left:8,fontSize:14,color:"#9ca3af",cursor:"grab" }}>⋮⋮</span>}
                 <TableViz shape={t.shape||"square"} name={t.name} capacity={t.capacity} status={t.status||"Available"} active={t.active!==false} />
               </div>
               <div style={{ padding:"8px 12px" }}>
@@ -287,15 +373,19 @@ export default function FloorPlan() {
                 <div style={{ fontSize:11,color:"#6B778C" }}>{t.area||"Indoor"} · {t.capacity}p</div>
               </div>
               <div style={{ display:"flex",borderTop:"1px solid #f0f0f0" }}>
+                <button onClick={e=>{e.stopPropagation();moveTable(t,-1)}} disabled={gIdx===0}
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:gIdx===0?"#c1c7d0":"var(--brand)",background:"none",border:"none",cursor:gIdx===0?"default":"pointer" }}>▲</button>
+                <button onClick={e=>{e.stopPropagation();moveTable(t,1)}} disabled={gIdx===group.length-1}
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:gIdx===group.length-1?"#c1c7d0":"var(--brand)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:gIdx===group.length-1?"default":"pointer" }}>▼</button>
                 <button onClick={e=>{e.stopPropagation();openEdit(t)}}
-                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--brand)",background:"none",border:"none",cursor:"pointer" }}>Edit</button>
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--brand)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Edit</button>
                 <button onClick={e=>{e.stopPropagation();setQrTable(t)}}
                   style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"#10B981",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>QR</button>
                 <button onClick={e=>{e.stopPropagation();deleteTable(t.id)}}
                   style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--red)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Del</button>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       ) : (
         <div className="bo-card" style={{ padding:0,overflow:"hidden" }}>
@@ -305,17 +395,25 @@ export default function FloorPlan() {
               <th>Table</th><th>Area</th><th>Shape</th><th>Capacity</th><th>Status</th><th>Actions</th>
             </tr></thead>
             <tbody>
-              {filtered.map(t=>{
+              {filtered.map((t,i)=>{
                 const st = t.active!==false ? (STATUS_COLORS[t.status||"Available"]) : STATUS_COLORS.Inactive
+                const group = tableGroup(t)
+                const gIdx = group.findIndex(x=>x.id===t.id)
                 return (
-                  <tr key={t.id}>
+                  <tr key={t.id}
+                    draggable={activeArea!=="All"} onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
+                    style={{ opacity: dragIdx===i?0.5:1, cursor:activeArea!=="All"?"grab":"default" }}>
                     <td><input type="checkbox" checked={selected.has(t.id)} onChange={()=>toggleSelect(t.id)} /></td>
-                    <td style={{ fontWeight:700 }}>{t.name}</td>
+                    <td style={{ fontWeight:700 }}>{activeArea!=="All" && <span title="Drag to reorder" style={{ marginRight:6,color:"#9ca3af",cursor:"grab" }}>⋮⋮</span>}{t.name}</td>
                     <td style={{ fontSize:12 }}>{t.area||"Indoor"}</td>
                     <td style={{ fontSize:12,textTransform:"capitalize" }}>{t.shape||"square"}</td>
                     <td>{t.capacity} pax</td>
                     <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:st.bg,color:st.text }}>{t.active!==false?t.status||"Available":"Inactive"}</span></td>
                     <td><div style={{ display:"flex",gap:6 }}>
+                      <button onClick={()=>moveTable(t,-1)} disabled={gIdx===0}
+                        style={{ fontSize:12,padding:"4px 8px",border:"1px solid #DFE1E6",borderRadius:6,background:"none",color:gIdx===0?"#c1c7d0":"#42526E",cursor:gIdx===0?"default":"pointer" }}>▲</button>
+                      <button onClick={()=>moveTable(t,1)} disabled={gIdx===group.length-1}
+                        style={{ fontSize:12,padding:"4px 8px",border:"1px solid #DFE1E6",borderRadius:6,background:"none",color:gIdx===group.length-1?"#c1c7d0":"#42526E",cursor:gIdx===group.length-1?"default":"pointer" }}>▼</button>
                       <button onClick={()=>openEdit(t)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
                       <button onClick={()=>setQrTable(t)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid #10B981",borderRadius:6,background:"none",color:"#10B981",cursor:"pointer" }}>QR</button>
                       <button onClick={()=>deleteTable(t.id)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid var(--red)",borderRadius:6,background:"none",color:"var(--red)",cursor:"pointer" }}>Del</button>

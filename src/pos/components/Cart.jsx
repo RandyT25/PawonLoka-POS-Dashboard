@@ -144,7 +144,7 @@ export default function Cart({
                     <input autoFocus value={noteText} onChange={e=>setNoteText(e.target.value)}
                       onKeyDown={e=>e.key==='Enter'&&applyNote(item._key)}
                       placeholder="Add note..." style={{ ...S.tableInput, flex:1, fontSize:12, padding:'4px 8px', direction:'ltr', unicodeBidi:'plaintext' }}
-                      dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
+                      dir="ltr" lang="id" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
                     <button onClick={()=>applyNote(item._key)} style={S.miniBtn}>OK</button>
                     <button onClick={()=>setItemNote(null)} style={S.miniBtn}>x</button>
                   </div>

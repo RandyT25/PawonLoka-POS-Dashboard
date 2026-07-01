@@ -259,6 +259,16 @@ export default function POS() {
     }
   }, [staff])
 
+  // Live product sync — reacts to backoffice edits (Products/Profitability) and the
+  // manual "Sync to POS" push, so an already-open POS session doesn't need a reload
+  useEffect(() => {
+    const ch = supabase.channel('pos_products_sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => loadData())
+      .on('broadcast', { event: 'force_sync' }, () => loadData())
+      .subscribe()
+    return () => { supabase.removeChannel(ch) }
+  }, [])
+
   async function restoreShift() {
     const today = new Date().toISOString().slice(0, 10)
     // Close any stale open shifts from previous days (all staff)
@@ -651,6 +661,9 @@ export default function POS() {
     // Skipped entirely when Kitchen Display is disabled in Settings
     const ROLE_MAP = { Kitchen:'kitchen', kitchen:'kitchen', Snack:'snack', snack:'snack', Bar:'bar', bar:'bar', Kasir:'receipt', kasir:'receipt' }
     const kdsOn = appSettings?.pos_behaviour?.kitchen_display !== false
+    // Physical station printing is independent of the on-screen KDS toggle above —
+    // it must keep working even if the digital Kitchen Display screen is disabled.
+    const stationPrintOn = appSettings?.pos_behaviour?.auto_print_stations !== false
     if (kdsOn) {
       await Promise.all([
         ...Object.entries(stations).map(([station, items]) =>
@@ -675,7 +688,7 @@ export default function POS() {
     }
 
     // Print per station — combine add+cancel into one ticket when both exist
-    const allStations = kdsOn
+    const allStations = stationPrintOn
       ? new Set([...Object.keys(stations), ...Object.keys(cancelStations)])
       : new Set()
     const isFirstSend = cart.every(i => !i._sent)
@@ -1082,6 +1095,7 @@ export default function POS() {
   if (showFloorPlan) return (
     <FloorPlan
       staff={staff}
+      appSettings={appSettings}
       onSelectTable={handleTableSelect}
       onTakeaway={() => { clearCart(); setOrderType('Takeaway'); setTableNo(''); setTableArea(''); setShowFloorPlan(false) }}
       onDelivery={() => { clearCart(); setOrderType('Delivery'); setTableNo(''); setTableArea(''); setShowFloorPlan(false) }}
@@ -1130,6 +1144,7 @@ export default function POS() {
             {showTablePicker && (
               <TablePicker
                 current={tableNo}
+                appSettings={appSettings}
                 onSelect={async t => {
                   if (t.name !== tableNo) {
                     if (openBillId) {

@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { offlineStore } from '../../lib/offlineStore'
 import { qr } from '../../lib/quickRead'
 
-export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery, onBack }) {
+export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery, onBack, appSettings }) {
   const [tables,    setTables]    = useState([])
   const [area,      setArea]      = useState('Indoor')
   const [areas,     setAreas]     = useState(['Indoor'])
@@ -46,15 +46,21 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
         open_items:     hit?.items?.length || 0,
       }
     })
+    // Already ordered by `sort` from the query; natural-by-name is only a tiebreaker
     merged.sort((a, b) => {
+      if ((a.sort||0) !== (b.sort||0)) return (a.sort||0) - (b.sort||0)
       const na = a.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
       const nb = b.name.replace(/(\d+)/g, n => n.padStart(10, '0'))
       return na.localeCompare(nb)
     })
     setTables(merged)
     const uniqueAreas = [...new Set(merged.map(t => t.area).filter(Boolean))]
-    setAreas(uniqueAreas.length ? uniqueAreas : ['Indoor'])
-    setArea(prev => uniqueAreas.includes(prev) ? prev : (uniqueAreas[0] || 'Indoor'))
+    const areaOrder = appSettings?.floor_plan?.area_order || []
+    const known   = areaOrder.filter(a => uniqueAreas.includes(a))
+    const unknown = uniqueAreas.filter(a => !areaOrder.includes(a))
+    const orderedAreas = [...known, ...unknown]
+    setAreas(orderedAreas.length ? orderedAreas : ['Indoor'])
+    setArea(prev => orderedAreas.includes(prev) ? prev : (orderedAreas[0] || 'Indoor'))
     setLoading(false)
   }
 

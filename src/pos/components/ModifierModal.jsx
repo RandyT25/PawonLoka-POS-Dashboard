@@ -45,6 +45,7 @@ export default function ModifierModal({ product, onConfirm, onCancel, modifierGr
               placeholder="e.g. no onion, extra spicy..."
               style={S.noteInput}
               dir="ltr"
+              lang="id"
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"

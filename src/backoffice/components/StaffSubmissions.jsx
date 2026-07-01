@@ -419,15 +419,26 @@ export default function StaffSubmissions() {
 
               {editModal.type==="opname" && (
                 <div>
-                  <label className="bo-label" style={{ marginBottom:8, display:"block" }}>Stock Counts</label>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <label className="bo-label" style={{marginBottom:0}}>Stock Counts</label>
+                    <button onClick={()=>setEditData(d=>({...d,items:[...(d.items||[]),{ingredient_id:"",name:"",unit:"",system_qty:0,actual_qty:0,diff:0}]}))}
+                      className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
+                  </div>
                   {(editData.items||[]).map((item,i)=>(
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 60px", gap:8, marginBottom:8, alignItems:"center" }}>
-                      <div style={{ fontSize:13, fontWeight:600 }}>{item.name}</div>
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 60px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
+                      {item.ingredient_id
+                        ? <div style={{ fontSize:13, fontWeight:600 }}>{item.name}</div>
+                        : <IngSearchEdit ingredients={ingredients} onSelect={ing=>{
+                            setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,ingredient_id:ing.id,name:ing.name,unit:ing.unit||"",system_qty:ing.stock||0,diff:(x.actual_qty||0)-(ing.stock||0)}:x) }))
+                          }} />
+                      }
                       <input type="number" value={item.actual_qty} onChange={e=>{
                         const val = parseFloat(e.target.value)||0
                         setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,actual_qty:val,diff:val-x.system_qty}:x) }))
                       }} className="bo-input" style={{ fontSize:13 }} />
                       <span style={{ fontSize:12, color:"var(--ink4)" }}>{item.unit}</span>
+                      <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
+                        style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
                   ))}
                 </div>

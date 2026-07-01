@@ -170,75 +170,12 @@ export default function Products() {
     closeModal()
   }
 
-  async function syncFromPOS() {
+  async function syncToPOS() {
     setSyncing(true)
-    // Re-run upsert from seed data
-    const SEED = [
-      {sku:"DRI001",name:"Air hangat",cat:"Drinks",icon:"🥤",price:2000,cogs:0,active:true},
-      {sku:"DRI002",name:"Air Mineral",cat:"Drinks",icon:"🥤",price:5000,cogs:0,active:true},
-      {sku:"DRI003",name:"Americano",cat:"Drinks",icon:"🥤",price:17000,cogs:0,active:true},
-      {sku:"MAI004",name:"Ayam bakar",cat:"Main Dishies",icon:"🍲",price:28000,cogs:0,active:true},
-      {sku:"MAI005",name:"Ayam Bakar taliwang",cat:"Main Dishies",icon:"🍲",price:33000,cogs:0,active:true},
-      {sku:"MAI006",name:"Ayam Kremes",cat:"Main Dishies",icon:"🍲",price:30000,cogs:0,active:true},
-      {sku:"NAS007",name:"Bihun Goreng ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
-      {sku:"GEN008",name:"Chicken Steak BBQ",cat:"Gen-Z Specials",icon:"🌮",price:38000,cogs:0,active:true},
-      {sku:"SNA009",name:"Cireng",cat:"Snacks",icon:"🍟",price:10000,cogs:0,active:true},
-      {sku:"ICE010",name:"Cup tempo doeloe",cat:"Ice Cream",icon:"🍦",price:12000,cogs:0,active:true},
-      {sku:"DEL011",name:"Delivery",cat:"Delivery",icon:"🚴",price:5000,cogs:0,active:true},
-      {sku:"EXT012",name:"Es batu",cat:"Extra",icon:"➕",price:2000,cogs:0,active:true},
-      {sku:"ICE013",name:"Es lilin lapis",cat:"Ice Cream",icon:"🍦",price:12000,cogs:0,active:true},
-      {sku:"ICE014",name:"Es lilin polos",cat:"Ice Cream",icon:"🍦",price:11000,cogs:0,active:true},
-      {sku:"EXT015",name:"Extra Nasi",cat:"Extra",icon:"➕",price:5000,cogs:0,active:true},
-      {sku:"EXT016",name:"Extra Sambal bawang",cat:"Extra",icon:"➕",price:3000,cogs:0,active:true},
-      {sku:"EXT017",name:"Extra Telor",cat:"Extra",icon:"➕",price:3000,cogs:0,active:true},
-      {sku:"JAG018",name:"Jagung Coklat Keju",cat:"Jagung",icon:"🌽",price:15000,cogs:0,active:true},
-      {sku:"JAG019",name:"Jagung Garlic Butter",cat:"Jagung",icon:"🌽",price:12000,cogs:0,active:true},
-      {sku:"JAG020",name:"Jagung Spicy",cat:"Jagung",icon:"🌽",price:12000,cogs:0,active:true},
-      {sku:"DRI021",name:"Jeruk",cat:"Drinks",icon:"🥤",price:12000,cogs:0,active:true},
-      {sku:"SNA022",name:"Kentang Goreng homemade",cat:"Snacks",icon:"🍟",price:15000,cogs:0,active:true},
-      {sku:"DRI023",name:"Kopi Hitam",cat:"Drinks",icon:"🥤",price:8000,cogs:0,active:true},
-      {sku:"DRI024",name:"Latte",cat:"Drinks",icon:"🥤",price:20000,cogs:0,active:true},
-      {sku:"DRI025",name:"Lemon tea",cat:"Drinks",icon:"🥤",price:18000,cogs:0,active:true},
-      {sku:"DRI026",name:"Lychee Tea",cat:"Drinks",icon:"🥤",price:20000,cogs:0,active:true},
-      {sku:"GEN027",name:"Mac & Cheese",cat:"Gen-Z Specials",icon:"🌮",price:30000,cogs:0,active:true},
-      {sku:"DRI028",name:"Matcha",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
-      {sku:"SNA029",name:"Mendoan",cat:"Snacks",icon:"🍟",price:15000,cogs:0,active:true},
-      {sku:"NAS030",name:"Mie Goreng Ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
-      {sku:"NAS031",name:"Mie Goreng Telur",cat:"Nasi & Mie",icon:"🍜",price:20000,cogs:0,active:true},
-      {sku:"NAS032",name:"Mie NYemek ayam",cat:"Nasi & Mie",icon:"🍜",price:28000,cogs:0,active:true},
-      {sku:"DRI033",name:"Milo Dinosaur",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
-      {sku:"NAS034",name:"Nasi Goreng Ayam Kremes",cat:"Nasi & Mie",icon:"🍜",price:38000,cogs:0,active:true},
-      {sku:"NAS035",name:"Nasi Goreng Kambing",cat:"Nasi & Mie",icon:"🍜",price:38000,cogs:0,active:true},
-      {sku:"NAS036",name:"Nasi Goreng Telur",cat:"Nasi & Mie",icon:"🍜",price:20000,cogs:0,active:true},
-      {sku:"DES037",name:"Pisang Coklat Keju",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
-      {sku:"DES038",name:"Pisang Semut",cat:"Dessert",icon:"🍮",price:15000,cogs:0,active:true},
-      {sku:"DES039",name:"Pisang Susu",cat:"Dessert",icon:"🍮",price:15000,cogs:0,active:true},
-      {sku:"DRI040",name:"Redvelvet",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
-      {sku:"DES041",name:"Ronde",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
-      {sku:"DES042",name:"Roti Bakar Coklat Kacang",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
-      {sku:"DES043",name:"Roti Bakar Coklat Keju",cat:"Dessert",icon:"🍮",price:16000,cogs:0,active:true},
-      {sku:"SAT044",name:"Sate Ayam",cat:"Sate",icon:"🍢",price:33000,cogs:0,active:true},
-      {sku:"SAT045",name:"Sate Kambing",cat:"Sate",icon:"🍢",price:38000,cogs:0,active:true},
-      {sku:"SNA046",name:"Siomay Ayam Mentai",cat:"Snacks",icon:"🍟",price:20000,cogs:0,active:true},
-      {sku:"MAI047",name:"Sop Iga Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
-      {sku:"MAI048",name:"Sop Tulang Daging Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
-      {sku:"DEL049",name:"Take Away",cat:"Delivery",icon:"🚴",price:2000,cogs:0,active:true},
-      {sku:"DRI050",name:"Teh Manis",cat:"Drinks",icon:"🥤",price:7000,cogs:0,active:true},
-      {sku:"DRI051",name:"Teh Tawar",cat:"Drinks",icon:"🥤",price:5000,cogs:0,active:true},
-      {sku:"MAI052",name:"Tengkleng rica",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
-      {sku:"DRI053",name:"Thai Tea",cat:"Drinks",icon:"🥤",price:22000,cogs:0,active:true},
-      {sku:"MAI054",name:"Tongseng Ayam",cat:"Main Dishies",icon:"🍲",price:33000,cogs:0,active:true},
-      {sku:"MAI055",name:"Tongseng Kambing",cat:"Main Dishies",icon:"🍲",price:38000,cogs:0,active:true},
-      {sku:"DRI056",name:"Wedang Jahe",cat:"Drinks",icon:"🥤",price:12000,cogs:0,active:true},
-      {sku:"DRI057",name:"Wedang Jahe Susu",cat:"Drinks",icon:"🥤",price:15000,cogs:0,active:true},
-      {sku:"DRI058",name:"Wedang Uwuh",cat:"Drinks",icon:"🥤",price:15000,cogs:0,active:true},
-      {sku:"DRI059",name:"Yuzu Lemon",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
-      {sku:"DRI060",name:"Yuzu Lychee",cat:"Drinks",icon:"🥤",price:25000,cogs:0,active:true},
-    ]
-    const { error } = await supabase.from("products").upsert(SEED, { onConflict:"sku" })
-    if (error) alert("Sync failed: " + error.message)
-    await load()
+    const { error } = await supabase.channel("pos_products_sync").send({ type:"broadcast", event:"force_sync", payload:{ ts: Date.now() } })
     setSyncing(false)
+    if (error) alert("Push failed: " + error.message)
+    else alert("Pushed to POS ✓")
   }
 
   // ── Variant helpers ──

@@ -373,7 +373,9 @@ export default function StaffPortal() {
             {REASONS.map(r=><option key={r}>{r}</option>)}
           </select>
           <label style={{ ...s.label, marginTop:14 }}>Notes</label>
-          <input value={wasteForm.notes} onChange={e=>setWasteForm(f=>({...f,notes:e.target.value}))} style={s.input} placeholder="Optional" />
+          <input value={wasteForm.notes} onChange={e=>setWasteForm(f=>({...f,notes:e.target.value}))}
+            style={{ ...s.input, direction:'ltr', unicodeBidi:'plaintext' }} placeholder="Optional"
+            dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
         </div>
         <button onClick={submitWaste} disabled={saving} style={{ ...s.btn, background:"#DE350B", color:"#fff" }}>{saving?"Submitting...":"Submit Waste Report"}</button>
       </div>
@@ -469,7 +471,9 @@ export default function StaffPortal() {
           {selectedSub && (
             <div style={s.card}>
               <label style={s.label}>Catatan (opsional)</label>
-              <input value={prodNotes} onChange={e=>setProdNotes(e.target.value)} style={s.input} placeholder="Tambah catatan jika perlu..." />
+              <input value={prodNotes} onChange={e=>setProdNotes(e.target.value)}
+                style={{ ...s.input, direction:'ltr', unicodeBidi:'plaintext' }} placeholder="Tambah catatan jika perlu..."
+                dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
             </div>
           )}
 
@@ -501,7 +505,9 @@ export default function StaffPortal() {
             <input type="date" value={reqDate} onChange={e=>setReqDate(e.target.value)} style={s.input} />
           </div>
           <label style={s.label}>Notes</label>
-          <input value={reqNotes} onChange={e=>setReqNotes(e.target.value)} style={s.input} placeholder="e.g. urgent, for dinner service..." />
+          <input value={reqNotes} onChange={e=>setReqNotes(e.target.value)}
+            style={{ ...s.input, direction:'ltr', unicodeBidi:'plaintext' }} placeholder="e.g. urgent, for dinner service..."
+            dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
         </div>
         <div style={s.card}>
           <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
