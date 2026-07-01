@@ -105,16 +105,25 @@ export default function FloorPlan() {
       await Promise.all(updates)
     }
 
-    // Order by persisted sort; natural-by-name is only a tiebreaker for equal/missing sort
-    tbls = [...tbls].sort((a, b) => (a.sort || 0) !== (b.sort || 0) ? (a.sort || 0) - (b.sort || 0) : naturalSort(a, b))
-    setTables(tbls)
-
     // Areas ordered by the persisted area_order, unknown/new areas appended at the end
-    const dbAreas   = [...new Set(tbls.map(t => t.area).filter(Boolean))]
-    const areaOrder = settingsRow?.floor_plan?.area_order || []
-    const known     = areaOrder.filter(a => dbAreas.includes(a))
-    const unknown   = dbAreas.filter(a => !areaOrder.includes(a))
-    setAreas([...known, ...unknown])
+    const dbAreas    = [...new Set(tbls.map(t => t.area).filter(Boolean))]
+    const areaOrder  = settingsRow?.floor_plan?.area_order || []
+    const known      = areaOrder.filter(a => dbAreas.includes(a))
+    const unknown    = dbAreas.filter(a => !areaOrder.includes(a))
+    const orderedAreas = [...known, ...unknown]
+    setAreas(orderedAreas)
+
+    // Group by section (in the order above) first, then by sort within each section —
+    // otherwise the "All" view interleaves every area's tables by raw sort number
+    tbls = [...tbls].sort((a, b) => {
+      const aArea = a.area||"Indoor", bArea = b.area||"Indoor"
+      if (aArea !== bArea) {
+        const ai = orderedAreas.indexOf(aArea), bi = orderedAreas.indexOf(bArea)
+        return (ai===-1?999:ai) - (bi===-1?999:bi)
+      }
+      return (a.sort || 0) !== (b.sort || 0) ? (a.sort || 0) - (b.sort || 0) : naturalSort(a, b)
+    })
+    setTables(tbls)
     setLoading(false)
   }
 
@@ -146,24 +155,6 @@ export default function FloorPlan() {
   async function onAreaDragEnd() {
     setDragAreaIdx(null)
     await supabase.from("app_settings").upsert({ id: "main", floor_plan: { area_order: areas } }, { onConflict: "id" })
-  }
-
-  // Move a table up/down within its own area group — works on any device/input,
-  // regardless of which tab ("All" or a specific section) is currently active.
-  function tableGroup(t) {
-    return tables.filter(x => (x.area||"Indoor")===(t.area||"Indoor")).sort((a,b)=>(a.sort||0)-(b.sort||0))
-  }
-  async function moveTable(t, dir) {
-    const group = tableGroup(t)
-    const idx = group.findIndex(x=>x.id===t.id)
-    const other = group[idx+dir]
-    if (!other) return
-    const aSort = t.sort||0, bSort = other.sort||0
-    await Promise.all([
-      supabase.from("tables").update({ sort:bSort }).eq("id", t.id),
-      supabase.from("tables").update({ sort:aSort }).eq("id", other.id),
-    ])
-    setTables(prev => prev.map(x => x.id===t.id ? {...x,sort:bSort} : x.id===other.id ? {...x,sort:aSort} : x))
   }
 
   const filtered = tables.filter(t => activeArea==="All" || t.area===activeArea)
@@ -339,11 +330,11 @@ export default function FloorPlan() {
             <span style={{ color:st.text,fontWeight:600 }}>{s}</span>
           </div>
         ))}
-        <span style={{ fontSize:12,color:"#6B778C",marginLeft:8 }}>Click table to select · Click Edit to modify · Use ▲▼ or drag ⋮⋮ to reorder</span>
+        <span style={{ fontSize:12,color:"#6B778C",marginLeft:8 }}>Click table to select · Click Edit to modify · Drag ⋮⋮ to reorder</span>
       </div>
       {activeArea==="All" && (
         <div style={{ fontSize:12,color:"#6B778C",marginBottom:12,padding:"8px 12px",background:"var(--surface)",borderRadius:8 }}>
-          ▲▼ buttons reorder within a table's section from any tab. To drag ⋮⋮ with the mouse, pick a specific section tab above first.
+          Tables are grouped by section here. To drag ⋮⋮ and reorder, pick a specific section tab above first.
         </div>
       )}
 
@@ -355,10 +346,7 @@ export default function FloorPlan() {
         </div>
       ) : view==="grid" ? (
         <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:14 }}>
-          {filtered.map((t,i)=>{
-            const group = tableGroup(t)
-            const gIdx = group.findIndex(x=>x.id===t.id)
-            return (
+          {filtered.map((t,i)=>(
             <div key={t.id} onClick={()=>toggleSelect(t.id)}
               draggable={activeArea!=="All"} onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
               style={{ background:"#fff", border:"2px solid "+(selected.has(t.id)?"var(--brand)":"#f0f0f0"),
@@ -373,19 +361,15 @@ export default function FloorPlan() {
                 <div style={{ fontSize:11,color:"#6B778C" }}>{t.area||"Indoor"} · {t.capacity}p</div>
               </div>
               <div style={{ display:"flex",borderTop:"1px solid #f0f0f0" }}>
-                <button onClick={e=>{e.stopPropagation();moveTable(t,-1)}} disabled={gIdx===0}
-                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:gIdx===0?"#c1c7d0":"var(--brand)",background:"none",border:"none",cursor:gIdx===0?"default":"pointer" }}>▲</button>
-                <button onClick={e=>{e.stopPropagation();moveTable(t,1)}} disabled={gIdx===group.length-1}
-                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:gIdx===group.length-1?"#c1c7d0":"var(--brand)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:gIdx===group.length-1?"default":"pointer" }}>▼</button>
                 <button onClick={e=>{e.stopPropagation();openEdit(t)}}
-                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--brand)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Edit</button>
+                  style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--brand)",background:"none",border:"none",cursor:"pointer" }}>Edit</button>
                 <button onClick={e=>{e.stopPropagation();setQrTable(t)}}
                   style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"#10B981",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>QR</button>
                 <button onClick={e=>{e.stopPropagation();deleteTable(t.id)}}
                   style={{ flex:1,padding:"9px 0",fontSize:12,fontWeight:700,color:"var(--red)",background:"none",border:"none",borderLeft:"1px solid #f0f0f0",cursor:"pointer" }}>Del</button>
               </div>
             </div>
-          )})}
+          ))}
         </div>
       ) : (
         <div className="bo-card" style={{ padding:0,overflow:"hidden" }}>
@@ -397,8 +381,6 @@ export default function FloorPlan() {
             <tbody>
               {filtered.map((t,i)=>{
                 const st = t.active!==false ? (STATUS_COLORS[t.status||"Available"]) : STATUS_COLORS.Inactive
-                const group = tableGroup(t)
-                const gIdx = group.findIndex(x=>x.id===t.id)
                 return (
                   <tr key={t.id}
                     draggable={activeArea!=="All"} onDragStart={()=>onDragStart(i)} onDragOver={e=>onDragOver(e,i)} onDragEnd={onDragEnd}
@@ -410,10 +392,6 @@ export default function FloorPlan() {
                     <td>{t.capacity} pax</td>
                     <td><span style={{ fontSize:11,fontWeight:700,padding:"2px 8px",borderRadius:10,background:st.bg,color:st.text }}>{t.active!==false?t.status||"Available":"Inactive"}</span></td>
                     <td><div style={{ display:"flex",gap:6 }}>
-                      <button onClick={()=>moveTable(t,-1)} disabled={gIdx===0}
-                        style={{ fontSize:12,padding:"4px 8px",border:"1px solid #DFE1E6",borderRadius:6,background:"none",color:gIdx===0?"#c1c7d0":"#42526E",cursor:gIdx===0?"default":"pointer" }}>▲</button>
-                      <button onClick={()=>moveTable(t,1)} disabled={gIdx===group.length-1}
-                        style={{ fontSize:12,padding:"4px 8px",border:"1px solid #DFE1E6",borderRadius:6,background:"none",color:gIdx===group.length-1?"#c1c7d0":"#42526E",cursor:gIdx===group.length-1?"default":"pointer" }}>▼</button>
                       <button onClick={()=>openEdit(t)} className="bo-btn bo-btn-ghost bo-btn-sm">Edit</button>
                       <button onClick={()=>setQrTable(t)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid #10B981",borderRadius:6,background:"none",color:"#10B981",cursor:"pointer" }}>QR</button>
                       <button onClick={()=>deleteTable(t.id)} style={{ fontSize:12,padding:"4px 10px",border:"1px solid var(--red)",borderRadius:6,background:"none",color:"var(--red)",cursor:"pointer" }}>Del</button>
