@@ -214,7 +214,7 @@ export default function Products() {
         </div>
         <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
           <button onClick={syncToPOS} disabled={syncing} className="bo-btn bo-btn-ghost">
-            {syncing ? "Syncing…" : "↻ Sync from POS"}
+            {syncing ? "Syncing…" : "↻ Sync to POS"}
           </button>
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Product</button>
         </div>
