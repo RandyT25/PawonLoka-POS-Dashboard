@@ -112,8 +112,12 @@ function ConsignmentPanel({ item, onSaved, onCancel }) {
   const mgn   = sellP > 0 && cp > 0 ? pct(sellP - cp, sellP) : null
 
   return (
-    <div style={{ padding:"24px 28px", maxWidth:480 }}>
-      <div style={{ fontSize:20, fontWeight:800, marginBottom:4 }}>{item.icon||"📦"} {item.name}</div>
+    <div style={{ padding:"24px 28px", maxWidth:480, position:"relative" }}>
+      <button onClick={onCancel} aria-label="Close" title="Close"
+        style={{ position:"absolute", top:16, right:16, width:32, height:32, borderRadius:"50%",
+          border:"1px solid var(--surface3,#e5e7eb)", background:"#fff", fontSize:16, fontWeight:700,
+          color:"var(--ink4,#6b7280)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+      <div style={{ fontSize:20, fontWeight:800, marginBottom:4, paddingRight:40 }}>{item.icon||"📦"} {item.name}</div>
       <div style={{ fontSize:12, color:"var(--ink4)", marginBottom:20 }}>Consignment · no recipe — set COGS directly</div>
       <div style={{ background:"#ede9fe", borderRadius:12, padding:"16px 20px", marginBottom:20 }}>
         <div style={{ fontSize:11, fontWeight:700, color:"#6d28d9", textTransform:"uppercase", marginBottom:8 }}>Consignment COGS (per item)</div>
@@ -247,10 +251,14 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
   }
 
   return (
-    <div style={{ padding:"24px 28px", maxWidth:780 }}>
+    <div style={{ padding:"24px 28px", maxWidth:780, position:"relative" }}>
+      <button onClick={onCancel} aria-label="Close" title="Close"
+        style={{ position:"absolute", top:16, right:16, width:32, height:32, borderRadius:"50%",
+          border:"1px solid var(--surface3,#e5e7eb)", background:"#fff", fontSize:16, fontWeight:700,
+          color:"var(--ink4,#6b7280)", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", zIndex:1 }}>✕</button>
       {/* Header */}
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20, paddingBottom:16, borderBottom:"1px solid var(--surface3,#f0f0f0)" }}>
-        <div style={{ flex:1 }}>
+        <div style={{ flex:1, paddingRight:40 }}>
           <div style={{ fontSize:20, fontWeight:800, color:"var(--ink,#1f2937)" }}>{item.icon||"🥣"} {item.name}</div>
           <div style={{ fontSize:12, color:"var(--ink4,#6b7280)", marginTop:4 }}>
             {itemType==="sub" ? "Sub-recipe" : "Dish"} · Category: {item.category||item.cat||"—"}
