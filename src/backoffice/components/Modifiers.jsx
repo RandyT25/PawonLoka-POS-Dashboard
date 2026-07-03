@@ -72,7 +72,7 @@ export default function Modifiers() {
   async function save() {
     if (!form.name.trim()) return
     setSaving(true)
-    const validOpts = options.filter(o=>o.name.trim())
+    const validOpts = options.filter(o=>o.name.trim()).map(o=>({...o, price:parseFloat(o.price)||0}))
     const payload = {
       name:     form.name.trim(),
       type:     form.type,
@@ -195,7 +195,7 @@ export default function Modifiers() {
                 {options.map((opt,i)=>(
                   <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 130px 36px", gap:8, marginBottom:8 }}>
                     <input value={opt.name} onChange={e=>updateOption(i,"name",e.target.value)} className="bo-input" placeholder="e.g. Extra Spicy" />
-                    <input type="number" value={opt.price||""} onChange={e=>updateOption(i,"price",e.target.value===""?0:parseFloat(e.target.value)||0)} onFocus={e=>{if(e.target.value==="0")e.target.select()}} className="bo-input" placeholder="0 = free" />
+                    <input type="number" value={opt.price||""} onChange={e=>updateOption(i,"price",e.target.value)} onFocus={e=>{if(e.target.value==="0")e.target.select()}} className="bo-input" placeholder="0 = free" />
                     <button onClick={()=>removeOption(i)} className="bo-btn bo-btn-danger bo-btn-sm" style={{ padding:"0 10px" }}>✕</button>
                   </div>
                 ))}

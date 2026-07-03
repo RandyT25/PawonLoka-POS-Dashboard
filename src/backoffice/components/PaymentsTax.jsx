@@ -67,8 +67,10 @@ export default function PaymentsTax() {
   }, [])
 
   async function save() {
-    localStorage.setItem(KEY, JSON.stringify(s))
-    await supabase.from("app_settings").upsert({ id:"main", payments:s, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    const cleaned = { ...s, tax:{...s.tax, rate:parseFloat(s.tax.rate)||0}, service:{...s.service, rate:parseFloat(s.service.rate)||0} }
+    localStorage.setItem(KEY, JSON.stringify(cleaned))
+    await supabase.from("app_settings").upsert({ id:"main", payments:cleaned, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    setS(cleaned)
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 
@@ -112,7 +114,7 @@ export default function PaymentsTax() {
               <Toggle on={s.tax.enabled} onToggle={()=>setS(p=>({...p,tax:{...p.tax,enabled:!p.tax.enabled}}))} />
             </div>
             <div style={{ display:"flex", gap:8, marginBottom:16 }}>
-              <input type="number" value={s.tax.rate} onChange={e=>setS(p=>({...p,tax:{...p.tax,rate:parseFloat(e.target.value)||0}}))}
+              <input type="number" value={s.tax.rate} onChange={e=>setS(p=>({...p,tax:{...p.tax,rate:e.target.value}}))}
                 className="bo-input" style={{ width:80 }} placeholder="0" />
               <span style={{ display:"flex", alignItems:"center", fontSize:14, fontWeight:600 }}>%</span>
               <select value={s.tax.type} onChange={e=>setS(p=>({...p,tax:{...p.tax,type:e.target.value}}))} className="bo-select" style={{ flex:1 }}>
@@ -126,7 +128,7 @@ export default function PaymentsTax() {
               <Toggle on={s.service.enabled} onToggle={()=>setS(p=>({...p,service:{...p.service,enabled:!p.service.enabled}}))} />
             </div>
             <div style={{ display:"flex", gap:8 }}>
-              <input type="number" value={s.service.rate} onChange={e=>setS(p=>({...p,service:{...p.service,rate:parseFloat(e.target.value)||0}}))}
+              <input type="number" value={s.service.rate} onChange={e=>setS(p=>({...p,service:{...p.service,rate:e.target.value}}))}
                 className="bo-input" style={{ width:80 }} placeholder="0" />
               <span style={{ display:"flex", alignItems:"center", fontSize:14, fontWeight:600 }}>%</span>
             </div>

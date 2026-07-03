@@ -96,8 +96,22 @@ export default function StaffSubmissions() {
   }
 
   async function saveEdit() {
-    await supabase.from("staff_submissions").update({ data: editData }).eq("id", editModal.id)
-    setSubmissions(prev => prev.map(s => s.id === editModal.id ? { ...s, data: editData } : s))
+    let cleaned = editData
+    if (editModal.type === "opname") {
+      cleaned = { ...editData, items: (editData.items||[]).map(x => {
+        const val = parseFloat(x.actual_qty)||0
+        return { ...x, actual_qty: val, diff: val - x.system_qty }
+      }) }
+    } else if (editModal.type === "waste") {
+      cleaned = { ...editData, qty: parseFloat(editData.qty)||0 }
+    } else if (editModal.type === "requisition") {
+      cleaned = { ...editData, items: (editData.items||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
+    } else if (editModal.type === "production") {
+      cleaned = { ...editData, batch_qty: parseFloat(editData.batch_qty)||0,
+        ingredients_used: (editData.ingredients_used||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
+    }
+    await supabase.from("staff_submissions").update({ data: cleaned }).eq("id", editModal.id)
+    setSubmissions(prev => prev.map(s => s.id === editModal.id ? { ...s, data: cleaned } : s))
     setEditModal(null); setEditData(null)
   }
 
@@ -433,8 +447,8 @@ export default function StaffSubmissions() {
                           }} />
                       }
                       <input type="number" value={item.actual_qty} onChange={e=>{
-                        const val = parseFloat(e.target.value)||0
-                        setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,actual_qty:val,diff:val-x.system_qty}:x) }))
+                        const val = e.target.value
+                        setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,actual_qty:val,diff:(parseFloat(val)||0)-x.system_qty}:x) }))
                       }} className="bo-input" style={{ fontSize:13 }} />
                       <span style={{ fontSize:12, color:"var(--ink4)" }}>{item.unit}</span>
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
@@ -447,7 +461,7 @@ export default function StaffSubmissions() {
               {editModal.type==="waste" && (
                 <div style={{ display:"grid", gap:12 }}>
                   <div><label className="bo-label">Quantity</label>
-                    <input type="number" value={editData.qty||""} onChange={e=>setEditData(d=>({...d,qty:parseFloat(e.target.value)||0}))} className="bo-input" /></div>
+                    <input type="number" value={editData.qty||""} onChange={e=>setEditData(d=>({...d,qty:e.target.value}))} className="bo-input" /></div>
                   <div><label className="bo-label">Reason</label>
                     <select value={editData.reason||"Expired"} onChange={e=>setEditData(d=>({...d,reason:e.target.value}))} className="bo-select">
                       {["Expired","Damaged","Overproduction","Spillage","Other"].map(r=><option key={r}>{r}</option>)}
@@ -471,7 +485,7 @@ export default function StaffSubmissions() {
                           }} />
                       }
                       <input type="number" value={item.qty} onChange={e=>{
-                        setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x)}))
+                        setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x)}))
                       }} className="bo-input" style={{fontSize:13}} />
                       <span style={{fontSize:12,color:"var(--ink4)"}}>{item.unit}</span>
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
@@ -485,7 +499,7 @@ export default function StaffSubmissions() {
                 <div style={{ display:"grid", gap:12 }}>
                   <div>
                     <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity</label>
-                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:parseFloat(e.target.value)||0}))} className="bo-input" />
+                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:e.target.value}))} className="bo-input" />
                   </div>
                   <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:12 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -503,7 +517,7 @@ export default function StaffSubmissions() {
                           }} />
                         )}
                         <input type="number" value={u.qty} onChange={e=>{
-                          setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,qty:parseFloat(e.target.value)||0}:x) }))
+                          setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x) }))
                         }} className="bo-input" style={{ fontSize:13 }} />
                         <span style={{ fontSize:12, color:"var(--ink4)" }}>{u.unit}</span>
                         <button onClick={()=>setEditData(d=>({ ...d, ingredients_used:d.ingredients_used.filter((_,idx)=>idx!==i) }))}

@@ -221,13 +221,14 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         if (d) throw d
         const { error: ins } = await supabase.from("sub_recipe_ingredients").insert(inserts.map(r=>({...r, sub_recipe_id:item.id})))
         if (ins) throw ins
-        const { error: u } = await supabase.from("sub_recipes").update({ yield_qty:yieldQty, yield_unit:yieldUnit, cost_per_unit:costPerUnit }).eq("id", item.id)
+        const cleanYieldQty = parseFloat(yieldQty)||1
+        const { error: u } = await supabase.from("sub_recipes").update({ yield_qty:cleanYieldQty, yield_unit:yieldUnit, cost_per_unit:costPerUnit }).eq("id", item.id)
         if (u) throw u
         if (item.ingredient_id) {
           await supabase.from("ingredients").update({ cost_per_unit:costPerUnit }).eq("id", item.ingredient_id)
         }
         setMsg({ err:false, text:`✓ Saved! Cost: Rp ${fmtUnit(costPerUnit)}/${yieldUnit}` })
-        onSaved({ cost_per_unit:costPerUnit, yield_qty:yieldQty, yield_unit:yieldUnit })
+        onSaved({ cost_per_unit:costPerUnit, yield_qty:cleanYieldQty, yield_unit:yieldUnit })
       } else {
         const { error: d } = await supabase.from("recipes").delete().eq("productSku", item.id)
         if (d) throw d
@@ -295,7 +296,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
       {itemType==="sub" && (
         <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 16px", background:"#eff6ff", borderRadius:10, marginBottom:20, flexWrap:"wrap" }}>
           <span style={{ fontSize:13, fontWeight:700, color:"#1e40af" }}>This recipe produces:</span>
-          <input type="number" value={yieldQty} onChange={e=>setYieldQty(parseFloat(e.target.value)||1)}
+          <input type="number" value={yieldQty} onChange={e=>setYieldQty(e.target.value)}
             style={{ width:90, padding:"6px 10px", border:"1.5px solid #bfdbfe", borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }} />
           <select value={yieldUnit} onChange={e=>setYieldUnit(e.target.value)}
             style={{ padding:"6px 10px", border:"1.5px solid #bfdbfe", borderRadius:8, fontSize:14, background:"#fff", outline:"none", fontFamily:"inherit" }}>

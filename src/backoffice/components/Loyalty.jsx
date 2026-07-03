@@ -36,7 +36,13 @@ export default function Loyalty() {
   }
 
   async function saveSettings() {
-    await supabase.from("app_settings").upsert({ id:"main", loyalty:settings, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    const cleaned = {
+      points_per_100: parseFloat(settings.points_per_100)||0,
+      gold_threshold: parseInt(settings.gold_threshold)||0,
+      silver_threshold: parseInt(settings.silver_threshold)||0,
+    }
+    await supabase.from("app_settings").upsert({ id:"main", loyalty:cleaned, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    setSettings(s=>({...s,...cleaned}))
     setSaved(true); setTimeout(()=>setSaved(false),2000)
   }
 
@@ -83,15 +89,15 @@ export default function Loyalty() {
           <div className="bo-card-title">⚙️ Loyalty Program Settings</div>
           <div className="bo-form-row">
             <label className="bo-label">Points per Rp 100 (1pt = Rp 100)</label>
-            <input type="number" value={settings.points_per_100} onChange={e=>setSettings(s=>({...s,points_per_100:parseFloat(e.target.value)||0}))} className="bo-input" style={{ maxWidth:120 }} />
+            <input type="number" value={settings.points_per_100} onChange={e=>setSettings(s=>({...s,points_per_100:e.target.value}))} className="bo-input" style={{ maxWidth:120 }} />
           </div>
           <div className="bo-form-row">
             <label className="bo-label">Gold Threshold (points)</label>
-            <input type="number" value={settings.gold_threshold} onChange={e=>setSettings(s=>({...s,gold_threshold:parseInt(e.target.value)||0}))} className="bo-input" style={{ maxWidth:120 }} />
+            <input type="number" value={settings.gold_threshold} onChange={e=>setSettings(s=>({...s,gold_threshold:e.target.value}))} className="bo-input" style={{ maxWidth:120 }} />
           </div>
           <div className="bo-form-row">
             <label className="bo-label">Silver Threshold (points)</label>
-            <input type="number" value={settings.silver_threshold} onChange={e=>setSettings(s=>({...s,silver_threshold:parseInt(e.target.value)||0}))} className="bo-input" style={{ maxWidth:120 }} />
+            <input type="number" value={settings.silver_threshold} onChange={e=>setSettings(s=>({...s,silver_threshold:e.target.value}))} className="bo-input" style={{ maxWidth:120 }} />
           </div>
           <button onClick={saveSettings} className="bo-btn bo-btn-primary" style={{ width:"100%", marginTop:8 }}>
             {saved?"✓ Saved!":"Save Settings"}

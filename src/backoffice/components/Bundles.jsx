@@ -53,7 +53,8 @@ export default function Bundles() {
     if (!form.name || form.items.length === 0) return alert("Name and at least one item required")
     setSaving(true)
     const payload = { name:form.name, description:form.description||"", price:Number(form.price)||0,
-      items:form.items, active:form.active!==false, image_url:form.image_url||"" }
+      items:form.items.map(i=>({...i, qty:parseInt(i.qty)||1, price:parseFloat(i.price)||0})),
+      active:form.active!==false, image_url:form.image_url||"" }
     if (modal === "add") {
       await supabase.from("bundles").insert({ ...payload, id:"BND-"+Date.now() })
     } else {
@@ -217,11 +218,11 @@ export default function Bundles() {
                     <div style={{ display:"flex", gap:8, alignItems:"center" }}>
                       <div style={{ flex:1 }}>
                         <label className="bo-label">Qty</label>
-                        <input type="number" min={1} value={item.qty||1} onChange={e=>updateItem(i,"qty",parseInt(e.target.value)||1)} className="bo-input" />
+                        <input type="number" min={1} value={item.qty??1} onChange={e=>updateItem(i,"qty",e.target.value)} className="bo-input" />
                       </div>
                       <div style={{ flex:1 }}>
                         <label className="bo-label">Price (override)</label>
-                        <input type="number" value={item.price||0} onChange={e=>updateItem(i,"price",e.target.value)} className="bo-input" />
+                        <input type="number" value={item.price??0} onChange={e=>updateItem(i,"price",e.target.value)} className="bo-input" />
                       </div>
                       <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
                         <label className="bo-label">FREE?</label>

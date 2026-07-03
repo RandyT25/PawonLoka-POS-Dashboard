@@ -114,7 +114,7 @@ export default function UsersAccess() {
     if (form.pin && (form.pin.length < 4 || form.pin.length > 8)) { setError("PIN must be 4–8 digits"); return }
     if (form.pin && form.pin !== form.confirmPin) { setError("PINs do not match"); return }
     setSaving(true)
-    const update = { role:form.role, permissions:form.permissions }
+    const update = { role:form.role, permissions:{...form.permissions, max_discount:parseInt(form.permissions.max_discount)||0} }
     if (form.pin) update.pin = form.pin
     await supabase.from("staff").update(update).eq("id", modal.id)
     await load()
@@ -284,8 +284,8 @@ export default function UsersAccess() {
                 <div className="bo-form-row">
                   <label className="bo-label">Max Discount % (0 = unlimited)</label>
                   <input type="number" min="0" max="100"
-                    value={form.permissions.max_discount||0}
-                    onChange={e=>setForm(f=>({...f,permissions:{...f.permissions,max_discount:parseInt(e.target.value)||0}}))}
+                    value={form.permissions.max_discount??0}
+                    onChange={e=>setForm(f=>({...f,permissions:{...f.permissions,max_discount:e.target.value}}))}
                     className="bo-input" style={{width:100}} />
                 </div>
               )}

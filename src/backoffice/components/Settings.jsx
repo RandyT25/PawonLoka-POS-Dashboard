@@ -39,7 +39,14 @@ export default function Settings() {
 
   async function save() {
     setSaving(true)
-    await supabase.from("app_settings").upsert({ id:"main", ...settings, cat_routing:catRouting, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    const cleanedLoyalty = {
+      ...settings.loyalty,
+      points_per_100: parseFloat(settings.loyalty.points_per_100)||0,
+      gold_threshold: parseInt(settings.loyalty.gold_threshold)||0,
+      silver_threshold: parseInt(settings.loyalty.silver_threshold)||0,
+    }
+    await supabase.from("app_settings").upsert({ id:"main", ...settings, loyalty:cleanedLoyalty, cat_routing:catRouting, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    setSettings(s=>({...s, loyalty:cleanedLoyalty}))
     localStorage.setItem("pl_cat_routing", JSON.stringify(catRouting))
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -170,7 +177,7 @@ export default function Settings() {
           {[["points_per_100","Points per Rp 100 spent"],["gold_threshold","Gold Threshold (pts)"],["silver_threshold","Silver Threshold (pts)"]].map(([k,l])=>(
             <div key={k} className="bo-form-row">
               <label className="bo-label">{l}</label>
-              <input type="number" value={settings.loyalty[k]||0} onChange={e=>update("loyalty",k,parseFloat(e.target.value)||0)} className="bo-input" style={{ maxWidth:160 }} />
+              <input type="number" value={settings.loyalty[k]??0} onChange={e=>update("loyalty",k,e.target.value)} className="bo-input" style={{ maxWidth:160 }} />
             </div>
           ))}
           <div style={{ padding:"10px 14px", background:"var(--brand-lt)", borderRadius:"var(--r)", fontSize:12, color:"var(--brand)", fontWeight:600 }}>
