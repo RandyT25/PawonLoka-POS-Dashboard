@@ -180,7 +180,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
           ingredient_id: r.ingredient_id,
           name: r.ingredient_name || found?.name || "",
           qty: r.qty || 0,
-          unit: found?.unit || r.unit || "gr",
+          unit: r.unit || found?.yield_unit || found?.unit || "gr",
         }
       }))
     }
