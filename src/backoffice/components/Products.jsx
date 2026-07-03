@@ -60,6 +60,10 @@ export default function Products() {
     const c = categories.find(x => x.name === catName || x.id === catName)
     return c?.color || "#6B778C"
   }
+  function getCatIcon(catName) {
+    const c = categories.find(x => x.name === catName || x.id === catName)
+    return c?.icon
+  }
   function margin(p) {
     if (!p.price || !p.cogs) return null
     return pct(p.price - p.cogs, p.price)
@@ -242,7 +246,7 @@ export default function Products() {
                   <div style={{ height:90, background: color+"22", borderBottom:"2px solid "+color+"33", display:"flex", alignItems:"center", justifyContent:"center", position:"relative" }}>
                     {p.image_url
                       ? <img src={p.image_url} alt={p.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} />
-                      : <span style={{ fontSize:40 }}>{p.icon||"🍽"}</span>
+                      : <span style={{ fontSize:40 }}>{getCatIcon(p.cat)||p.icon||"🍽"}</span>
                     }
                     {!p.active && <span style={{ position:"absolute", top:6, left:6, fontSize:10, fontWeight:700, background:"var(--amber-lt)", color:"var(--amber)", padding:"2px 7px", borderRadius:10 }}>Hidden</span>}
                     {recipe && <span style={{ position:"absolute", top:6, right:6, fontSize:14 }}>📖</span>}
@@ -282,7 +286,7 @@ export default function Products() {
                   {/* Image / icon */}
                   {p.image_url
                     ? <img src={p.image_url} alt={p.name} style={{ width:44, height:44, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
-                    : <span style={{ fontSize:28, flexShrink:0, width:44, textAlign:"center" }}>{p.icon||"🍽"}</span>
+                    : <span style={{ fontSize:28, flexShrink:0, width:44, textAlign:"center" }}>{getCatIcon(p.cat)||p.icon||"🍽"}</span>
                   }
                   {/* Info */}
                   <div className="bo-product-mobile-row-info">
@@ -334,7 +338,7 @@ export default function Products() {
                         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                           {p.image_url
                             ? <img src={p.image_url} alt={p.name} style={{ width:36, height:36, borderRadius:8, objectFit:"cover", flexShrink:0 }} />
-                            : <span style={{ fontSize:24, flexShrink:0 }}>{p.icon||"🍽"}</span>
+                            : <span style={{ fontSize:24, flexShrink:0 }}>{getCatIcon(p.cat)||p.icon||"🍽"}</span>
                           }
                           <div>
                             <div style={{ fontWeight:700, color:"var(--ink)" }}>{p.name}</div>

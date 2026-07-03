@@ -358,7 +358,7 @@ export default function CustomerApp({ tableId }) {
                 <div className="cust-product-img">
                   {product.image_url
                     ? <img src={product.image_url} alt={product.name} />
-                    : <span className="cust-product-emoji">{product.icon || '🍽️'}</span>}
+                    : <span className="cust-product-emoji">{categories.find(c=>c.name===product.cat)?.icon || product.icon || '🍽️'}</span>}
                 </div>
                 <div className="cust-product-body">
                   <div className="cust-product-name">{product.name}</div>

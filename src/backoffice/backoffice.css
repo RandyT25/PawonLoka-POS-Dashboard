@@ -470,15 +470,21 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 @media (max-width: 768px) {
   .recipe-ing-header { display: none !important; }
   .recipe-ing-row {
-    grid-template-columns: 1fr 80px 90px 28px !important;
-    gap: 6px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr 28px !important;
+    grid-template-areas: "name name name del" "qty unit cost cost" !important;
+    row-gap: 6px !important;
+    column-gap: 6px !important;
     margin-bottom: 8px !important;
     padding: 8px 4px !important;
     border-bottom: 1px solid var(--surface3);
+    align-items: center !important;
   }
-  /* Hide cost column on mobile */
-  .recipe-ing-row > *:nth-child(4) { display: none !important; }
-  .recipe-ing-row { grid-template-columns: 1fr 80px 90px 28px !important; }
+  .recipe-ing-row > *:nth-child(1) { grid-area: name; }
+  .recipe-ing-row > *:nth-child(2) { grid-area: qty; }
+  .recipe-ing-row > *:nth-child(3) { grid-area: unit; }
+  .recipe-ing-row > *:nth-child(4) { grid-area: cost; display: block !important; text-align: right !important; font-size: 12px !important; }
+  .recipe-ing-row > *:nth-child(5) { grid-area: del; justify-self: end; }
 }
 @media (max-width: 768px) {
   .recipe-cogs-desktop { display: none !important; }

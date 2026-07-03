@@ -64,7 +64,7 @@ export default function MenuGrid({ products, categories, onSelect, bundles }) {
                   style={S.photo}
                   loading="lazy"
                 />
-              : <div style={S.emoji}>{p.icon || '🍽️'}</div>
+              : <div style={S.emoji}>{categories.find(c=>c.name===p.cat)?.icon || p.icon || '🍽️'}</div>
             }
 
             <div style={S.name}>{p.name}</div>

@@ -191,7 +191,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
     const found = all.find(x => x.id === row.ingredient_id)
     const effectiveCost = found?.cost_per_unit || found?.market_cost || 0
     if (!effectiveCost) return sum
-    return sum + (effectiveCost / (UNIT_TO_BASE[found.unit]||1)) * toBase(row.qty, row.unit)
+    return sum + (effectiveCost / (UNIT_TO_BASE[found.yield_unit || found.unit]||1)) * toBase(row.qty, row.unit)
   }, 0)
 
   const yieldBase   = toBase(yieldQty, yieldUnit)
@@ -203,7 +203,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
 
   function handleIngChange(i, ingId) {
     const found = all.find(x => x.id === ingId)
-    updateRow(i, { ingredient_id: ingId, name: found?.name||"", unit: found?.unit||"gr" })
+    updateRow(i, { ingredient_id: ingId, name: found?.name||"", unit: found?.yield_unit || found?.unit || "gr" })
   }
 
   async function save() {
@@ -319,7 +319,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
         {rows.map((row,i) => {
           const found = all.find(x=>x.id===row.ingredient_id)
           const effectiveCost = found?.cost_per_unit || found?.market_cost || 0
-          const cost  = effectiveCost ? (effectiveCost/(UNIT_TO_BASE[found.unit]||1))*toBase(row.qty,row.unit) : 0
+          const cost  = effectiveCost ? (effectiveCost/(UNIT_TO_BASE[found.yield_unit || found.unit]||1))*toBase(row.qty,row.unit) : 0
           const isEst = cost > 0 && !found?.cost_per_unit && found?.market_cost > 0
           return (
             <div key={i} className="recipe-ing-row" style={{ display:"grid", gridTemplateColumns:"1fr 100px 110px 110px 32px", gap:8, alignItems:"center" }}>
