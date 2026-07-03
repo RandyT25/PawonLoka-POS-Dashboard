@@ -213,7 +213,7 @@ export default function Products() {
           <button onClick={()=>setViewMode("list")} style={{ padding:"7px 12px", background:viewMode==="list"?"var(--brand)":"#fff", color:viewMode==="list"?"#fff":"var(--ink4)", border:"none", cursor:"pointer", fontSize:16 }} title="List">☰</button>
         </div>
         <div style={{ marginLeft:"auto", display:"flex", gap:8 }}>
-          <button onClick={syncFromPOS} disabled={syncing} className="bo-btn bo-btn-ghost">
+          <button onClick={syncToPOS} disabled={syncing} className="bo-btn bo-btn-ghost">
             {syncing ? "Syncing…" : "↻ Sync from POS"}
           </button>
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Product</button>
