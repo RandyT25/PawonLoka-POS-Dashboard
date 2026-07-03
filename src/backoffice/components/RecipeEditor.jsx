@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
 const UNIT_TO_BASE = {
@@ -369,6 +369,35 @@ export default function RecipeEditor() {
   const [loading,     setLoading]     = useState(true)
   const [tick,        setTick]        = useState(0)
   const [syncing,     setSyncing]     = useState(false)
+
+  // On mobile, the recipe detail is a full-screen sheet — make the phone's
+  // back button/gesture close it instead of leaving the page entirely.
+  const pushedHistory = useRef(false)
+  const closingViaPop = useRef(false)
+  useEffect(() => {
+    function onPopState() {
+      if (pushedHistory.current) {
+        closingViaPop.current = true
+        pushedHistory.current = false
+        setSelected(null)
+      }
+    }
+    window.addEventListener("popstate", onPopState)
+    return () => {
+      window.removeEventListener("popstate", onPopState)
+      if (pushedHistory.current) { pushedHistory.current = false; window.history.back() }
+    }
+  }, [])
+  useEffect(() => {
+    if (selected && !pushedHistory.current) {
+      window.history.pushState({ recipeSheet: true }, "")
+      pushedHistory.current = true
+    } else if (!selected && pushedHistory.current) {
+      pushedHistory.current = false
+      if (!closingViaPop.current) window.history.back()
+    }
+    closingViaPop.current = false
+  }, [selected])
 
   useEffect(() => {
     setLoading(true)
