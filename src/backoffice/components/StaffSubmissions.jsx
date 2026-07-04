@@ -33,6 +33,7 @@ function IngSearchEdit({ ingredients, onSelect }) {
 export default function StaffSubmissions() {
   const [submissions, setSubmissions] = useState([])
   const [ingredients, setIngredients] = useState([])
+  const [subRecipes,  setSubRecipes]  = useState([])
   const [typeFilter,  setTypeFilter]  = useState("all")
   const [statusFilter,setStatusFilter]= useState("pending")
   const [viewModal,   setViewModal]   = useState(null)
@@ -69,11 +70,12 @@ export default function StaffSubmissions() {
 
   async function load() {
     setLoading(true)
-    const [{ data:s }, { data:i }] = await Promise.all([
+    const [{ data:s }, { data:i }, { data:sr }] = await Promise.all([
       supabase.from("staff_submissions").select("*").order("submitted_at", { ascending:false }),
       supabase.from("ingredients").select("*"),
+      supabase.from("sub_recipes").select("id,name,ingredient_id"),
     ])
-    setSubmissions(s||[]); setIngredients(i||[])
+    setSubmissions(s||[]); setIngredients(i||[]); setSubRecipes(sr||[])
     setLoading(false)
     setNewCount(0)
   }
@@ -133,7 +135,8 @@ export default function StaffSubmissions() {
         }
         await supabase.from("stock_opname").insert({
           id:"OPN-"+Date.now(), date:new Date().toISOString().slice(0,10),
-          status:"Completed", items:sub.data.items,
+          status:"Completed",
+          items:sub.data.items.map(i=>({ ...i, ingredient_name: i.ingredient_name || i.name })),
           total_variance:sub.data.items.reduce((a,i)=>a+(i.diff*(ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0)),0)
         })
       } else if (sub.type==="waste") {
@@ -158,7 +161,9 @@ export default function StaffSubmissions() {
         }
       } else if (sub.type==="production") {
         const d = sub.data
-        const item = ingredients.find(i=>i.id===d.item_id)
+        const outputIngredientId = d.item_id || subRecipes.find(sr=>sr.id===d.sub_recipe_id)?.ingredient_id
+        const item = outputIngredientId ? ingredients.find(i=>i.id===outputIngredientId) : null
+        const producedQty = d.actual_yield ?? d.batch_qty
         for (const u of d.ingredients_used||[]) {
           const ing = ingredients.find(i=>i.id===u.ingredient_id)
           if (ing) {
@@ -174,10 +179,10 @@ export default function StaffSubmissions() {
           }
         }
         if (item) {
-          await supabase.from("ingredients").update({ stock:(item.stock||0)+d.batch_qty }).eq("id",item.id)
+          await supabase.from("ingredients").update({ stock:(item.stock||0)+producedQty }).eq("id",item.id)
           await supabase.from("production_batches").insert({
-            id:"PRD-"+Date.now(), item_id:d.item_id, item_name:d.item_name,
-            batch_qty:d.batch_qty, unit:d.unit, date:new Date().toISOString().slice(0,10),
+            id:"PRD-"+Date.now(), item_id:item.id, item_name:d.item_name,
+            batch_qty:producedQty, unit:d.yield_unit||d.unit, date:new Date().toISOString().slice(0,10),
             produced_by:sub.submitted_by, notes:d.notes||null,
             ingredients_used:d.ingredients_used, status:"Completed"
           })
@@ -193,6 +198,16 @@ export default function StaffSubmissions() {
     if (!confirm("Reject this submission?")) return
     await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
     await load(); setViewModal(null); setStatusFilter("rejected")
+  }
+
+  async function deleteSubmission(sub) {
+    const warning = sub.status==="approved"
+      ? "This submission was already approved — deleting it only removes this record, it will NOT undo any stock/ingredient changes it already applied. Delete anyway?"
+      : "Delete this submission? This cannot be undone."
+    if (!confirm(warning)) return
+    await supabase.from("staff_submissions").delete().eq("id",sub.id)
+    setSubmissions(prev => prev.filter(s => s.id !== sub.id))
+    setViewModal(null)
   }
 
   async function convertToPO(sub) {
@@ -303,7 +318,7 @@ export default function StaffSubmissions() {
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested"
-                  : s.data.batch_qty+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
+                  : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
                   <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":"" }}>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:c+"22", color:c }}>{TYPE_ICONS[s.type]} {TYPE_LABELS[s.type]||s.type}</span></td>
@@ -317,10 +332,11 @@ export default function StaffSubmissions() {
                         <button onClick={()=>setViewModal(s)} className="bo-btn bo-btn-ghost bo-btn-sm">View</button>
                         <button onClick={()=>openEdit(s)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--brand)" }}>Edit</button>
                         {s.status==="pending" && <>
-                          <button onClick={()=>approve(s)} disabled={processing} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>Approve</button>
+                          {s.type!=="requisition" && <button onClick={()=>approve(s)} disabled={processing} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>Approve</button>}
                           <button onClick={()=>reject(s)} disabled={processing} className="bo-btn bo-btn-danger bo-btn-sm">Reject</button>
                         </>}
                         {s.type==="requisition" && s.status==="pending" && <button onClick={()=>convertToPO(s)} className="bo-btn bo-btn-sm" style={{ background:"#6554C0", color:"#fff", border:"none", cursor:"pointer", borderRadius:"var(--r)", padding:"5px 11px", fontSize:12, fontWeight:600 }}>To PO</button>}
+                        <button onClick={()=>deleteSubmission(s)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color:"var(--red)" }}>Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -387,7 +403,7 @@ export default function StaffSubmissions() {
                 <div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Produced</div><div style={{ fontWeight:700, color:"var(--green)", marginTop:3 }}>{viewModal.data.item_name}</div></div>
-                    <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Quantity</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.batch_qty} {viewModal.data.yield_unit||viewModal.data.unit}</div></div>
+                    <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Quantity</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.actual_yield??viewModal.data.batch_qty} {viewModal.data.yield_unit||viewModal.data.unit}</div></div>
                   </div>
                   <table className="bo-table">
                     <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr></thead>
@@ -399,6 +415,7 @@ export default function StaffSubmissions() {
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>
+              <button onClick={()=>deleteSubmission(viewModal)} className="bo-btn bo-btn-ghost" style={{ color:"var(--red)" }}>Delete</button>
               <button onClick={()=>openEdit(viewModal)} className="bo-btn bo-btn-ghost" style={{ color:"var(--brand)" }}>Edit</button>
               {viewModal.type==="requisition" && <button onClick={()=>sendReqToSupplierWA(viewModal)} style={{background:"#25D366",color:"#fff",border:"none",borderRadius:"var(--r)",padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>WA Supplier</button>}
               {viewModal.status==="pending" && <>
