@@ -351,7 +351,8 @@ export default function StaffSubmissions() {
               {filtered.map(s => {
                 const c = TYPE_COLORS[s.type]||"var(--ink5)"
                 const reqTotal = (s.data.items||[]).reduce((a,item)=>a+(item.qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
-                const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted"
+                const opnameVariance = (s.data.items||[]).reduce((a,item)=>a+(item.diff*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted — "+fmt(opnameVariance)+" variance"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
                   : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
@@ -388,7 +389,7 @@ export default function StaffSubmissions() {
       {/* View Modal */}
       {viewModal && (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setViewModal(null)}>
-          <div className="bo-modal" style={{ maxWidth:560, maxHeight:"90vh" }}>
+          <div className="bo-modal" style={{ maxWidth:viewModal.type==="opname"?720:560, maxHeight:"90vh" }}>
             <div className="bo-modal-header">
               <div>
                 <div className="bo-modal-title">{TYPE_ICONS[viewModal.type]} {TYPE_LABELS[viewModal.type]} Report</div>
@@ -397,21 +398,42 @@ export default function StaffSubmissions() {
               <button className="bo-modal-close" onClick={()=>setViewModal(null)}>x</button>
             </div>
             <div className="bo-modal-body" style={{ overflowY:"auto" }}>
-              {viewModal.type==="opname" && (
+              {viewModal.type==="opname" && (() => {
+                const totalValue = (viewModal.data.items||[]).reduce((a,item)=>a+(item.actual_qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                const totalVariance = (viewModal.data.items||[]).reduce((a,item)=>a+(item.diff*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                return (
+                <div style={{ overflowX:"auto" }}>
                 <table className="bo-table">
-                  <thead><tr><th>Ingredient</th><th>System</th><th>Actual</th><th>Diff</th></tr></thead>
+                  <thead><tr><th>Ingredient</th><th>System</th><th>Actual</th><th>Diff</th><th>Unit Price</th><th>Value</th><th>Variance</th></tr></thead>
                   <tbody>
-                    {(viewModal.data.items||[]).map((item,i)=>(
-                      <tr key={i}>
-                        <td style={{ fontWeight:600 }}>{item.name}</td>
-                        <td>{item.system_qty} {item.unit}</td>
-                        <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
-                        <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toFixed(2)}</td>
-                      </tr>
-                    ))}
+                    {(viewModal.data.items||[]).map((item,i)=>{
+                      const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                      const value = item.actual_qty*unitPrice
+                      const variance = item.diff*unitPrice
+                      return (
+                        <tr key={i}>
+                          <td style={{ fontWeight:600 }}>{item.name}</td>
+                          <td>{item.system_qty} {item.unit}</td>
+                          <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
+                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toFixed(2)}</td>
+                          <td>{fmt(unitPrice)}</td>
+                          <td>{fmt(value)}</td>
+                          <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={5} style={{ textAlign:"right", fontWeight:700 }}>Total</td>
+                      <td style={{ fontWeight:800 }}>{fmt(totalValue)}</td>
+                      <td style={{ fontWeight:800, color:totalVariance<0?"var(--red)":totalVariance>0?"var(--green)":"var(--ink5)" }}>{totalVariance>0?"+":""}{fmt(totalVariance)}</td>
+                    </tr>
+                  </tfoot>
                 </table>
-              )}
+                </div>
+                )
+              })()}
               {viewModal.type==="waste" && (
                 <div style={{ display:"grid", gap:14 }}>
                   {[["Ingredient",viewModal.data.ingredient_name],["Quantity",viewModal.data.qty+" "+viewModal.data.unit],["Reason",viewModal.data.reason],["Est. Cost",fmt(viewModal.data.estimated_cost)],["Notes",viewModal.data.notes||"—"]].map(([k,v])=>(
@@ -496,15 +518,22 @@ export default function StaffSubmissions() {
                 <input value={editData.notes||""} onChange={e=>setEditData(d=>({...d,notes:e.target.value}))} className="bo-input" placeholder="Add notes..." />
               </div>
 
-              {editModal.type==="opname" && (
+              {editModal.type==="opname" && (() => {
+                const totalValue = (editData.items||[]).reduce((a,item)=>a+((parseFloat(item.actual_qty)||0)*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                const totalVariance = (editData.items||[]).reduce((a,item)=>a+(((parseFloat(item.actual_qty)||0)-item.system_qty)*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                return (
                 <div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                     <label className="bo-label" style={{marginBottom:0}}>Stock Counts</label>
                     <button onClick={()=>setEditData(d=>({...d,items:[...(d.items||[]),{ingredient_id:"",name:"",unit:"",system_qty:0,actual_qty:0,diff:0}]}))}
                       className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
                   </div>
-                  {(editData.items||[]).map((item,i)=>(
-                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 60px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
+                  {(editData.items||[]).map((item,i)=>{
+                    const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                    const diff = (parseFloat(item.actual_qty)||0)-item.system_qty
+                    const variance = diff*unitPrice
+                    return (
+                    <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 60px 90px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
                       {item.ingredient_id
                         ? <div style={{ fontSize:13, fontWeight:600 }}>{item.name}</div>
                         : <IngSearchEdit ingredients={ingredients} onSelect={ing=>{
@@ -516,12 +545,19 @@ export default function StaffSubmissions() {
                         setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,actual_qty:val,diff:(parseFloat(val)||0)-x.system_qty}:x) }))
                       }} className="bo-input" style={{ fontSize:13 }} />
                       <span style={{ fontSize:12, color:"var(--ink4)" }}>{item.unit}</span>
+                      <span style={{ fontSize:12, textAlign:"right", color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink4)" }}>{variance>0?"+":""}{fmt(variance)}</span>
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
                         style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
-                  ))}
+                    )
+                  })}
+                  <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, fontWeight:700, marginTop:4 }}>
+                    <span>Value: {fmt(totalValue)}</span>
+                    <span style={{ color:totalVariance<0?"var(--red)":totalVariance>0?"var(--green)":"var(--ink5)" }}>Variance: {totalVariance>0?"+":""}{fmt(totalVariance)}</span>
+                  </div>
                 </div>
-              )}
+                )
+              })()}
 
               {editModal.type==="waste" && (
                 <div style={{ display:"grid", gap:12 }}>
