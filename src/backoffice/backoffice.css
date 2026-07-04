@@ -528,6 +528,9 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
 .bo-dash-hero { display: grid; grid-template-columns: 2fr 1fr 1fr; }
 .bo-dash-kpi  { display: grid; grid-template-columns: repeat(4, 1fr); }
 
+/* ── Inventory Overview KPI grid ──────────────────── */
+.inv-overview-kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+
 @media (max-width: 768px) {
   /* Hero: stack full-width */
   .bo-dash-hero { grid-template-columns: 1fr !important; }
@@ -540,6 +543,9 @@ body{font-family:"Inter",system-ui,sans-serif;font-size:14px;-webkit-font-smooth
   /* Products: hide desktop table, show mobile cards */
   .bo-products-table-wrap  { display: none !important; }
   .bo-products-mobile-list { display: flex !important; flex-direction: column; gap: 1px; background: var(--surface3); border-radius: 12px; overflow: hidden; }
+
+  /* Inventory Overview: 2-col cards */
+  .inv-overview-kpi { grid-template-columns: repeat(2, 1fr) !important; }
 }
 
 /* ── Sales Analysis mobile ───────────────────────── */

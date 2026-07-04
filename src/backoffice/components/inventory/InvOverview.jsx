@@ -57,7 +57,7 @@ export default function InvOverview({ onNav }) {
 
   return (
     <div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))", gap:12, marginBottom:20 }}>
+      <div className="inv-overview-kpi">
         <MetCard ico="📦" label="Ingredients"  val={ingredients.length}  sub="items tracked"             color="var(--brand)" />
         <MetCard ico="💰" label="Stock Value"   val={fmt(totalVal)}       sub="current inventory"         color="var(--green)" />
         <MetCard ico="⚠️" label="Low Stock"     val={lowStock.length}     sub="need reorder"              color={lowStock.length>0?"var(--amber)":"var(--green)"} />

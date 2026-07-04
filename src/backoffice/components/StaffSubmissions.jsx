@@ -42,6 +42,7 @@ export default function StaffSubmissions() {
   const [loading,     setLoading]     = useState(true)
   const [processing,  setProcessing]  = useState(false)
   const [newCount,    setNewCount]    = useState(0)
+  const [selected,    setSelected]    = useState(new Set())
   const audioRef = useRef(null)
   const channelRef = useRef(null)
 
@@ -210,17 +211,38 @@ export default function StaffSubmissions() {
     setViewModal(null)
   }
 
+  function toggleSelect(id) {
+    setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+  }
+
+  async function bulkDelete() {
+    const ids = [...selected]
+    if (ids.length === 0) return
+    const anyApproved = submissions.some(s => ids.includes(s.id) && s.status==="approved")
+    const warning = "Delete "+ids.length+" selected submission"+(ids.length>1?"s":"")+"? This cannot be undone."
+      + (anyApproved ? " Some are already approved — deleting them only removes the record, it will NOT undo any stock/ingredient changes already applied." : "")
+    if (!confirm(warning)) return
+    await supabase.from("staff_submissions").delete().in("id", ids)
+    setSubmissions(prev => prev.filter(s => !ids.includes(s.id)))
+    setSelected(new Set())
+  }
+
   async function convertToPO(sub) {
-    const items = (sub.data.items||[]).map(item => ({
-      ingredient_id:item.ingredient_id, name:item.ingredient_name,
-      qty:item.qty, unit:item.unit, unit_cost:0, total_cost:0, notes:item.notes,
-    }))
+    const items = (sub.data.items||[]).map(item => {
+      const unit_cost = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit || 0
+      const total_cost = item.qty * unit_cost
+      return {
+        ingredient_id:item.ingredient_id, name:item.ingredient_name,
+        qty:item.qty, unit:item.unit, unit_cost, total_cost, notes:item.notes,
+      }
+    })
+    const total = items.reduce((a,i)=>a+i.total_cost,0)
     const poId = "PO-"+Date.now()
     await supabase.from("purchase_orders").insert({
       id:poId, supplierId:"", supplierName:"— Select Supplier —",
       invoiceNo:poId, date:new Date().toISOString().slice(0,10),
-      status:"Unpaid", subtotal:0, total:0, items,
-      notes:"From staff requisition by "+sub.submitted_by+". Please assign supplier and prices."
+      status:"Unpaid", subtotal:total, total, items,
+      notes:"From staff requisition by "+sub.submitted_by+". Please assign supplier and confirm prices."
     })
     await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
     await load()
@@ -307,20 +329,35 @@ export default function StaffSubmissions() {
         </div>
       </div>
 
+      {/* Bulk selection bar */}
+      {selected.size > 0 && (
+        <div style={{ padding:"10px 16px", background:"var(--brand-lt)", border:"1.5px solid var(--brand)", borderRadius:"var(--r)", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <div style={{ fontWeight:700, color:"var(--brand)", fontSize:13 }}>{selected.size} selected</div>
+          <div style={{ display:"flex", gap:8 }}>
+            <button onClick={bulkDelete} className="bo-btn bo-btn-sm bo-btn-danger">Delete Selected</button>
+            <button onClick={()=>setSelected(new Set())} className="bo-btn bo-btn-ghost bo-btn-sm">Clear</button>
+          </div>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bo-card" style={{ padding:0, overflowX:"auto" }}>
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
-            <thead><tr><th>Type</th><th>Staff</th><th>Station</th><th>Date</th><th>Summary</th><th>Status</th><th>Actions</th></tr></thead>
+            <thead><tr>
+              <th><input type="checkbox" checked={filtered.length>0 && selected.size===filtered.length} onChange={()=>setSelected(selected.size===filtered.length ? new Set() : new Set(filtered.map(s=>s.id)))} /></th>
+              <th>Type</th><th>Staff</th><th>Station</th><th>Date</th><th>Summary</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
               {filtered.map(s => {
                 const c = TYPE_COLORS[s.type]||"var(--ink5)"
+                const reqTotal = (s.data.items||[]).reduce((a,item)=>a+(item.qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
-                  : s.type==="requisition" ? (s.data.items||[]).length+" items requested"
+                  : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
                   : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
                   <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":"" }}>
+                    <td><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggleSelect(s.id)} /></td>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:c+"22", color:c }}>{TYPE_ICONS[s.type]} {TYPE_LABELS[s.type]||s.type}</span></td>
                     <td style={{ fontWeight:600 }}>{s.submitted_by||"—"}</td>
                     <td style={{ fontSize:12, color:"var(--ink4)" }}>{s.data?.station||"—"}</td>
@@ -342,7 +379,7 @@ export default function StaffSubmissions() {
                   </tr>
                 )
               })}
-              {filtered.length===0 && <tr><td colSpan={7} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No submissions found</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={8} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No submissions found</td></tr>}
             </tbody>
           </table>
         )}
@@ -386,16 +423,27 @@ export default function StaffSubmissions() {
                 <div>
                   <div style={{ marginBottom:12, fontSize:12, color:"var(--ink4)" }}>Needed by: <strong>{viewModal.data.needed_by||"—"}</strong> · Notes: {viewModal.data.notes||"—"}</div>
                   <table className="bo-table">
-                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr></thead>
+                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th></tr></thead>
                     <tbody>
-                      {(viewModal.data.items||[]).map((item,i)=>(
-                        <tr key={i}>
-                          <td style={{ fontWeight:600 }}>{item.ingredient_name}</td>
-                          <td style={{ fontWeight:700, color:"#6554C0" }}>{item.qty}</td>
-                          <td>{item.unit}</td>
-                        </tr>
-                      ))}
+                      {(viewModal.data.items||[]).map((item,i)=>{
+                        const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                        return (
+                          <tr key={i}>
+                            <td style={{ fontWeight:600 }}>{item.ingredient_name}</td>
+                            <td style={{ fontWeight:700, color:"#6554C0" }}>{item.qty}</td>
+                            <td>{item.unit}</td>
+                            <td>{fmt(unitPrice)}</td>
+                            <td style={{ fontWeight:600 }}>{fmt(item.qty*unitPrice)}</td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={4} style={{ textAlign:"right", fontWeight:700 }}>Total</td>
+                        <td style={{ fontWeight:800, color:"#6554C0" }}>{fmt((viewModal.data.items||[]).reduce((a,item)=>a+(item.qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0))}</td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               )}
@@ -493,8 +541,10 @@ export default function StaffSubmissions() {
                     <button onClick={()=>setEditData(d=>({...d,items:[...(d.items||[]),{ingredient_id:"",ingredient_name:"",qty:0,unit:""}]}))}
                       className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
                   </div>
-                  {(editData.items||[]).map((item,i)=>(
-                    <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 28px",gap:8,marginBottom:8,alignItems:"center"}}>
+                  {(editData.items||[]).map((item,i)=>{
+                    const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                    return (
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 90px 28px",gap:8,marginBottom:8,alignItems:"center"}}>
                       {item.ingredient_id
                         ? <div style={{fontSize:13,fontWeight:600}}>{item.ingredient_name}</div>
                         : <IngSearchEdit ingredients={ingredients} onSelect={ing=>{
@@ -505,10 +555,15 @@ export default function StaffSubmissions() {
                         setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x)}))
                       }} className="bo-input" style={{fontSize:13}} />
                       <span style={{fontSize:12,color:"var(--ink4)"}}>{item.unit}</span>
+                      <span style={{fontSize:12,color:"var(--ink4)",textAlign:"right"}}>{fmt((parseFloat(item.qty)||0)*unitPrice)}</span>
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
                         style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
-                  ))}
+                    )
+                  })}
+                  <div style={{ textAlign:"right", fontSize:13, fontWeight:700, marginTop:4, color:"#6554C0" }}>
+                    Total: {fmt((editData.items||[]).reduce((a,item)=>a+((parseFloat(item.qty)||0)*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0))}
+                  </div>
                 </div>
               )}
 
