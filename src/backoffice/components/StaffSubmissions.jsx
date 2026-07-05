@@ -407,7 +407,8 @@ export default function StaffSubmissions() {
                   <thead><tr><th>Ingredient</th><th>System</th><th>Actual</th><th>Diff</th><th>Unit Price</th><th>Value</th><th>Variance</th></tr></thead>
                   <tbody>
                     {(viewModal.data.items||[]).map((item,i)=>{
-                      const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                      const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
+                      const unitPrice = foundIng?.cost_per_unit||0
                       const value = item.actual_qty*unitPrice
                       const variance = item.diff*unitPrice
                       return (
@@ -416,9 +417,11 @@ export default function StaffSubmissions() {
                           <td>{item.system_qty} {item.unit}</td>
                           <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
                           <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toFixed(2)}</td>
-                          <td>{fmt(unitPrice)}</td>
-                          <td>{fmt(value)}</td>
-                          <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
+                          {foundIng ? <>
+                            <td>{fmt(unitPrice)}</td>
+                            <td>{fmt(value)}</td>
+                            <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
+                          </> : <td colSpan={3} style={{ color:"var(--red)", fontWeight:600 }}>⚠ unknown ingredient</td>}
                         </tr>
                       )
                     })}
@@ -448,14 +451,17 @@ export default function StaffSubmissions() {
                     <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th></tr></thead>
                     <tbody>
                       {(viewModal.data.items||[]).map((item,i)=>{
-                        const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                        const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
+                        const unitPrice = foundIng?.cost_per_unit||0
                         return (
                           <tr key={i}>
                             <td style={{ fontWeight:600 }}>{item.ingredient_name}</td>
                             <td style={{ fontWeight:700, color:"#6554C0" }}>{item.qty}</td>
                             <td>{item.unit}</td>
-                            <td>{fmt(unitPrice)}</td>
-                            <td style={{ fontWeight:600 }}>{fmt(item.qty*unitPrice)}</td>
+                            {foundIng ? <>
+                              <td>{fmt(unitPrice)}</td>
+                              <td style={{ fontWeight:600 }}>{fmt(item.qty*unitPrice)}</td>
+                            </> : <td colSpan={2} style={{ color:"var(--red)", fontWeight:600 }}>⚠ unknown ingredient</td>}
                           </tr>
                         )
                       })}
@@ -529,9 +535,11 @@ export default function StaffSubmissions() {
                       className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
                   </div>
                   {(editData.items||[]).map((item,i)=>{
-                    const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                    const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
+                    const unitPrice = foundIng?.cost_per_unit||0
                     const diff = (parseFloat(item.actual_qty)||0)-item.system_qty
                     const variance = diff*unitPrice
+                    const unknown = item.ingredient_id && !foundIng
                     return (
                     <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 100px 60px 90px 28px", gap:8, marginBottom:8, alignItems:"center" }}>
                       {item.ingredient_id
@@ -545,7 +553,9 @@ export default function StaffSubmissions() {
                         setEditData(d=>({ ...d, items:d.items.map((x,idx)=>idx===i?{...x,actual_qty:val,diff:(parseFloat(val)||0)-x.system_qty}:x) }))
                       }} className="bo-input" style={{ fontSize:13 }} />
                       <span style={{ fontSize:12, color:"var(--ink4)" }}>{item.unit}</span>
-                      <span style={{ fontSize:12, textAlign:"right", color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink4)" }}>{variance>0?"+":""}{fmt(variance)}</span>
+                      {unknown
+                        ? <span style={{ fontSize:11, textAlign:"right", color:"var(--red)", fontWeight:600 }}>⚠ unknown</span>
+                        : <span style={{ fontSize:12, textAlign:"right", color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink4)" }}>{variance>0?"+":""}{fmt(variance)}</span>}
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
                         style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
@@ -578,7 +588,9 @@ export default function StaffSubmissions() {
                       className="bo-btn bo-btn-ghost bo-btn-sm">+ Add Item</button>
                   </div>
                   {(editData.items||[]).map((item,i)=>{
-                    const unitPrice = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0
+                    const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
+                    const unitPrice = foundIng?.cost_per_unit||0
+                    const unknown = item.ingredient_id && !foundIng
                     return (
                     <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 90px 28px",gap:8,marginBottom:8,alignItems:"center"}}>
                       {item.ingredient_id
@@ -591,7 +603,9 @@ export default function StaffSubmissions() {
                         setEditData(d=>({...d,items:d.items.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x)}))
                       }} className="bo-input" style={{fontSize:13}} />
                       <span style={{fontSize:12,color:"var(--ink4)"}}>{item.unit}</span>
-                      <span style={{fontSize:12,color:"var(--ink4)",textAlign:"right"}}>{fmt((parseFloat(item.qty)||0)*unitPrice)}</span>
+                      {unknown
+                        ? <span style={{fontSize:11,color:"var(--red)",fontWeight:600,textAlign:"right"}}>⚠ unknown</span>
+                        : <span style={{fontSize:12,color:"var(--ink4)",textAlign:"right"}}>{fmt((parseFloat(item.qty)||0)*unitPrice)}</span>}
                       <button onClick={()=>setEditData(d=>({...d,items:d.items.filter((_,idx)=>idx!==i)}))}
                         style={{background:"none",border:"none",color:"var(--red)",fontSize:18,cursor:"pointer",padding:0}}>x</button>
                     </div>
