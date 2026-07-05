@@ -91,9 +91,10 @@ async function processPaidPO(po, ingMap) {
     if (!ing) continue
     const qtyBase = toBaseUnit(ing, parseFloat(item.qty), item.unit)
     const costPerBase = qtyBase > 0 ? (parseFloat(item.unit_cost)||0) * parseFloat(item.qty) / qtyBase : 0
-    const newWAC = await recalcWAC(ing, qtyBase, qtyBase * costPerBase)
     const updatedConvs = (ing.conversions||[]).map(c => c.unit===item.unit ? {...c,last_price:item.unit_cost} : c)
     await supabase.from("ingredients").update({ last_purchase_price:item.unit_cost, last_purchase_unit:item.unit, conversions:updatedConvs }).eq("id", ing.id)
+    if (ing.track_stock === false) continue
+    const newWAC = await recalcWAC(ing, qtyBase, qtyBase * costPerBase)
     await supabase.from("stock_movements").insert({
       id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
       type:"Purchase", ingredient_id:ing.id, ingredient_name:ing.name,

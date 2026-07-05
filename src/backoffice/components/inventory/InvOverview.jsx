@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
+import { isFoodCategory } from "../../lib/ingredientCategories"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
@@ -20,7 +21,7 @@ export default function InvOverview({ onNav }) {
       supabase.from("production_batches").select("*").order("created_at", { ascending:false }),
       supabase.from("waste_records").select("*").order("created_at", { ascending:false }),
     ])
-    setIngredients(ings||[])
+    setIngredients((ings||[]).filter(i => isFoodCategory(i.category)))
     const posNorm=(p||[]).map(po=>({
       ...po,
       supplier_name: po.supplierName||po.supplier_name||"",

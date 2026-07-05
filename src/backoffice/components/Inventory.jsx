@@ -11,6 +11,7 @@ import InvMovements   from "./inventory/InvMovements"
 const TABS = [
   { id:"inv-overview",     label:"Overview",         icon:"📦" },
   { id:"inv-ingredients",  label:"Ingredients",      icon:"🧂" },
+  { id:"inv-supplies",     label:"Supplies",         icon:"🧴" },
   { id:"inv-po",           label:"Purchase Orders",  icon:"🛒" },
   { id:"inv-suppliers",    label:"Suppliers",        icon:"🏭" },
   { id:"inv-production",   label:"Production",       icon:"⚙️" },
@@ -22,6 +23,7 @@ const TABS = [
 const SCREENS = {
   "inv-overview":    InvOverview,
   "inv-ingredients": InvIngredients,
+  "inv-supplies":    (props) => <InvIngredients {...props} mode="supplies" />,
   "inv-po":          InvPO,
   "inv-suppliers":   InvSuppliers,
   "inv-production":  InvProduction,

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
+import { isFoodCategory } from "../lib/ingredientCategories"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("en-US")
 
@@ -111,10 +112,10 @@ export default function Dashboard({ onNavChange }) {
   }, [])
 
   useEffect(() => {
-    supabase.from("ingredients").select("id,stock,min_stock")
+    supabase.from("ingredients").select("id,stock,min_stock,category")
       .then(({ data }) => {
         if (!data) return
-        const low = data.filter(i => (i.stock <= 0) || (i.min_stock > 0 && i.stock <= i.min_stock))
+        const low = data.filter(i => isFoodCategory(i.category) && ((i.stock <= 0) || (i.min_stock > 0 && i.stock <= i.min_stock)))
         setLowStockCount(low.length)
       })
   }, [])

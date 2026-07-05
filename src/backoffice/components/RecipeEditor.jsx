@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
+import { isFoodCategory } from "../lib/ingredientCategories"
 
 const UNIT_TO_BASE = {
   gr:1,g:1,kg:1000,ml:1,mL:1,L:1000,Galon:19000,
@@ -21,7 +22,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
   const listRef = React.useRef(null)
 
   const all = [
-    ...ingredients.filter(i => i.category !== "Semi-finished").map(i => ({ ...i, _g:"Raw" })),
+    ...ingredients.filter(i => i.category !== "Semi-finished" && isFoodCategory(i.category)).map(i => ({ ...i, _g:"Raw" })),
     ...(showSubs ? subRecipes.map(s => ({ ...s, _g:"Sub" })) : []),
   ]
   const filtered = q ? all.filter(x => x.name.toLowerCase().includes(q.toLowerCase())) : all

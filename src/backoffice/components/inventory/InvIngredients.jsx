@@ -1,13 +1,23 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
+import { FOOD_CATEGORIES, SUPPLY_CATEGORIES, isSupplyCategory, isFoodCategory } from "../../lib/ingredientCategories"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
 const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion","slice"]
-const EMPTY = { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"", category:"General", station:["Kitchen"], conversions:[], last_purchase_price:0, last_purchase_unit:"" }
+function emptyForm(mode) {
+  return { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"",
+    category: mode==="supplies" ? "Other Supplies" : "General",
+    track_stock: mode!=="supplies",
+    station:["Kitchen"], conversions:[], last_purchase_price:0, last_purchase_unit:"" }
+}
 
-export default function InvIngredients() {
+export default function InvIngredients({ mode="ingredients" }) {
+  const EMPTY = emptyForm(mode)
+  const isSupplies = mode==="supplies"
+  const bucketFilter = isSupplies ? isSupplyCategory : isFoodCategory
+  const categoryOptions = isSupplies ? SUPPLY_CATEGORIES : FOOD_CATEGORIES
   const [ingredients, setIngredients] = useState([])
   const [suppliers,   setSuppliers]   = useState([])
   const [search,      setSearch]      = useState("")
@@ -17,6 +27,7 @@ export default function InvIngredients() {
   const [convs,       setConvs]       = useState([]) // [{unit, qty, sku, last_price}]
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
+  const [trackStockTouched, setTrackStockTouched] = useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -26,7 +37,7 @@ export default function InvIngredients() {
       supabase.from("ingredients").select("*").order("name"),
       supabase.from("suppliers").select("id,name"),
     ])
-    setIngredients(ings||[])
+    setIngredients((ings||[]).filter(i => bucketFilter(i.category)))
     setSuppliers(sups||[])
     setLoading(false)
   }
@@ -42,12 +53,14 @@ export default function InvIngredients() {
   function openAdd() {
     setForm(EMPTY)
     setConvs([])
+    setTrackStockTouched(false)
     setModal("add")
   }
 
   function openEdit(i) {
-    setForm({...i})
+    setForm({...i, track_stock: i.track_stock !== false})
     setConvs(i.conversions || [])
+    setTrackStockTouched(true)
     setModal("edit")
   }
 
@@ -86,6 +99,7 @@ export default function InvIngredients() {
       cost_per_unit:      wac || parseFloat(form.cost_per_unit)||0,
       supplier:           form.supplier||null,
       category:           form.category||"General",
+      track_stock:        form.track_stock !== false,
       station:            Array.isArray(form.station)&&form.station.length ? form.station : ["Kitchen"],
       conversions:        convs,
       last_purchase_price:parseFloat(form.last_purchase_price)||0,
@@ -119,7 +133,7 @@ export default function InvIngredients() {
     <div>
       <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap", alignItems:"center" }}>
         <div style={{ display:"flex", gap:4, flexWrap:"wrap" }}>
-          {[["all",`All (${ingredients.length})`],["low",`Low Stock (${lowStock.length})`],["out",`Out of Stock (${outStock.length})`],["semi",`Semi-finished (${semi.length})`]].map(([f,l])=>(
+          {[["all",`All (${ingredients.length})`],["low",`Low Stock (${lowStock.length})`],["out",`Out of Stock (${outStock.length})`],...(isSupplies?[]:[["semi",`Semi-finished (${semi.length})`]])].map(([f,l])=>(
             <button key={f} onClick={()=>setFilter(f)} className={"bo-btn bo-btn-sm "+(filter===f?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
           ))}
         </div>
@@ -128,7 +142,7 @@ export default function InvIngredients() {
             <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"var(--ink5)" }}>⌕</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" placeholder="Search..." style={{ paddingLeft:28, width:180 }} />
           </div>
-          <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add Ingredient</button>
+          <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add {isSupplies?"Supply Item":"Ingredient"}</button>
         </div>
       </div>
 
@@ -136,7 +150,7 @@ export default function InvIngredients() {
         {loading ? <div style={{ padding:40, textAlign:"center", color:"var(--ink5)" }}>Loading...</div> : (
           <table className="bo-table">
             <thead>
-              <tr><th>Ingredient</th><th>SKU</th><th>Category</th><th>Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>{isSupplies?"Item":"Ingredient"}</th><th>SKU</th><th>Category</th><th>Unit</th><th>Stock</th><th>Min Stock</th><th>WAC / Unit</th><th>Stock Value</th><th>Supplier</th><th>Status</th><th>Actions</th></tr>
             </thead>
             <tbody>
               {filtered.map(i => {
@@ -186,7 +200,7 @@ export default function InvIngredients() {
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeModal()}>
           <div className="bo-modal" style={{ maxWidth:820, maxHeight:"92vh" }}>
             <div className="bo-modal-header">
-              <div className="bo-modal-title">{modal==="add"?"Add Ingredient":"Edit — "+form.name}</div>
+              <div className="bo-modal-title">{modal==="add"?`Add ${isSupplies?"Supply Item":"Ingredient"}`:"Edit — "+form.name}</div>
               <button className="bo-modal-close" onClick={closeModal}>✕</button>
             </div>
             <div className="bo-modal-body" style={{ overflowY:"auto" }}>
@@ -198,8 +212,11 @@ export default function InvIngredients() {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Category</label>
-                  <select value={form.category||"General"} onChange={e=>setForm(f=>({...f,category:e.target.value}))} className="bo-select">
-                    {["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","Packaging","General"].map(c=><option key={c}>{c}</option>)}
+                  <select value={form.category||categoryOptions[0]} onChange={e=>{
+                    const category = e.target.value
+                    setForm(f=>({ ...f, category, track_stock: trackStockTouched ? f.track_stock : isFoodCategory(category) }))
+                  }} className="bo-select">
+                    {categoryOptions.map(c=><option key={c}>{c}</option>)}
                   </select>
                 </div>
 
@@ -213,6 +230,13 @@ export default function InvIngredients() {
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Current Stock</label><input type="number" value={form.stock||0} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} className="bo-input" /></div>
                 <div><label className="bo-label">Min Stock Alert</label><input type="number" value={form.min_stock||0} onChange={e=>setForm(f=>({...f,min_stock:e.target.value}))} className="bo-input" /></div>
+              </div>
+              <div style={{ marginBottom:14, display:"flex", alignItems:"center", gap:8 }}>
+                <input type="checkbox" id="track_stock" checked={form.track_stock!==false} onChange={e=>{
+                  setTrackStockTouched(true)
+                  setForm(f=>({...f,track_stock:e.target.checked}))
+                }} />
+                <label htmlFor="track_stock" className="bo-label" style={{ marginBottom:0, cursor:"pointer" }}>Track Stock (affects Purchase Order stock/cost updates)</label>
               </div>
 
               {/* UOM Section */}
