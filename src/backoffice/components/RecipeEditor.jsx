@@ -521,7 +521,7 @@ export default function RecipeEditor() {
     const [sriRes, iRes, srRes, mpRes] = await Promise.all([
       supabase.from("sub_recipe_ingredients").select("*"),
       supabase.from("ingredients").select("id,name,unit,cost_per_unit"),
-      supabase.from("sub_recipes").select("id,yield_qty,yield_unit"),
+      supabase.from("sub_recipes").select("id,ingredient_id,yield_qty,yield_unit"),
       supabase.from("market_prices").select("ingredient_id,price,conv_qty").order("checked_at", { ascending: false }),
     ])
     const mpMap = {}
@@ -549,6 +549,9 @@ export default function RecipeEditor() {
       const costPerUnit = yieldBase > 0 ? totalCost / yieldBase : 0
       if (costPerUnit > 0) {
         await supabase.from("sub_recipes").update({ cost_per_unit: costPerUnit }).eq("id", subId)
+        if (sr.ingredient_id) {
+          await supabase.from("ingredients").update({ cost_per_unit: costPerUnit }).eq("id", sr.ingredient_id)
+        }
       }
     }
     setSyncing(false)

@@ -57,6 +57,7 @@ async function cascadeRecalc(updatedIngIds) {
     if (sub?.ingredient_id) {
       const costPerYield = totalCost / (parseFloat(sub.yield_qty)||1)
       await supabase.from("ingredients").update({ cost_per_unit:costPerYield }).eq("id", sub.ingredient_id)
+      await supabase.from("sub_recipes").update({ cost_per_unit:costPerYield }).eq("id", subId)
       ingMap[sub.ingredient_id] = { ...ingMap[sub.ingredient_id], cost_per_unit:costPerYield }
       updatedSubIngIds.push(sub.ingredient_id)
     }
