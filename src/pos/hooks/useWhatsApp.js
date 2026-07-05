@@ -3,7 +3,7 @@ import { useCallback } from "react";
 
 const RECEIPT_BASE = "https://pawonloka.pages.dev/receipt";
 
-function fmt(n) { return "Rp " + Number(n || 0).toLocaleString("id-ID"); }
+function fmt(n) { return "Rp " + Number(n || 0).toLocaleString("en-US"); }
 
 function cleanPhone(phone) {
   let p = String(phone || "").replace(/\D/g, "");

@@ -5,7 +5,7 @@ import autoTable from "jspdf-autotable"
 const BRAND_BLUE  = [0, 82, 204]
 const GRAY_TEXT   = [80, 80, 80]
 
-export const fmtIDR = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
+export const fmtIDR = n => "Rp " + Number(n || 0).toLocaleString("en-US")
 
 export function formatPeriodLabel(range, from, to) {
   const fmtD = d => d

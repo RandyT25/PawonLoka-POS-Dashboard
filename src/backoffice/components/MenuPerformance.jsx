@@ -4,7 +4,7 @@ import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
-const fmt  = n  => "Rp " + Number(n || 0).toLocaleString("id-ID")
+const fmt  = n  => "Rp " + Number(n || 0).toLocaleString("en-US")
 const fmtK = n  => n >= 1_000_000 ? "Rp " + (n / 1_000_000).toFixed(1) + " jt"
                  : n >= 1_000     ? "Rp " + Math.round(n / 1_000) + " rb"
                  : fmt(n)

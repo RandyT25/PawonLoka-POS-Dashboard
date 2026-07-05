@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", production:"var(--green)", requisition:"#6554C0" }
 const TYPE_ICONS  = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
 const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", production:"Production", requisition:"Request" }

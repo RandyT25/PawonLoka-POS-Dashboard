@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
 const ROLES_FALLBACK = ["Kasir","Bar","Snack","Kitchen","Cook","Head Cook","Head Kasir","Owner"]
 const STAFF_COLORS   = ["#0066FF","#00875A","#FF8B00","#6554C0","#DE350B","#00B8D9","#10B981","#F59E0B","#EF4444"]

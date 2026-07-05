@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
 function tierInfo(points) {
   if (points >= 5000) return { label:"Gold",   color:"#FF8B00", bg:"#FFF7E6" }
@@ -121,7 +121,7 @@ export default function Loyalty() {
                     <div>
                       <div style={{ fontSize:14, fontWeight:800, color:"var(--brand)", fontFamily:"monospace" }}>{v.code}</div>
                       <div style={{ fontSize:11, color:"var(--ink4)" }}>
-                        {v.type==="Percentage"?`${v.value}% off`:`Rp ${(v.value||0).toLocaleString("id-ID")} off`} · Used: {v.used_count||0}/{v.max_uses||"∞"}
+                        {v.type==="Percentage"?`${v.value}% off`:`Rp ${(v.value||0).toLocaleString("en-US")} off`} · Used: {v.used_count||0}/{v.max_uses||"∞"}
                       </div>
                     </div>
                     <div style={{ display:"flex", gap:6, alignItems:"center" }}>
@@ -162,7 +162,7 @@ export default function Loyalty() {
                       <div style={{ fontSize:11, color:"var(--ink4)" }}>{c.phone}</div>
                     </td>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:t.bg, color:t.color }}>{t.label}</span></td>
-                    <td style={{ fontWeight:700, color:"var(--amber)" }}>{(c.points||0).toLocaleString("id-ID")}</td>
+                    <td style={{ fontWeight:700, color:"var(--amber)" }}>{(c.points||0).toLocaleString("en-US")}</td>
                     <td>{c.visits||0}</td>
                     <td style={{ fontWeight:600, color:"var(--brand)" }}>{fmt(c.totalSpend||0)}</td>
                     <td>

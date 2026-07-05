@@ -2,7 +2,7 @@ import { useState } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 
-function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return Number(n||0).toLocaleString("en-US") }
 
 const MODULES = {
   ingredients: {

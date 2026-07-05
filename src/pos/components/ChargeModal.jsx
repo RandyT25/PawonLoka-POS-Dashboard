@@ -5,7 +5,7 @@ import { useWhatsApp } from '../hooks/useWhatsApp'
 
 const formatReceipt = (order, customer) => {
   const items = order.items.map(i =>
-    i.qty + 'x ' + i.name + ' - Rp ' + (i.price * i.qty).toLocaleString('id-ID')
+    i.qty + 'x ' + i.name + ' - Rp ' + (i.price * i.qty).toLocaleString('en-US')
   ).join('\n')
   const receiptUrl = 'https://pawonloka.pages.dev/receipt/' + order.id
   const lines = [
@@ -18,11 +18,11 @@ const formatReceipt = (order, customer) => {
     '*Detail Pesanan:*',
     items,
     '',
-    order.discount > 0 ? 'Diskon: -Rp ' + order.discount.toLocaleString('id-ID') : null,
-    order.tax > 0 ? 'Pajak: Rp ' + order.tax.toLocaleString('id-ID') : null,
-    '*Total: Rp ' + order.total.toLocaleString('id-ID') + '*',
+    order.discount > 0 ? 'Diskon: -Rp ' + order.discount.toLocaleString('en-US') : null,
+    order.tax > 0 ? 'Pajak: Rp ' + order.tax.toLocaleString('en-US') : null,
+    '*Total: Rp ' + order.total.toLocaleString('en-US') + '*',
     'Pembayaran: ' + order.pay,
-    order.pay === 'Cash' && order.change > 0 ? 'Kembali: Rp ' + order.change.toLocaleString('id-ID') : null,
+    order.pay === 'Cash' && order.change > 0 ? 'Kembali: Rp ' + order.change.toLocaleString('en-US') : null,
     customer?.points !== undefined ? 'Poin kamu: ' + customer.points + ' pts' : null,
     '', '', receiptUrl, '',
     'Terima kasih telah makan di PawonLoka!',

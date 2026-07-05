@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 function pct(a,b) { return b>0?Math.round(a/b*100):0 }
 
 const EMPTY = { name:"", cat:"", price:"", desc:"", icon:"🍽", active:true, image_url:null, cogs:0, is_consignment:false }

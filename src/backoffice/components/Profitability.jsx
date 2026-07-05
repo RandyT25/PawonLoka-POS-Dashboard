@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 
-const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("id-ID")
+const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("en-US")
 const fmtP = n => (Number(n||0)).toFixed(1) + "%"
 
 function statusLabel(cogsP, type, isConsignment) {
@@ -284,7 +284,7 @@ export default function Profitability() {
                     <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)" }}>{fmt(profit)}</td>
                     <td style={{ padding:"8px 12px" }}>
                       <input type="number" value={editPrices[p.sku]||""} onChange={e=>setEditPrices(prev=>({...prev,[p.sku]:e.target.value}))}
-                        placeholder={price.toLocaleString("id-ID")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
+                        placeholder={price.toLocaleString("en-US")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
                     </td>
                     <td style={{ padding:"8px 12px" }}>
                       {cpp > 0 && newPrice > 0 ? (

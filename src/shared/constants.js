@@ -40,5 +40,5 @@ export const KITCHEN_STATIONS = {
   'Delivery':      'Kitchen',
 }
 
-export const fmt = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID')
+export const fmt = n => 'Rp ' + Number(n || 0).toLocaleString('en-US')
 export const TAX_RATE = 0.10

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
 function tierInfo(points) {
   if (points >= 5000) return { label:"Gold",   color:"#FF8B00", bg:"#FFF7E6", next:null,       nextPts:0 }
@@ -155,7 +155,7 @@ export default function Customers() {
 
                 {/* Points + progress */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"baseline", marginBottom:6 }}>
-                  <span style={{ fontSize:18, fontWeight:900, color:"#0A1628" }}>{(c.points||0).toLocaleString("id-ID")} pts</span>
+                  <span style={{ fontSize:18, fontWeight:900, color:"#0A1628" }}>{(c.points||0).toLocaleString("en-US")} pts</span>
                   <span style={{ fontSize:12, color:"#6B778C" }}>{pct}% to next tier</span>
                 </div>
                 <div style={{ height:4, background:"#f0f0f0", borderRadius:2, marginBottom:12, overflow:"hidden" }}>
@@ -194,7 +194,7 @@ export default function Customers() {
               <div className="bo-form-row"><label className="bo-label">Date of Birth</label><input type="date" value={editForm.dob} onChange={e=>setEditForm(f=>({...f,dob:e.target.value}))} className="bo-input" /></div>
               <div className="bo-form-row"><label className="bo-label">Notes</label><input value={editForm.notes} onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))} className="bo-input" /></div>
               <div style={{ marginTop:16, padding:"14px 16px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
-                <div style={{ fontSize:12, fontWeight:700, color:"var(--ink4)", marginBottom:8 }}>Point Adjustment · Current: {(editing.points||0).toLocaleString("id-ID")} pts</div>
+                <div style={{ fontSize:12, fontWeight:700, color:"var(--ink4)", marginBottom:8 }}>Point Adjustment · Current: {(editing.points||0).toLocaleString("en-US")} pts</div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
                   {[-500,-100,100,500,1000].map(n=>(
                     <button key={n} type="button" onClick={()=>setAdjPoints(String(n))}
@@ -205,7 +205,7 @@ export default function Customers() {
                 </div>
                 <input type="number" value={adjPoints} onChange={e=>setAdjPoints(e.target.value)} className="bo-input" placeholder="Custom amount (e.g. +200 or -50)" />
                 {adjPoints!==""&&!isNaN(parseInt(adjPoints))&&(
-                  <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>New total: {Math.max(0,(editing.points||0)+parseInt(adjPoints)).toLocaleString("id-ID")} pts</div>
+                  <div style={{ fontSize:11, color:"var(--ink5)", marginTop:4 }}>New total: {Math.max(0,(editing.points||0)+parseInt(adjPoints)).toLocaleString("en-US")} pts</div>
                 )}
               </div>
             </div>

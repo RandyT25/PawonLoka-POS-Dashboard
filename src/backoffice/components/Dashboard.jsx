@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
-const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
+const fmt = n => "Rp " + Number(n || 0).toLocaleString("en-US")
 
 function statusBadge(s) {
   if (!s || s === "Paid"    || s === "paid")     return { label:"Lunas",     bg:"#D1FAE5", color:"#065F46" }

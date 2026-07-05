@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 const EMPTY={name:"",type:"Percentage",value:"",applyTo:"All Items",minOrder:"",active:true,startTime:"",endTime:""}
 
 export default function Discounts() {

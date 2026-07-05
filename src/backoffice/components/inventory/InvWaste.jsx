@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 const REASON_COLORS = { Expired:"var(--red)", Damaged:"var(--amber)", Overproduction:"#6554C0", Spillage:"var(--brand)", Other:"var(--ink5)" }
 

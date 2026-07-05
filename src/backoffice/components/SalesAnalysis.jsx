@@ -4,7 +4,7 @@ import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 
-const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
+const fmt = n => "Rp " + Number(n || 0).toLocaleString("en-US")
 const PAY_COLORS = { Cash:"#10B981", QRIS:"#0EA5E9", Card:"#1565C0", GoPay:"#00ADE0", OVO:"#8B5CF6", Other:"#94A3B8" }
 
 export default function SalesAnalysis() {

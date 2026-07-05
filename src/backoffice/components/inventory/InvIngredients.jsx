@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
-function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
 const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion","slice"]
 const EMPTY = { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"", category:"General", station:["Kitchen"], conversions:[], last_purchase_price:0, last_purchase_unit:"" }

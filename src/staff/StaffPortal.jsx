@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import { offlineStore } from "../lib/offlineStore"
 
-function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return Number(n||0).toLocaleString("en-US") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
@@ -461,7 +461,7 @@ export default function StaffPortal() {
               {totalCost > 0 && (
                 <div style={{ marginTop:10, padding:"9px 13px", background:"#f0fff8", borderRadius:9, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:12, fontWeight:700, color:"#00875A" }}>Estimasi biaya</span>
-                  <span style={{ fontSize:15, fontWeight:900, color:"#00875A" }}>Rp {Number(totalCost).toLocaleString("id-ID")}</span>
+                  <span style={{ fontSize:15, fontWeight:900, color:"#00875A" }}>Rp {Number(totalCost).toLocaleString("en-US")}</span>
                 </div>
               )}
             </div>

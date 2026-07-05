@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, fmtIDR } from "./exportUtils"
 
-const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
+const fmt = n => "Rp " + Number(n||0).toLocaleString("en-US")
 
 export default function Reports() {
   const [orders,     setOrders]     = useState([])

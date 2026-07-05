@@ -209,7 +209,7 @@ export default function Cart({
                     onDiscountChange(val); setShowDisc(false)
                   }}
                     style={{ ...S.miniBtn, ...(discount===d.value?{background:'#0A1628',color:'white',borderColor:'#0A1628'}:{}) }}>
-                    {d.name} {['percent','Percentage'].includes(d.type)||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('id-ID')}
+                    {d.name} {['percent','Percentage'].includes(d.type)||!d.type ? d.value+'%' : 'Rp '+Math.round(d.value).toLocaleString('en-US')}
                   </button>
                 ))}
               </div>

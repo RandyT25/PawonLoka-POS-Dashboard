@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase"
 const TYPES  = ["Percentage","Fixed Amount","Buy X Get Y","Free Item"]
 const EMPTY  = { name:"", type:"Percentage", value:"", minOrder:"", code:"", active:true, startDate:"", endDate:"", description:"" }
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
 export default function Promotions() {
   const [promos, setPromos]   = useState([])
