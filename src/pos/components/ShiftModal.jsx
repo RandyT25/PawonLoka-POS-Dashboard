@@ -119,7 +119,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
       // Stay open — wait for cashier's choice in the product print prompt
     } catch (_) {
       setSaving(false)
-      onLogout()
+      onClose()
     }
   }
 
@@ -128,9 +128,9 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
       try {
         const rp = printer.printers?.find(p => p.role === 'receipt')
         if (rp) await printProductSoldReport({ shift, productData, paperSize: rp.paperSize })
-      } catch (_) { /* print failure should not block logout */ }
+      } catch (_) { /* print failure should not block close */ }
     }
-    onLogout()
+    onClose()
   }
 
   if (productData) return (
@@ -149,7 +149,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
             style={{ ...S.primaryBtn, marginBottom:10 }}>
             Ya, Cetak Laporan Produk
           </button>
-          <button onClick={onLogout} style={S.ghostBtn}>Tidak, Keluar</button>
+          <button onClick={onClose} style={S.ghostBtn}>Tidak, Lanjutkan</button>
         </div>
       </div>
     </div>
