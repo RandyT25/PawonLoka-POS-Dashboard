@@ -1,5 +1,5 @@
-export const FOOD_CATEGORIES = ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Spices & Herbs","Dry Goods","Beverages","Dairy","Bakery","General"]
-export const SUPPLY_CATEGORIES = ["Packaging","Disposables","Trash & Vacuum Bags","Cleaning & Sanitation","Kitchen Tools & Utensils","Office & Stationery","Fuel & Gas","Other Supplies"]
+export const FOOD_CATEGORIES = ["Semi-finished","Poultry","Meat","Seafood","Vegetables","Fruits","Spices & Herbs","Dry Goods","Sauce","Beverages","Dairy","Bakery","General"]
+export const SUPPLY_CATEGORIES = ["Packaging","Disposables","Trash & Vacuum Bags","Cleaning & Sanitation","Kitchen Tools & Utensils","Office & Stationery","Other Supplies"]
 
 const CATEGORY_BUCKET = Object.fromEntries([
   ...FOOD_CATEGORIES.map(c => [c, "ingredient"]),

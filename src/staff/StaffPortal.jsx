@@ -130,7 +130,7 @@ export default function StaffPortal() {
     // Refresh from Supabase in background
     try {
       const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
-        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station").order("name"),
+        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions").order("name"),
         supabase.from("sub_recipes").select("*").order("name"),
         supabase.from("sub_recipe_ingredients").select("*"),
       ])
@@ -517,15 +517,24 @@ export default function StaffPortal() {
           <div style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:8 }}>
             {["#","INGREDIENT","QTY","UNIT",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"#999", textTransform:"uppercase" }}>{h}</div>)}
           </div>
-          {reqItems.map((item,i)=>(
+          {reqItems.map((item,i)=>{
+            const selIng = ingredients.find(x=>x.id===item.ingredient_id)
+            const unitOptions = selIng ? [selIng.unit, ...(selIng.conversions||[]).map(c=>c.unit)].filter((u,idx,arr)=>u&&arr.indexOf(u)===idx) : []
+            return (
             <div key={i} style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:10, alignItems:"center" }}>
               <div style={{ fontSize:13, fontWeight:700, color:"#999", textAlign:"center" }}>{i+1}</div>
               <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||""}:x)) }} placeholder="Search..." />
               <input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, padding:"10px 8px", fontSize:14, textAlign:"center" }} placeholder="0" />
-              <input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }} placeholder="kg" />
+              {unitOptions.length>0
+                ? <select value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }}>
+                    {unitOptions.map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>
+                : <input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }} placeholder="kg" />
+              }
               {reqItems.length>1 ? <button onClick={()=>setReqItems(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:18, cursor:"pointer", padding:0 }}>✕</button> : <div/>}
             </div>
-          ))}
+            )
+          })}
         </div>
         <button onClick={submitRequisition} disabled={saving} style={{ ...s.btn, background:"#374151", color:"#fff" }}>{saving?"Submitting...":"Submit Request"}</button>
       </div>

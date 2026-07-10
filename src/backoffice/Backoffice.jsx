@@ -42,6 +42,7 @@ const Attendance      = lazy(() => import("./components/Attendance"))
 const DepartmentsPage = lazy(() => import("./components/Departments"))
 const Accounting      = lazy(() => import("./components/Accounting"))
 const Rekonsiliasi    = lazy(() => import("./components/Rekonsiliasi"))
+const Assets          = lazy(() => import("./components/Assets"))
 const Orders          = lazy(() => import("./components/Orders"))
 const MarketPrices    = lazy(() => import("./components/MarketPrices"))
 const Profitability   = lazy(() => import("./components/Profitability"))
@@ -163,6 +164,7 @@ const NAV = [
   { group:"Finance" },
   { id:"accounting" },
   { id:"rekonsiliasi" },
+  { id:"assets" },
   { group:"Menu" },
   { id:"products" },
   { id:"categories" },
@@ -215,7 +217,7 @@ const NAV_LABELS = {
   "menu-performance": "Menu Performance", "sales-report": "Sales Report",
   "product-report": "Product Report", "top-slow": "Top & Slow Moving",
   reports: "Reports & Export", accounting: "Accounting",
-  rekonsiliasi: "Rekonsiliasi", products: "Products",
+  rekonsiliasi: "Rekonsiliasi", assets: "Assets", products: "Products",
   categories: "Categories", modifiers: "Modifiers",
   recipes: "Recipes & COGS", "market-prices": "Market Prices",
   profitability: "Profitability", "inv-overview": "Overview",
@@ -248,6 +250,7 @@ const SCREENS = {
   reports:            Reports,
   accounting:        Accounting,
   rekonsiliasi:      Rekonsiliasi,
+  assets:            Assets,
   products:          Products,
   categories:        Categories,
   modifiers:         Modifiers,
