@@ -111,7 +111,16 @@ export default function InvIngredients({ mode="ingredients" }) {
   }
 
   async function deleteIngredient(id) {
-    if (!confirm("Delete this ingredient?")) return
+    const { data:pending } = await supabase.from("staff_submissions").select("id,type,data").eq("status","pending")
+    const stillReferenced = (pending||[]).some(s =>
+      (s.data?.items||[]).some(i => i.ingredient_id === id) ||
+      (s.data?.ingredients_used||[]).some(i => i.ingredient_id === id) ||
+      s.data?.ingredient_id === id
+    )
+    const warning = stillReferenced
+      ? "This ingredient still has a pending staff submission (stock count / production / waste / request) referencing it. Deleting it now will make that submission show \"ingredient deleted\" when reviewed. Delete anyway?"
+      : "Delete this ingredient?"
+    if (!confirm(warning)) return
     // Cascade: delete sub_recipe_ingredients, sub_recipes, recipes linked to this ingredient
     await supabase.from("sub_recipe_ingredients").delete().eq("ingredient_id", id)
     await supabase.from("sub_recipes").delete().eq("ingredient_id", id)

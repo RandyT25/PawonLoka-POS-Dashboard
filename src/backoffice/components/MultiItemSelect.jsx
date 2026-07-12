@@ -43,7 +43,7 @@ export default function MultiItemSelect({ options, selected, onChange, placehold
       </button>
       {open && (
         <div style={{
-          position:"absolute", zIndex:9999, top:"calc(100% + 4px)", right:0,
+          position:"absolute", zIndex:9999, top:"calc(100% + 4px)", left:0,
           background:"#fff", border:"1.5px solid var(--brand)", borderRadius:8,
           boxShadow:"0 8px 24px rgba(0,0,0,0.12)", minWidth:220, maxWidth:320,
         }}>

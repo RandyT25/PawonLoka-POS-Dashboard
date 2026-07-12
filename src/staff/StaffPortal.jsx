@@ -3,6 +3,17 @@ import { supabase } from "../lib/supabase"
 import { offlineStore } from "../lib/offlineStore"
 
 function fmt(n) { return Number(n||0).toLocaleString("en-US") }
+
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (!ing || unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
@@ -122,7 +133,7 @@ export default function StaffPortal() {
       offlineStore.getCache('sub_recipes'),
       offlineStore.getCache('sub_recipe_ingredients'),
     ])
-    if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
+    if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
     if (cachedSubs?.length)   setSubRecipes(cachedSubs)
     if (cachedSubIngs?.length) setSubRecipeIngs(cachedSubIngs)
     if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
@@ -134,7 +145,7 @@ export default function StaffPortal() {
         supabase.from("sub_recipes").select("*").order("name"),
         supabase.from("sub_recipe_ingredients").select("*"),
       ])
-      if (ings)    { setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
+      if (ings)    { setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
       if (subs)    { setSubRecipes(subs); offlineStore.setCache('sub_recipes', subs) }
       if (subIngs) { setSubRecipeIngs(subIngs); offlineStore.setCache('sub_recipe_ingredients', subIngs) }
     } catch { /* offline — already loaded from cache */ }
@@ -168,7 +179,12 @@ export default function StaffPortal() {
   async function submitOpname() {
     const filled = opnameCounts.filter(i=>i.actual_qty!=="")
     if (!filled.length) { alert("Enter at least one count"); return }
-    await submit("opname", { items:filled.map(i=>({ ...i, actual_qty:parseFloat(i.actual_qty)||0, diff:(parseFloat(i.actual_qty)||0)-i.system_qty })) })
+    await submit("opname", { items:filled.map(i=>{
+      const enteredQty = parseFloat(i.actual_qty)||0
+      const ing = ingredients.find(x=>x.id===i.ingredient_id)
+      const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit||i.unit)
+      return { ...i, entered_qty:enteredQty, entered_unit:i.input_unit||i.unit, actual_qty, diff:actual_qty-i.system_qty }
+    }) })
   }
 
   async function submitWaste() {
@@ -334,7 +350,16 @@ export default function StaffPortal() {
                 <input type="number" inputMode="decimal" value={item.actual_qty}
                   onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))}
                   placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0, background:filled?"#f0fff8":"#fafafa", borderColor:filled?"#00875A":"#e0e0e0" }} />
-                <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
+                {(item.conversions||[]).length > 0 ? (
+                  <select value={item.input_unit||item.unit}
+                    onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,input_unit:e.target.value}:x))}
+                    style={{ fontSize:11, color:"#888", minWidth:48, flexShrink:0, border:"1px solid #e0e0e0", borderRadius:6, padding:"4px 2px", background:"#fff" }}>
+                    <option value={item.unit}>{item.unit}</option>
+                    {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
+                  </select>
+                ) : (
+                  <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
+                )}
               </div>
             )
           })}

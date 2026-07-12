@@ -61,7 +61,7 @@ export default function StaffSubmissions() {
   const [suppliers,   setSuppliers]   = useState([])
   const [reqSelected, setReqSelected] = useState(new Set())
   const [typeFilter,  setTypeFilter]  = useState("all")
-  const [statusFilter,setStatusFilter]= useState("pending")
+  const [statusFilter,setStatusFilter]= useState("all")
   const [viewModal,   setViewModal]   = useState(null)
   const [editModal,   setEditModal]   = useState(null)
   const [editData,    setEditData]    = useState(null)
@@ -157,8 +157,13 @@ export default function StaffSubmissions() {
     try {
       if (sub.type==="opname") {
         for (const item of sub.data.items||[]) {
-          await supabase.from("ingredients").update({ stock:item.actual_qty }).eq("id",item.ingredient_id)
-          await supabase.from("stock_movements").insert({
+          // Apply the counted DIFFERENCE on top of current live stock (not an overwrite) — approvals
+          // often happen days after the physical count, and sales/production in between must not be erased.
+          const { data:freshIng } = await supabase.from("ingredients").select("stock").eq("id",item.ingredient_id).maybeSingle()
+          const newStock = Math.max(0, (freshIng?.stock ?? item.system_qty) + item.diff)
+          const { error:updErr } = await supabase.from("ingredients").update({ stock:newStock }).eq("id",item.ingredient_id)
+          if (updErr) throw updErr
+          const { error:movErr } = await supabase.from("stock_movements").insert({
             id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
             type:"Adjustment", ingredient_id:item.ingredient_id, ingredient_name:item.name,
             qty:item.diff, unit:item.unit, ref:sub.id,
@@ -166,24 +171,27 @@ export default function StaffSubmissions() {
             date:new Date().toISOString().slice(0,10),
             time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
           })
+          if (movErr) throw movErr
         }
-        await supabase.from("stock_opname").insert({
-          id:"OPN-"+Date.now(), date:new Date().toISOString().slice(0,10),
+        const { error:opnErr } = await supabase.from("stock_opname").insert({
+          id:"OPN-"+Date.now(), date:(sub.submitted_at||new Date().toISOString()).slice(0,10),
           status:"Completed",
           items:sub.data.items.map(i=>({ ...i, ingredient_name: i.ingredient_name || i.name })),
           total_variance:sub.data.items.reduce((a,i)=>a+(i.diff*(ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0)),0)
         })
+        if (opnErr) throw opnErr
       } else if (sub.type==="waste") {
         const d = sub.data
         const ing = ingredients.find(i=>i.id===d.ingredient_id)
         if (ing) {
           await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-d.qty) }).eq("id",ing.id)
-          await supabase.from("waste_records").insert({
+          const { error:wstErr } = await supabase.from("waste_records").insert({
             id:"WST-"+Date.now(), date:new Date().toISOString().slice(0,10),
             ingredient_id:d.ingredient_id, ingredient_name:d.ingredient_name,
             qty:d.qty, unit:d.unit, reason:d.reason, cost:d.estimated_cost,
             recorded_by:sub.submitted_by, notes:d.notes||null
           })
+          if (wstErr) throw wstErr
           await supabase.from("stock_movements").insert({
             id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
             type:"Waste", ingredient_id:d.ingredient_id, ingredient_name:d.ingredient_name,
@@ -215,24 +223,27 @@ export default function StaffSubmissions() {
         }
         if (item) {
           await supabase.from("ingredients").update({ stock:(item.stock||0)+producedQty }).eq("id",item.id)
-          await supabase.from("production_batches").insert({
+          const { error:prodErr } = await supabase.from("production_batches").insert({
             id:"PRD-"+Date.now(), item_id:item.id, item_name:d.item_name,
-            batch_qty:producedQty, unit:d.yield_unit||d.unit, date:new Date().toISOString().slice(0,10),
+            batch_qty:producedQty, unit:d.yield_unit||d.unit, date:(sub.submitted_at||new Date().toISOString()).slice(0,10),
             produced_by:sub.submitted_by, notes:d.notes||null,
             ingredients_used:d.ingredients_used, status:"Completed"
           })
+          if (prodErr) throw prodErr
         }
       }
-      await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-      await load(); setViewModal(null); setStatusFilter("approved")
+      const { error:statusErr } = await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
+      if (statusErr) throw statusErr
+      await load(); setViewModal(null)
     } catch(e) { alert("Error: "+e.message) }
     setProcessing(false)
   }
 
   async function reject(sub) {
     if (!confirm("Reject this submission?")) return
-    await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-    await load(); setViewModal(null); setStatusFilter("rejected")
+    const { error } = await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
+    if (error) { alert("Error: "+error.message); return }
+    await load(); setViewModal(null)
   }
 
   async function deleteSubmission(sub) {
@@ -395,7 +406,7 @@ export default function StaffSubmissions() {
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
                   : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
-                  <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":"" }}>
+                  <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":s.status==="approved"?"var(--green-lt)":s.status==="rejected"?"var(--red-lt)":"" }}>
                     <td><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggleSelect(s.id)} /></td>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:c+"22", color:c }}>{TYPE_ICONS[s.type]} {TYPE_LABELS[s.type]||s.type}</span></td>
                     <td style={{ fontWeight:600 }}>{s.submitted_by||"—"}</td>
@@ -459,7 +470,7 @@ export default function StaffSubmissions() {
                             <td>{fmt(unitPrice)}</td>
                             <td>{fmt(value)}</td>
                             <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
-                          </> : <td colSpan={3} style={{ color:"var(--red)", fontWeight:600 }}>⚠ unknown ingredient</td>}
+                          </> : <td colSpan={3} style={{ color:"var(--ink5)", fontStyle:"italic" }}>Ingredient deleted (no pricing)</td>}
                         </tr>
                       )
                     })}
