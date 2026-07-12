@@ -3,6 +3,17 @@ import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (!ing || unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
+
 // Price for one unit of `unit` (a purchase unit like "kg"/"pack"), given ing.cost_per_unit is priced per ing.unit (base unit)
 function unitPriceFor(ing, unit) {
   if (!ing) return 0
@@ -190,11 +201,12 @@ export default function StaffSubmissions() {
         for (const u of d.ingredients_used||[]) {
           const ing = ingredients.find(i=>i.id===u.ingredient_id)
           if (ing) {
-            await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-u.qty) }).eq("id",ing.id)
+            const qtyBase = toBaseUnit(ing, u.qty||0, u.unit)
+            await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-qtyBase) }).eq("id",ing.id)
             await supabase.from("stock_movements").insert({
               id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
               type:"Production", ingredient_id:ing.id, ingredient_name:ing.name,
-              qty:-u.qty, unit:u.unit, ref:sub.id,
+              qty:-qtyBase, unit:ing.unit, ref:sub.id,
               note:"Production: "+d.item_name+" by "+sub.submitted_by,
               date:new Date().toISOString().slice(0,10),
               time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})

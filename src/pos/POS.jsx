@@ -7,6 +7,17 @@ import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 import { qr } from '../lib/quickRead'
 
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==='gr' && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==='ml' && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
+
 // Offline-safe write: always queues on any network failure, 5s hard timeout
 async function dbWrite(table, op, payload, match = null) {
   function isNetworkError(e) {
@@ -303,41 +314,50 @@ export default function POS() {
         .select('product_id, ingredient_id, qty, unit')
         .in('product_id', skus)
       if (!allRecipes?.length) return
-      // Accumulate total deductions per ingredient
+      // Fetch ingredient records (incl. conversions) up front so recipe-line units can be converted to each ingredient's base unit
+      const ingIds = [...new Set(allRecipes.map(r => r.ingredient_id))]
+      const ings = await qr(supabase.from('ingredients').select('id, stock, name, unit, conversions').in('id', ingIds), { ms:5000 })
+      const ingMap = {}
+      for (const ing of ings || []) ingMap[ing.id] = ing
+      // Accumulate total deductions per ingredient, converted to each ingredient's base unit
       const deductions = {}
       for (const item of items) {
         const rows = allRecipes.filter(r => r.product_id === item.sku)
         for (const ri of rows) {
-          const qty = (ri.qty || 0) * (item.qty || 1)
-          if (qty) deductions[ri.ingredient_id] = (deductions[ri.ingredient_id] || 0) + qty
+          const ing = ingMap[ri.ingredient_id]
+          if (!ing) continue
+          const qtyBase = toBaseUnit(ing, ri.qty || 0, ri.unit) * (item.qty || 1)
+          if (qtyBase) deductions[ri.ingredient_id] = (deductions[ri.ingredient_id] || 0) + qtyBase
         }
       }
       if (!Object.keys(deductions).length) return
-      // Batch fetch current stock for all affected ingredients
-      const ingIds = Object.keys(deductions)
-      const ings = await qr(supabase.from('ingredients').select('id, stock, name, unit').in('id', ingIds), { ms:5000 })
       // Parallel updates
-      await Promise.all((ings || []).map(ing =>
-        supabase.from('ingredients').update({
-          stock: Math.max(0, (ing.stock || 0) - (deductions[ing.id] || 0))
-        }).eq('id', ing.id)
-      ))
+      await Promise.all(Object.keys(deductions).map(id => {
+        const ing = ingMap[id]
+        if (!ing) return null
+        return supabase.from('ingredients').update({
+          stock: Math.max(0, (ing.stock || 0) - deductions[id])
+        }).eq('id', id)
+      }))
       // Log deductions to stock_movements for consumption history
       const movDate = new Date().toISOString().slice(0, 10)
       const movTime = new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' })
       const ts = Date.now()
-      const movements = (ings || []).map((ing, idx) => ({
-        id: `MOV-${ts}-${idx}`,
-        type: 'Sale',
-        ingredient_id: ing.id,
-        ingredient_name: ing.name,
-        qty: -Math.abs(deductions[ing.id] || 0),
-        unit: ing.unit,
-        ref: items[0]?.orderId || `ORD-${ts}`,
-        note: 'Auto dari penjualan',
-        date: movDate,
-        time: movTime,
-      }))
+      const movements = Object.keys(deductions).map((id, idx) => {
+        const ing = ingMap[id]
+        return {
+          id: `MOV-${ts}-${idx}`,
+          type: 'Sale',
+          ingredient_id: id,
+          ingredient_name: ing?.name,
+          qty: -Math.abs(deductions[id] || 0),
+          unit: ing?.unit,
+          ref: items[0]?.orderId || `ORD-${ts}`,
+          note: 'Auto dari penjualan',
+          date: movDate,
+          time: movTime,
+        }
+      })
       await supabase.from('stock_movements').insert(movements).catch(() => {})
     } catch(e) { console.error('Stock deduction error:', e) }
   }
@@ -971,6 +991,7 @@ export default function POS() {
             const pts = Math.floor(billTotal / 100)
             await dbWrite('customers', 'update', { points: (customer.points||0)+pts, visits: (customer.visits||0)+1 }, { id: customer.id })
           }
+          await deductStock(cart)
         }
       }
 
@@ -1018,6 +1039,8 @@ export default function POS() {
       if (tableNo) {
         await dbWrite('tables', 'update', { status: 'Available', open_bill_id: null }, tableArea ? { name: tableNo, area: tableArea } : { name: tableNo })
       }
+
+      await deductStock(cart)
 
       const fakeOrder = {
         id: openBillId, total: finalTotal, pay: payMethod,
@@ -1306,7 +1329,7 @@ export default function POS() {
           onConfirm={handleCharge}
           onClose={() => setShowCharge(false)}
           onReprint={handleReprint}
-          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { let q = supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo); if (tableArea) q = q.eq('area', tableArea); await q } if (paidOrder && paidOrder.id) { deductStock(paidOrder.items||[]).catch(()=>{}); await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); offlineStore.setCache('offline_open_bill_' + paidOrder.id, null) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setTableArea(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
+          onSuccess={async (paidOrder) => { setShowCharge(false); if (tableNo) { let q = supabase.from('tables').update({ status: 'Available' }).eq('name', tableNo); if (tableArea) q = q.eq('area', tableArea); await q } if (paidOrder && paidOrder.id) { await supabase.from('audit_logs').insert({ action:'payment', staff_name:staff?.name, details:{ order_id:paidOrder.id, total:paidOrder.total }, created_at:new Date().toISOString() }).catch(()=>{}); offlineStore.setCache('offline_open_bill_' + paidOrder.id, null) } if (paidOrder && paidOrder.id && customer?.phone) { try { sendReceipt(paidOrder, customer) } catch(e) {} } clearCart(); setCustomer(null); setTableNo(''); setTableArea(''); setOpenBillId(null); setDiscount(0); setSplitPaid(0); setAppliedPromo(null); setDeliveryFee(0); setDeliveryAddr('') }}
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
