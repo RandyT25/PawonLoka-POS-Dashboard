@@ -34,6 +34,15 @@ export default function UnitsOfMeasure() {
     if (!list || list.length === 0) {
       list = UNION_FALLBACK.map((name,i) => ({ id:"UOM-"+Date.now()+"-"+i, name }))
       await supabase.from("app_settings").upsert({ id:"main", units:list }, { onConflict:"id" })
+    } else {
+      // Self-heal: collapse any exact-name duplicates (keep the first occurrence),
+      // in case a race or stray click ever creates one, so they don't accumulate.
+      const seen = new Set()
+      const deduped = list.filter(u => seen.has(u.name) ? false : (seen.add(u.name), true))
+      if (deduped.length !== list.length) {
+        list = deduped
+        await supabase.from("app_settings").update({ units:list }).eq("id","main")
+      }
     }
     setUnits(list)
 
@@ -55,10 +64,20 @@ export default function UnitsOfMeasure() {
     setSaving(true)
 
     if (modal === "add") {
+      if (units.some(u => u.name === name)) {
+        alert(`"${name}" already exists in the list.`)
+        setSaving(false)
+        return
+      }
       const newUnits = [...units, { id:"UOM-"+Date.now(), name }]
       await supabase.from("app_settings").update({ units:newUnits }).eq("id","main")
     } else {
       const oldName = modal.name
+      if (name !== oldName && units.some(u => u.id !== modal.id && u.name === name)) {
+        alert(`"${name}" already exists in the list.`)
+        setSaving(false)
+        return
+      }
       const newUnits = units.map(u => u.id === modal.id ? { ...u, name } : u)
       await supabase.from("app_settings").update({ units:newUnits }).eq("id","main")
 
