@@ -5,7 +5,7 @@ import { FOOD_CATEGORIES, SUPPLY_CATEGORIES, isSupplyCategory, isFoodCategory } 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
-const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion","slice"]
+const UNITS_FALLBACK = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion","slice"]
 function emptyForm(mode) {
   return { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"",
     category: mode==="supplies" ? "Other Supplies" : "General",
@@ -28,8 +28,14 @@ export default function InvIngredients({ mode="ingredients" }) {
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
   const [trackStockTouched, setTrackStockTouched] = useState(false)
+  const [unitsList, setUnitsList] = useState(UNITS_FALLBACK)
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    supabase.from("app_settings").select("units").eq("id","main").maybeSingle()
+      .then(({data}) => { if (data?.units?.length) setUnitsList(data.units.map(u=>u.name)) })
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -268,7 +274,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                 {/* Base unit row (always shown) */}
                 <div style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"var(--surface)", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
                   <select value={form.unit} onChange={e=>setForm(f=>({...f,unit:e.target.value}))} className="bo-select" style={{ fontSize:12 }}>
-                    {UNITS.map(u=><option key={u}>{u}</option>)}
+                    {unitsList.map(u=><option key={u}>{u}</option>)}
                   </select>
                   <div style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--ink4)" }}>
                     <span>1</span>
@@ -289,7 +295,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                   return (
                     <div key={i} style={{ display:"grid", gridTemplateColumns:"90px 140px 100px 110px 1fr 28px", gap:8, marginBottom:8, padding:"8px 10px", background:"#fff", borderRadius:"var(--r)", border:"1px solid var(--surface3)" }}>
                       <select value={c.unit} onChange={e=>updateConv(i,"unit",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
-                        {UNITS.map(u=><option key={u}>{u}</option>)}
+                        {unitsList.map(u=><option key={u}>{u}</option>)}
                       </select>
                       <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                         <input type="number" value={c.qty} onChange={e=>updateConv(i,"qty",e.target.value)} className="bo-input" style={{ width:80, fontSize:12 }} placeholder="1000" />

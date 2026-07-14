@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase"
 import SearchSelect from "../../components/SearchSelect"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
-const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion"]
+const UNITS_FALLBACK = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion"]
 
 function toBaseUnit(ing, qty, purchaseUnit) {
   if (purchaseUnit === ing.unit) return qty
@@ -146,6 +146,7 @@ export default function InvPO() {
     notes: ""
   })
   const [payLines,    setPayLines]    = useState([])
+  const [unitsList,   setUnitsList]   = useState(UNITS_FALLBACK)
 
   useEffect(() => { load() }, [])
   useEffect(() => {
@@ -154,6 +155,10 @@ export default function InvPO() {
     document.addEventListener("click", handler)
     return () => document.removeEventListener("click", handler)
   }, [openMenu])
+  useEffect(() => {
+    supabase.from("app_settings").select("units").eq("id","main").maybeSingle()
+      .then(({data}) => { if (data?.units?.length) setUnitsList(data.units.map(u=>u.name)) })
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -381,7 +386,7 @@ export default function InvPO() {
   }
   function getUnits(ingId) {
     const ing = ingredients.find(i=>i.id===ingId)
-    if (!ing) return UNITS
+    if (!ing) return unitsList
     return [ing.unit, ...(ing.conversions||[]).map(c=>c.unit).filter(u=>u!==ing.unit)]
   }
   const grandTotal = poItems.reduce((a,item) => a+(parseFloat(item.total_cost)||0), 0)

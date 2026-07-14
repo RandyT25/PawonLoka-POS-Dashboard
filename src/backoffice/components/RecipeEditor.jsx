@@ -8,7 +8,7 @@ const UNIT_TO_BASE = {
   tsp:5,tbsp:15,cup:240,portion:1,porsi:1,slice:1,
   bungkus:1,pack:1,sachet:1,ikat:1,botol:1,Can:1,
 }
-const UNITS = Object.keys(UNIT_TO_BASE)
+const UNITS_FALLBACK = Object.keys(UNIT_TO_BASE)
 function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }
 function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("en-US") }
 function fmtUnit(n) { if (!n || isNaN(n)) return "0"; return Number(n.toFixed(2)).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }
@@ -155,6 +155,12 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
   const [yieldUnit, setYieldUnit] = useState("gr")
   const [saving,    setSaving]    = useState(false)
   const [msg,       setMsg]       = useState(null)
+  const [unitsList, setUnitsList] = useState(UNITS_FALLBACK)
+
+  useEffect(() => {
+    supabase.from("app_settings").select("units").eq("id","main").maybeSingle()
+      .then(({data}) => { if (data?.units?.length) setUnitsList(data.units.map(u=>u.name)) })
+  }, [])
 
   const all = [...ingredients, ...subRecipes]
 
@@ -301,7 +307,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
             style={{ width:90, padding:"6px 10px", border:"1.5px solid #bfdbfe", borderRadius:8, fontSize:14, outline:"none", fontFamily:"inherit" }} />
           <select value={yieldUnit} onChange={e=>setYieldUnit(e.target.value)}
             style={{ padding:"6px 10px", border:"1.5px solid #bfdbfe", borderRadius:8, fontSize:14, background:"#fff", outline:"none", fontFamily:"inherit" }}>
-            {UNITS.map(u=><option key={u}>{u}</option>)}
+            {unitsList.map(u=><option key={u}>{u}</option>)}
           </select>
           {totalCost>0 && yieldBase>0 && (
             <span style={{ fontSize:13, color:"#2563eb", fontWeight:600 }}>→ cost per {yieldUnit}: Rp {fmtUnit(totalCost/yieldBase)}</span>
@@ -336,7 +342,7 @@ function RecipePanel({ item, itemType, ingredients, subRecipes, onSaved, onCance
                 className="bo-input" style={{ fontSize:13, textAlign:"center" }} placeholder="0" />
               <select value={row.unit} onChange={e=>updateRow(i,{unit:e.target.value})}
                 className="bo-select" style={{ fontSize:13 }}>
-                {UNITS.map(u=><option key={u}>{u}</option>)}
+                {unitsList.map(u=><option key={u}>{u}</option>)}
               </select>
               <div style={{ fontSize:13, fontWeight:700, color:cost>0?(isEst?"#92400e":"var(--ink,#1f2937)"):"var(--ink4,#9ca3af)", textAlign:"right" }} title={isEst?"Estimated from market price":"WAC cost"}>
                 {cost>0?fmtRp(cost)+(isEst?"*":""):"—"}

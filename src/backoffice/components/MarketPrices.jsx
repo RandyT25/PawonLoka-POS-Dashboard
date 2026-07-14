@@ -5,7 +5,7 @@ import * as XLSX from "xlsx"
 const fmt    = n => "Rp " + Number(Math.round(n||0)).toLocaleString("en-US")
 const fmtDec = n => "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 })
 
-const BUY_UNITS = ["gr","kg","ml","L","galon","pcs","ekor","pack","bag","pouch","botol","can","ikat","tray","liter","sachet","custom"]
+const BUY_UNITS_FALLBACK = ["gr","kg","ml","L","galon","pcs","ekor","pack","bag","pouch","botol","can","ikat","tray","liter","sachet","custom"]
 const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
 
 export default function MarketPrices() {
@@ -21,8 +21,14 @@ export default function MarketPrices() {
   const [history,     setHistory]     = useState([])
   const [showHistory, setShowHistory] = useState(false)
   const [historyIng,  setHistoryIng]  = useState(null)
+  const [buyUnitsList, setBuyUnitsList] = useState(BUY_UNITS_FALLBACK)
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    supabase.from("app_settings").select("units").eq("id","main").maybeSingle()
+      .then(({data}) => { if (data?.units?.length) setBuyUnitsList(data.units.map(u=>u.name)) })
+  }, [])
 
   async function load() {
     setLoading(true)
@@ -270,7 +276,7 @@ export default function MarketPrices() {
                     <td style={{ padding:"8px 12px" }}>
                       <select value={row.buy_unit} onChange={e=>updateRow(row.ingredient_id,{buy_unit:e.target.value})}
                         style={{ fontSize:12, border:"1px solid var(--surface3)", borderRadius:6, padding:"4px 6px", background:"#fff", width:80 }}>
-                        {BUY_UNITS.map(u => <option key={u}>{u}</option>)}
+                        {buyUnitsList.map(u => <option key={u}>{u}</option>)}
                       </select>
                     </td>
                     {/* Conv factor - editable */}

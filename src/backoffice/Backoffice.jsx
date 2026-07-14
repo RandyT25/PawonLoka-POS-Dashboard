@@ -14,6 +14,7 @@ const TopSlowReport    = lazy(() => import("./components/TopSlowReport"))
 const Products        = lazy(() => import("./components/Products"))
 const Categories      = lazy(() => import("./components/Categories"))
 const Modifiers       = lazy(() => import("./components/Modifiers"))
+const UnitsOfMeasure  = lazy(() => import("./components/UnitsOfMeasure"))
 const Recipes         = lazy(() => import("./components/RecipeEditor"))
 const Employees       = lazy(() => import("./components/Employees"))
 const Shifts          = lazy(() => import("./components/Shifts"))
@@ -169,6 +170,7 @@ const NAV = [
   { id:"products" },
   { id:"categories" },
   { id:"modifiers" },
+  { id:"units-of-measure", label:"Units of Measure" },
   { id:"recipes",           label:"Recipes & COGS" },
   { id:"market-prices",     label:"Market Prices" },
   { id:"profitability" },
@@ -219,6 +221,7 @@ const NAV_LABELS = {
   reports: "Reports & Export", accounting: "Accounting",
   rekonsiliasi: "Rekonsiliasi", assets: "Assets", products: "Products",
   categories: "Categories", modifiers: "Modifiers",
+  "units-of-measure": "Units of Measure",
   recipes: "Recipes & COGS", "market-prices": "Market Prices",
   profitability: "Profitability", "inv-overview": "Overview",
   "inv-ingredients": "Ingredients", "inv-supplies": "Supplies", "inv-po": "Purchase Orders",
@@ -254,6 +257,7 @@ const SCREENS = {
   products:          Products,
   categories:        Categories,
   modifiers:         Modifiers,
+  "units-of-measure": UnitsOfMeasure,
   recipes:           Recipes,
   "inv-overview":    (props) => <Inventory {...props} initialTab="inv-overview" />,
   "inv-ingredients": (props) => <Inventory {...props} initialTab="inv-ingredients" />,
