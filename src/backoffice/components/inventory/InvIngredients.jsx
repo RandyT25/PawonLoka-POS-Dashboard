@@ -5,7 +5,7 @@ import { FOOD_CATEGORIES, SUPPLY_CATEGORIES, isSupplyCategory, isFoodCategory } 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
-const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion","slice"]
+const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion","slice"]
 function emptyForm(mode) {
   return { name:"", sku:"", unit:"gr", min_stock:0, stock:0, cost_per_unit:0, supplier:"",
     category: mode==="supplies" ? "Other Supplies" : "General",

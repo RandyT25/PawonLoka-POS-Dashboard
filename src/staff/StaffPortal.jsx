@@ -14,6 +14,16 @@ function toBaseUnit(ing, qty, unit) {
   if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
   return qty
 }
+
+// Default a newly-selected ingredient's unit to its biggest packaging size (largest
+// conversions[].qty multiplier), not the raw base unit, since that's almost never what
+// staff actually mean to select when they don't touch the unit dropdown.
+function biggestUnit(ing) {
+  if (!ing) return ""
+  const convs = ing.conversions || []
+  if (!convs.length) return ing.unit
+  return convs.reduce((max, c) => (parseFloat(c.qty)||0) > (parseFloat(max.qty)||0) ? c : max, convs[0]).unit || ing.unit
+}
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
@@ -548,7 +558,7 @@ export default function StaffPortal() {
             return (
             <div key={i} style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:10, alignItems:"center" }}>
               <div style={{ fontSize:13, fontWeight:700, color:"#999", textAlign:"center" }}>{i+1}</div>
-              <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||""}:x)) }} placeholder="Search..." />
+              <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:biggestUnit(ing)}:x)) }} placeholder="Search..." />
               <input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, padding:"10px 8px", fontSize:14, textAlign:"center" }} placeholder="0" />
               {unitOptions.length>0
                 ? <select value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }}>

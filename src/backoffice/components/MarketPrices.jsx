@@ -5,7 +5,7 @@ import * as XLSX from "xlsx"
 const fmt    = n => "Rp " + Number(Math.round(n||0)).toLocaleString("en-US")
 const fmtDec = n => "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 })
 
-const BUY_UNITS = ["gr","kg","ml","L","galon","pcs","ekor","pack","bag","pouch","botol","ikat","tray","liter","sachet","custom"]
+const BUY_UNITS = ["gr","kg","ml","L","galon","pcs","ekor","pack","bag","pouch","botol","can","ikat","tray","liter","sachet","custom"]
 const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
 
 export default function MarketPrices() {

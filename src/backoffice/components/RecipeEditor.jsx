@@ -6,7 +6,7 @@ const UNIT_TO_BASE = {
   gr:1,g:1,kg:1000,ml:1,mL:1,L:1000,Galon:19000,
   pcs:1,butir:1,biji:1,buah:1,lembar:1,ekor:1,Ekor:1,
   tsp:5,tbsp:15,cup:240,portion:1,porsi:1,slice:1,
-  bungkus:1,pack:1,sachet:1,ikat:1,botol:1,
+  bungkus:1,pack:1,sachet:1,ikat:1,botol:1,Can:1,
 }
 const UNITS = Object.keys(UNIT_TO_BASE)
 function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }

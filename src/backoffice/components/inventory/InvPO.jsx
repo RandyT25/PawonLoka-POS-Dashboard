@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase"
 import SearchSelect from "../../components/SearchSelect"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
-const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","tsp","tbsp","cup","porsi","portion"]
+const UNITS = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion"]
 
 function toBaseUnit(ing, qty, purchaseUnit) {
   if (purchaseUnit === ing.unit) return qty
@@ -13,6 +13,16 @@ function toBaseUnit(ing, qty, purchaseUnit) {
   if (ing.unit==="gr" && fallbacks[purchaseUnit]) return qty * fallbacks[purchaseUnit]
   if (ing.unit==="ml" && fallbacks[purchaseUnit]) return qty * fallbacks[purchaseUnit]
   return qty
+}
+
+// Default a newly-selected ingredient's unit to its biggest packaging size (largest
+// conversions[].qty multiplier), not the raw base unit, since that's almost never what
+// staff actually mean to select when they don't touch the unit dropdown.
+function biggestUnit(ing) {
+  if (!ing) return ""
+  const convs = ing.conversions || []
+  if (!convs.length) return ing.unit
+  return convs.reduce((max, c) => (parseFloat(c.qty)||0) > (parseFloat(max.qty)||0) ? c : max, convs[0]).unit || ing.unit
 }
 
 async function recalcWAC(ing, qtyBase, totalCostForBatch) {
@@ -361,7 +371,7 @@ export default function InvPO() {
       const updated = {...x,[k]:v}
       if (k==="ingredient_id") {
         const ing = ingredients.find(ing=>ing.id===v)
-        if (ing) { updated.unit=ing.unit }
+        if (ing) { updated.unit=biggestUnit(ing) }
       }
       const qty   = parseFloat(updated.qty)        || 0
       const total = parseFloat(updated.total_cost) || 0
