@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { supabase } from "../lib/supabase"
 import NavIcon from "./components/NavIcon"
-import { setSupplyCategories } from "./lib/ingredientCategories"
+import { setFoodCategories, setSupplyCategories } from "./lib/ingredientCategories"
 
 import "./backoffice.css"
 
@@ -16,7 +16,7 @@ const Products        = lazy(() => import("./components/Products"))
 const Categories      = lazy(() => import("./components/Categories"))
 const Modifiers       = lazy(() => import("./components/Modifiers"))
 const UnitsOfMeasure  = lazy(() => import("./components/UnitsOfMeasure"))
-const SupplyCategories = lazy(() => import("./components/SupplyCategories"))
+const IngredientCategories = lazy(() => import("./components/IngredientCategories"))
 const Recipes         = lazy(() => import("./components/RecipeEditor"))
 const Employees       = lazy(() => import("./components/Employees"))
 const Shifts          = lazy(() => import("./components/Shifts"))
@@ -187,7 +187,7 @@ const NAV = [
   { id:"inv-movements",      label:"Movement History" },
   { id:"inv-stock-compare", label:"Stock vs Purchase" },
   { id:"units-of-measure", label:"Units of Measure" },
-  { id:"supply-categories", label:"Supply Categories" },
+  { id:"item-categories", label:"Item Categories" },
   { id:"staff-submissions", label:"Staff Reports" },
   { group:"People" },
   { id:"employees" },
@@ -225,7 +225,7 @@ const NAV_LABELS = {
   rekonsiliasi: "Rekonsiliasi", assets: "Assets", products: "Products",
   categories: "Categories", modifiers: "Modifiers",
   "units-of-measure": "Units of Measure",
-  "supply-categories": "Supply Categories",
+  "item-categories": "Item Categories",
   recipes: "Recipes & COGS", "market-prices": "Market Prices",
   profitability: "Profitability", "inv-overview": "Overview",
   "inv-ingredients": "Ingredients", "inv-supplies": "Supplies", "inv-po": "Purchase Orders",
@@ -262,7 +262,7 @@ const SCREENS = {
   categories:        Categories,
   modifiers:         Modifiers,
   "units-of-measure": UnitsOfMeasure,
-  "supply-categories": SupplyCategories,
+  "item-categories": IngredientCategories,
   recipes:           Recipes,
   "inv-overview":    (props) => <Inventory {...props} initialTab="inv-overview" />,
   "inv-ingredients": (props) => <Inventory {...props} initialTab="inv-ingredients" />,
@@ -414,12 +414,15 @@ export default function Backoffice() {
     return () => supabase.removeChannel(ch)
   }, [])
 
-  // Register the live supply-category list so isSupplyCategory/isFoodCategory
+  // Register the live food/supply category lists so isSupplyCategory/isFoodCategory
   // classify correctly everywhere (Dashboard, InvOverview, RecipeEditor, InvIngredients)
-  // as soon as the backoffice loads, not just after visiting the Supply Categories page.
+  // as soon as the backoffice loads, not just after visiting the Item Categories page.
   useEffect(() => {
-    supabase.from("app_settings").select("supply_categories").eq("id","main").maybeSingle()
-      .then(({data}) => { if (data?.supply_categories?.length) setSupplyCategories(data.supply_categories.map(c=>c.name)) })
+    supabase.from("app_settings").select("food_categories,supply_categories").eq("id","main").maybeSingle()
+      .then(({data}) => {
+        if (data?.food_categories?.length) setFoodCategories(data.food_categories.map(c=>c.name))
+        if (data?.supply_categories?.length) setSupplyCategories(data.supply_categories.map(c=>c.name))
+      })
   }, [])
 
   // Back / Forward browser buttons
