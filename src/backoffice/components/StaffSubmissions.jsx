@@ -69,8 +69,20 @@ export default function StaffSubmissions() {
   const [processing,  setProcessing]  = useState(false)
   const [newCount,    setNewCount]    = useState(0)
   const [selected,    setSelected]    = useState(new Set())
+  const [confirmState, setConfirmState] = useState(null) // {message, resolve}
   const audioRef = useRef(null)
   const channelRef = useRef(null)
+
+  // Custom in-app confirm, replacing window.confirm() — Chrome silently auto-suppresses
+  // native confirm()/alert() after a page triggers several in one session, which makes
+  // Approve/Reject/Delete silently do nothing with zero feedback. This can't be suppressed.
+  function askConfirm(message) {
+    return new Promise(resolve => setConfirmState({ message, resolve }))
+  }
+  function resolveConfirm(result) {
+    confirmState?.resolve(result)
+    setConfirmState(null)
+  }
 
   useEffect(() => { load() }, [])
 
@@ -100,7 +112,7 @@ export default function StaffSubmissions() {
     const [{ data:s }, { data:i }, { data:sr }, { data:sup }] = await Promise.all([
       supabase.from("staff_submissions").select("*").order("submitted_at", { ascending:false }),
       supabase.from("ingredients").select("*"),
-      supabase.from("sub_recipes").select("id,name,ingredient_id"),
+      supabase.from("sub_recipes").select("id,name,ingredient_id,yield_qty,yield_unit"),
       supabase.from("suppliers").select("id,name,phone"),
     ])
     setSubmissions(s||[]); setIngredients(i||[]); setSubRecipes(sr||[]); setSuppliers(sup||[])
@@ -144,6 +156,7 @@ export default function StaffSubmissions() {
       cleaned = { ...editData, items: (editData.items||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
     } else if (editModal.type === "production") {
       cleaned = { ...editData, batch_qty: parseFloat(editData.batch_qty)||0,
+        actual_yield: parseFloat(editData.actual_yield)||0,
         ingredients_used: (editData.ingredients_used||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
     }
     await supabase.from("staff_submissions").update({ data: cleaned }).eq("id", editModal.id)
@@ -151,10 +164,9 @@ export default function StaffSubmissions() {
     setEditModal(null); setEditData(null)
   }
 
-  async function approve(sub) {
-    if (!confirm("Approve and apply this " + sub.type + " report?")) return
-    setProcessing(true)
-    try {
+  // Core apply logic, shared by the single-submission Approve button and bulk approve.
+  // Throws on error — callers decide how to surface it (alert vs. collecting into a batch summary).
+  async function approveOne(sub) {
       if (sub.type==="opname") {
         for (const item of sub.data.items||[]) {
           // Apply the counted DIFFERENCE on top of current live stock (not an overwrite) — approvals
@@ -176,7 +188,10 @@ export default function StaffSubmissions() {
         const { error:opnErr } = await supabase.from("stock_opname").insert({
           id:"OPN-"+Date.now(), date:(sub.submitted_at||new Date().toISOString()).slice(0,10),
           status:"Completed",
-          items:sub.data.items.map(i=>({ ...i, ingredient_name: i.ingredient_name || i.name })),
+          items:sub.data.items.map(i=>{
+            const cost = ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0
+            return { ...i, ingredient_name: i.ingredient_name || i.name, value_diff: i.diff*cost }
+          }),
           total_variance:sub.data.items.reduce((a,i)=>a+(i.diff*(ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0)),0)
         })
         if (opnErr) throw opnErr
@@ -234,13 +249,20 @@ export default function StaffSubmissions() {
       }
       const { error:statusErr } = await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
       if (statusErr) throw statusErr
+  }
+
+  async function approve(sub) {
+    if (!(await askConfirm("Approve and apply this " + sub.type + " report?"))) return
+    setProcessing(true)
+    try {
+      await approveOne(sub)
       await load(); setViewModal(null)
     } catch(e) { alert("Error: "+e.message) }
     setProcessing(false)
   }
 
   async function reject(sub) {
-    if (!confirm("Reject this submission?")) return
+    if (!(await askConfirm("Reject this submission?"))) return
     const { error } = await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
     if (error) { alert("Error: "+error.message); return }
     await load(); setViewModal(null)
@@ -250,7 +272,7 @@ export default function StaffSubmissions() {
     const warning = sub.status==="approved"
       ? "This submission was already approved — deleting it only removes this record, it will NOT undo any stock/ingredient changes it already applied. Delete anyway?"
       : "Delete this submission? This cannot be undone."
-    if (!confirm(warning)) return
+    if (!(await askConfirm(warning))) return
     await supabase.from("staff_submissions").delete().eq("id",sub.id)
     setSubmissions(prev => prev.filter(s => s.id !== sub.id))
     setViewModal(null)
@@ -266,10 +288,27 @@ export default function StaffSubmissions() {
     const anyApproved = submissions.some(s => ids.includes(s.id) && s.status==="approved")
     const warning = "Delete "+ids.length+" selected submission"+(ids.length>1?"s":"")+"? This cannot be undone."
       + (anyApproved ? " Some are already approved — deleting them only removes the record, it will NOT undo any stock/ingredient changes already applied." : "")
-    if (!confirm(warning)) return
+    if (!(await askConfirm(warning))) return
     await supabase.from("staff_submissions").delete().in("id", ids)
     setSubmissions(prev => prev.filter(s => !ids.includes(s.id)))
     setSelected(new Set())
+  }
+
+  async function bulkApprove() {
+    const ids = [...selected]
+    const targets = submissions.filter(s => ids.includes(s.id) && s.status==="pending" && s.type!=="requisition")
+    if (targets.length === 0) { alert("No approvable submissions selected (requisitions need \"To PO\" instead, and only pending items can be approved)."); return }
+    const warning = "Approve and apply "+targets.length+" selected submission"+(targets.length>1?"s":"")+"?"
+    if (!(await askConfirm(warning))) return
+    setProcessing(true)
+    const failures = []
+    for (const sub of targets) {
+      try { await approveOne(sub) } catch(e) { failures.push(sub.id+": "+e.message) }
+    }
+    await load()
+    setSelected(new Set())
+    setProcessing(false)
+    if (failures.length) alert("Approved "+(targets.length-failures.length)+" of "+targets.length+". Failed:\n"+failures.join("\n"))
   }
 
   async function convertToPO(sub) {
@@ -383,6 +422,7 @@ export default function StaffSubmissions() {
         <div style={{ padding:"10px 16px", background:"var(--brand-lt)", border:"1.5px solid var(--brand)", borderRadius:"var(--r)", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ fontWeight:700, color:"var(--brand)", fontSize:13 }}>{selected.size} selected</div>
           <div style={{ display:"flex", gap:8 }}>
+            <button onClick={bulkApprove} disabled={processing} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none" }}>Approve Selected</button>
             <button onClick={bulkDelete} className="bo-btn bo-btn-sm bo-btn-danger">Delete Selected</button>
             <button onClick={()=>setSelected(new Set())} className="bo-btn bo-btn-ghost bo-btn-sm">Clear</button>
           </div>
@@ -404,7 +444,7 @@ export default function StaffSubmissions() {
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted — "+fmt(opnameVariance)+" variance"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
-                  : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
+                  : (s.data.batch_qty ? s.data.batch_qty+"× resep · " : "")+(s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
                   <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":s.status==="approved"?"var(--green-lt)":s.status==="rejected"?"var(--red-lt)":"" }}>
                     <td><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggleSelect(s.id)} /></td>
@@ -571,8 +611,9 @@ export default function StaffSubmissions() {
                 const prodTotal = used.reduce((a,u)=>a+(u.qty*unitPriceFor(ingredients.find(x=>x.id===u.ingredient_id),u.unit)),0)
                 return (
                 <div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Produced</div><div style={{ fontWeight:700, color:"var(--green)", marginTop:3 }}>{viewModal.data.item_name}</div></div>
+                    <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Batches</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.batch_qty ?? "—"}× resep</div></div>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Quantity</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.actual_yield??viewModal.data.batch_qty} {viewModal.data.yield_unit||viewModal.data.unit}</div></div>
                   </div>
                   <table className="bo-table">
@@ -729,11 +770,26 @@ export default function StaffSubmissions() {
                 </div>
               )}
 
-              {editModal.type==="production" && (
+              {editModal.type==="production" && (() => {
+                const linkedRecipe = subRecipes.find(sr=>sr.id===editData.sub_recipe_id)
+                return (
                 <div style={{ display:"grid", gap:12 }}>
                   <div>
-                    <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity</label>
-                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:e.target.value}))} className="bo-input" />
+                    <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity (× resep)</label>
+                    <input type="number" value={editData.batch_qty||""} onChange={e=>{
+                      const batch_qty = e.target.value
+                      setEditData(d => ({
+                        ...d, batch_qty,
+                        // Keep actual_yield in sync — approve() uses actual_yield, not batch_qty, so
+                        // editing batch quantity alone previously had no visible effect on anything.
+                        actual_yield: linkedRecipe ? (linkedRecipe.yield_qty||1) * (parseFloat(batch_qty)||0) : d.actual_yield,
+                      }))
+                    }} className="bo-input" />
+                    {linkedRecipe && (
+                      <div style={{ fontSize:12, color:"var(--ink4)", marginTop:4 }}>
+                        → produces {editData.actual_yield ?? 0} {editData.yield_unit||linkedRecipe.yield_unit||""}
+                      </div>
+                    )}
                   </div>
                   <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:12 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -760,11 +816,27 @@ export default function StaffSubmissions() {
                     ))}
                   </div>
                 </div>
-              )}
+                )
+              })()}
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setEditModal(null)} className="bo-btn bo-btn-ghost">Cancel</button>
               <button onClick={saveEdit} className="bo-btn bo-btn-primary">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom confirm modal — replaces window.confirm() so Chrome can't silently suppress it */}
+      {confirmState && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&resolveConfirm(false)}>
+          <div className="bo-modal" style={{ maxWidth:420 }}>
+            <div className="bo-modal-body" style={{ padding:"24px 24px 8px" }}>
+              <div style={{ fontSize:14, fontWeight:600, whiteSpace:"pre-line", lineHeight:1.5 }}>{confirmState.message}</div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>resolveConfirm(false)} className="bo-btn bo-btn-ghost">Cancel</button>
+              <button onClick={()=>resolveConfirm(true)} className="bo-btn bo-btn-primary">Confirm</button>
             </div>
           </div>
         </div>
