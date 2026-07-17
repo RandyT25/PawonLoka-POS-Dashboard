@@ -566,19 +566,41 @@ export default function StaffSubmissions() {
                 </div>
                 )
               })()}
-              {viewModal.type==="production" && (
+              {viewModal.type==="production" && (() => {
+                const used = viewModal.data.ingredients_used||[]
+                const prodTotal = used.reduce((a,u)=>a+(u.qty*unitPriceFor(ingredients.find(x=>x.id===u.ingredient_id),u.unit)),0)
+                return (
                 <div>
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Produced</div><div style={{ fontWeight:700, color:"var(--green)", marginTop:3 }}>{viewModal.data.item_name}</div></div>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Quantity</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.actual_yield??viewModal.data.batch_qty} {viewModal.data.yield_unit||viewModal.data.unit}</div></div>
                   </div>
                   <table className="bo-table">
-                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr></thead>
-                    <tbody>{(viewModal.data.ingredients_used||[]).map((u,i)=><tr key={i}><td>{u.name}</td><td>{u.qty}</td><td>{u.unit}</td></tr>)}</tbody>
+                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Cost</th></tr></thead>
+                    <tbody>
+                      {used.map((u,i) => {
+                        const ing = ingredients.find(x=>x.id===u.ingredient_id)
+                        const unitPrice = unitPriceFor(ing,u.unit)
+                        return (
+                          <tr key={i}>
+                            <td>{u.name}</td><td>{u.qty}</td><td>{u.unit}</td>
+                            {ing ? <><td>{fmt(unitPrice)}</td><td>{fmt(u.qty*unitPrice)}</td></>
+                              : <td colSpan={2} style={{ color:"var(--ink5)", fontStyle:"italic" }}>Ingredient deleted (no pricing)</td>}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background:"var(--surface)", fontWeight:800 }}>
+                        <td colSpan={4} style={{ textAlign:"right" }}>Total Cost</td>
+                        <td>{fmt(prodTotal)}</td>
+                      </tr>
+                    </tfoot>
                   </table>
                   {viewModal.data.notes && <div style={{ marginTop:12, fontSize:12, color:"var(--ink4)" }}>Notes: {viewModal.data.notes}</div>}
                 </div>
-              )}
+                )
+              })()}
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>

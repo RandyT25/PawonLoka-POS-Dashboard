@@ -29,6 +29,9 @@ export default function InvIngredients({ mode="ingredients" }) {
   const [loading,     setLoading]     = useState(true)
   const [trackStockTouched, setTrackStockTouched] = useState(false)
   const [unitsList, setUnitsList] = useState(UNITS_FALLBACK)
+  const [bulkModal, setBulkModal] = useState(false)
+  const [bulkRows,  setBulkRows]  = useState([])
+  const [bulkSaving,setBulkSaving]= useState(false)
 
   useEffect(() => { load() }, [])
 
@@ -71,6 +74,41 @@ export default function InvIngredients({ mode="ingredients" }) {
   }
 
   function closeModal() { setModal(null); setForm(EMPTY); setConvs([]) }
+
+  // Bulk add — quick multi-row grid for adding several items at once
+  function emptyBulkRow() { return { name:"", unit:"gr", category:categoryOptions[0], stock:0, cost_per_unit:0, supplier:"" } }
+  function openBulk()            { setBulkRows(Array.from({length:5}, emptyBulkRow)); setBulkModal(true) }
+  function closeBulk()           { setBulkModal(false); setBulkRows([]) }
+  function addBulkRow()          { setBulkRows(r => [...r, emptyBulkRow()]) }
+  function removeBulkRow(i)      { setBulkRows(r => r.filter((_,idx)=>idx!==i)) }
+  function updateBulkRow(i,k,v)  { setBulkRows(r => r.map((x,idx)=>idx===i?{...x,[k]:v}:x)) }
+
+  async function saveBulk() {
+    const valid = bulkRows.filter(r => r.name.trim())
+    if (!valid.length) return
+    setBulkSaving(true)
+    const payload = valid.map((r,idx) => ({
+      id:            "ING-"+Date.now()+"-"+idx,
+      name:          r.name.trim(),
+      sku:           r.name.trim().toLowerCase().replace(/\s+/g,"-").slice(0,20),
+      unit:          r.unit,
+      category:      r.category || categoryOptions[0],
+      stock:         parseFloat(r.stock)||0,
+      min_stock:     0,
+      cost_per_unit: parseFloat(r.cost_per_unit)||0,
+      supplier:      r.supplier || null,
+      track_stock:   mode!=="supplies",
+      station:       ["Kitchen"],
+      conversions:   [],
+      last_purchase_price: 0,
+      last_purchase_unit:  null,
+    }))
+    const { error } = await supabase.from("ingredients").insert(payload)
+    if (error) { alert("Error: "+error.message); setBulkSaving(false); return }
+    await load()
+    closeBulk()
+    setBulkSaving(false)
+  }
 
   // Conversion helpers
   function addConv()        { setConvs(c => [...c, { unit:"kg", qty:1000, sku:"", last_price:0 }]) }
@@ -157,6 +195,7 @@ export default function InvIngredients({ mode="ingredients" }) {
             <span style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"var(--ink5)" }}>⌕</span>
             <input value={search} onChange={e=>setSearch(e.target.value)} className="bo-input" placeholder="Search..." style={{ paddingLeft:28, width:180 }} />
           </div>
+          <button onClick={openBulk} className="bo-btn bo-btn-ghost">+ Bulk Add</button>
           <button onClick={openAdd} className="bo-btn bo-btn-primary">+ Add {isSupplies?"Supply Item":"Ingredient"}</button>
         </div>
       </div>
@@ -332,6 +371,52 @@ export default function InvIngredients({ mode="ingredients" }) {
               <button onClick={closeModal} className="bo-btn bo-btn-ghost">Cancel</button>
               {modal==="edit" && <button onClick={()=>deleteIngredient(form.id)} className="bo-btn bo-btn-danger">Delete</button>}
               <button onClick={save} disabled={saving||!form.name} className="bo-btn bo-btn-primary">{saving?"Saving...":modal==="add"?"Add":"Save"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkModal && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&closeBulk()}>
+          <div className="bo-modal" style={{ maxWidth:920, maxHeight:"92vh" }}>
+            <div className="bo-modal-header">
+              <div>
+                <div className="bo-modal-title">Bulk Add {isSupplies?"Supply Items":"Ingredients"}</div>
+                <div style={{ fontSize:11, color:"var(--ink5)", marginTop:2 }}>Fill in as many rows as you need, then save them all at once. Rows with no name are ignored.</div>
+              </div>
+              <button className="bo-modal-close" onClick={closeBulk}>✕</button>
+            </div>
+            <div className="bo-modal-body" style={{ overflowY:"auto" }}>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 90px 150px 90px 110px 150px 28px", gap:8, marginBottom:6 }}>
+                {["NAME *","UNIT","CATEGORY","STOCK","COST/UNIT","SUPPLIER",""].map((h,i)=>(
+                  <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
+                ))}
+              </div>
+              {bulkRows.map((r,i) => (
+                <div key={i} style={{ display:"grid", gridTemplateColumns:"1fr 90px 150px 90px 110px 150px 28px", gap:8, marginBottom:6 }}>
+                  <input value={r.name} onChange={e=>updateBulkRow(i,"name",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder={isSupplies?"e.g. Sedotan":"e.g. Bawang Merah"} />
+                  <select value={r.unit} onChange={e=>updateBulkRow(i,"unit",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                    {unitsList.map(u=><option key={u}>{u}</option>)}
+                  </select>
+                  <select value={r.category} onChange={e=>updateBulkRow(i,"category",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                    {categoryOptions.map(c=><option key={c}>{c}</option>)}
+                  </select>
+                  <input type="number" value={r.stock} onChange={e=>updateBulkRow(i,"stock",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="0" />
+                  <input type="number" value={r.cost_per_unit} onChange={e=>updateBulkRow(i,"cost_per_unit",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="0" />
+                  <select value={r.supplier} onChange={e=>updateBulkRow(i,"supplier",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                    <option value="">— Supplier —</option>
+                    {suppliers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                  <button onClick={()=>removeBulkRow(i)} style={{ background:"none", border:"none", color:"var(--red)", cursor:"pointer", fontSize:16, padding:0 }}>✕</button>
+                </div>
+              ))}
+              <button onClick={addBulkRow} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ marginTop:6 }}>+ Add Row</button>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={closeBulk} className="bo-btn bo-btn-ghost">Cancel</button>
+              <button onClick={saveBulk} disabled={bulkSaving||!bulkRows.some(r=>r.name.trim())} className="bo-btn bo-btn-primary">
+                {bulkSaving ? "Saving..." : `Save ${bulkRows.filter(r=>r.name.trim()).length||""} Item${bulkRows.filter(r=>r.name.trim()).length===1?"":"s"}`}
+              </button>
             </div>
           </div>
         </div>
