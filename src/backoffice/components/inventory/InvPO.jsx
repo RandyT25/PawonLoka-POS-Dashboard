@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 import SearchSelect from "../../components/SearchSelect"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 const UNITS_FALLBACK = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion"]
 
 function toBaseUnit(ing, qty, purchaseUnit) {
@@ -675,10 +675,10 @@ export default function InvPO() {
                           </td>
                           <td style={{ padding:"10px 12px", fontSize:12, fontFamily:"monospace", whiteSpace:"nowrap" }}>{line.invoice_no}</td>
                           <td style={{ padding:"10px 12px", fontSize:12 }}>{line.due_date && line.due_date!=="—" ? new Date(line.due_date).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"}</td>
-                          <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>Rp {Number(line.billed).toLocaleString("en-US")}</td>
+                          <td style={{ padding:"10px 12px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>Rp {Number(line.billed).toLocaleString("id-ID")}</td>
                           <td style={{ padding:"10px 12px" }}>
                             <input type="text" className="bo-input" style={{ width:"100%", fontSize:13 }}
-                              value={line.discount ? "Rp " + Number(line.discount).toLocaleString("en-US") : ""}
+                              value={line.discount ? "Rp " + Number(line.discount).toLocaleString("id-ID") : ""}
                               placeholder="Rp 0"
                               onChange={e=>{
                                 const raw = e.target.value.replace(/[^0-9]/g,"")
@@ -688,7 +688,7 @@ export default function InvPO() {
                           </td>
                           <td style={{ padding:"10px 12px" }}>
                             <input type="text" className="bo-input" style={{ width:"100%", fontSize:13 }}
-                              value={line.payment ? "Rp " + Number(line.payment).toLocaleString("en-US") : ""}
+                              value={line.payment ? "Rp " + Number(line.payment).toLocaleString("id-ID") : ""}
                               placeholder="Rp 0"
                               onChange={e=>{
                                 const raw = e.target.value.replace(/[^0-9]/g,"")
@@ -705,10 +705,10 @@ export default function InvPO() {
                       ))}
                       <tr style={{ background:"#F8FAFC", fontWeight:700 }}>
                         <td colSpan={3} style={{ padding:"10px 12px", fontSize:13 }}>Total</td>
-                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("en-US")}</td>
-                        <td style={{ padding:"10px 12px", fontSize:13, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0).toLocaleString("en-US")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.billed)||0),0).toLocaleString("id-ID")}</td>
+                        <td style={{ padding:"10px 12px", fontSize:13, whiteSpace:"nowrap" }}>Rp {payLines.reduce((a,l)=>a+(parseFloat(l.discount)||0),0).toLocaleString("id-ID")}</td>
                         <td style={{ padding:"10px 12px", fontSize:13, fontWeight:800, color:"var(--brand)" }}>
-                          Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("en-US")}
+                          Rp {payLines.reduce((a,l)=>a+(parseFloat(l.payment)||0),0).toLocaleString("id-ID")}
                         </td>
                         <td></td>
                       </tr>
@@ -742,7 +742,7 @@ export default function InvPO() {
   )
 }
 
-function fmt2(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt2(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function POFormModal({ title, onSubmit, onClose, suppliers, ingredients, poForm, setPOForm, poItems, addPOItem, removePOItem, updatePOItem, getUnits, grandTotal, saving }) {
   return (
     <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&onClose()}>

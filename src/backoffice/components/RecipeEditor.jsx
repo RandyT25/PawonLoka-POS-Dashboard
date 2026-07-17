@@ -10,8 +10,8 @@ const UNIT_TO_BASE = {
 }
 const UNITS_FALLBACK = Object.keys(UNIT_TO_BASE)
 function toBase(qty, unit) { return (qty||0) * (UNIT_TO_BASE[unit] || 1) }
-function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("en-US") }
-function fmtUnit(n) { if (!n || isNaN(n)) return "0"; return Number(n.toFixed(2)).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }
+function fmtRp(n) { if (!n || isNaN(n)) return "—"; return "Rp " + Math.round(n).toLocaleString("id-ID") }
+function fmtUnit(n) { if (!n || isNaN(n)) return "0"; return Number(n.toFixed(2)).toLocaleString("id-ID", { minimumFractionDigits: 0, maximumFractionDigits: 2 }) }
 function pct(a, b) { return b > 0 ? Math.round((a / b) * 100) : 0 }
 
 function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }) {
@@ -58,7 +58,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
         className="bo-select"
         style={{ cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 10px", userSelect:"none" }}>
         <span style={{ overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontSize:13, color:sel?"var(--ink)":"var(--ink4)" }}>
-          {sel ? `${sel.name}${(sel.cost_per_unit||sel.market_cost)>0?` · Rp ${Math.round(sel.cost_per_unit||sel.market_cost).toLocaleString("en-US")}/${sel.unit}`+(sel.cost_per_unit===0&&sel.market_cost>0?" (est.)":""):""}` : "— Select ingredient or sub-recipe —"}
+          {sel ? `${sel.name}${(sel.cost_per_unit||sel.market_cost)>0?` · Rp ${Math.round(sel.cost_per_unit||sel.market_cost).toLocaleString("id-ID")}/${sel.unit}`+(sel.cost_per_unit===0&&sel.market_cost>0?" (est.)":""):""}` : "— Select ingredient or sub-recipe —"}
         </span>
         <span style={{ fontSize:9, color:"var(--ink4)", flexShrink:0, marginLeft:4 }}>▼</span>
       </div>
@@ -82,7 +82,7 @@ function IngSearch({ value, onChange, ingredients, subRecipes, showSubs = true }
                     borderLeft: i===cursor ? "3px solid var(--brand,#2563eb)" : "3px solid transparent" }}>
                   {o.name}
                   {o._g==="Sub" && <span style={{ fontSize:10, color:"#7c3aed", marginLeft:4 }}>(sub)</span>}
-                  {(o.cost_per_unit||o.market_cost)>0 && <span style={{ fontSize:10, color:o.cost_per_unit>0?"var(--ink4)":"#92400e", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit||o.market_cost).toLocaleString("en-US")}/{o.unit}{o.cost_per_unit===0&&o.market_cost>0?" (est.)":""}</span>}
+                  {(o.cost_per_unit||o.market_cost)>0 && <span style={{ fontSize:10, color:o.cost_per_unit>0?"var(--ink4)":"#92400e", marginLeft:6 }}>Rp {Math.round(o.cost_per_unit||o.market_cost).toLocaleString("id-ID")}/{o.unit}{o.cost_per_unit===0&&o.market_cost>0?" (est.)":""}</span>}
                 </div>
               ))
             }
@@ -624,8 +624,8 @@ export default function RecipeEditor() {
                           ? <span style={{ padding:"1px 6px", borderRadius:10, background:"#fef3c7", color:"#92400e", fontWeight:700 }}>Has recipe · No price</span>
                           : <span style={{ color:"var(--ink4,#9ca3af)" }}>No recipe</span>}
                         {hasCogs && tab==="sub" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· Rp {fmtUnit(item.cost_per_unit||0)}/{item.yield_unit||item.unit}</span>}
-                        {tab==="dish" && item.category==="Consignment" && item.cogs>0 && <span style={{ color:"#6d28d9", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("en-US")}</span>}
-                        {hasCogs && tab==="dish" && item.category!=="Consignment" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("en-US")}</span>}
+                        {tab==="dish" && item.category==="Consignment" && item.cogs>0 && <span style={{ color:"#6d28d9", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
+                        {hasCogs && tab==="dish" && item.category!=="Consignment" && <span style={{ color:"var(--brand,#2563eb)", fontWeight:600, marginLeft:4 }}>· COGS {Math.round(item.cogs||0).toLocaleString("id-ID")}</span>}
                       </div>
                     </div>
                   </div>

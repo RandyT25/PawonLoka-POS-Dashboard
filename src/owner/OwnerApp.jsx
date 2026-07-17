@@ -4,9 +4,9 @@ import "./owner.css"
 import CalendarRangePicker from "../backoffice/components/CalendarRangePicker"
 
 /* ─── helpers ─── */
-function fmt(n)  { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n)  { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtK(n) {
-  if (n >= 1_000_000) return "Rp " + (n/1_000_000).toFixed(1).replace(".0","") + " jt"
+  if (n >= 1_000_000) return "Rp " + (n/1_000_000).toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1}).replace(",0","") + " jt"
   if (n >= 1_000)     return "Rp " + (n/1_000).toFixed(0) + " rb"
   return fmt(n)
 }

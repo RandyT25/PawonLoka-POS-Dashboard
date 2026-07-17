@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import ClosingReport from "./ClosingReport"
 
-const fmt = n => "Rp " + Number(n||0).toLocaleString("en-US")
+const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const EXPENSE_CATEGORIES = [
   { id:"bahan_baku",      label:"Bahan Baku",        icon:"🥩", auto:true  },
   { id:"kitchen",         label:"Kitchen Supplies",   icon:"🍳", auto:false },
@@ -1074,7 +1074,7 @@ ARUS KAS
                             value={line.description} placeholder="Contoh: Deskripsi"
                             onChange={e=>setExpLines(prev=>prev.map((l)=>l.coa_id===line.coa_id?{...l,description:e.target.value}:l))} />
                           <input type="text" className="bo-input" style={{ fontSize:12 }}
-                            value={line.amount ? "Rp "+Number(line.amount).toLocaleString("en-US") : ""}
+                            value={line.amount ? "Rp "+Number(line.amount).toLocaleString("id-ID") : ""}
                             placeholder="Rp 0"
                             onChange={e=>{
                               const raw = e.target.value.replace(/[^0-9]/g,"")
@@ -1092,7 +1092,7 @@ ARUS KAS
                 <div style={{ display:"flex", justifyContent:"flex-end", alignItems:"center", marginTop:14, paddingTop:10, borderTop:"1px solid #E8ECF0" }}>
                   <span style={{ fontSize:13, fontWeight:700, marginRight:16 }}>Total</span>
                   <span style={{ fontSize:16, fontWeight:900, color:"var(--brand)" }}>
-                    Rp {expLines.reduce((a,l)=>a+(parseFloat(l.amount)||0),0).toLocaleString("en-US")}
+                    Rp {expLines.reduce((a,l)=>a+(parseFloat(l.amount)||0),0).toLocaleString("id-ID")}
                   </span>
                 </div>
               </div>
@@ -1227,13 +1227,13 @@ ARUS KAS
                       <tr key={i} style={{ borderBottom:"1px solid #F0F4F8" }}>
                         <td style={{ padding:"9px 12px", fontSize:13 }}>{l.coa_name||l.coa_id||"—"}</td>
                         <td style={{ padding:"9px 12px", fontSize:12, color:"var(--ink4)" }}>{l.description||"—"}</td>
-                        <td style={{ padding:"9px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(l.amount||0).toLocaleString("en-US")}</td>
+                        <td style={{ padding:"9px 12px", fontSize:13, fontWeight:700 }}>Rp {Number(l.amount||0).toLocaleString("id-ID")}</td>
                       </tr>
                     ))}
                     <tr style={{ background:"#F8FAFC" }}>
                       <td colSpan={2} style={{ padding:"10px 12px", fontSize:13, fontWeight:800 }}>Total</td>
                       <td style={{ padding:"10px 12px", fontSize:14, fontWeight:900, color:"var(--brand)" }}>
-                        Rp {Number(expDetailModal.amount||0).toLocaleString("en-US")}
+                        Rp {Number(expDetailModal.amount||0).toLocaleString("id-ID")}
                       </td>
                     </tr>
                   </tbody>

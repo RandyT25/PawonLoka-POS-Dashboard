@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 // Convert a qty expressed in `unit` into the ingredient's own base/stock unit
 function toBaseUnit(ing, qty, unit) {

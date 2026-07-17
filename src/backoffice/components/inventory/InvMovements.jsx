@@ -92,7 +92,7 @@ export default function InvMovements() {
                 <div key={c.name} style={{ background:"var(--surface2)", borderRadius:10, padding:"10px 12px" }}>
                   <div style={{ fontSize:11, fontWeight:600, color:"var(--ink4)", marginBottom:4, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{c.name}</div>
                   <div style={{ fontSize:18, fontWeight:900, color:"var(--brand)" }}>
-                    {c.total % 1 === 0 ? c.total : c.total.toFixed(2)}
+                    {c.total % 1 === 0 ? c.total.toLocaleString("id-ID") : c.total.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}
                     <span style={{ fontSize:11, fontWeight:600, color:"var(--ink5)", marginLeft:4 }}>{c.unit}</span>
                   </div>
                 </div>

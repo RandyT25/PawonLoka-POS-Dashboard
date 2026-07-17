@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 // Convert a qty expressed in `unit` into the ingredient's own base/stock unit
 function toBaseUnit(ing, qty, unit) {
@@ -465,7 +465,7 @@ export default function StaffSubmissions() {
                           <td style={{ fontWeight:600 }}>{item.name}</td>
                           <td>{item.system_qty} {item.unit}</td>
                           <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
-                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toFixed(2)}</td>
+                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                           {foundIng ? <>
                             <td>{fmt(unitPrice)}</td>
                             <td>{fmt(value)}</td>

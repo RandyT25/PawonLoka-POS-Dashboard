@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 const ASSET_CATEGORIES = ["Equipment","Furniture","Renovation","Vehicle","Electronics","Other"]
 const CAT_COLORS = { Equipment:"var(--brand)", Furniture:"var(--amber)", Renovation:"#6554C0", Vehicle:"var(--green)", Electronics:"#00B8D9", Other:"var(--ink5)" }
 const EMPTY = { name:"", category:"Equipment", amount:"", acquired_date:new Date().toISOString().slice(0,10), notes:"" }

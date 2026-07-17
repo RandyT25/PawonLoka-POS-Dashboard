@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 function fmt(n) {
   if (n === 0) return "free"
-  return (n > 0 ? "+" : "") + "Rp " + Math.abs(Number(n)).toLocaleString("en-US")
+  return (n > 0 ? "+" : "") + "Rp " + Math.abs(Number(n)).toLocaleString("id-ID")
 }
 
 const TYPES = [

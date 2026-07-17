@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 
-const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("en-US")
-const fmtP = n => (Number(n||0)).toFixed(1) + "%"
+const fmt  = n => "Rp " + Number(Math.round(n||0)).toLocaleString("id-ID")
+const fmtP = n => (Number(n||0)).toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1}) + "%"
 
 function statusLabel(cogsP, type, isConsignment) {
   if (isConsignment || type === "Consignment") return { text:"Pure Profit", color:"#6554C0", bg:"#EEF2FF" }
@@ -117,11 +117,11 @@ export default function Profitability() {
       return {
         "No": idx+1, "Nama Menu": p.name, "Category": p.cat||"",
         "HPP (Rp)": cpp, "Harga Sekarang (Rp)": price,
-        "COGS % Sekarang": cogsP.toFixed(1)+"%",
+        "COGS % Sekarang": fmtP(cogsP),
         "Profit Sekarang (Rp)": price - cpp,
         "Harga Baru (Rp)": newPrice,
-        "COGS % Baru": newCogsP.toFixed(1)+"%",
-        "Delta COGS": (newCogsP - cogsP).toFixed(1)+"%",
+        "COGS % Baru": fmtP(newCogsP),
+        "Delta COGS": fmtP(newCogsP - cogsP),
         "Profit Baru (Rp)": newPrice - cpp,
         ["Recommended @ "+target+"%"]: recPrice,
         "Status": statusLabel(cogsP, p.cat, p.is_consignment).text
@@ -284,7 +284,7 @@ export default function Profitability() {
                     <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)" }}>{fmt(profit)}</td>
                     <td style={{ padding:"8px 12px" }}>
                       <input type="number" value={editPrices[p.sku]||""} onChange={e=>setEditPrices(prev=>({...prev,[p.sku]:e.target.value}))}
-                        placeholder={price.toLocaleString("en-US")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
+                        placeholder={price.toLocaleString("id-ID")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
                     </td>
                     <td style={{ padding:"8px 12px" }}>
                       {cpp > 0 && newPrice > 0 ? (
@@ -296,7 +296,7 @@ export default function Profitability() {
                     <td style={{ padding:"8px 12px" }}>
                       {hasChange && cpp > 0 ? (
                         <span style={{ fontSize:12, fontWeight:700, color: delta < 0 ? "var(--green)" : "var(--red)" }}>
-                          {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toFixed(1)}%
+                          {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1})}%
                         </span>
                       ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
                     </td>

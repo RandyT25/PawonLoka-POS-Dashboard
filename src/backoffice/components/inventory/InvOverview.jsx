@@ -2,7 +2,7 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 import { isFoodCategory } from "../../lib/ingredientCategories"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 export default function InvOverview({ onNav }) {
   const [ingredients, setIngredients] = useState([])

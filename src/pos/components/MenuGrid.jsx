@@ -50,7 +50,7 @@ export default function MenuGrid({ products, categories, onSelect, bundles }) {
               ))}
               {(b.items||[]).length > 4 && <div style={{ fontSize:10, color:'#6B778C' }}>+{b.items.length-4} more</div>}
             </div>
-            <div style={{ fontSize:15, fontWeight:900, color:'#0052CC', marginTop:6 }}>Rp {Math.round(b.price).toLocaleString('en-US')}</div>
+            <div style={{ fontSize:15, fontWeight:900, color:'#0052CC', marginTop:6 }}>Rp {Math.round(b.price).toLocaleString('id-ID')}</div>
           </div>
         ))}
         {filtered.map(p => (

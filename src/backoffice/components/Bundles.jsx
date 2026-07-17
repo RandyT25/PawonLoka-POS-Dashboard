@@ -77,7 +77,7 @@ export default function Bundles() {
     closeModal()
   }
 
-  const fmt = n => "Rp "+Math.round(n).toLocaleString("en-US")
+  const fmt = n => "Rp "+Math.round(n).toLocaleString("id-ID")
   const filtered = bundles.filter(b => !search || b.name.toLowerCase().includes(search.toLowerCase()))
 
   return (

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 
-const fmt = n => "Rp " + Number(n||0).toLocaleString("en-US")
+const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const fmtDate = d => d ? new Date(d).toLocaleString("id-ID",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—"
 const fmtDateShort = d => d ? new Date(d).toLocaleDateString("id-ID",{day:"2-digit",month:"short",year:"numeric"}) : "—"
 

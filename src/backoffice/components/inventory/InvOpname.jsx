@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 export default function InvOpname() {
   const [sessions,    setSessions]    = useState([])
@@ -90,7 +90,7 @@ export default function InvOpname() {
                         style={{ width:80, padding:"5px 8px", border:"1.5px solid var(--surface3)", borderRadius:"var(--r)", fontSize:13 }} />
                     </td>
                     <td style={{ fontWeight:700, color:diff===0?"var(--ink5)":diff<0?"var(--red)":"var(--green)" }}>
-                      {diff>=0?"+":""}{diff.toFixed(2)}
+                      {diff>=0?"+":""}{diff.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </td>
                     <td style={{ fontSize:12, color:valDiff<0?"var(--red)":valDiff>0?"var(--green)":"var(--ink5)" }}>
                       {valDiff!==0?(valDiff>=0?"+":"")+fmt(Math.abs(valDiff)):"—"}
@@ -173,7 +173,7 @@ export default function InvOpname() {
                       <td style={{ fontWeight:600 }}>{i.ingredient_name}</td>
                       <td>{i.system_qty} {i.unit}</td>
                       <td>{i.actual_qty} {i.unit}</td>
-                      <td style={{ color:i.diff<0?"var(--red)":"var(--green)", fontWeight:700 }}>{i.diff>=0?"+":""}{i.diff?.toFixed(2)}</td>
+                      <td style={{ color:i.diff<0?"var(--red)":"var(--green)", fontWeight:700 }}>{i.diff>=0?"+":""}{i.diff?.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                       <td style={{ color:i.value_diff<0?"var(--red)":"var(--green)", fontWeight:600 }}>{i.value_diff>=0?"+":""}{fmt(i.value_diff)}</td>
                     </tr>
                   ))}

@@ -181,7 +181,7 @@ export default function Settings() {
             </div>
           ))}
           <div style={{ padding:"10px 14px", background:"var(--brand-lt)", borderRadius:"var(--r)", fontSize:12, color:"var(--brand)", fontWeight:600 }}>
-            Gold: {settings.loyalty.gold_threshold?.toLocaleString("en-US")} pts · Silver: {settings.loyalty.silver_threshold?.toLocaleString("en-US")} pts · {settings.loyalty.points_per_100} pt per Rp 100
+            Gold: {settings.loyalty.gold_threshold?.toLocaleString("id-ID")} pts · Silver: {settings.loyalty.silver_threshold?.toLocaleString("id-ID")} pts · {settings.loyalty.points_per_100} pt per Rp 100
           </div>
         </div>
       )}

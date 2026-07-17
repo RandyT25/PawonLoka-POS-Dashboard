@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 import { FOOD_CATEGORIES, SUPPLY_CATEGORIES, isSupplyCategory, isFoodCategory } from "../../lib/ingredientCategories"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
-function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
 
 const UNITS_FALLBACK = ["gr","kg","ml","L","Galon","pcs","Ekor","butir","biji","buah","ikat","lembar","bungkus","pack","sachet","botol","Can","tsp","tbsp","cup","porsi","portion","slice"]
 function emptyForm(mode) {

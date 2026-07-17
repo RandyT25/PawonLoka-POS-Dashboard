@@ -2,8 +2,8 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 
-const fmt    = n => "Rp " + Number(Math.round(n||0)).toLocaleString("en-US")
-const fmtDec = n => "Rp " + Number(n||0).toLocaleString("en-US", { minimumFractionDigits:2, maximumFractionDigits:2 })
+const fmt    = n => "Rp " + Number(Math.round(n||0)).toLocaleString("id-ID")
+const fmtDec = n => "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 })
 
 const BUY_UNITS_FALLBACK = ["gr","kg","ml","L","galon","pcs","ekor","pack","bag","pouch","botol","can","ikat","tray","liter","sachet","custom"]
 const STAFF_LIST = ["Claudy","Nita","Aisyah","Mahes","Meldy","Oji","Yudi","Alin"]
@@ -171,7 +171,7 @@ export default function MarketPrices() {
         "Market Price":   parseFloat(r.market_price)||0,
         "Cost/Base Unit": cpb ? Math.round(cpb*100)/100 : "",
         "Current WAC":    r.current_wac,
-        "Difference %":   diff ? diff.toFixed(1)+"%" : "",
+        "Difference %":   diff ? diff.toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1})+"%" : "",
         "Last PO Price":  r.last_po_price,
         "Date":           checkedAt,
         "Notes":          r.notes,
@@ -309,7 +309,7 @@ export default function MarketPrices() {
                     <td style={{ padding:"8px 12px" }}>
                       {diff !== null ? (
                         <span style={{ fontSize:12, fontWeight:800, color: diff > 10 ? "var(--red)" : diff < -10 ? "var(--green)" : "var(--amber)" }}>
-                          {diff > 0 ? "+" : ""}{diff.toFixed(1)}%
+                          {diff > 0 ? "+" : ""}{diff.toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1})}%
                           {diff > 10 ? " ⚠" : diff < -5 ? " ✓" : ""}
                         </span>
                       ) : <span style={{ color:"var(--ink5)", fontSize:11 }}>—</span>}
