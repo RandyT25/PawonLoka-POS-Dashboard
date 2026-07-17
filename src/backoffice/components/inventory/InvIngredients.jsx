@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
-import { FOOD_CATEGORIES, SUPPLY_CATEGORIES, isSupplyCategory, isFoodCategory } from "../../lib/ingredientCategories"
+import { FOOD_CATEGORIES, SUPPLY_CATEGORIES_FALLBACK, isSupplyCategory, isFoodCategory } from "../../lib/ingredientCategories"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 function fmtDec(n) { return "Rp " + Number(n||0).toLocaleString("id-ID", { minimumFractionDigits:2, maximumFractionDigits:2 }) }
@@ -17,7 +17,6 @@ export default function InvIngredients({ mode="ingredients" }) {
   const EMPTY = emptyForm(mode)
   const isSupplies = mode==="supplies"
   const bucketFilter = isSupplies ? isSupplyCategory : isFoodCategory
-  const categoryOptions = isSupplies ? SUPPLY_CATEGORIES : FOOD_CATEGORIES
   const [ingredients, setIngredients] = useState([])
   const [suppliers,   setSuppliers]   = useState([])
   const [search,      setSearch]      = useState("")
@@ -29,15 +28,19 @@ export default function InvIngredients({ mode="ingredients" }) {
   const [loading,     setLoading]     = useState(true)
   const [trackStockTouched, setTrackStockTouched] = useState(false)
   const [unitsList, setUnitsList] = useState(UNITS_FALLBACK)
+  const [supplyCatsList, setSupplyCatsList] = useState(SUPPLY_CATEGORIES_FALLBACK)
   const [bulkModal, setBulkModal] = useState(false)
   const [bulkRows,  setBulkRows]  = useState([])
   const [bulkSaving,setBulkSaving]= useState(false)
+  const categoryOptions = isSupplies ? supplyCatsList : FOOD_CATEGORIES
 
   useEffect(() => { load() }, [])
 
   useEffect(() => {
     supabase.from("app_settings").select("units").eq("id","main").maybeSingle()
       .then(({data}) => { if (data?.units?.length) setUnitsList(data.units.map(u=>u.name)) })
+    supabase.from("app_settings").select("supply_categories").eq("id","main").maybeSingle()
+      .then(({data}) => { if (data?.supply_categories?.length) setSupplyCatsList(data.supply_categories.map(c=>c.name)) })
   }, [])
 
   async function load() {
