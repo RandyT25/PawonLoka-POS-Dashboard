@@ -3,10 +3,9 @@ import { supabase } from "../../lib/supabase"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
-const ROLES_FALLBACK = ["Kasir","Bar","Snack","Kitchen","Cook","Head Cook","Head Kasir","Owner"]
 const STAFF_COLORS   = ["#0066FF","#00875A","#FF8B00","#6554C0","#DE350B","#00B8D9","#10B981","#F59E0B","#EF4444"]
 const DEPT_COLORS    = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899","#DC2626","#0EA5E9"]
-const STAFF_EMPTY    = { name:"", role:"", pin:"", salary:0, color:"#0066FF", phone:"", active:true }
+const STAFF_EMPTY    = { name:"", role:[], pin:"", salary:0, color:"#0066FF", phone:"", active:true }
 const DEPT_EMPTY     = { name:"", color:"#6366F1" }
 
 const PERM_LABELS = { pos:"POS", backoffice:"Back Office", reports:"Reports", void:"Void", discount:"Discounts", cash:"Cash" }
@@ -14,7 +13,6 @@ const PERM_LABELS = { pos:"POS", backoffice:"Back Office", reports:"Reports", vo
 export default function Employees() {
   const [tab,        setTab]       = useState("staff")
   const [staff,      setStaff]     = useState([])
-  const [roles,      setRoles]     = useState(ROLES_FALLBACK)
   const [depts,      setDepts]     = useState([])
   const [loading,    setLoading]   = useState(true)
   const [filter,     setFilter]    = useState("all")
@@ -41,23 +39,27 @@ export default function Employees() {
       supabase.from("departments").select("*").order("sort_order"),
     ])
     setStaff(data||[])
-    if (deptData?.length) {
-      setDepts(deptData)
-      setRoles(deptData.map(d=>d.name))
-    }
+    if (deptData?.length) setDepts(deptData)
     setLoading(false)
   }
 
   // ── Staff CRUD ──────────────────────────────────────────────────
   function openAdd()   { setForm(STAFF_EMPTY); setModal("add") }
-  function openEdit(s) { setForm({...s, pin:s.pin||"", salary:s.salary||0, phone:s.phone||""}); setModal("edit") }
+  function openEdit(s) { setForm({...s, pin:s.pin||"", salary:s.salary||0, phone:s.phone||"", role:s.role||[]}); setModal("edit") }
   function closeModal(){ setModal(false); setForm(STAFF_EMPTY) }
+
+  function toggleFormRole(name) {
+    setForm(f => {
+      const cur = f.role||[]
+      return { ...f, role: cur.includes(name) ? cur.filter(r=>r!==name) : [...cur,name] }
+    })
+  }
 
   async function save() {
     if (!form.name) return
     if (form.pin && (form.pin.length!==4||!/^\d+$/.test(form.pin))) { alert("PIN must be 4 digits"); return }
     setSaving(true)
-    const payload = { name:form.name.trim(), role:form.role, pin:form.pin||null, color:form.color, active:form.active!==false, salary:parseFloat(form.salary)||0, phone:form.phone||null, join_date:form.join_date||null }
+    const payload = { name:form.name.trim(), role:form.role||[], pin:form.pin||null, color:form.color, active:form.active!==false, salary:parseFloat(form.salary)||0, phone:form.phone||null, join_date:form.join_date||null }
     if (modal==="add") {
       await supabase.from("staff").insert({ ...payload, id:"STAFF-"+Date.now() })
     } else {
@@ -107,8 +109,8 @@ export default function Employees() {
 
   // ── Derived ─────────────────────────────────────────────────────
   const ownerRoles = new Set(depts.filter(d=>d.is_owner).map(d=>d.name))
-  const owners  = staff.filter(s=>ownerRoles.has(s.role))
-  const nonOwners = staff.filter(s=>!ownerRoles.has(s.role))
+  const owners  = staff.filter(s=>(s.role||[]).some(r=>ownerRoles.has(r)))
+  const nonOwners = staff.filter(s=>!(s.role||[]).some(r=>ownerRoles.has(r)))
   const active  = nonOwners.filter(s=>s.active!==false)
   const flagged = nonOwners.filter(s=>s.flagged)
   const filtered = staff.filter(s => {
@@ -181,7 +183,7 @@ export default function Employees() {
                           </div>
                           <div>
                             <div style={{ fontSize:15, fontWeight:800, color:"#0A1628" }}>{s.name}</div>
-                            <div style={{ fontSize:12, fontWeight:700, color:cardColor }}>{s.role||"Owner"}</div>
+                            <div style={{ fontSize:12, fontWeight:700, color:cardColor }}>{(s.role||[]).join(", ")||"Owner"}</div>
                           </div>
                           <span style={{ position:"absolute", top:12, right:12, fontSize:10, fontWeight:800, background:cardColor, color:"#fff", padding:"2px 8px", borderRadius:8, letterSpacing:"0.5px" }}>OWNER</span>
                         </div>
@@ -214,7 +216,7 @@ export default function Employees() {
                       </div>
                       <div>
                         <div style={{ fontSize:15, fontWeight:800, color:"#0A1628" }}>{s.name}</div>
-                        <div style={{ fontSize:12, fontWeight:700, color:deptColor(s.role) }}>{s.role||"—"}</div>
+                        <div style={{ fontSize:12, fontWeight:700, color:deptColor((s.role||[])[0]) }}>{(s.role||[]).join(", ")||"—"}</div>
                       </div>
                       <div style={{ position:"absolute", top:14, right:14, width:8, height:8, borderRadius:"50%", background:s.active!==false?"#36B37E":"#DFE1E6" }} />
                     </div>
@@ -257,7 +259,7 @@ export default function Employees() {
                     <div>
                       <div style={{ fontSize:15, fontWeight:800 }}>{d.name}</div>
                       <div style={{ fontSize:11, color:d.color, fontWeight:700, marginTop:2 }}>
-                        {staff.filter(s=>s.role===d.name).length} Staff member{staff.filter(s=>s.role===d.name).length!==1?"s":""}
+                        {staff.filter(s=>(s.role||[]).includes(d.name)).length} Staff member{staff.filter(s=>(s.role||[]).includes(d.name)).length!==1?"s":""}
                       </div>
                     </div>
                   </div>
@@ -288,18 +290,27 @@ export default function Employees() {
                 <div><label className="bo-label">Full Name *</label><input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus /></div>
                 <div><label className="bo-label">Phone</label><input value={form.phone||""} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} className="bo-input" /></div>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
-                <div><label className="bo-label">Department</label>
-                  <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} className="bo-select">
-                    <option value="">— Select —</option>
-                    {roles.map(r=><option key={r}>{r}</option>)}
-                  </select>
+              <div className="bo-form-row">
+                <label className="bo-label">Departments — click to toggle (can pick more than one)</label>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {depts.map(d=>{
+                    const sel = (form.role||[]).includes(d.name)
+                    return (
+                      <button key={d.id} type="button" onClick={()=>toggleFormRole(d.name)}
+                        style={{ padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer",
+                          border:"1.5px solid "+(sel?d.color:"var(--surface3)"),
+                          background:sel?d.color+"22":"#fff", color:sel?d.color:"var(--ink4)" }}>
+                        {d.name}
+                      </button>
+                    )
+                  })}
                 </div>
-                <div><label className="bo-label">PIN (4 digits)</label>
-                  <div style={{ position:"relative" }}>
-                    <input type={showPin?"text":"password"} maxLength={4} value={form.pin} onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} className="bo-input" placeholder="••••" style={{ letterSpacing:4, fontSize:18, paddingRight:36 }} />
-                    <button type="button" onClick={()=>setShowPin(p=>!p)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"var(--ink4)" }}>{showPin?"🙈":"👁"}</button>
-                  </div>
+              </div>
+              <div className="bo-form-row">
+                <label className="bo-label">PIN (4 digits)</label>
+                <div style={{ position:"relative", maxWidth:160 }}>
+                  <input type={showPin?"text":"password"} maxLength={4} value={form.pin} onChange={e=>setForm(f=>({...f,pin:e.target.value.replace(/\D/g,"").slice(0,4)}))} className="bo-input" placeholder="••••" style={{ letterSpacing:4, fontSize:18, paddingRight:36 }} />
+                  <button type="button" onClick={()=>setShowPin(p=>!p)} style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:16, color:"var(--ink4)" }}>{showPin?"🙈":"👁"}</button>
                 </div>
               </div>
               <div className="bo-form-row"><label className="bo-label">Join Date</label><input type="date" value={form.join_date||""} onChange={e=>setForm(f=>({...f,join_date:e.target.value}))} className="bo-input" /></div>
@@ -336,7 +347,7 @@ export default function Employees() {
               <button className="bo-modal-close" onClick={()=>setDetail(null)}>✕</button>
             </div>
             <div className="bo-modal-body">
-              {[["Department",detail.role||"—"],["Phone",detail.phone||"—"],["Salary",fmt(detail.salary||0)+"/mo"],["Status",detail.active!==false?"Active":"Inactive"],["Since",detail.join_date||detail.created_at?.slice(0,10)||"—"],["Permissions",perms(detail).join(", ")||"None"]].map(([k,v])=>(
+              {[["Departments",(detail.role||[]).join(", ")||"—"],["Phone",detail.phone||"—"],["Salary",fmt(detail.salary||0)+"/mo"],["Status",detail.active!==false?"Active":"Inactive"],["Since",detail.join_date||detail.created_at?.slice(0,10)||"—"],["Permissions",perms(detail).join(", ")||"None"]].map(([k,v])=>(
                 <div key={k} style={{ display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:"1px solid var(--surface2)",fontSize:13 }}>
                   <span style={{ color:"var(--ink4)",fontWeight:600 }}>{k}</span>
                   <span style={{ fontWeight:700 }}>{v}</span>

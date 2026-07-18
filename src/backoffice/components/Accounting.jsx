@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import ClosingReport from "./ClosingReport"
+import { exportPDF, exportExcel } from "./exportUtils"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const EXPENSE_CATEGORIES = [
@@ -278,79 +279,87 @@ export default function Accounting() {
     setOpeningBal(p=>({...p,amount}))
   }
 
-  async function exportPDF() {
-    const content = `
-LAPORAN KEUANGAN PAWONLOKA
-Periode: ${period}
-Dicetak: ${new Date().toLocaleDateString("id-ID")}
-
-═══════════════════════════════════
-LAPORAN LABA RUGI
-═══════════════════════════════════
-
-PENDAPATAN
-  Penjualan Kotor          ${fmt(grossRevenue)}
-  Diskon                   (${fmt(totalDiscount)})
-  Penjualan Bersih         ${fmt(netRevenue)}
-
-HPP / COGS                 ${fmt(totalCOGS)}
-LABA KOTOR                 ${fmt(grossProfit)} (${grossMargin}%)
-
-BEBAN OPERASIONAL
-  Bahan Baku (PO)          ${fmt(poTotal)}
-  Gaji Karyawan            ${fmt(salaryTotal)}
-${EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>`  ${c.label.padEnd(22)} ${fmt(catTotal(c.id))}`).join("\n")}
-  Total Beban              ${fmt(totalOpex)}
-
-═══════════════════════════════════
-LABA BERSIH                ${fmt(netProfit)} (${netMargin}%)
-═══════════════════════════════════
-
-ARUS KAS
-  Opening Balance          ${fmt(openingBal.amount||0)}
-  Cash In                  ${fmt(cashIn+qrisIn)}
-  Cash Out                 ${fmt(cashOut)}
-  Saldo Akhir              ${fmt(netCash)}
-`
-    const blob = new Blob([content], { type:"text/plain;charset=utf-8;" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href=url; a.download=`pawonloka-pl-${period}.txt`; a.click()
-    URL.revokeObjectURL(url)
+  function handleExportPdf() {
+    const plRows = [
+      ["Penjualan Kotor", fmt(grossRevenue)],
+      ["Diskon", "(" + fmt(totalDiscount) + ")"],
+      ["Penjualan Bersih", fmt(netRevenue)],
+      ["HPP / COGS", fmt(totalCOGS)],
+      ["Laba Kotor", fmt(grossProfit) + " (" + grossMargin + "%)"],
+      ["Bahan Baku (PO)", fmt(poTotal)],
+      ["Gaji Karyawan", fmt(salaryTotal)],
+      ...EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>[c.label, fmt(catTotal(c.id))]),
+      ["Total Beban", fmt(totalOpex)],
+      ["Laba Bersih", fmt(netProfit) + " (" + netMargin + "%)"],
+    ]
+    const cashflowRows = [
+      ["Opening Balance", fmt(openingBal.amount||0)],
+      ["Cash In", fmt(cashIn+qrisIn)],
+      ["Cash Out", fmt(cashOut)],
+      ["Saldo Akhir", fmt(netCash)],
+    ]
+    exportPDF({
+      title: "Laporan Laba Rugi", periodLabel: period,
+      filename: `pawonloka-pl-${period}.pdf`,
+      tables: [
+        { label:"Laba Rugi", head:["Item","Jumlah"], body:plRows },
+        { label:"Arus Kas", head:["Item","Jumlah"], body:cashflowRows },
+        { label:"Detail Pengeluaran", head:["Tanggal","Kategori","Deskripsi","Jumlah"],
+          body: manualExpenses.map(e=>[e.date, e.category, e.description, fmt(e.amount)]) },
+        { label:"Purchase Orders", head:["Tanggal","Supplier","Invoice","Total"],
+          body: pos.map(p=>[p.date, p.supplierName||p.supplier_name, p.invoiceNo||p.invoice_no, fmt(p.total)]) },
+      ],
+    })
   }
 
-  async function exportExcel() {
-    const rows = [
-      ["LAPORAN KEUANGAN PAWONLOKA","","",""],
-      ["Periode:",period,"",""],
-      ["","","",""],
-      ["LABA RUGI","","",""],
-      ["Pendapatan Kotor","",grossRevenue,""],
-      ["Diskon","",totalDiscount,""],
-      ["Pendapatan Bersih","",netRevenue,""],
-      ["COGS","",totalCOGS,""],
-      ["Laba Kotor","",grossProfit,""],
-      ["","","",""],
-      ["BEBAN OPERASIONAL","","",""],
-      ["Bahan Baku (PO)","",poTotal,""],
-      ["Gaji Karyawan","",salaryTotal,""],
-      ...EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>([c.label,"",catTotal(c.id),""]) ),
-      ["Total Beban","",totalOpex,""],
-      ["","","",""],
-      ["LABA BERSIH","",netProfit,""],
-      ["Net Margin","",netMargin+"%",""],
-      ["","","",""],
-      ["DETAIL PENGELUARAN","","",""],
-      ["Tanggal","Kategori","Deskripsi","Jumlah"],
-      ...manualExpenses.map(e=>[e.date, e.category, e.description, e.amount]),
-      ["","","",""],
-      ["PURCHASE ORDERS","","",""],
-      ["Tanggal","Supplier","Invoice","Total"],
-      ...pos.map(p=>[p.date, p.supplierName||p.supplier_name, p.invoiceNo||p.invoice_no, p.total]),
-    ]
-    const csv = rows.map(r=>r.join(",")).join("\n")
-    const blob = new Blob(["\ufeff"+csv],{type:"text/csv;charset=utf-8;"})
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a"); a.href=url; a.download=`pawonloka-accounting-${period}.csv`; a.click()
+  function handleExportExcel() {
+    exportExcel({
+      title: "Laporan Laba Rugi", periodLabel: period,
+      filename: `pawonloka-accounting-${period}.xlsx`,
+      sheets: [
+        {
+          name: "Laba Rugi",
+          columns: ["Item","Jumlah"],
+          colWidths: [26,20],
+          rows: [
+            ["Pendapatan Kotor", grossRevenue],
+            ["Diskon", -totalDiscount],
+            ["Pendapatan Bersih", netRevenue],
+            ["COGS", totalCOGS],
+            ["Laba Kotor", grossProfit],
+            ["Bahan Baku (PO)", poTotal],
+            ["Gaji Karyawan", salaryTotal],
+            ...EXPENSE_CATEGORIES.filter(c=>!c.auto).map(c=>[c.label, catTotal(c.id)]),
+            ["Total Beban", totalOpex],
+            ["Laba Bersih", netProfit],
+            ["Net Margin", netMargin+"%"],
+          ],
+        },
+        {
+          name: "Arus Kas",
+          columns: ["Item","Jumlah"],
+          colWidths: [26,20],
+          rows: [
+            ["Opening Balance", openingBal.amount||0],
+            ["Cash In", cashIn+qrisIn],
+            ["Cash Out", cashOut],
+            ["Saldo Akhir", netCash],
+          ],
+        },
+        {
+          name: "Pengeluaran",
+          columns: ["Tanggal","Kategori","Deskripsi","Jumlah"],
+          colWidths: [14,18,28,18],
+          rows: manualExpenses.map(e=>[e.date, e.category, e.description, e.amount]),
+        },
+        {
+          name: "Purchase Orders",
+          columns: ["Tanggal","Supplier","Invoice","Total"],
+          colWidths: [14,20,18,18],
+          rows: pos.map(p=>[p.date, p.supplierName||p.supplier_name, p.invoiceNo||p.invoice_no, p.total]),
+        },
+      ],
+    })
   }
 
   const filteredExp = manualExpenses.filter(e=>{
@@ -373,8 +382,8 @@ ARUS KAS
         <select value={period} onChange={e=>setPeriod(e.target.value)} className="bo-select" style={{ flex:1,fontSize:13 }}>
           {MONTHS.map(m=><option key={m} value={m}>{m}</option>)}
         </select>
-        <button onClick={exportExcel} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ CSV</button>
-        <button onClick={exportPDF} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ PDF</button>
+        <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ Excel</button>
+        <button onClick={handleExportPdf} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ flexShrink:0 }}>⬇ PDF</button>
       </div>
 
       {/* OVERVIEW */}

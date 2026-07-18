@@ -27,10 +27,19 @@ function biggestUnit(ing) {
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
-  Kitchen:    { color:"#00875A", staff:["Meldy","Oji","Yudi"] },
-  Snack:      { color:"#F59E0B", staff:["Alin","Uti"] },
-  Bar:        { color:"#3B82F6", staff:["Mahes","Nita"] },
-  Kasir:      { color:"#6366F1", staff:["Nita","Uti"] },
+  Kitchen:    { color:"#00875A" },
+  Snack:      { color:"#F59E0B" },
+  Bar:        { color:"#3B82F6" },
+  Kasir:      { color:"#6366F1" },
+}
+
+// Which Backoffice departments show up on each station's staff picker —
+// Cook/Head Cook/Bakar all fold into the Kitchen screen, matching today's setup.
+const STATION_DEPTS = {
+  Kitchen: ["Kitchen","Cook","Head Cook","Bakar"],
+  Snack:   ["Snack"],
+  Bar:     ["Bar"],
+  Kasir:   ["Kasir"],
 }
 
 const MENUS = {
@@ -92,8 +101,7 @@ function SearchableSelect({ options, value, onChange, placeholder, labelKey="nam
   )
 }
 
-function StaffPicker({ station, value, onChange }) {
-  const staffList = STATIONS[station]?.staff || []
+function StaffPicker({ station, value, onChange, staffList }) {
   return (
     <div>
       <div style={{ fontSize:12, fontWeight:700, color:"#666", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.4px" }}>Submitted By *</div>
@@ -133,8 +141,27 @@ export default function StaffPortal() {
   const [reqDate,      setReqDate]      = useState(new Date().toISOString().slice(0,10))
   const [reqNotes,     setReqNotes]     = useState("")
   const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
+  const [stationStaff, setStationStaff] = useState({})
 
+  useEffect(() => { loadStaff() }, [])
   useEffect(() => { if (station) loadData() }, [station])
+
+  function buildStationStaff(rows) {
+    const map = {}
+    Object.keys(STATION_DEPTS).forEach(st => {
+      map[st] = rows.filter(r => (r.role||[]).some(role => STATION_DEPTS[st].includes(role))).map(r=>r.name)
+    })
+    return map
+  }
+
+  async function loadStaff() {
+    const cached = await offlineStore.getCache('staff')
+    if (cached?.length) setStationStaff(buildStationStaff(cached))
+    try {
+      const { data } = await supabase.from("staff").select("name,role,active").eq("active", true)
+      if (data) { setStationStaff(buildStationStaff(data)); offlineStore.setCache('staff', data) }
+    } catch { /* offline — cached already applied */ }
+  }
 
   async function loadData() {
     // Load from cache immediately for offline startup
@@ -146,7 +173,7 @@ export default function StaffPortal() {
     if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
     if (cachedSubs?.length)   setSubRecipes(cachedSubs)
     if (cachedSubIngs?.length) setSubRecipeIngs(cachedSubIngs)
-    if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
+    if ((stationStaff[station]||[]).length === 1) setStaffName(stationStaff[station][0])
 
     // Refresh from Supabase in background
     try {
@@ -239,7 +266,7 @@ export default function StaffPortal() {
     setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
     setProdSubId(""); setProdBatchQty(""); setProdYield(""); setProdYieldUnit(""); setProdUsed([]); setProdNotes("")
     setReqDate(new Date().toISOString().slice(0,10)); setReqNotes(""); setReqItems([{ ingredient_id:"", qty:"", unit:"" }])
-    if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
+    if ((stationStaff[station]||[]).length === 1) setStaffName(stationStaff[station][0])
   }
 
   const stationColor = station ? STATIONS[station].color : "#1a1a2e"
@@ -340,7 +367,7 @@ export default function StaffPortal() {
         </div>
         <div style={s.body}>
           <div style={{ ...s.card, marginBottom:10 }}>
-            <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+            <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
           </div>
           <div style={{ ...s.card, padding:"10px 12px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:16 }}>🔍</span>
@@ -391,7 +418,7 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={s.card}>
-          <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+          <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
         </div>
         <div style={s.card}>
           <label style={s.label}>Ingredient / Sub-Recipe *</label>
@@ -439,7 +466,7 @@ export default function StaffPortal() {
 
           {/* Staff */}
           <div style={s.card}>
-            <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+            <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
           </div>
 
           {/* Step 1 — Recipe selector */}
@@ -532,7 +559,7 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={s.card}>
-          <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+          <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
         </div>
         <div style={s.card}>
           <div style={{ marginBottom:14 }}>
