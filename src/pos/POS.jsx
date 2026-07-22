@@ -977,6 +977,7 @@ export default function POS() {
           ? await dbWrite('orders', 'update', {
               status: 'Paid', pay: 'Split', notes: newNote, total: billTotal,
               payments: newPayments, cogs: orderCogs, customer_id: customer?.id || null,
+              items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
             }, { id: openBillId })
           : await dbWrite('orders', 'update', { notes: newNote, payments: newPayments }, { id: openBillId })
 
@@ -1025,6 +1026,7 @@ export default function POS() {
         notes: orderNote || null, promo: promoName || null,
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         cogs: orderCogs, customer_id: customer?.id || null,
+        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
       }, { id: openBillId })
 
       // Update customer points (queued if offline — they get their points when synced)
