@@ -4,7 +4,7 @@ import { fmt } from '../../shared/constants'
 import { qr } from '../../lib/quickRead'
 import { printShiftReport, printProductSoldReport } from '../hooks/usePrinter'
 
-export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
+export default function ShiftModal({ staff, shift, onOpen, onClose, onDismiss, onLogout, printer }) {
   const [float, setFloat]         = useState('')
   const [saving, setSaving]       = useState(false)
   const [report, setReport]       = useState(null)
@@ -187,7 +187,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
             <div style={{ fontSize:16, fontWeight:900 }}>Laporan Kasir</div>
             <div style={{ fontSize:12, color:'#6B7A8D' }}>{staff.name} · Buka: {shift.clock_in} · Modal: {fmt(shift.float_open)}</div>
           </div>
-          <button onClick={onLogout} style={S.closeBtn}>x</button>
+          <button onClick={onDismiss} style={S.closeBtn}>x</button>
         </div>
 
         <div style={{ overflowY:'auto', flex:1 }}>

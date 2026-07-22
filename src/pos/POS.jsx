@@ -453,6 +453,7 @@ export default function POS() {
       printer={printer}
       onOpen={s => { setShift(s); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift dibuka! Jangan lupa Clock In ya ' + staff.name + '?')) { setShowClock(true) } },500) }}
       onClose={() => { setShift(null); setShowShift(false); setTimeout(()=>{ if(window.confirm('Shift ditutup! Jangan lupa Clock Out ya ' + staff.name + '?')) { setShowClock(true) } },500) }}
+      onDismiss={() => setShowShift(false)}
       onLogout={() => { setStaff(null); setShift(null); setShowShift(false); clearCart(); setCustomer(null); setTableNo(''); setTableArea(''); setOpenBillId(null) }}
     />
   )
@@ -1392,7 +1393,7 @@ export default function POS() {
         onReprint={() => { setShowMobileMenu(false); setShowReprint(true) }}
         onPrintCheck={cart.length > 0 ? () => { setShowMobileMenu(false); printCheck() } : null}
         onSettings={() => setShowSettings(true)}
-        onLogout={() => { setStaff(null); setShift(null) }}
+        onLogout={() => { if (shift) { setShowShift(true); return } setStaff(null); setShift(null); clearCart(); setCustomer(null); setTableNo(''); setTableArea(''); setOpenBillId(null) }}
       />
       {/* Void Auth Modal */}
       {voidAuth !== null && (
