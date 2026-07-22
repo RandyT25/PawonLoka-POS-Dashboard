@@ -1,7 +1,18 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (!ing || unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
 
 export default function InvProduction() {
   const [batches,       setBatches]       = useState([])
@@ -24,7 +35,7 @@ export default function InvProduction() {
     setLoading(true)
     const [{ data:b }, { data:i }, { data:s }, { data:sr }, { data:sri }] = await Promise.all([
       supabase.from("production_batches").select("*").order("created_at", { ascending:false }),
-      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,category"),
+      supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,category,conversions"),
       supabase.from("staff").select("id,name"),
       supabase.from("sub_recipes").select("*").order("name"),
       supabase.from("sub_recipe_ingredients").select("*"),
@@ -86,14 +97,15 @@ export default function InvProduction() {
       ingredients_used, status:"Completed"
     })
     // Deduct used ingredients stock + log
-    for (const u of validItems) {
+    for (const u of ingredients_used) {
       const ing = ingredients.find(i=>i.id===u.ingredient_id)
       if (!ing) continue
-      await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-parseFloat(u.qty)) }).eq("id",ing.id)
+      const qtyBase = toBaseUnit(ing, parseFloat(u.qty)||0, u.unit)
+      await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-qtyBase) }).eq("id",ing.id)
       await supabase.from("stock_movements").insert({
         id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
         type:"Production", ingredient_id:ing.id, ingredient_name:ing.name,
-        qty:-parseFloat(u.qty), unit:u.unit||ing.unit, ref:batchId,
+        qty:-qtyBase, unit:ing.unit, ref:batchId,
         note:"Used in production: "+item.name,
         date:form.date,
         time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})

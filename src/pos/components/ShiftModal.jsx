@@ -4,7 +4,7 @@ import { fmt } from '../../shared/constants'
 import { qr } from '../../lib/quickRead'
 import { printShiftReport, printProductSoldReport } from '../hooks/usePrinter'
 
-export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, printer }) {
+export default function ShiftModal({ staff, shift, onOpen, onClose, onDismiss, onLogout, printer }) {
   const [float, setFloat]         = useState('')
   const [saving, setSaving]       = useState(false)
   const [report, setReport]       = useState(null)
@@ -119,7 +119,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
       // Stay open — wait for cashier's choice in the product print prompt
     } catch (_) {
       setSaving(false)
-      onLogout()
+      onClose()
     }
   }
 
@@ -128,9 +128,9 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
       try {
         const rp = printer.printers?.find(p => p.role === 'receipt')
         if (rp) await printProductSoldReport({ shift, productData, paperSize: rp.paperSize })
-      } catch (_) { /* print failure should not block logout */ }
+      } catch (_) { /* print failure should not block close */ }
     }
-    onLogout()
+    onClose()
   }
 
   if (productData) return (
@@ -149,7 +149,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
             style={{ ...S.primaryBtn, marginBottom:10 }}>
             Ya, Cetak Laporan Produk
           </button>
-          <button onClick={onLogout} style={S.ghostBtn}>Tidak, Keluar</button>
+          <button onClick={onClose} style={S.ghostBtn}>Tidak, Lanjutkan</button>
         </div>
       </div>
     </div>
@@ -187,7 +187,7 @@ export default function ShiftModal({ staff, shift, onOpen, onClose, onLogout, pr
             <div style={{ fontSize:16, fontWeight:900 }}>Laporan Kasir</div>
             <div style={{ fontSize:12, color:'#6B7A8D' }}>{staff.name} · Buka: {shift.clock_in} · Modal: {fmt(shift.float_open)}</div>
           </div>
-          <button onClick={onClose} style={S.closeBtn}>x</button>
+          <button onClick={onDismiss} style={S.closeBtn}>x</button>
         </div>
 
         <div style={{ overflowY:'auto', flex:1 }}>

@@ -6,7 +6,7 @@ const DAY_SHORT = { Monday:"Mon",Tuesday:"Tue",Wednesday:"Wed",Thursday:"Thu",Fr
 const STATIONS = ["Kasir","Bar","Bakar","Snack","Kitchen"]
 const STATION_COLORS = { Kasir:"var(--brand)",Bar:"var(--green)",Bakar:"var(--red)",Snack:"var(--amber)",Kitchen:"#6554C0" }
 const STAFF_COLORS = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899"]
-const STAFF_EMPTY = { name:"", role:"", color:"#3B82F6", pin:"", active:true }
+const STAFF_EMPTY = { name:"", role:[], color:"#3B82F6", pin:"", active:true }
 const DEPT_COLORS  = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444","#06B6D4","#F97316","#EC4899","#DC2626","#0EA5E9"]
 const DEPT_EMPTY   = { name:"", color:"#6366F1" }
 
@@ -116,7 +116,7 @@ export default function Schedule() {
     if (staffData?.length) {
       setStaffRows(staffData)
       const ownerRoles = new Set((deptData||[]).filter(d=>d.is_owner).map(d=>d.name))
-      setStaff(staffData.filter(s=>s.active!==false && !ownerRoles.has(s.role)).map(s=>s.name))
+      setStaff(staffData.filter(s=>s.active!==false && !(s.role||[]).some(r=>ownerRoles.has(r))).map(s=>s.name))
     }
     setLoading(false)
   }
@@ -138,7 +138,7 @@ export default function Schedule() {
     if (!staffForm.name.trim()) return
     if (staffForm.pin && (staffForm.pin.length!==4||!/^\d+$/.test(staffForm.pin))) { alert("PIN must be 4 digits"); return }
     setStaffSaving(true)
-    const payload = { name:staffForm.name.trim(), role:staffForm.role, color:staffForm.color, pin:staffForm.pin||null, active:staffForm.active!==false }
+    const payload = { name:staffForm.name.trim(), role:staffForm.role||[], color:staffForm.color, pin:staffForm.pin||null, active:staffForm.active!==false }
     if (staffModal==="add") {
       await supabase.from("staff").insert({ ...payload, id:"STAFF-"+Date.now() })
     } else {
@@ -421,12 +421,12 @@ export default function Schedule() {
                     <div style={{ width:38, height:38, borderRadius:"50%", background:color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:800, color:"#fff", flexShrink:0 }}>{initials}</div>
                     <div>
                       <div style={{ fontSize:14, fontWeight:800 }}>{s.name}</div>
-                      <div style={{ fontSize:11, color, fontWeight:700 }}>{s.role||"—"}</div>
+                      <div style={{ fontSize:11, color, fontWeight:700 }}>{(s.role||[]).join(", ")||"—"}</div>
                     </div>
                     <div style={{ marginLeft:"auto", width:8, height:8, borderRadius:"50%", background:s.active!==false?"var(--green)":"var(--surface3)" }} />
                   </div>
                   <div style={{ display:"flex", borderTop:"1px solid var(--surface3)" }}>
-                    <button onClick={()=>{ setStaffForm({...s,pin:s.pin||""}); setStaffModal(s) }} style={{ flex:1, padding:"9px", border:"none", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
+                    <button onClick={()=>{ setStaffForm({...s,pin:s.pin||"",role:s.role||[]}); setStaffModal(s) }} style={{ flex:1, padding:"9px", border:"none", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--brand)" }}>Edit</button>
                     <button onClick={()=>deleteStaff(s)} style={{ flex:1, padding:"9px", border:"none", borderLeft:"1px solid var(--surface3)", background:"none", fontSize:12, fontWeight:600, cursor:"pointer", color:"var(--red)" }}>Delete</button>
                   </div>
                 </div>
@@ -573,11 +573,23 @@ export default function Schedule() {
                 <input value={staffForm.name} onChange={e=>setStaffForm(f=>({...f,name:e.target.value}))} className="bo-input" autoFocus placeholder="Full name" />
               </div>
               <div className="bo-form-row">
-                <label className="bo-label">Department</label>
-                <select value={staffForm.role} onChange={e=>setStaffForm(f=>({...f,role:e.target.value}))} className="bo-select">
-                  <option value="">— Select —</option>
-                  {depts.map(d=><option key={d.id} value={d.name}>{d.name}</option>)}
-                </select>
+                <label className="bo-label">Departments — click to toggle (can pick more than one)</label>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {depts.map(d=>{
+                    const sel = (staffForm.role||[]).includes(d.name)
+                    return (
+                      <button key={d.id} type="button" onClick={()=>setStaffForm(f=>{
+                        const cur = f.role||[]
+                        return { ...f, role: cur.includes(d.name) ? cur.filter(r=>r!==d.name) : [...cur,d.name] }
+                      })}
+                        style={{ padding:"6px 14px", borderRadius:20, fontSize:12, fontWeight:700, cursor:"pointer",
+                          border:"1.5px solid "+(sel?d.color:"var(--surface3)"),
+                          background:sel?d.color+"22":"#fff", color:sel?d.color:"var(--ink4)" }}>
+                        {d.name}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
               <div className="bo-form-row">
                 <label className="bo-label">PIN (4 digits — for POS login)</label>

@@ -26,7 +26,7 @@ const isNative = () => !!window?.Capacitor?.isNativePlatform?.();
 export function prefetchLogo() {}
 
 function fmt(n) {
-  return "Rp " + Number(n || 0).toLocaleString("en-US");
+  return "Rp " + Number(n || 0).toLocaleString("id-ID");
 }
 
 function buildReceiptPayload(order, opts = {}, paperSize = "80mm") {

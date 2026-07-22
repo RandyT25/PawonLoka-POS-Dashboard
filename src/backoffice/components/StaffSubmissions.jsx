@@ -1,7 +1,31 @@
 import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
+
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (!ing || unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
+
+// Price for one unit of `unit` (a purchase unit like "kg"/"pack"), given ing.cost_per_unit is priced per ing.unit (base unit)
+function unitPriceFor(ing, unit) {
+  if (!ing) return 0
+  if (unit === ing.unit) return ing.cost_per_unit || 0
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return (ing.cost_per_unit||0) * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return (ing.cost_per_unit||0) * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return (ing.cost_per_unit||0) * fallbacks[unit]
+  return ing.cost_per_unit || 0
+}
+
 const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", production:"var(--green)", requisition:"#6554C0" }
 const TYPE_ICONS  = { opname:"📋", waste:"🗑️", production:"🏭", requisition:"🛒" }
 const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", production:"Production", requisition:"Request" }
@@ -34,8 +58,10 @@ export default function StaffSubmissions() {
   const [submissions, setSubmissions] = useState([])
   const [ingredients, setIngredients] = useState([])
   const [subRecipes,  setSubRecipes]  = useState([])
+  const [suppliers,   setSuppliers]   = useState([])
+  const [reqSelected, setReqSelected] = useState(new Set())
   const [typeFilter,  setTypeFilter]  = useState("all")
-  const [statusFilter,setStatusFilter]= useState("pending")
+  const [statusFilter,setStatusFilter]= useState("all")
   const [viewModal,   setViewModal]   = useState(null)
   const [editModal,   setEditModal]   = useState(null)
   const [editData,    setEditData]    = useState(null)
@@ -43,8 +69,20 @@ export default function StaffSubmissions() {
   const [processing,  setProcessing]  = useState(false)
   const [newCount,    setNewCount]    = useState(0)
   const [selected,    setSelected]    = useState(new Set())
+  const [confirmState, setConfirmState] = useState(null) // {message, resolve}
   const audioRef = useRef(null)
   const channelRef = useRef(null)
+
+  // Custom in-app confirm, replacing window.confirm() — Chrome silently auto-suppresses
+  // native confirm()/alert() after a page triggers several in one session, which makes
+  // Approve/Reject/Delete silently do nothing with zero feedback. This can't be suppressed.
+  function askConfirm(message) {
+    return new Promise(resolve => setConfirmState({ message, resolve }))
+  }
+  function resolveConfirm(result) {
+    confirmState?.resolve(result)
+    setConfirmState(null)
+  }
 
   useEffect(() => { load() }, [])
 
@@ -71,12 +109,13 @@ export default function StaffSubmissions() {
 
   async function load() {
     setLoading(true)
-    const [{ data:s }, { data:i }, { data:sr }] = await Promise.all([
+    const [{ data:s }, { data:i }, { data:sr }, { data:sup }] = await Promise.all([
       supabase.from("staff_submissions").select("*").order("submitted_at", { ascending:false }),
       supabase.from("ingredients").select("*"),
-      supabase.from("sub_recipes").select("id,name,ingredient_id"),
+      supabase.from("sub_recipes").select("id,name,ingredient_id,yield_qty,yield_unit"),
+      supabase.from("suppliers").select("id,name,phone"),
     ])
-    setSubmissions(s||[]); setIngredients(i||[]); setSubRecipes(sr||[])
+    setSubmissions(s||[]); setIngredients(i||[]); setSubRecipes(sr||[]); setSuppliers(sup||[])
     setLoading(false)
     setNewCount(0)
   }
@@ -91,6 +130,12 @@ export default function StaffSubmissions() {
     const matchType   = typeFilter === "all" || s.type === typeFilter
     return matchStatus && matchType
   })
+
+  useEffect(() => {
+    if (viewModal?.type === "requisition") {
+      setReqSelected(new Set((viewModal.data.items||[]).map((_,i)=>i)))
+    }
+  }, [viewModal?.id])
 
   function openEdit(sub) {
     setEditData(JSON.parse(JSON.stringify(sub.data)))
@@ -111,6 +156,7 @@ export default function StaffSubmissions() {
       cleaned = { ...editData, items: (editData.items||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
     } else if (editModal.type === "production") {
       cleaned = { ...editData, batch_qty: parseFloat(editData.batch_qty)||0,
+        actual_yield: parseFloat(editData.actual_yield)||0,
         ingredients_used: (editData.ingredients_used||[]).map(x => ({...x, qty: parseFloat(x.qty)||0})) }
     }
     await supabase.from("staff_submissions").update({ data: cleaned }).eq("id", editModal.id)
@@ -118,14 +164,18 @@ export default function StaffSubmissions() {
     setEditModal(null); setEditData(null)
   }
 
-  async function approve(sub) {
-    if (!confirm("Approve and apply this " + sub.type + " report?")) return
-    setProcessing(true)
-    try {
+  // Core apply logic, shared by the single-submission Approve button and bulk approve.
+  // Throws on error — callers decide how to surface it (alert vs. collecting into a batch summary).
+  async function approveOne(sub) {
       if (sub.type==="opname") {
         for (const item of sub.data.items||[]) {
-          await supabase.from("ingredients").update({ stock:item.actual_qty }).eq("id",item.ingredient_id)
-          await supabase.from("stock_movements").insert({
+          // Apply the counted DIFFERENCE on top of current live stock (not an overwrite) — approvals
+          // often happen days after the physical count, and sales/production in between must not be erased.
+          const { data:freshIng } = await supabase.from("ingredients").select("stock").eq("id",item.ingredient_id).maybeSingle()
+          const newStock = Math.max(0, (freshIng?.stock ?? item.system_qty) + item.diff)
+          const { error:updErr } = await supabase.from("ingredients").update({ stock:newStock }).eq("id",item.ingredient_id)
+          if (updErr) throw updErr
+          const { error:movErr } = await supabase.from("stock_movements").insert({
             id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
             type:"Adjustment", ingredient_id:item.ingredient_id, ingredient_name:item.name,
             qty:item.diff, unit:item.unit, ref:sub.id,
@@ -133,24 +183,30 @@ export default function StaffSubmissions() {
             date:new Date().toISOString().slice(0,10),
             time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
           })
+          if (movErr) throw movErr
         }
-        await supabase.from("stock_opname").insert({
-          id:"OPN-"+Date.now(), date:new Date().toISOString().slice(0,10),
+        const { error:opnErr } = await supabase.from("stock_opname").insert({
+          id:"OPN-"+Date.now(), date:(sub.submitted_at||new Date().toISOString()).slice(0,10),
           status:"Completed",
-          items:sub.data.items.map(i=>({ ...i, ingredient_name: i.ingredient_name || i.name })),
+          items:sub.data.items.map(i=>{
+            const cost = ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0
+            return { ...i, ingredient_name: i.ingredient_name || i.name, value_diff: i.diff*cost }
+          }),
           total_variance:sub.data.items.reduce((a,i)=>a+(i.diff*(ingredients.find(x=>x.id===i.ingredient_id)?.cost_per_unit||0)),0)
         })
+        if (opnErr) throw opnErr
       } else if (sub.type==="waste") {
         const d = sub.data
         const ing = ingredients.find(i=>i.id===d.ingredient_id)
         if (ing) {
           await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-d.qty) }).eq("id",ing.id)
-          await supabase.from("waste_records").insert({
+          const { error:wstErr } = await supabase.from("waste_records").insert({
             id:"WST-"+Date.now(), date:new Date().toISOString().slice(0,10),
             ingredient_id:d.ingredient_id, ingredient_name:d.ingredient_name,
             qty:d.qty, unit:d.unit, reason:d.reason, cost:d.estimated_cost,
             recorded_by:sub.submitted_by, notes:d.notes||null
           })
+          if (wstErr) throw wstErr
           await supabase.from("stock_movements").insert({
             id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
             type:"Waste", ingredient_id:d.ingredient_id, ingredient_name:d.ingredient_name,
@@ -168,11 +224,12 @@ export default function StaffSubmissions() {
         for (const u of d.ingredients_used||[]) {
           const ing = ingredients.find(i=>i.id===u.ingredient_id)
           if (ing) {
-            await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-u.qty) }).eq("id",ing.id)
+            const qtyBase = toBaseUnit(ing, u.qty||0, u.unit)
+            await supabase.from("ingredients").update({ stock:Math.max(0,(ing.stock||0)-qtyBase) }).eq("id",ing.id)
             await supabase.from("stock_movements").insert({
               id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
               type:"Production", ingredient_id:ing.id, ingredient_name:ing.name,
-              qty:-u.qty, unit:u.unit, ref:sub.id,
+              qty:-qtyBase, unit:ing.unit, ref:sub.id,
               note:"Production: "+d.item_name+" by "+sub.submitted_by,
               date:new Date().toISOString().slice(0,10),
               time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
@@ -181,31 +238,41 @@ export default function StaffSubmissions() {
         }
         if (item) {
           await supabase.from("ingredients").update({ stock:(item.stock||0)+producedQty }).eq("id",item.id)
-          await supabase.from("production_batches").insert({
+          const { error:prodErr } = await supabase.from("production_batches").insert({
             id:"PRD-"+Date.now(), item_id:item.id, item_name:d.item_name,
-            batch_qty:producedQty, unit:d.yield_unit||d.unit, date:new Date().toISOString().slice(0,10),
+            batch_qty:producedQty, unit:d.yield_unit||d.unit, date:(sub.submitted_at||new Date().toISOString()).slice(0,10),
             produced_by:sub.submitted_by, notes:d.notes||null,
             ingredients_used:d.ingredients_used, status:"Completed"
           })
+          if (prodErr) throw prodErr
         }
       }
-      await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-      await load(); setViewModal(null); setStatusFilter("approved")
+      const { error:statusErr } = await supabase.from("staff_submissions").update({ status:"approved", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
+      if (statusErr) throw statusErr
+  }
+
+  async function approve(sub) {
+    if (!(await askConfirm("Approve and apply this " + sub.type + " report?"))) return
+    setProcessing(true)
+    try {
+      await approveOne(sub)
+      await load(); setViewModal(null)
     } catch(e) { alert("Error: "+e.message) }
     setProcessing(false)
   }
 
   async function reject(sub) {
-    if (!confirm("Reject this submission?")) return
-    await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
-    await load(); setViewModal(null); setStatusFilter("rejected")
+    if (!(await askConfirm("Reject this submission?"))) return
+    const { error } = await supabase.from("staff_submissions").update({ status:"rejected", reviewed_at:new Date().toISOString() }).eq("id",sub.id)
+    if (error) { alert("Error: "+error.message); return }
+    await load(); setViewModal(null)
   }
 
   async function deleteSubmission(sub) {
     const warning = sub.status==="approved"
       ? "This submission was already approved — deleting it only removes this record, it will NOT undo any stock/ingredient changes it already applied. Delete anyway?"
       : "Delete this submission? This cannot be undone."
-    if (!confirm(warning)) return
+    if (!(await askConfirm(warning))) return
     await supabase.from("staff_submissions").delete().eq("id",sub.id)
     setSubmissions(prev => prev.filter(s => s.id !== sub.id))
     setViewModal(null)
@@ -221,15 +288,32 @@ export default function StaffSubmissions() {
     const anyApproved = submissions.some(s => ids.includes(s.id) && s.status==="approved")
     const warning = "Delete "+ids.length+" selected submission"+(ids.length>1?"s":"")+"? This cannot be undone."
       + (anyApproved ? " Some are already approved — deleting them only removes the record, it will NOT undo any stock/ingredient changes already applied." : "")
-    if (!confirm(warning)) return
+    if (!(await askConfirm(warning))) return
     await supabase.from("staff_submissions").delete().in("id", ids)
     setSubmissions(prev => prev.filter(s => !ids.includes(s.id)))
     setSelected(new Set())
   }
 
+  async function bulkApprove() {
+    const ids = [...selected]
+    const targets = submissions.filter(s => ids.includes(s.id) && s.status==="pending" && s.type!=="requisition")
+    if (targets.length === 0) { alert("No approvable submissions selected (requisitions need \"To PO\" instead, and only pending items can be approved)."); return }
+    const warning = "Approve and apply "+targets.length+" selected submission"+(targets.length>1?"s":"")+"?"
+    if (!(await askConfirm(warning))) return
+    setProcessing(true)
+    const failures = []
+    for (const sub of targets) {
+      try { await approveOne(sub) } catch(e) { failures.push(sub.id+": "+e.message) }
+    }
+    await load()
+    setSelected(new Set())
+    setProcessing(false)
+    if (failures.length) alert("Approved "+(targets.length-failures.length)+" of "+targets.length+". Failed:\n"+failures.join("\n"))
+  }
+
   async function convertToPO(sub) {
     const items = (sub.data.items||[]).map(item => {
-      const unit_cost = ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit || 0
+      const unit_cost = unitPriceFor(ingredients.find(x=>x.id===item.ingredient_id), item.unit)
       const total_cost = item.qty * unit_cost
       return {
         ingredient_id:item.ingredient_id, name:item.ingredient_name,
@@ -249,27 +333,31 @@ export default function StaffSubmissions() {
     alert("Draft PO created. Go to Purchase Orders to complete it.")
   }
 
-  function sendReqToSupplierWA(sub) {
-    const items = sub.data?.items || []
-    const bySupplier = {}
-    items.forEach(item => {
-      const sup = item.supplier || "Supplier Tidak Diketahui"
-      if (!bySupplier[sup]) bySupplier[sup] = []
-      bySupplier[sup].push(item)
-    })
-    if (Object.keys(bySupplier).length === 0) { alert("No items"); return }
+  function toggleReqItem(i) {
+    setReqSelected(prev => { const next = new Set(prev); next.has(i) ? next.delete(i) : next.add(i); return next })
+  }
+
+  async function updateReqItemSupplier(sub, i, supplierName) {
+    const items = (sub.data.items||[]).map((it,idx)=> idx===i ? {...it, supplier:supplierName} : it)
+    const newData = {...sub.data, items}
+    setViewModal(v => v ? {...v, data:newData} : v)
+    setSubmissions(prev => prev.map(s => s.id===sub.id ? {...s, data:newData} : s))
+    await supabase.from("staff_submissions").update({ data:newData }).eq("id", sub.id)
+  }
+
+  function sendSupplierGroupWA(sub, supplierName, items) {
     const date = new Date(sub.submitted_at).toLocaleDateString("id-ID")
     let text = "*PERMINTAAN BAHAN - PawonLoka*\n"
     text += "Tanggal: " + date + "\n"
     text += "Station: " + (sub.data?.station || "-") + "\n"
     text += "Dibutuhkan: " + (sub.data?.needed_by || "Hari ini") + "\n\n"
-    Object.entries(bySupplier).forEach(([sup, its]) => {
-      text += "*" + sup + "*\n"
-      its.forEach(i => { text += "- " + i.ingredient_name + " " + i.qty + " " + i.unit + "\n" })
-      text += "\n"
-    })
-    if (sub.data?.notes) text += "Catatan: " + sub.data.notes + "\n"
-    window.open("https://wa.me/?text=" + encodeURIComponent(text), "_blank")
+    text += "*" + supplierName + "*\n"
+    items.forEach(i => { text += "- " + i.ingredient_name + " " + i.qty + " " + i.unit + "\n" })
+    if (sub.data?.notes) text += "\nCatatan: " + sub.data.notes + "\n"
+    const supplierRecord = suppliers.find(s=>s.name===supplierName)
+    const phone = supplierRecord?.phone ? supplierRecord.phone.replace(/[^0-9]/g,"") : ""
+    const url = phone ? "https://wa.me/"+phone+"?text="+encodeURIComponent(text) : "https://wa.me/?text="+encodeURIComponent(text)
+    window.open(url, "_blank")
   }
 
     const staffUrl = window.location.origin + "/staff"
@@ -334,6 +422,7 @@ export default function StaffSubmissions() {
         <div style={{ padding:"10px 16px", background:"var(--brand-lt)", border:"1.5px solid var(--brand)", borderRadius:"var(--r)", marginBottom:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
           <div style={{ fontWeight:700, color:"var(--brand)", fontSize:13 }}>{selected.size} selected</div>
           <div style={{ display:"flex", gap:8 }}>
+            <button onClick={bulkApprove} disabled={processing} className="bo-btn bo-btn-sm" style={{ background:"var(--green-lt)", color:"var(--green)", border:"none" }}>Approve Selected</button>
             <button onClick={bulkDelete} className="bo-btn bo-btn-sm bo-btn-danger">Delete Selected</button>
             <button onClick={()=>setSelected(new Set())} className="bo-btn bo-btn-ghost bo-btn-sm">Clear</button>
           </div>
@@ -350,14 +439,14 @@ export default function StaffSubmissions() {
             <tbody>
               {filtered.map(s => {
                 const c = TYPE_COLORS[s.type]||"var(--ink5)"
-                const reqTotal = (s.data.items||[]).reduce((a,item)=>a+(item.qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
+                const reqTotal = (s.data.items||[]).reduce((a,item)=>a+(item.qty*unitPriceFor(ingredients.find(x=>x.id===item.ingredient_id),item.unit)),0)
                 const opnameVariance = (s.data.items||[]).reduce((a,item)=>a+(item.diff*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0)
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted — "+fmt(opnameVariance)+" variance"
                   : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
-                  : (s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
+                  : (s.data.batch_qty ? s.data.batch_qty+"× resep · " : "")+(s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
                 return (
-                  <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":"" }}>
+                  <tr key={s.id} style={{ background: s.status==="pending"?"#fffbeb":s.status==="approved"?"var(--green-lt)":s.status==="rejected"?"var(--red-lt)":"" }}>
                     <td><input type="checkbox" checked={selected.has(s.id)} onChange={()=>toggleSelect(s.id)} /></td>
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:c+"22", color:c }}>{TYPE_ICONS[s.type]} {TYPE_LABELS[s.type]||s.type}</span></td>
                     <td style={{ fontWeight:600 }}>{s.submitted_by||"—"}</td>
@@ -416,12 +505,12 @@ export default function StaffSubmissions() {
                           <td style={{ fontWeight:600 }}>{item.name}</td>
                           <td>{item.system_qty} {item.unit}</td>
                           <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
-                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toFixed(2)}</td>
+                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff).toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                           {foundIng ? <>
                             <td>{fmt(unitPrice)}</td>
                             <td>{fmt(value)}</td>
                             <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
-                          </> : <td colSpan={3} style={{ color:"var(--red)", fontWeight:600 }}>⚠ unknown ingredient</td>}
+                          </> : <td colSpan={3} style={{ color:"var(--ink5)", fontStyle:"italic" }}>Ingredient deleted (no pricing)</td>}
                         </tr>
                       )
                     })}
@@ -444,17 +533,28 @@ export default function StaffSubmissions() {
                   ))}
                 </div>
               )}
-              {viewModal.type==="requisition" && (
+              {viewModal.type==="requisition" && (() => {
+                const items = viewModal.data.items || []
+                const bySupplier = {}
+                items.forEach((item,i) => {
+                  const sup = item.supplier || "Belum ada supplier"
+                  if (!bySupplier[sup]) bySupplier[sup] = []
+                  bySupplier[sup].push(i)
+                })
+                const totalAll = items.reduce((a,item)=>a+(item.qty*unitPriceFor(ingredients.find(x=>x.id===item.ingredient_id),item.unit)),0)
+                return (
                 <div>
                   <div style={{ marginBottom:12, fontSize:12, color:"var(--ink4)" }}>Needed by: <strong>{viewModal.data.needed_by||"—"}</strong> · Notes: {viewModal.data.notes||"—"}</div>
+                  <div style={{ overflowX:"auto" }}>
                   <table className="bo-table">
-                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th></tr></thead>
+                    <thead><tr><th></th><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Total</th><th>Supplier</th></tr></thead>
                     <tbody>
-                      {(viewModal.data.items||[]).map((item,i)=>{
+                      {items.map((item,i)=>{
                         const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
-                        const unitPrice = foundIng?.cost_per_unit||0
+                        const unitPrice = unitPriceFor(foundIng, item.unit)
                         return (
                           <tr key={i}>
+                            <td><input type="checkbox" checked={reqSelected.has(i)} onChange={()=>toggleReqItem(i)} /></td>
                             <td style={{ fontWeight:600 }}>{item.ingredient_name}</td>
                             <td style={{ fontWeight:700, color:"#6554C0" }}>{item.qty}</td>
                             <td>{item.unit}</td>
@@ -462,38 +562,91 @@ export default function StaffSubmissions() {
                               <td>{fmt(unitPrice)}</td>
                               <td style={{ fontWeight:600 }}>{fmt(item.qty*unitPrice)}</td>
                             </> : <td colSpan={2} style={{ color:"var(--red)", fontWeight:600 }}>⚠ unknown ingredient</td>}
+                            <td>
+                              <select value={item.supplier||""} onChange={e=>updateReqItemSupplier(viewModal, i, e.target.value)} className="bo-select" style={{ fontSize:11, padding:"4px 6px" }}>
+                                <option value="">— none —</option>
+                                {suppliers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
+                              </select>
+                            </td>
                           </tr>
                         )
                       })}
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td colSpan={4} style={{ textAlign:"right", fontWeight:700 }}>Total</td>
-                        <td style={{ fontWeight:800, color:"#6554C0" }}>{fmt((viewModal.data.items||[]).reduce((a,item)=>a+(item.qty*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0))}</td>
+                        <td colSpan={5} style={{ textAlign:"right", fontWeight:700 }}>Total</td>
+                        <td style={{ fontWeight:800, color:"#6554C0" }}>{fmt(totalAll)}</td>
+                        <td/>
                       </tr>
                     </tfoot>
                   </table>
+                  </div>
+
+                  <div style={{ marginTop:16, borderTop:"1px solid var(--surface3)", paddingTop:12 }}>
+                    <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", textTransform:"uppercase", marginBottom:8 }}>Send to Supplier</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {Object.entries(bySupplier).map(([sup, idxs])=>{
+                        const allSelected = idxs.every(i=>reqSelected.has(i))
+                        const selectedIdxs = idxs.filter(i=>reqSelected.has(i))
+                        return (
+                          <div key={sup} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"8px 12px", background:"var(--surface)", borderRadius:"var(--r)", gap:8, flexWrap:"wrap" }}>
+                            <button onClick={()=>setReqSelected(prev=>{ const next=new Set(prev); idxs.forEach(i=> allSelected? next.delete(i) : next.add(i)); return next })}
+                              style={{ background:"none", border:"none", padding:0, cursor:"pointer", fontSize:12, fontWeight:700, color:"var(--ink)", textAlign:"left" }}>
+                              {allSelected?"☑":"☐"} {sup} ({idxs.length} item{idxs.length>1?"s":""})
+                            </button>
+                            <button disabled={selectedIdxs.length===0} onClick={()=>sendSupplierGroupWA(viewModal, sup, selectedIdxs.map(i=>items[i]))}
+                              style={{background: selectedIdxs.length===0?"#94A3B8":"#25D366",color:"#fff",border:"none",borderRadius:"var(--r)",padding:"6px 12px",fontSize:12,fontWeight:600,cursor:selectedIdxs.length===0?"not-allowed":"pointer",fontFamily:"inherit"}}>
+                              💬 Kirim{selectedIdxs.length>0 && selectedIdxs.length!==idxs.length?" ("+selectedIdxs.length+")":""}
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
-              )}
-              {viewModal.type==="production" && (
+                )
+              })()}
+              {viewModal.type==="production" && (() => {
+                const used = viewModal.data.ingredients_used||[]
+                const prodTotal = used.reduce((a,u)=>a+(u.qty*unitPriceFor(ingredients.find(x=>x.id===u.ingredient_id),u.unit)),0)
+                return (
                 <div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:16 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:16 }}>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Produced</div><div style={{ fontWeight:700, color:"var(--green)", marginTop:3 }}>{viewModal.data.item_name}</div></div>
+                    <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Batches</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.batch_qty ?? "—"}× resep</div></div>
                     <div><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>Quantity</div><div style={{ fontWeight:700, marginTop:3 }}>{viewModal.data.actual_yield??viewModal.data.batch_qty} {viewModal.data.yield_unit||viewModal.data.unit}</div></div>
                   </div>
                   <table className="bo-table">
-                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th></tr></thead>
-                    <tbody>{(viewModal.data.ingredients_used||[]).map((u,i)=><tr key={i}><td>{u.name}</td><td>{u.qty}</td><td>{u.unit}</td></tr>)}</tbody>
+                    <thead><tr><th>Ingredient</th><th>Qty</th><th>Unit</th><th>Unit Price</th><th>Cost</th></tr></thead>
+                    <tbody>
+                      {used.map((u,i) => {
+                        const ing = ingredients.find(x=>x.id===u.ingredient_id)
+                        const unitPrice = unitPriceFor(ing,u.unit)
+                        return (
+                          <tr key={i}>
+                            <td>{u.name}</td><td>{u.qty}</td><td>{u.unit}</td>
+                            {ing ? <><td>{fmt(unitPrice)}</td><td>{fmt(u.qty*unitPrice)}</td></>
+                              : <td colSpan={2} style={{ color:"var(--ink5)", fontStyle:"italic" }}>Ingredient deleted (no pricing)</td>}
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ background:"var(--surface)", fontWeight:800 }}>
+                        <td colSpan={4} style={{ textAlign:"right" }}>Total Cost</td>
+                        <td>{fmt(prodTotal)}</td>
+                      </tr>
+                    </tfoot>
                   </table>
                   {viewModal.data.notes && <div style={{ marginTop:12, fontSize:12, color:"var(--ink4)" }}>Notes: {viewModal.data.notes}</div>}
                 </div>
-              )}
+                )
+              })()}
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>
               <button onClick={()=>deleteSubmission(viewModal)} className="bo-btn bo-btn-ghost" style={{ color:"var(--red)" }}>Delete</button>
               <button onClick={()=>openEdit(viewModal)} className="bo-btn bo-btn-ghost" style={{ color:"var(--brand)" }}>Edit</button>
-              {viewModal.type==="requisition" && <button onClick={()=>sendReqToSupplierWA(viewModal)} style={{background:"#25D366",color:"#fff",border:"none",borderRadius:"var(--r)",padding:"7px 14px",fontSize:12,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>WA Supplier</button>}
               {viewModal.status==="pending" && <>
                 <button onClick={()=>reject(viewModal)} disabled={processing} className="bo-btn bo-btn-danger">Reject</button>
                 {viewModal.type==="requisition"
@@ -589,7 +742,7 @@ export default function StaffSubmissions() {
                   </div>
                   {(editData.items||[]).map((item,i)=>{
                     const foundIng = ingredients.find(x=>x.id===item.ingredient_id)
-                    const unitPrice = foundIng?.cost_per_unit||0
+                    const unitPrice = unitPriceFor(foundIng, item.unit)
                     const unknown = item.ingredient_id && !foundIng
                     return (
                     <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 90px 28px",gap:8,marginBottom:8,alignItems:"center"}}>
@@ -612,16 +765,31 @@ export default function StaffSubmissions() {
                     )
                   })}
                   <div style={{ textAlign:"right", fontSize:13, fontWeight:700, marginTop:4, color:"#6554C0" }}>
-                    Total: {fmt((editData.items||[]).reduce((a,item)=>a+((parseFloat(item.qty)||0)*(ingredients.find(x=>x.id===item.ingredient_id)?.cost_per_unit||0)),0))}
+                    Total: {fmt((editData.items||[]).reduce((a,item)=>a+((parseFloat(item.qty)||0)*unitPriceFor(ingredients.find(x=>x.id===item.ingredient_id),item.unit)),0))}
                   </div>
                 </div>
               )}
 
-              {editModal.type==="production" && (
+              {editModal.type==="production" && (() => {
+                const linkedRecipe = subRecipes.find(sr=>sr.id===editData.sub_recipe_id)
+                return (
                 <div style={{ display:"grid", gap:12 }}>
                   <div>
-                    <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity</label>
-                    <input type="number" value={editData.batch_qty||""} onChange={e=>setEditData(d=>({...d,batch_qty:e.target.value}))} className="bo-input" />
+                    <label className="bo-label" style={{ fontSize:13, fontWeight:800, color:"var(--ink1)" }}>Batch Quantity (× resep)</label>
+                    <input type="number" value={editData.batch_qty||""} onChange={e=>{
+                      const batch_qty = e.target.value
+                      setEditData(d => ({
+                        ...d, batch_qty,
+                        // Keep actual_yield in sync — approve() uses actual_yield, not batch_qty, so
+                        // editing batch quantity alone previously had no visible effect on anything.
+                        actual_yield: linkedRecipe ? (linkedRecipe.yield_qty||1) * (parseFloat(batch_qty)||0) : d.actual_yield,
+                      }))
+                    }} className="bo-input" />
+                    {linkedRecipe && (
+                      <div style={{ fontSize:12, color:"var(--ink4)", marginTop:4 }}>
+                        → produces {editData.actual_yield ?? 0} {editData.yield_unit||linkedRecipe.yield_unit||""}
+                      </div>
+                    )}
                   </div>
                   <div style={{ borderTop:"1px solid var(--surface3)", paddingTop:12 }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:8 }}>
@@ -648,11 +816,27 @@ export default function StaffSubmissions() {
                     ))}
                   </div>
                 </div>
-              )}
+                )
+              })()}
             </div>
             <div className="bo-modal-footer">
               <button onClick={()=>setEditModal(null)} className="bo-btn bo-btn-ghost">Cancel</button>
               <button onClick={saveEdit} className="bo-btn bo-btn-primary">Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom confirm modal — replaces window.confirm() so Chrome can't silently suppress it */}
+      {confirmState && (
+        <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&resolveConfirm(false)}>
+          <div className="bo-modal" style={{ maxWidth:420 }}>
+            <div className="bo-modal-body" style={{ padding:"24px 24px 8px" }}>
+              <div style={{ fontSize:14, fontWeight:600, whiteSpace:"pre-line", lineHeight:1.5 }}>{confirmState.message}</div>
+            </div>
+            <div className="bo-modal-footer">
+              <button onClick={()=>resolveConfirm(false)} className="bo-btn bo-btn-ghost">Cancel</button>
+              <button onClick={()=>resolveConfirm(true)} className="bo-btn bo-btn-primary">Confirm</button>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
 
-function fmt(n) { return "Rp " + Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 export default function InvOpname() {
   const [sessions,    setSessions]    = useState([])
@@ -37,22 +37,29 @@ export default function InvOpname() {
   async function submitOpname() {
     if (!confirm("Submit stock count? System stock will be updated to actual counts.")) return
     setSubmitting(true)
-    const items = activeCount.map(item => ({
-      ...item, diff: item.actual_qty - item.system_qty,
-      value_diff: (item.actual_qty - item.system_qty) * item.cost_per
-    }))
-    const totalVariance = items.reduce((a,i) => a+i.value_diff, 0)
-    const sessionId = "OPN-"+String(sessions.length+1).padStart(3,"0")
-    await supabase.from("stock_opname").insert({
-      id: sessionId, date: new Date().toISOString().slice(0,10),
-      status:"Completed", items, total_variance:totalVariance
-    })
-    // Update ingredient stocks
-    for (const item of items) {
-      await supabase.from("ingredients").update({ stock:item.actual_qty }).eq("id", item.ingredient_id)
-    }
-    await load()
-    setActiveCount(null)
+    try {
+      const items = activeCount.map(item => ({
+        ...item, diff: item.actual_qty - item.system_qty,
+        value_diff: (item.actual_qty - item.system_qty) * item.cost_per
+      }))
+      const totalVariance = items.reduce((a,i) => a+i.value_diff, 0)
+      const sessionId = "OPN-"+String(sessions.length+1).padStart(3,"0")
+      const { error:opnErr } = await supabase.from("stock_opname").insert({
+        id: sessionId, date: new Date().toISOString().slice(0,10),
+        status:"Completed", items, total_variance:totalVariance
+      })
+      if (opnErr) throw opnErr
+      // Apply the counted DIFFERENCE on top of current live stock (not an overwrite), so any
+      // activity that happened while this session was open isn't erased.
+      for (const item of items) {
+        const { data:freshIng } = await supabase.from("ingredients").select("stock").eq("id", item.ingredient_id).maybeSingle()
+        const newStock = Math.max(0, (freshIng?.stock ?? item.system_qty) + item.diff)
+        const { error:updErr } = await supabase.from("ingredients").update({ stock:newStock }).eq("id", item.ingredient_id)
+        if (updErr) throw updErr
+      }
+      await load()
+      setActiveCount(null)
+    } catch(e) { alert("Error submitting stock count: "+e.message) }
     setSubmitting(false)
   }
 
@@ -83,7 +90,7 @@ export default function InvOpname() {
                         style={{ width:80, padding:"5px 8px", border:"1.5px solid var(--surface3)", borderRadius:"var(--r)", fontSize:13 }} />
                     </td>
                     <td style={{ fontWeight:700, color:diff===0?"var(--ink5)":diff<0?"var(--red)":"var(--green)" }}>
-                      {diff>=0?"+":""}{diff.toFixed(2)}
+                      {diff>=0?"+":""}{diff.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </td>
                     <td style={{ fontSize:12, color:valDiff<0?"var(--red)":valDiff>0?"var(--green)":"var(--ink5)" }}>
                       {valDiff!==0?(valDiff>=0?"+":"")+fmt(Math.abs(valDiff)):"—"}
@@ -166,7 +173,7 @@ export default function InvOpname() {
                       <td style={{ fontWeight:600 }}>{i.ingredient_name}</td>
                       <td>{i.system_qty} {i.unit}</td>
                       <td>{i.actual_qty} {i.unit}</td>
-                      <td style={{ color:i.diff<0?"var(--red)":"var(--green)", fontWeight:700 }}>{i.diff>=0?"+":""}{i.diff?.toFixed(2)}</td>
+                      <td style={{ color:i.diff<0?"var(--red)":"var(--green)", fontWeight:700 }}>{i.diff>=0?"+":""}{i.diff?.toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
                       <td style={{ color:i.value_diff<0?"var(--red)":"var(--green)", fontWeight:600 }}>{i.value_diff>=0?"+":""}{fmt(i.value_diff)}</td>
                     </tr>
                   ))}

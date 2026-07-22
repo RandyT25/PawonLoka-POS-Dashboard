@@ -2,14 +2,44 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import { offlineStore } from "../lib/offlineStore"
 
-function fmt(n) { return Number(n||0).toLocaleString("en-US") }
+function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
+
+// Convert a qty expressed in `unit` into the ingredient's own base/stock unit
+function toBaseUnit(ing, qty, unit) {
+  if (!ing || unit === ing.unit) return qty
+  const conv = (ing.conversions||[]).find(c => c.unit === unit)
+  if (conv && parseFloat(conv.qty) > 0) return qty * parseFloat(conv.qty)
+  const fallbacks = { kg:1000, L:1000, Galon:19000 }
+  if (ing.unit==="gr" && fallbacks[unit]) return qty * fallbacks[unit]
+  if (ing.unit==="ml" && fallbacks[unit]) return qty * fallbacks[unit]
+  return qty
+}
+
+// Default a newly-selected ingredient's unit to its biggest packaging size (largest
+// conversions[].qty multiplier), not the raw base unit, since that's almost never what
+// staff actually mean to select when they don't touch the unit dropdown.
+function biggestUnit(ing) {
+  if (!ing) return ""
+  const convs = ing.conversions || []
+  if (!convs.length) return ing.unit
+  return convs.reduce((max, c) => (parseFloat(c.qty)||0) > (parseFloat(max.qty)||0) ? c : max, convs[0]).unit || ing.unit
+}
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 
 const STATIONS = {
-  Kitchen:    { color:"#00875A", staff:["Meldy","Oji","Yudi"] },
-  Snack:      { color:"#F59E0B", staff:["Alin","Uti"] },
-  Bar:        { color:"#3B82F6", staff:["Mahes","Nita"] },
-  Kasir:      { color:"#6366F1", staff:["Nita","Uti"] },
+  Kitchen:    { color:"#00875A" },
+  Snack:      { color:"#F59E0B" },
+  Bar:        { color:"#3B82F6" },
+  Kasir:      { color:"#6366F1" },
+}
+
+// Which Backoffice departments show up on each station's staff picker —
+// Cook/Head Cook/Bakar all fold into the Kitchen screen, matching today's setup.
+const STATION_DEPTS = {
+  Kitchen: ["Kitchen","Cook","Head Cook","Bakar"],
+  Snack:   ["Snack"],
+  Bar:     ["Bar"],
+  Kasir:   ["Kasir"],
 }
 
 const MENUS = {
@@ -71,8 +101,7 @@ function SearchableSelect({ options, value, onChange, placeholder, labelKey="nam
   )
 }
 
-function StaffPicker({ station, value, onChange }) {
-  const staffList = STATIONS[station]?.staff || []
+function StaffPicker({ station, value, onChange, staffList }) {
   return (
     <div>
       <div style={{ fontSize:12, fontWeight:700, color:"#666", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.4px" }}>Submitted By *</div>
@@ -112,8 +141,27 @@ export default function StaffPortal() {
   const [reqDate,      setReqDate]      = useState(new Date().toISOString().slice(0,10))
   const [reqNotes,     setReqNotes]     = useState("")
   const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
+  const [stationStaff, setStationStaff] = useState({})
 
+  useEffect(() => { loadStaff() }, [])
   useEffect(() => { if (station) loadData() }, [station])
+
+  function buildStationStaff(rows) {
+    const map = {}
+    Object.keys(STATION_DEPTS).forEach(st => {
+      map[st] = rows.filter(r => (r.role||[]).some(role => STATION_DEPTS[st].includes(role))).map(r=>r.name)
+    })
+    return map
+  }
+
+  async function loadStaff() {
+    const cached = await offlineStore.getCache('staff')
+    if (cached?.length) setStationStaff(buildStationStaff(cached))
+    try {
+      const { data } = await supabase.from("staff").select("name,role,active").eq("active", true)
+      if (data) { setStationStaff(buildStationStaff(data)); offlineStore.setCache('staff', data) }
+    } catch { /* offline — cached already applied */ }
+  }
 
   async function loadData() {
     // Load from cache immediately for offline startup
@@ -122,19 +170,19 @@ export default function StaffPortal() {
       offlineStore.getCache('sub_recipes'),
       offlineStore.getCache('sub_recipe_ingredients'),
     ])
-    if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
+    if (cachedIngs?.length)   { setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
     if (cachedSubs?.length)   setSubRecipes(cachedSubs)
     if (cachedSubIngs?.length) setSubRecipeIngs(cachedSubIngs)
-    if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
+    if ((stationStaff[station]||[]).length === 1) setStaffName(stationStaff[station][0])
 
     // Refresh from Supabase in background
     try {
       const [{ data:ings }, { data:subs }, { data:subIngs }] = await Promise.all([
-        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station").order("name"),
+        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions").order("name"),
         supabase.from("sub_recipes").select("*").order("name"),
         supabase.from("sub_recipe_ingredients").select("*"),
       ])
-      if (ings)    { setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
+      if (ings)    { setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
       if (subs)    { setSubRecipes(subs); offlineStore.setCache('sub_recipes', subs) }
       if (subIngs) { setSubRecipeIngs(subIngs); offlineStore.setCache('sub_recipe_ingredients', subIngs) }
     } catch { /* offline — already loaded from cache */ }
@@ -168,7 +216,12 @@ export default function StaffPortal() {
   async function submitOpname() {
     const filled = opnameCounts.filter(i=>i.actual_qty!=="")
     if (!filled.length) { alert("Enter at least one count"); return }
-    await submit("opname", { items:filled.map(i=>({ ...i, actual_qty:parseFloat(i.actual_qty)||0, diff:(parseFloat(i.actual_qty)||0)-i.system_qty })) })
+    await submit("opname", { items:filled.map(i=>{
+      const enteredQty = parseFloat(i.actual_qty)||0
+      const ing = ingredients.find(x=>x.id===i.ingredient_id)
+      const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit||i.unit)
+      return { ...i, entered_qty:enteredQty, entered_unit:i.input_unit||i.unit, actual_qty, diff:actual_qty-i.system_qty }
+    }) })
   }
 
   async function submitWaste() {
@@ -213,7 +266,7 @@ export default function StaffPortal() {
     setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"" })
     setProdSubId(""); setProdBatchQty(""); setProdYield(""); setProdYieldUnit(""); setProdUsed([]); setProdNotes("")
     setReqDate(new Date().toISOString().slice(0,10)); setReqNotes(""); setReqItems([{ ingredient_id:"", qty:"", unit:"" }])
-    if ((STATIONS[station]?.staff||[]).length === 1) setStaffName(STATIONS[station].staff[0])
+    if ((stationStaff[station]||[]).length === 1) setStaffName(stationStaff[station][0])
   }
 
   const stationColor = station ? STATIONS[station].color : "#1a1a2e"
@@ -314,7 +367,7 @@ export default function StaffPortal() {
         </div>
         <div style={s.body}>
           <div style={{ ...s.card, marginBottom:10 }}>
-            <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+            <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
           </div>
           <div style={{ ...s.card, padding:"10px 12px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
             <span style={{ fontSize:16 }}>🔍</span>
@@ -334,7 +387,16 @@ export default function StaffPortal() {
                 <input type="number" inputMode="decimal" value={item.actual_qty}
                   onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))}
                   placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0, background:filled?"#f0fff8":"#fafafa", borderColor:filled?"#00875A":"#e0e0e0" }} />
-                <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
+                {(item.conversions||[]).length > 0 ? (
+                  <select value={item.input_unit||item.unit}
+                    onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,input_unit:e.target.value}:x))}
+                    style={{ fontSize:11, color:"#888", minWidth:48, flexShrink:0, border:"1px solid #e0e0e0", borderRadius:6, padding:"4px 2px", background:"#fff" }}>
+                    <option value={item.unit}>{item.unit}</option>
+                    {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
+                  </select>
+                ) : (
+                  <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
+                )}
               </div>
             )
           })}
@@ -356,7 +418,7 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={s.card}>
-          <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+          <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
         </div>
         <div style={s.card}>
           <label style={s.label}>Ingredient / Sub-Recipe *</label>
@@ -404,7 +466,7 @@ export default function StaffPortal() {
 
           {/* Staff */}
           <div style={s.card}>
-            <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+            <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
           </div>
 
           {/* Step 1 — Recipe selector */}
@@ -461,7 +523,7 @@ export default function StaffPortal() {
               {totalCost > 0 && (
                 <div style={{ marginTop:10, padding:"9px 13px", background:"#f0fff8", borderRadius:9, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
                   <span style={{ fontSize:12, fontWeight:700, color:"#00875A" }}>Estimasi biaya</span>
-                  <span style={{ fontSize:15, fontWeight:900, color:"#00875A" }}>Rp {Number(totalCost).toLocaleString("en-US")}</span>
+                  <span style={{ fontSize:15, fontWeight:900, color:"#00875A" }}>Rp {Number(totalCost).toLocaleString("id-ID")}</span>
                 </div>
               )}
             </div>
@@ -497,7 +559,7 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={s.card}>
-          <StaffPicker station={station} value={staffName} onChange={setStaffName} />
+          <StaffPicker station={station} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
         </div>
         <div style={s.card}>
           <div style={{ marginBottom:14 }}>
@@ -517,15 +579,24 @@ export default function StaffPortal() {
           <div style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:8 }}>
             {["#","INGREDIENT","QTY","UNIT",""].map((h,i)=><div key={i} style={{ fontSize:10, fontWeight:700, color:"#999", textTransform:"uppercase" }}>{h}</div>)}
           </div>
-          {reqItems.map((item,i)=>(
+          {reqItems.map((item,i)=>{
+            const selIng = ingredients.find(x=>x.id===item.ingredient_id)
+            const unitOptions = selIng ? [selIng.unit, ...(selIng.conversions||[]).map(c=>c.unit)].filter((u,idx,arr)=>u&&arr.indexOf(u)===idx) : []
+            return (
             <div key={i} style={{ display:"grid", gridTemplateColumns:"40px 1fr 70px 60px 28px", gap:6, marginBottom:10, alignItems:"center" }}>
               <div style={{ fontSize:13, fontWeight:700, color:"#999", textAlign:"center" }}>{i+1}</div>
-              <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:ing?.unit||""}:x)) }} placeholder="Search..." />
+              <SearchableSelect options={ingredients} value={item.ingredient_id} onChange={v=>{ const ing=ingredients.find(x=>x.id===v); setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,ingredient_id:v,unit:biggestUnit(ing)}:x)) }} placeholder="Search..." />
               <input type="number" inputMode="decimal" value={item.qty} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,qty:e.target.value}:x))} style={{ ...s.input, padding:"10px 8px", fontSize:14, textAlign:"center" }} placeholder="0" />
-              <input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }} placeholder="kg" />
+              {unitOptions.length>0
+                ? <select value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }}>
+                    {unitOptions.map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>
+                : <input value={item.unit} onChange={e=>setReqItems(prev=>prev.map((x,idx)=>idx===i?{...x,unit:e.target.value}:x))} style={{ ...s.input, padding:"10px 6px", fontSize:13, textAlign:"center" }} placeholder="kg" />
+              }
               {reqItems.length>1 ? <button onClick={()=>setReqItems(prev=>prev.filter((_,idx)=>idx!==i))} style={{ background:"none", border:"none", color:"#DE350B", fontSize:18, cursor:"pointer", padding:0 }}>✕</button> : <div/>}
             </div>
-          ))}
+            )
+          })}
         </div>
         <button onClick={submitRequisition} disabled={saving} style={{ ...s.btn, background:"#374151", color:"#fff" }}>{saving?"Submitting...":"Submit Request"}</button>
       </div>

@@ -5,7 +5,7 @@ import autoTable from "jspdf-autotable"
 const BRAND_BLUE  = [0, 82, 204]
 const GRAY_TEXT   = [80, 80, 80]
 
-export const fmtIDR = n => "Rp " + Number(n || 0).toLocaleString("en-US")
+export const fmtIDR = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
 
 export function formatPeriodLabel(range, from, to) {
   const fmtD = d => d
@@ -39,23 +39,44 @@ export function filenameSlug(range, from, to) {
 
 // ── PDF ─────────────────────────────────────────────────────────────────────
 
-function pdfHeader(doc, title, periodLabel, filterLabel) {
+let _logoDataUrl = null
+async function loadLogo() {
+  if (_logoDataUrl) return _logoDataUrl
+  const res = await fetch("/logo.png")
+  const blob = await res.blob()
+  _logoDataUrl = await new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+  return _logoDataUrl
+}
+
+async function pdfHeader(doc, title, periodLabel, filterLabel) {
   const W = doc.internal.pageSize.getWidth()
 
   doc.setFillColor(...BRAND_BLUE)
-  doc.rect(0, 0, W, 20, "F")
+  doc.rect(0, 0, W, 24, "F")
+
+  try {
+    const logo = await loadLogo()
+    doc.setFillColor(255, 255, 255)
+    doc.roundedRect(12, 3, 18, 18, 2, 2, "F")
+    doc.addImage(logo, "PNG", 13, 4, 16, 16)
+  } catch { /* logo optional — header still renders without it */ }
 
   doc.setFont("helvetica", "bold")
-  doc.setFontSize(12)
+  doc.setFontSize(13)
   doc.setTextColor(255, 255, 255)
-  doc.text("PawonLoka", 14, 13)
+  doc.text("PawonLoka", 34, 13)
   doc.setFontSize(8)
   doc.setFont("helvetica", "normal")
   doc.text(title, W - 14, 13, { align:"right" })
 
   doc.setTextColor(...GRAY_TEXT)
   doc.setFontSize(8)
-  let y = 28
+  let y = 32
   doc.text("Periode: " + periodLabel, 14, y)
   doc.text("Dicetak: " + new Date().toLocaleDateString("id-ID"), W - 14, y, { align:"right" })
   if (filterLabel) { y += 5; doc.text("Filter: " + filterLabel, 14, y) }
@@ -88,9 +109,9 @@ const TABLE_OPTS = {
 /**
  * tables: [{ label?: string, head: string[], body: (string|number)[][] }]
  */
-export function exportPDF({ title, periodLabel, filterLabel, tables, filename }) {
+export async function exportPDF({ title, periodLabel, filterLabel, tables, filename }) {
   const doc = new jsPDF()
-  let y = pdfHeader(doc, title, periodLabel, filterLabel)
+  let y = await pdfHeader(doc, title, periodLabel, filterLabel)
 
   tables.forEach((tbl, idx) => {
     if (tbl.label) {

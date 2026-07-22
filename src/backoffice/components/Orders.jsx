@@ -2,13 +2,13 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 
-const fmt = n => "Rp " + Math.round(n||0).toLocaleString("en-US")
+const fmt = n => "Rp " + Math.round(n||0).toLocaleString("id-ID")
 
 function sendWA(order) {
   const phone = order.customer_phone || prompt("Enter customer WhatsApp number (e.g. 628123456789):")
   if (!phone) return
   const clean = phone.replace(/\D/g,"").replace(/^0/,"62")
-  const total = "Rp " + Math.round(order.total||0).toLocaleString("en-US")
+  const total = "Rp " + Math.round(order.total||0).toLocaleString("id-ID")
   const text = "Halo " + (order.customer||"Kak") + "!\n\nTerima kasih sudah makan di PawonLoka!\n\n*Struk Digital*\nNo. Order : " + order.id + "\nMeja      : " + (order.table||"Walk-in") + "\nTotal     : " + total + "\n\nLihat struk lengkap:\nhttps://pawonloka.pages.dev/receipt?id=" + order.id + "\n\nSampai jumpa lagi!"
   window.open("https://wa.me/" + clean + "?text=" + encodeURIComponent(text), "_blank")
 }

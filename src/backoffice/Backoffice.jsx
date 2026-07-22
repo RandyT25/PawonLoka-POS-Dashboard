@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { supabase } from "../lib/supabase"
 import NavIcon from "./components/NavIcon"
+import { setFoodCategories, setSupplyCategories } from "./lib/ingredientCategories"
 
 import "./backoffice.css"
 
@@ -14,6 +15,8 @@ const TopSlowReport    = lazy(() => import("./components/TopSlowReport"))
 const Products        = lazy(() => import("./components/Products"))
 const Categories      = lazy(() => import("./components/Categories"))
 const Modifiers       = lazy(() => import("./components/Modifiers"))
+const UnitsOfMeasure  = lazy(() => import("./components/UnitsOfMeasure"))
+const IngredientCategories = lazy(() => import("./components/IngredientCategories"))
 const Recipes         = lazy(() => import("./components/RecipeEditor"))
 const Employees       = lazy(() => import("./components/Employees"))
 const Shifts          = lazy(() => import("./components/Shifts"))
@@ -42,6 +45,7 @@ const Attendance      = lazy(() => import("./components/Attendance"))
 const DepartmentsPage = lazy(() => import("./components/Departments"))
 const Accounting      = lazy(() => import("./components/Accounting"))
 const Rekonsiliasi    = lazy(() => import("./components/Rekonsiliasi"))
+const Assets          = lazy(() => import("./components/Assets"))
 const Orders          = lazy(() => import("./components/Orders"))
 const MarketPrices    = lazy(() => import("./components/MarketPrices"))
 const Profitability   = lazy(() => import("./components/Profitability"))
@@ -163,6 +167,7 @@ const NAV = [
   { group:"Finance" },
   { id:"accounting" },
   { id:"rekonsiliasi" },
+  { id:"assets" },
   { group:"Menu" },
   { id:"products" },
   { id:"categories" },
@@ -181,6 +186,8 @@ const NAV = [
   { id:"inv-waste",         label:"Waste Recording" },
   { id:"inv-movements",      label:"Movement History" },
   { id:"inv-stock-compare", label:"Stock vs Purchase" },
+  { id:"units-of-measure", label:"Units of Measure" },
+  { id:"item-categories", label:"Item Categories" },
   { id:"staff-submissions", label:"Staff Reports" },
   { group:"People" },
   { id:"employees" },
@@ -215,8 +222,10 @@ const NAV_LABELS = {
   "menu-performance": "Menu Performance", "sales-report": "Sales Report",
   "product-report": "Product Report", "top-slow": "Top & Slow Moving",
   reports: "Reports & Export", accounting: "Accounting",
-  rekonsiliasi: "Rekonsiliasi", products: "Products",
+  rekonsiliasi: "Rekonsiliasi", assets: "Assets", products: "Products",
   categories: "Categories", modifiers: "Modifiers",
+  "units-of-measure": "Units of Measure",
+  "item-categories": "Item Categories",
   recipes: "Recipes & COGS", "market-prices": "Market Prices",
   profitability: "Profitability", "inv-overview": "Overview",
   "inv-ingredients": "Ingredients", "inv-supplies": "Supplies", "inv-po": "Purchase Orders",
@@ -248,19 +257,22 @@ const SCREENS = {
   reports:            Reports,
   accounting:        Accounting,
   rekonsiliasi:      Rekonsiliasi,
+  assets:            Assets,
   products:          Products,
   categories:        Categories,
   modifiers:         Modifiers,
+  "units-of-measure": UnitsOfMeasure,
+  "item-categories": IngredientCategories,
   recipes:           Recipes,
-  "inv-overview":    () => <Inventory initialTab="inv-overview" />,
-  "inv-ingredients": () => <Inventory initialTab="inv-ingredients" />,
-  "inv-supplies":    () => <Inventory initialTab="inv-supplies" />,
-  "inv-po":          () => <Inventory initialTab="inv-po" />,
-  "inv-suppliers":   () => <Inventory initialTab="inv-suppliers" />,
-  "inv-production":  () => <Inventory initialTab="inv-production" />,
-  "inv-opname":      () => <Inventory initialTab="inv-opname" />,
-  "inv-waste":       () => <Inventory initialTab="inv-waste" />,
-  "inv-movements":      () => <Inventory initialTab="inv-movements" />,
+  "inv-overview":    (props) => <Inventory {...props} initialTab="inv-overview" />,
+  "inv-ingredients": (props) => <Inventory {...props} initialTab="inv-ingredients" />,
+  "inv-supplies":    (props) => <Inventory {...props} initialTab="inv-supplies" />,
+  "inv-po":          (props) => <Inventory {...props} initialTab="inv-po" />,
+  "inv-suppliers":   (props) => <Inventory {...props} initialTab="inv-suppliers" />,
+  "inv-production":  (props) => <Inventory {...props} initialTab="inv-production" />,
+  "inv-opname":      (props) => <Inventory {...props} initialTab="inv-opname" />,
+  "inv-waste":       (props) => <Inventory {...props} initialTab="inv-waste" />,
+  "inv-movements":      (props) => <Inventory {...props} initialTab="inv-movements" />,
   "inv-stock-compare":  InvStockCompare,
   "staff-submissions":  StaffSubmissions,
   "import-export":      ImportExport,
@@ -400,6 +412,17 @@ export default function Backoffice() {
       })
       .subscribe()
     return () => supabase.removeChannel(ch)
+  }, [])
+
+  // Register the live food/supply category lists so isSupplyCategory/isFoodCategory
+  // classify correctly everywhere (Dashboard, InvOverview, RecipeEditor, InvIngredients)
+  // as soon as the backoffice loads, not just after visiting the Item Categories page.
+  useEffect(() => {
+    supabase.from("app_settings").select("food_categories,supply_categories").eq("id","main").maybeSingle()
+      .then(({data}) => {
+        if (data?.food_categories?.length) setFoodCategories(data.food_categories.map(c=>c.name))
+        if (data?.supply_categories?.length) setSupplyCategories(data.supply_categories.map(c=>c.name))
+      })
   }, [])
 
   // Back / Forward browser buttons

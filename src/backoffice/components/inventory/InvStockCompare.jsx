@@ -3,8 +3,8 @@ import { supabase } from "../../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "../DateRangePicker"
 import { exportExcel, exportPDF, formatPeriodLabel, filenameSlug, fmtIDR } from "../exportUtils"
 
-const fmt    = n => "Rp " + Number(n||0).toLocaleString("en-US")
-const fmtQty = (n, unit) => Number(n||0).toLocaleString("en-US", { maximumFractionDigits:2 }) + (unit ? " " + unit : "")
+const fmt    = n => "Rp " + Number(n||0).toLocaleString("id-ID")
+const fmtQty = (n, unit) => Number(n||0).toLocaleString("id-ID", { maximumFractionDigits:2 }) + (unit ? " " + unit : "")
 
 function toBase(ing, qty, unit) {
   if (!unit || unit === ing.unit) return qty
