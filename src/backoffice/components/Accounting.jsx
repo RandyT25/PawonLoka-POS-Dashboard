@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import ClosingReport from "./ClosingReport"
+import CashLog from "./CashLog"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("en-US")
 const EXPENSE_CATEGORIES = [
@@ -365,7 +366,7 @@ ARUS KAS
     <div>
       {/* Top bar */}
       <div className="acc-tabs" style={{ display:"flex",gap:6,marginBottom:16,alignItems:"center" }}>
-        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"],["closing","🧾 Cashier Closing"],["akun","Akun"]].map(([t,l])=>(
+        {[["overview","📊 Overview"],["pl","💰 Laba Rugi"],["expenses","💸 Pengeluaran"],["cashflow","🏦 Arus Kas"],["kasbon","📋 Kas Bon"],["closing","🧾 Cashier Closing"],["cashlog","💵 Kas Cashier"],["akun","Akun"]].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)} className={"bo-btn bo-btn-sm "+(tab===t?"bo-btn-primary":"bo-btn-ghost")}>{l}</button>
         ))}
       </div>
@@ -810,7 +811,8 @@ ARUS KAS
       )}
 
       {/* CLOSING REPORT */}
-      {tab==="closing" && <ClosingReport period={period} />}
+      {tab==="closing" && <ClosingReport />}
+      {tab==="cashlog" && <CashLog />}
 
       {/* Akun / Chart of Accounts Tab */}
       {tab === "akun" && (() => {
