@@ -23,6 +23,7 @@ export default function ClosingReport() {
 
   const load = useCallback(async () => {
     setLoading(true)
+    setSelected(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     let q = supabase.from("shifts").select("*").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
