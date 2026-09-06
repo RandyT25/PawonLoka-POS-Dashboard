@@ -16,7 +16,7 @@ export default function ReprintModal({ onClose, onReprint }) {
     const today = new Date().toISOString().slice(0, 10)
     const { data } = await supabase
       .from('orders')
-      .select('id,total,pay,staff,table,customer,items,created_at,time,date,subtotal,tax,discount,change,status,notes')
+      .select('id,total,pay,staff,table,customer,items,created_at,time,date,subtotal,tax,discount,change,status,notes,payments')
       .eq('status', 'Paid')
       .eq('date', today)
       .order('created_at', { ascending: false })

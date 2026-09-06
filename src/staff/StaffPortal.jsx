@@ -270,7 +270,7 @@ export default function StaffPortal() {
   async function submit(type, data) {
     if (!staffName) { alert("Please select who is submitting"); return }
     setSaving(true)
-    
+    const subId = "SS-" + Date.now();
     let isAutoAccept = false;
     if (type === "production") {
       const { data: settings } = await supabase.from('app_settings').select('pos_behaviour').eq('id', 'main').single();
@@ -299,7 +299,7 @@ export default function StaffPortal() {
           await supabase.from("ingredients").update({ stock:newStock }).eq("id",ing.id);
           await supabase.from("stock_movements").insert({
             id: movId(), type:"Production", ingredient_id:ing.id, ingredient_name:ing.name,
-            qty:-qtyBase, unit:ing.unit, ref: "SS-"+Date.now(),
+            qty:-qtyBase, unit:ing.unit, ref: subId,
             note:"Auto-approved production by "+staffName,
             date:producedDate, time:nowTime(),
           });
@@ -311,7 +311,7 @@ export default function StaffPortal() {
           await supabase.from("ingredients").update({ stock:newItemStock }).eq("id",item.id);
           await supabase.from("stock_movements").insert({
             id: movId(), type:"Production", ingredient_id:item.id, ingredient_name:item.name,
-            qty:producedQtyBase, unit:item.unit, ref: "SS-"+Date.now(),
+            qty:producedQtyBase, unit:item.unit, ref: subId,
             note:"Auto-approved production output by "+staffName,
             date:producedDate, time:nowTime(),
           });
@@ -323,7 +323,7 @@ export default function StaffPortal() {
     if (!staffName) { alert("Please select who is submitting"); return }
     setSaving(true)
     const { error } = await supabase.from("staff_submissions").insert({
-      id:"SS-"+Date.now(), type, status: isAutoAccept ? "approved" : "pending",
+      id:subId, type, status: isAutoAccept ? "approved" : "pending",
       submitted_by: staffName,
       submitted_at: new Date().toISOString(),
       data: { ...data, station, submitted_by: staffName }

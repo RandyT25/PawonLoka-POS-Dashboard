@@ -984,14 +984,15 @@ export default function POS() {
 
       return {
         id: openBillId || ('SPLIT-' + Date.now()),
-        total: finalTotal, pay: payMethod,
+        total: isFullyPaid ? billTotal : finalTotal,
+        pay: isFullyPaid ? 'Split' : payMethod,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : 0,
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         staff: staff.name, customer: customer?.name || null,
-        items: splitItems || cart,
+        items: (isFullyPaid ? mappedItems : splitItems) || cart,
         subtotal: existing?.subtotal ?? totals.subtotal, tax: existing?.tax ?? totals.tax, discount: existing?.discount ?? totals.discount,
-        payments: [{ method: payMethod, amount: finalTotal }],
+        payments: isFullyPaid ? newPayments : [{ method: payMethod, amount: finalTotal }],
         _isSplit: !isFullyPaid, splitLabel, splitPaid: paidSoFar,
         _fullyPaid: isFullyPaid,
         ...(!splitItems && { _splitAmount: finalTotal, _splitRemaining: Math.max(0, billTotal - paidSoFar) }),
