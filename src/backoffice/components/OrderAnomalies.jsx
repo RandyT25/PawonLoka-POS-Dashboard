@@ -85,7 +85,7 @@ export default function OrderAnomalies() {
                             <strong>Kemungkinan penyebab:</strong><br/>
                             {r.diff > 0 
                               ? "Ada tambahan biaya (misal: Biaya Pengiriman) yang ditambahkan ke total akhir saat kasir mencetak tagihan, tetapi biaya tersebut tidak disimpan ke dalam laporan detail item pesanan."
-                              : "Pelanggan melakukan pembayaran terpisah (Split Bill / Bayar Sebagian). Sistem sebelumnya salah menyimpan total akhir pesanan hanya dengan sisa tagihan yang dibayarkan terakhir, bukan total keseluruhan."}
+                              : "Pelanggan melakukan pembayaran terpisah (Split Bill / Bayar Sebagian), atau ada pesanan dengan modifier harga minus (misal 'Tanpa nasi') yang terkena bug sistem sebelumnya."}
                           </div>
                           <table className="bo-table" style={{background:"#fff"}}>
                           <thead><tr><th>Item</th><th style={{textAlign:"right"}}>Harga</th><th style={{textAlign:"right"}}>Diskon</th><th style={{textAlign:"right"}}>Qty</th><th style={{textAlign:"right"}}>Subtotal</th></tr></thead>
