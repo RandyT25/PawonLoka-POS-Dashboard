@@ -23,8 +23,7 @@ export default function InvStaffConsumption() {
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
 
-  useEffect(() => { load() }, [load])
-
+  
   const load = useCallback(async () => {
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     const fromDate = fromStr.slice(0, 10)
@@ -40,6 +39,8 @@ export default function InvStaffConsumption() {
     setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate, customDateTo])
+
+  useEffect(() => { load() }, [load])
 
   function updateForm(k,v) {
     setForm(f => {

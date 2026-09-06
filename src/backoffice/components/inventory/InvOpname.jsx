@@ -21,8 +21,7 @@ export default function InvOpname() {
   const [lastUpdated,  setLastUpdated]  = useState(null)
 
 
-  useEffect(() => { load() }, [load])
-
+  
   const load = useCallback(async () => {
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     const fromDate = fromStr.slice(0, 10)
@@ -37,6 +36,8 @@ export default function InvOpname() {
     setLastUpdated(new Date())
     setLoading(false)
   }, [range, customDate, customDateTo])
+
+  useEffect(() => { load() }, [load])
 
   function startOpname() {
     setActiveCount(ingredients.map(i => ({
