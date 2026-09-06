@@ -4,7 +4,7 @@ import DateRangePicker, { buildDateRange } from "../DateRangePicker"
  
 import { supabase } from "../../../lib/supabase"
 
-const today = () => new Date().toISOString().slice(0, 10)
+function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
 export default function InvStaffConsumption() {

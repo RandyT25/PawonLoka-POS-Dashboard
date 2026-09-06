@@ -3,7 +3,7 @@ import { supabase } from "../../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "../DateRangePicker"
 
 const TYPE_COLORS = { Sale:"var(--brand)", Purchase:"var(--green)", Waste:"var(--red)", "Staff Meal":"#F59E0B", Production:"#6554C0", Adjustment:"var(--amber)" }
-const today = () => new Date().toISOString().slice(0, 10)
+function today() { return new Date().toISOString().slice(0, 10); }
 
 export default function InvMovements() {
   const [movements,   setMovements]   = useState([])

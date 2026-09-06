@@ -5,7 +5,7 @@ import DateRangePicker, { buildDateRange } from "../DateRangePicker"
 import { supabase } from "../../../lib/supabase"
 import { toBaseUnit } from "../../../shared/unitConversion"
 
-const today = () => new Date().toISOString().slice(0, 10)
+function today() { return new Date().toISOString().slice(0, 10); }
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 const REASONS = ["Expired","Damaged","Overproduction","Spillage","Other"]
 const REASON_COLORS = { Expired:"var(--red)", Damaged:"var(--amber)", Overproduction:"#6554C0", Spillage:"var(--brand)", Other:"var(--ink5)" }
