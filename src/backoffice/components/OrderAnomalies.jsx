@@ -80,7 +80,14 @@ export default function OrderAnomalies() {
                       {items.length===0 ? (
                         <div style={{fontSize:12,color:"var(--ink5)"}}>Tidak ada detail item tersimpan untuk order ini.</div>
                       ) : (
-                        <table className="bo-table" style={{background:"#fff"}}>
+                        <>
+                          <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 8, background: r.diff > 0 ? "#FEF2F2" : "#FFF7ED", border: "1px solid " + (r.diff > 0 ? "#FCA5A5" : "#FDBA74"), fontSize: 12, color: "var(--ink2)" }}>
+                            <strong>Kemungkinan penyebab:</strong><br/>
+                            {r.diff > 0 
+                              ? "Ada tambahan biaya (misal: Biaya Pengiriman) yang ditambahkan ke total akhir saat kasir mencetak tagihan, tetapi biaya tersebut tidak disimpan ke dalam laporan detail item pesanan."
+                              : "Pelanggan melakukan pembayaran terpisah (Split Bill / Bayar Sebagian). Sistem sebelumnya salah menyimpan total akhir pesanan hanya dengan sisa tagihan yang dibayarkan terakhir, bukan total keseluruhan."}
+                          </div>
+                          <table className="bo-table" style={{background:"#fff"}}>
                           <thead><tr><th>Item</th><th style={{textAlign:"right"}}>Harga</th><th style={{textAlign:"right"}}>Diskon</th><th style={{textAlign:"right"}}>Qty</th><th style={{textAlign:"right"}}>Subtotal</th></tr></thead>
                           <tbody>
                             {items.map((it,i)=>{
@@ -104,6 +111,7 @@ export default function OrderAnomalies() {
                             </tr>
                           </tfoot>
                         </table>
+                        </>
                       )}
                     </td>
                   </tr>

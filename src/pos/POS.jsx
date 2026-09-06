@@ -201,7 +201,7 @@ export default function POS() {
       const opt = mod?.options?.find(o => (o.name||o) === optName)
       return sum + (opt?.price || 0)
     }, 0)
-    const finalProduct = extraPrice > 0
+    const finalProduct = extraPrice !== 0
       ? { ...product, price: product.price + extraPrice, _basePrice: product.price }
       : { ...product }
     // Build display labels with price
@@ -604,7 +604,7 @@ export default function POS() {
     if (openBillId) {
       // Rebuild item list from cart — cart is source of truth for the full order state
       const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
-      const ok = await dbWrite('orders', 'update', { items: allItems, subtotal, tax, discount: discAmt, total }, { id: openBillId })
+      const ok = await dbWrite('orders', 'update', { items: allItems, subtotal, tax, discount: discAmt, total, delivery_fee: fee }, { id: openBillId })
       if (!ok) { alert('Gagal menyimpan tambahan pesanan — cek koneksi dan coba lagi.'); return }
       updateOrderCache({ id: openBillId, items: allItems, subtotal, tax, total, status: 'Open' })
     } else {
@@ -613,7 +613,7 @@ export default function POS() {
       const order = {
         id: orderId,
         items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
-        subtotal, tax, discount: discAmt, total,
+        subtotal, tax, discount: discAmt, total, delivery_fee: fee,
         pay: '-', staff: staff.name, table: capturedTable || null, table_area: capturedTableArea || null,
         ...(pax > 0 ? { pax } : {}),
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
@@ -1008,7 +1008,8 @@ export default function POS() {
         status: 'Paid', pay: payMethod,
         cash_given: payMethod === 'Cash' ? parseInt(cashGiven) : null,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : null,
-        subtotal: totals.subtotal, tax: totals.tax, discount: totals.discount, total: finalTotal,
+        subtotal: totals.subtotal, tax: totals.tax, discount: totals.discount, 
+        total: totals.total + parseFloat(deliveryFee||0), delivery_fee: parseFloat(deliveryFee)||0,
         notes: orderNote || null, promo: promoName || null,
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         cogs: orderCogs, customer_id: customer?.id || null,
@@ -1064,7 +1065,7 @@ export default function POS() {
       id: newOrderId,
       items: noBillItems,
       subtotal: noBillTotals.subtotal, tax: noBillTotals.tax,
-      discount: noBillTotals.discount, total: finalTotal,
+      discount: noBillTotals.discount, total: noBillTotals.total + parseFloat(deliveryFee||0), delivery_fee: parseFloat(deliveryFee)||0,
       pay: payMethod, staff: staff.name,
       table: tableNo || null, table_area: tableArea || null,
       customer: customer?.name || null, customer_id: customer?.id || null,

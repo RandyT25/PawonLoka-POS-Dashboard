@@ -42,7 +42,7 @@ begin
 
   new.subtotal := computed_subtotal;
 
-  expected_total := computed_subtotal - coalesce(new.discount, 0) + coalesce(new.tax, 0) - coalesce(new.refund_amount, 0);
+  expected_total := computed_subtotal - coalesce(new.discount, 0) + coalesce(new.tax, 0) + coalesce(new.delivery_fee, 0) - coalesce(new.refund_amount, 0);
   diff := coalesce(new.total, 0) - expected_total;
 
   if abs(diff) > 5 then
