@@ -868,7 +868,8 @@ const trialTotal = s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).
                   : s.type==="consumption" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
                   : s.type==="receiving" ? (s.data.items||[]).length+" items — "+fmt(s.data.invoice_total)+" invoice, "+(s.data.supplier_name||"unknown supplier")
-                  : (s.data.batch_qty ? s.data.batch_qty+"× resep · " : "")+(s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+s.data.item_name
+                  : s.type==="daily_recon" ? (s.data.items||[]).length+" items recon — "+fmt(s.data.total_variance_value||0)+" variance"
+                  : (s.data.batch_qty ? s.data.batch_qty+"× resep · " : "")+(s.data.actual_yield??s.data.batch_qty)+" "+(s.data.yield_unit||s.data.unit||"")+" "+(s.data.item_name||"")
                 return (
                   <tr key={s.id} style={{ background: (isOrphanApproved(s) && !dismissedOrphanIds.has(s.id)) ? "var(--red-lt)"
                     : s.status==="pending"?"#fffbeb":s.status==="approved"?"var(--green-lt)":s.status==="rejected"?"var(--red-lt)":"" }}>
