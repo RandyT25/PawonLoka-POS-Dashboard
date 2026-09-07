@@ -4,9 +4,9 @@ import { toBaseUnit, unitPriceFor } from "../../shared/unitConversion"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
 
-const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", consumption:"#F59E0B", production:"var(--green)", requisition:"#6554C0", receiving:"#0EA5E9", trial:"#6366F1" }
-const TYPE_ICONS  = { opname:"📋", waste:"🗑️", consumption:"🍽️", production:"🏭", requisition:"🛒", receiving:"📦", trial:"🧪" }
-const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", consumption:"Staff Meal", production:"Production", requisition:"Request", receiving:"Receiving", trial:"Trial / R&D" }
+const TYPE_COLORS = { opname:"var(--brand)", waste:"var(--red)", consumption:"#F59E0B", production:"var(--green)", requisition:"#6554C0", receiving:"#0EA5E9", trial:"#6366F1", daily_recon:"#10B981" }
+const TYPE_ICONS  = { opname:"📋", waste:"🗑️", consumption:"🍽️", production:"🏭", requisition:"🛒", receiving:"📦", trial:"🧪", daily_recon:"✅" }
+const TYPE_LABELS = { opname:"Stock Count", waste:"Waste", consumption:"Staff Meal", production:"Production", requisition:"Request", receiving:"Receiving", trial:"Trial / R&D", daily_recon:"Daily Recon" }
 
 // The stock_movements.type value that approveOne() writes for each stock-affecting
 // submission type when it actually runs. Used to detect submissions marked "approved"
@@ -991,6 +991,37 @@ const trialTotal = s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).
                     <tr>
                       <td colSpan={7} style={{ textAlign:"right", fontWeight:700 }}>Total</td>
                       <td style={{ fontWeight:800 }}>{fmt(totalValue)}</td>
+                      <td style={{ fontWeight:800, color:totalVariance<0?"var(--red)":totalVariance>0?"var(--green)":"var(--ink5)" }}>{totalVariance>0?"+":""}{fmt(totalVariance)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+                </div>
+                )
+              })()}
+              {viewModal.type==="daily_recon" && (() => {
+                const totalVariance = viewModal.data.total_variance_value || 0
+                return (
+                <div style={{ overflowX:"auto" }}>
+                <div style={{ fontSize:12, color:"var(--ink4)", marginBottom:10 }}>Date: <strong>{viewModal.data.date||"—"}</strong> | Notes: <strong>{viewModal.data.notes||"—"}</strong></div>
+                <table className="bo-table">
+                  <thead><tr><th>Ingredient</th><th>System</th><th>Actual</th><th>Diff</th><th>Variance</th></tr></thead>
+                  <tbody>
+                    {(viewModal.data.items||[]).map((item,i)=>{
+                      const variance = (item.diff || 0) * (item.cost_per_unit || 0)
+                      return (
+                        <tr key={i}>
+                          <td style={{ fontWeight:600 }}>{item.name}</td>
+                          <td>{item.system_qty} {item.unit}</td>
+                          <td style={{ fontWeight:700 }}>{item.actual_qty} {item.unit}</td>
+                          <td style={{ color:item.diff<0?"var(--red)":item.diff>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{item.diff>0?"+":""}{Number(item.diff||0).toLocaleString("id-ID",{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+                          <td style={{ color:variance<0?"var(--red)":variance>0?"var(--green)":"var(--ink5)", fontWeight:700 }}>{variance>0?"+":""}{fmt(variance)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4} style={{ textAlign:"right", fontWeight:700 }}>Total Variance</td>
                       <td style={{ fontWeight:800, color:totalVariance<0?"var(--red)":totalVariance>0?"var(--green)":"var(--ink5)" }}>{totalVariance>0?"+":""}{fmt(totalVariance)}</td>
                     </tr>
                   </tfoot>
