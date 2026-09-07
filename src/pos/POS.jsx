@@ -209,7 +209,9 @@ export default function POS() {
       Object.entries(modifiers).map(([modId, optName]) => {
         const mod = mods.find(m => m.id === modId)
         const opt = mod?.options?.find(o => (o.name||o) === optName)
-        const label = opt?.price > 0 ? optName + ' +Rp ' + opt.price.toLocaleString('id-ID') : optName
+        const label = opt?.price !== 0 
+          ? optName + (opt.price > 0 ? ' +Rp ' : ' -Rp ') + Math.abs(opt.price).toLocaleString('id-ID') 
+          : optName
         return [modId, label]
       })
     )
