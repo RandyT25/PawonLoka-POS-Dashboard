@@ -12,6 +12,21 @@ function fmtK(n) {
   return fmt(n)
 }
 function fmtTime(iso) { return new Date(iso).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) }
+
+const SHIFT_START_HOUR = 6;
+function getBusinessDate(actualDate = new Date()) {
+  const d = new Date(actualDate);
+  if (d.getHours() < SHIFT_START_HOUR) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d;
+}
+function toLocalYMD(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
 function today()   { return new Date().toISOString().slice(0,10) }
 function yestStr() { return new Date(Date.now()-86400000).toISOString().slice(0,10) }
 
@@ -222,20 +237,79 @@ function NotifBell({ notifications, setNotifications }) {
 }
 
 /* ─── Dashboard Screen ─── */
+
 function DateRangeBar({ range, setRange, customDate, setCustomDate, customDateTo, setCustomDateTo, loading, lastUpdated, onRefresh }) {
   const [showCal, setShowCal] = useState(false)
+  const navModeRef = useRef(null)
 
   const fmtD = d => new Date(d+"T12:00:00").toLocaleDateString("id-ID",{day:"numeric",month:"short"})
   const rangeLabel = range==="custom" && customDate
     ? (customDateTo && customDateTo!==customDate ? fmtD(customDate)+" → "+fmtD(customDateTo) : fmtD(customDate))
     : "Tanggal"
 
+  function selectQuickRange(v) {
+    navModeRef.current = null
+    setRange(v)
+  }
+
+  function navigate(dir) {
+    const now = getBusinessDate()
+    let fromDate, toDate
+    const continuingMonth = range === "custom" && navModeRef.current === "month"
+
+    if (range === "today") {
+      const d = getBusinessDate()
+      d.setDate(d.getDate() + dir)
+      fromDate = toDate = toLocalYMD(d)
+      navModeRef.current = null
+    } else if (range === "week") {
+      const dow = (now.getDay() + 6) % 7
+      const weekStart = getBusinessDate()
+      weekStart.setDate(now.getDate() - dow + dir * 7)
+      weekStart.setHours(0, 0, 0, 0)
+      const weekEnd = new Date(weekStart)
+      weekEnd.setDate(weekStart.getDate() + 6)
+      fromDate = toLocalYMD(weekStart)
+      toDate = toLocalYMD(weekEnd)
+      navModeRef.current = null
+    } else if (range === "month" || continuingMonth) {
+      const base = range === "month" ? now : new Date((customDate || toLocalYMD(now)) + "T12:00:00")
+      const d = new Date(base.getFullYear(), base.getMonth() + dir, 1)
+      const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+      fromDate = toLocalYMD(d)
+      toDate = toLocalYMD(end)
+      navModeRef.current = "month"
+    } else {
+      const a = new Date((customDate || toLocalYMD(now)) + "T12:00:00")
+      const b = new Date((customDateTo || customDate || toLocalYMD(now)) + "T12:00:00")
+      const spanDays = Math.max(1, Math.round((b - a) / 86400000) + 1)
+      a.setDate(a.getDate() + dir * spanDays)
+      b.setDate(b.getDate() + dir * spanDays)
+      fromDate = toLocalYMD(a)
+      toDate = toLocalYMD(b)
+      navModeRef.current = null
+    }
+
+    setCustomDate(fromDate)
+    if (setCustomDateTo) setCustomDateTo(toDate)
+    setRange("custom")
+  }
+
+  const navBtnStyle = {
+    background:"none", border:"1px solid rgba(255,255,255,0.2)", borderRadius:6,
+    padding:"2px 8px", fontSize:15, cursor:"pointer", color:"#94A3B8",
+    lineHeight:1, fontWeight:700,
+  }
+
   return (
     <>
     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20,flexWrap:"wrap"}}>
       <div className="ow-range-group">
+        <button style={navBtnStyle} onClick={() => navigate(-1)}>‹</button>
+        <button style={navBtnStyle} onClick={() => navigate(1)}>›</button>
+
         {[["today","Hari Ini"],["week","Minggu Ini"],["month","Bulan Ini"]].map(([v,l])=>(
-          <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>setRange(v)}>{l}</button>
+          <button key={v} className={"ow-range-btn"+(range===v?" active":"")} onClick={()=>selectQuickRange(v)}>{l}</button>
         ))}
         <button className={"ow-range-btn ow-range-date"+(range==="custom"?" active":"")}
           onClick={()=>setShowCal(true)} title="Pilih rentang tanggal">
@@ -245,7 +319,7 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, customDateTo
           {rangeLabel}
         </button>
         {range==="custom" && (
-          <button onClick={()=>setRange("today")}
+          <button onClick={()=>selectQuickRange("today")}
             style={{background:"none",border:"1px solid rgba(255,255,255,0.2)",borderRadius:6,padding:"4px 8px",fontSize:11,cursor:"pointer",color:"#94A3B8"}}>
             ✕
           </button>
@@ -275,7 +349,7 @@ function DateRangeBar({ range, setRange, customDate, setCustomDate, customDateTo
       <CalendarRangePicker
         initialFrom={customDate}
         initialTo={customDateTo}
-        onSave={(from, to) => { setCustomDate(from); setCustomDateTo?.(to); setRange("custom"); setShowCal(false) }}
+        onSave={(from, to) => { setCustomDate(from); if (setCustomDateTo) setCustomDateTo(to); setRange("custom"); navModeRef.current = null; setShowCal(false) }}
         onClose={() => setShowCal(false)}
       />
     )}
@@ -1585,15 +1659,35 @@ function useOwnerData(range, customDate, customDateTo) {
     } catch(e){}
 
     let fromStr="", toStr=""
+    const logicalNow = getBusinessDate();
+    const logicalTodayStr = toLocalYMD(logicalNow);
+    const sh = String(SHIFT_START_HOUR).padStart(2, "0");
+    const eh = String(SHIFT_START_HOUR - 1).padStart(2, "0");
+    const startTime = `T${sh}:00:00+08:00`;
+    const endTime = `T${eh}:59:59+08:00`;
+
     if (range==="custom") {
-      fromStr=customDate+"T00:00:00+08:00"
-      toStr=(customDateTo||customDate)+"T23:59:59+08:00"
+      const toDate = customDateTo || customDate;
+      const toDateObj = new Date(toDate + "T12:00:00");
+      toDateObj.setDate(toDateObj.getDate() + 1);
+      fromStr = customDate + startTime;
+      toStr = toLocalYMD(toDateObj) + endTime;
     } else {
-      const now=new Date(), from=new Date()
-      if (range==="today") { from.setHours(0,0,0,0) }
-      if (range==="week")  { from.setDate(now.getDate()-now.getDay()); from.setHours(0,0,0,0) }
-      if (range==="month") { from.setDate(1); from.setHours(0,0,0,0) }
-      fromStr=from.getFullYear()+"-"+String(from.getMonth()+1).padStart(2,"0")+"-"+String(from.getDate()).padStart(2,"0")+"T00:00:00+08:00"
+      if (range==="today") {
+        const tmr = new Date(logicalNow);
+        tmr.setDate(tmr.getDate() + 1);
+        fromStr = logicalTodayStr + startTime;
+        toStr = toLocalYMD(tmr) + endTime;
+      } else if (range==="week") {
+        const dow = (logicalNow.getDay() + 6) % 7;
+        const d = new Date(logicalNow);
+        d.setDate(d.getDate() - dow);
+        fromStr = toLocalYMD(d) + startTime;
+      } else if (range==="month") {
+        const y = logicalNow.getFullYear();
+        const m = String(logicalNow.getMonth() + 1).padStart(2, "0");
+        fromStr = `${y}-${m}-01${startTime}`;
+      }
     }
     let q=supabase.from("orders").select("*").gte("created_at",fromStr)
     if (toStr) q=q.lte("created_at",toStr)

@@ -5,14 +5,26 @@ import CalendarRangePicker from "./CalendarRangePicker"
 // toISOString(), which converts to UTC and rolls back a day for any timezone
 // ahead of UTC (e.g. WIB, UTC+7) whenever the local time is past midnight
 // but before the UTC day has turned over.
-function toLocalYMD(d) {
+export function toLocalYMD(d) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, "0")
   const day = String(d.getDate()).padStart(2, "0")
   return `${y}-${m}-${day}`
 }
 
-const todayStr = () => toLocalYMD(new Date())
+// Shift start hour for business days (e.g., 6 = 06:00 AM)
+// Transactions before this time are grouped into the previous day's shift.
+export const SHIFT_START_HOUR = 6;
+
+export function getBusinessDate(actualDate = new Date()) {
+  const d = new Date(actualDate);
+  if (d.getHours() < SHIFT_START_HOUR) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d;
+}
+
+const todayStr = () => toLocalYMD(getBusinessDate())
 
 const fmtRange = (from, to) => {
   if (!from) return "Tanggal"
@@ -48,18 +60,18 @@ export default function DateRangePicker({
   }
 
   function navigate(dir) {
-    const now = new Date()
+    const now = getBusinessDate()
     let fromDate, toDate
     const continuingMonth = range === "custom" && navModeRef.current === "month"
 
     if (range === "today") {
-      const d = new Date()
+      const d = getBusinessDate()
       d.setDate(d.getDate() + dir)
       fromDate = toDate = toLocalYMD(d)
       navModeRef.current = null
     } else if (range === "week") {
       const dow = (now.getDay() + 6) % 7
-      const weekStart = new Date()
+      const weekStart = getBusinessDate()
       weekStart.setDate(now.getDate() - dow + dir * 7)
       weekStart.setHours(0, 0, 0, 0)
       const weekEnd = new Date(weekStart)
@@ -187,26 +199,40 @@ export default function DateRangePicker({
 }
 
 export function buildDateRange(range, customDate, customDateTo = null) {
-  const now = new Date()
-  const today = toLocalYMD(now)
+  const logicalNow = getBusinessDate();
+  const logicalTodayStr = toLocalYMD(logicalNow);
+  
+  // Format shift start/end strings
+  const sh = String(SHIFT_START_HOUR).padStart(2, "0");
+  const eh = String(SHIFT_START_HOUR - 1).padStart(2, "0");
+  const startTime = `T${sh}:00:00+08:00`;
+  const endTime = `T${eh}:59:59+08:00`;
+
   if (range === "today") {
-    return { fromStr: today + "T00:00:00+08:00", toStr: today + "T23:59:59+08:00" }
+    const tmr = new Date(logicalNow);
+    tmr.setDate(tmr.getDate() + 1);
+    return { fromStr: logicalTodayStr + startTime, toStr: toLocalYMD(tmr) + endTime };
   }
   if (range === "week") {
-    const dow = (now.getDay() + 6) % 7
-    const d = new Date()
-    d.setDate(now.getDate() - dow)
-    d.setHours(0, 0, 0, 0)
-    return { fromStr: toLocalYMD(d) + "T00:00:00+08:00", toStr: null }
+    const dow = (logicalNow.getDay() + 6) % 7; // Mon = 0
+    const d = new Date(logicalNow);
+    d.setDate(d.getDate() - dow);
+    return { fromStr: toLocalYMD(d) + startTime, toStr: null };
   }
   if (range === "month") {
-    const y = now.getFullYear()
-    const m = String(now.getMonth() + 1).padStart(2, "0")
-    return { fromStr: `${y}-${m}-01T00:00:00+08:00`, toStr: null }
+    const y = logicalNow.getFullYear();
+    const m = String(logicalNow.getMonth() + 1).padStart(2, "0");
+    return { fromStr: `${y}-${m}-01${startTime}`, toStr: null };
   }
   if (range === "custom" && customDate) {
-    const toDate = customDateTo || customDate
-    return { fromStr: customDate + "T00:00:00+08:00", toStr: toDate + "T23:59:59+08:00" }
+    const toDate = customDateTo || customDate;
+    const toDateObj = new Date(toDate + "T12:00:00");
+    toDateObj.setDate(toDateObj.getDate() + 1);
+    return { fromStr: customDate + startTime, toStr: toLocalYMD(toDateObj) + endTime };
   }
-  return { fromStr: today + "T00:00:00+08:00", toStr: today + "T23:59:59+08:00" }
+  
+  const tmr = new Date(logicalNow);
+  tmr.setDate(tmr.getDate() + 1);
+  return { fromStr: logicalTodayStr + startTime, toStr: toLocalYMD(tmr) + endTime };
 }
+

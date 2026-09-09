@@ -371,6 +371,7 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
                         : null
                       
                       const hasInput = actualQty !== null && !isNaN(actualQty)
+                      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
                       const diff = hasInput ? Math.round((actualQty - expected_sisa) * 100) / 100 : 0
                       const hasBreakdown = Object.keys(item.sales_breakdown || {}).length > 0
                       const isExpanded = expandedItem === item.id
