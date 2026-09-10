@@ -553,6 +553,16 @@ export default function StaffSubmissions() {
           const newItemStock = (freshItem?.stock ?? item.stock ?? 0) + producedQtyBase
           const { error:itemErr } = await supabase.from("ingredients").update({ stock:newItemStock }).eq("id",item.id)
           if (itemErr) throw itemErr
+          
+          const { error:movErr2 } = await supabase.from("stock_movements").insert({
+            id:"MOV-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),
+            type:"Production", ingredient_id:item.id, ingredient_name:item.name,
+            qty:producedQtyBase, unit:item.unit, ref:sub.id,
+            note:"Auto-approved production output by "+sub.submitted_by,
+            date:producedDate, time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+          })
+          if (movErr2) throw movErr2
+
           const { error:prodErr } = await supabase.from("production_batches").insert({
             id:"PRD-"+Date.now(), item_id:item.id, item_name:d.item_name,
             batch_qty:producedQty, unit:d.yield_unit||d.unit, date:producedDate,

@@ -397,7 +397,7 @@ export default function InvDailyRecon() {
                     <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Terjual</th>
                     <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Produksi</th>
                     <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Waste</th>
-                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>+/- Adj</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>Staff Meal</th>
                     <th style={{ textAlign: "center", background: "#F1F5F9", whiteSpace: "nowrap" }}>Sisa Teori</th>
                     <th style={{ textAlign: "center", background: "#EFF6FF", whiteSpace: "nowrap" }}>Sisa Fisik</th>
                     <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>Selisih</th>
