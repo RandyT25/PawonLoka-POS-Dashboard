@@ -75,7 +75,7 @@ export default function Orders() {
     await supabase.from("audit_logs").insert({
       action: "void", module: "orders", user_name: "Backoffice",
       details: JSON.stringify({ bulk: true, count: ids.length, order_ids: ids }),
-    }).catch(() => {})
+    }).then(({ error }) => { if (error) console.error(error) })
     setBulkVoiding(false)
     setShowStaleModal(false)
     setStaleOpen([])
@@ -97,7 +97,7 @@ export default function Orders() {
       module: "orders",
       user_name: "Backoffice",
       details: JSON.stringify({ order_id: voidModal.id, reason: fullReason, amount: voidModal.total }),
-    }).catch(() => {})
+    }).then(({ error }) => { if (error) console.error(error) })
     await load()
     setSelected(null); setVoidModal(null); setVoidReason(""); setVoidNote("")
     setVoiding(false)

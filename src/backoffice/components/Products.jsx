@@ -156,7 +156,7 @@ export default function Products() {
           old_price: existing.price,
           new_price: parseInt(form.price),
           changed_by: "Backoffice",
-        }).catch(() => {})
+        }).then(({ error }) => { if (error) console.error("History insert error:", error) })
       }
       const { error } = await supabase.from("products").update(payload).eq("sku", form.sku)
       if (error) { alert("Error updating product: " + error.message); setSaving(false); return; }
