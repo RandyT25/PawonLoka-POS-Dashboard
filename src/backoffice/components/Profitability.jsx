@@ -46,7 +46,7 @@ export default function Profitability() {
   async function load() {
     setLoading(true)
     const [prodRes, { data: settings }] = await Promise.all([
-      supabase.from("products").select("sku,name,cat,price,cogs,active,needs_recalc").eq("active",true).order("cat").order("name"),
+      supabase.from("products").select("sku,name,cat,price,cogs,active,needs_recalc").order("cat").order("name"),
       supabase.from("profitability_settings").select("*").eq("id","main").maybeSingle()
     ])
     // Falls back to a select without needs_recalc if that column hasn't been migrated onto
@@ -54,7 +54,7 @@ export default function Profitability() {
     // without this the entire product list would silently come back empty until it's added.
     let prods = prodRes.data
     if (prodRes.error) {
-      const retry = await supabase.from("products").select("sku,name,cat,price,cogs,active").eq("active",true).order("cat").order("name")
+      const retry = await supabase.from("products").select("sku,name,cat,price,cogs,active").order("cat").order("name")
       prods = retry.data
     }
     setProducts(prods||[])
@@ -255,8 +255,8 @@ export default function Profitability() {
           <table style={{ width:"100%", borderCollapse:"collapse", minWidth:1000 }}>
             <thead>
               <tr style={{ background:"#F8FAFC" }}>
-                {["#","Menu","Cat","HPP/COGS","Harga Sekarang","COGS %","Profit","Margin %","Harga Baru","COGS % Baru","Δ COGS","Profit Baru","Rec. Price @ "+target+"%","Status"].map(h => (
-                  <th key={h} style={{ padding:"10px 12px", textAlign:"left", fontSize:10, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap" }}>{h}</th>
+                {["#","Menu","Cat","HPP/COGS","Harga Sekarang","COGS %","Profit","Margin %","Harga Baru","COGS % Baru","Δ COGS","Profit Baru","Rec. Price @ "+target+"%","Status"].map((h, i) => (
+                  <th key={h} style={{ padding:"10px 12px", textAlign: [3,4,5,6,7,8,9,10,11,12].includes(i) ? "right" : "left", fontSize:10, fontWeight:700, color:"var(--ink4)", borderBottom:"1px solid #E8ECF0", whiteSpace:"nowrap", minWidth: i===1 ? 200 : undefined }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -297,43 +297,43 @@ export default function Profitability() {
                       )}
                     </td>
                     <td style={{ padding:"8px 12px", fontSize:11, color:"var(--ink4)" }}>{p.cat||"—"}</td>
-                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: cpp > 0 ? "var(--ink)" : "var(--ink5)" }}>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: cpp > 0 ? "var(--ink)" : "var(--ink5)", textAlign:"right" }}>
                       {cpp > 0 ? fmt(cpp) : <span style={{ color:"var(--ink5)" }}>No COGS</span>}
                     </td>
-                    <td style={{ padding:"8px 12px", fontWeight:700 }}>{fmt(price)}</td>
-                    <td style={{ padding:"8px 12px" }}>
+                    <td style={{ padding:"8px 12px", fontWeight:700, textAlign:"right" }}>{fmt(price)}</td>
+                    <td style={{ padding:"8px 12px", textAlign:"right" }}>
                       {cpp > 0 ? (
                         <span style={{ fontSize:12, fontWeight:800, color: cogsP > 40 ? "var(--red)" : cogsP > 35 ? "var(--amber)" : "var(--green)" }}>
                           {fmtP(cogsP)}
                         </span>
                       ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
                     </td>
-                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)" }}>{fmt(profit)}</td>
-                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:700, color: marginP >= 0 ? "var(--green)" : "var(--red)" }}>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: profit > 0 ? "var(--green)" : "var(--red)", textAlign:"right" }}>{fmt(profit)}</td>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:700, color: marginP >= 0 ? "var(--green)" : "var(--red)", textAlign:"right" }}>
                       {cpp > 0 ? fmtP(marginP) : <span style={{ color:"var(--ink5)" }}>—</span>}
                     </td>
-                    <td style={{ padding:"8px 12px" }}>
+                    <td style={{ padding:"8px 12px", textAlign:"right" }}>
                       <input type="number" value={editPrices[p.sku]||""} onChange={e=>setEditPrices(prev=>({...prev,[p.sku]:e.target.value}))}
                         placeholder={price.toLocaleString("id-ID")} className="bo-input" style={{ width:90, fontSize:12, padding:"4px 8px", borderColor: hasChange ? "var(--brand)" : undefined }} />
                     </td>
-                    <td style={{ padding:"8px 12px" }}>
+                    <td style={{ padding:"8px 12px", textAlign:"right" }}>
                       {cpp > 0 && newPrice > 0 ? (
                         <span style={{ fontSize:12, fontWeight:800, color: newCogsP > 40 ? "var(--red)" : newCogsP > 35 ? "var(--amber)" : "var(--green)" }}>
                           {fmtP(newCogsP)}
                         </span>
                       ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
                     </td>
-                    <td style={{ padding:"8px 12px" }}>
+                    <td style={{ padding:"8px 12px", textAlign:"right" }}>
                       {hasChange && cpp > 0 ? (
                         <span style={{ fontSize:12, fontWeight:700, color: delta < 0 ? "var(--green)" : "var(--red)" }}>
                           {delta > 0 ? "▲" : "▼"} {Math.abs(delta).toLocaleString("id-ID",{minimumFractionDigits:1,maximumFractionDigits:1})}%
                         </span>
                       ) : <span style={{ color:"var(--ink5)", fontSize:12 }}>—</span>}
                     </td>
-                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: newProfit > 0 ? "var(--green)" : "var(--red)" }}>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:600, color: newProfit > 0 ? "var(--green)" : "var(--red)", textAlign:"right" }}>
                       {hasChange ? fmt(newProfit) : <span style={{ color:"var(--ink5)" }}>—</span>}
                     </td>
-                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:700, color:"var(--brand)" }}>
+                    <td style={{ padding:"8px 12px", fontSize:12, fontWeight:700, color:"var(--brand)", textAlign:"right" }}>
                       {recPrice > 0 ? fmt(recPrice) : "—"}
                     </td>
                     <td style={{ padding:"8px 12px" }}>
