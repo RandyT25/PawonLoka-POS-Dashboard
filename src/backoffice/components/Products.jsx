@@ -434,7 +434,7 @@ export default function Products() {
               {/* Name */}
               <div style={{ marginBottom:14 }}>
                 <label className="bo-label">Product Name *</label>
-                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus />
+                <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))} className="bo-input" placeholder="Product name" autoFocus style={{ borderColor: !form.name ? "var(--red)" : undefined }} />
               </div>
 
               {/* Category + Price */}
@@ -448,7 +448,7 @@ export default function Products() {
                 </div>
                 <div>
                   <label className="bo-label">Price (Rp) *</label>
-                  <input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} className="bo-input" placeholder="e.g. 25000" />
+                  <input type="number" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} className="bo-input" placeholder="e.g. 25000" style={{ borderColor: !form.price ? "var(--red)" : undefined }} />
                 </div>
               </div>
 
