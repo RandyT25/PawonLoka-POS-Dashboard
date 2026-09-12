@@ -142,8 +142,8 @@ export default function StaffPortal() {
   const [opnameSearch, setOpnameSearch] = useState("")
   const [opnameDate,   setOpnameDate]   = useState(new Date().toISOString().slice(0,10))
   const [staffName,    setStaffName]    = useState("")
-  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
-  const [consumptionForm, setConsumptionForm] = useState({ ingredient_id:"", qty:"", notes:"", date:new Date().toISOString().slice(0,10) })
+  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
+  const [consumptionForm, setConsumptionForm] = useState({ ingredient_id:"", qty:"", unit:"", notes:"", date:new Date().toISOString().slice(0,10) })
   const [trialForm, setTrialForm] = useState({ trialName:"", notes:"", items:[{ingredient_id:"", qty:"", unit:""}] })
   const [prodType,     setProdType]     = useState("") // 'sub' | 'product'
   const [prodSubId,    setProdSubId]    = useState("")
@@ -347,13 +347,42 @@ export default function StaffPortal() {
   async function submitWaste() {
     const ing = ingredientsById[wasteForm.ingredient_id]
     if (!ing||!wasteForm.qty) { alert("Select ingredient and quantity"); return }
-    await submit("waste", { ingredient_id:ing.id, ingredient_name:ing.name, qty:parseNum(wasteForm.qty), unit:ing.unit, reason:wasteForm.reason, notes:wasteForm.notes, date:wasteForm.date||new Date().toISOString().slice(0,10), estimated_cost:(parseNum(wasteForm.qty)||0)*(ing.cost_per_unit||0) })
+    const enteredQty = parseNum(wasteForm.qty)
+    const enteredUnit = wasteForm.unit || biggestUnit(ing)
+    const baseQty = toBaseUnit(ing, enteredQty, enteredUnit)
+    
+    await submit("waste", { 
+      ingredient_id:ing.id, 
+      ingredient_name:ing.name, 
+      entered_qty: enteredQty,
+      entered_unit: enteredUnit,
+      qty: baseQty, 
+      unit: ing.unit, 
+      reason:wasteForm.reason, 
+      notes:wasteForm.notes, 
+      date:wasteForm.date||new Date().toISOString().slice(0,10), 
+      estimated_cost: baseQty * (ing.cost_per_unit||0) 
+    })
   }
 
   async function submitConsumption() {
     const ing = ingredientsById[consumptionForm.ingredient_id]
     if (!ing||!consumptionForm.qty) { alert("Select ingredient and quantity"); return }
-    await submit("consumption", { ingredient_id:ing.id, ingredient_name:ing.name, qty:parseNum(consumptionForm.qty), unit:ing.unit, notes:consumptionForm.notes, date:consumptionForm.date||new Date().toISOString().slice(0,10), estimated_cost:(parseNum(consumptionForm.qty)||0)*(ing.cost_per_unit||0) })
+    const enteredQty = parseNum(consumptionForm.qty)
+    const enteredUnit = consumptionForm.unit || biggestUnit(ing)
+    const baseQty = toBaseUnit(ing, enteredQty, enteredUnit)
+    
+    await submit("consumption", { 
+      ingredient_id:ing.id, 
+      ingredient_name:ing.name, 
+      entered_qty: enteredQty,
+      entered_unit: enteredUnit,
+      qty: baseQty, 
+      unit: ing.unit, 
+      notes:consumptionForm.notes, 
+      date:consumptionForm.date||new Date().toISOString().slice(0,10), 
+      estimated_cost: baseQty * (ing.cost_per_unit||0) 
+    })
   }
 
   async function submitProduction() {
@@ -631,9 +660,27 @@ export default function StaffPortal() {
         </div>
         <div style={s.card}>
           <label style={s.label}>Ingredient / Sub-Recipe *</label>
-          <SearchableSelect options={[...ingredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={wasteForm.ingredient_id} onChange={v=>setWasteForm(f=>({...f,ingredient_id:v}))} placeholder="— Search ingredient or sub-recipe —" />
+          <SearchableSelect options={[...ingredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={wasteForm.ingredient_id} onChange={v=>{
+            const ing = ingredientsById[v]
+            setWasteForm(f=>({...f,ingredient_id:v, unit:ing ? biggestUnit(ing) : ""}))
+          }} placeholder="— Search ingredient or sub-recipe —" />
           <label style={{ ...s.label, marginTop:14 }}>Quantity *</label>
-          <input type="text" inputMode="decimal" value={wasteForm.qty} onChange={e=>setWasteForm(f=>({...f,qty:e.target.value}))} style={s.input} placeholder="0" />
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="text" inputMode="decimal" value={wasteForm.qty} onChange={e=>setWasteForm(f=>({...f,qty:e.target.value}))} style={{...s.input, flex:1}} placeholder="0" />
+            {wasteForm.ingredient_id && (() => {
+              const ing = ingredientsById[wasteForm.ingredient_id]
+              const currentUnit = wasteForm.unit || (ing ? biggestUnit(ing) : "")
+              if (ing && ing.conversions && ing.conversions.length > 0) {
+                 return (
+                   <select value={currentUnit} onChange={e=>setWasteForm(f=>({...f,unit:e.target.value}))} style={{...s.input, width:100, padding:"11px 8px"}}>
+                     <option value={ing.unit}>{ing.unit}</option>
+                     {ing.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
+                   </select>
+                 )
+              }
+              return <div style={{...s.input, width:100, background:"#f5f5f5", color:"#888", display:"flex", alignItems:"center", justifyContent:"center"}}>{ing ? ing.unit : "Unit"}</div>
+            })()}
+          </div>
           {wasteForm.ingredient_id && wasteForm.qty && (
             <div style={{ marginTop:8, padding:"9px 13px", background:"#fff0ed", borderRadius:10, fontSize:13, color:"#DE350B", fontWeight:700 }}>
               Est. Loss: Rp {fmt((parseNum(wasteForm.qty)||0)*(ingredientsById[wasteForm.ingredient_id]?.cost_per_unit||0))}
@@ -670,9 +717,27 @@ export default function StaffPortal() {
         </div>
         <div style={s.card}>
           <label style={s.label}>Ingredient / Sub-Recipe *</label>
-          <SearchableSelect options={[...ingredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={consumptionForm.ingredient_id} onChange={v=>setConsumptionForm(f=>({...f,ingredient_id:v}))} placeholder="— Search ingredient or sub-recipe —" />
+          <SearchableSelect options={[...ingredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={consumptionForm.ingredient_id} onChange={v=>{
+            const ing = ingredientsById[v]
+            setConsumptionForm(f=>({...f,ingredient_id:v, unit:ing ? biggestUnit(ing) : ""}))
+          }} placeholder="— Search ingredient or sub-recipe —" />
           <label style={{ ...s.label, marginTop:14 }}>Quantity *</label>
-          <input type="text" inputMode="decimal" value={consumptionForm.qty} onChange={e=>setConsumptionForm(f=>({...f,qty:e.target.value}))} style={s.input} placeholder="0" />
+          <div style={{ display:"flex", gap:8 }}>
+            <input type="text" inputMode="decimal" value={consumptionForm.qty} onChange={e=>setConsumptionForm(f=>({...f,qty:e.target.value}))} style={{...s.input, flex:1}} placeholder="0" />
+            {consumptionForm.ingredient_id && (() => {
+              const ing = ingredientsById[consumptionForm.ingredient_id]
+              const currentUnit = consumptionForm.unit || (ing ? biggestUnit(ing) : "")
+              if (ing && ing.conversions && ing.conversions.length > 0) {
+                 return (
+                   <select value={currentUnit} onChange={e=>setConsumptionForm(f=>({...f,unit:e.target.value}))} style={{...s.input, width:100, padding:"11px 8px"}}>
+                     <option value={ing.unit}>{ing.unit}</option>
+                     {ing.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
+                   </select>
+                 )
+              }
+              return <div style={{...s.input, width:100, background:"#f5f5f5", color:"#888", display:"flex", alignItems:"center", justifyContent:"center"}}>{ing ? ing.unit : "Unit"}</div>
+            })()}
+          </div>
           {consumptionForm.ingredient_id && consumptionForm.qty && (
             <div style={{ marginTop:8, padding:"9px 13px", background:"#fff8e6", borderRadius:10, fontSize:13, color:"#B45309", fontWeight:700 }}>
               Est. Cost: Rp {fmt((parseNum(consumptionForm.qty)||0)*(ingredientsById[consumptionForm.ingredient_id]?.cost_per_unit||0))}

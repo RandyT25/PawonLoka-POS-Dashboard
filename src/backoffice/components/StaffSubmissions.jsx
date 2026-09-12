@@ -874,8 +874,8 @@ export default function StaffSubmissions() {
 const trialTotal = s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).reduce((a,item)=>a+(item.qty*unitPriceFor(ingredients.find(x=>x.id===item.ingredient_id),item.unit)),0) : 0
                 const summary = s.type==="opname" ? (s.data.items||[]).length+" items counted — "+fmt(opnameVariance)+" variance"
                   : s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).length+" items used — "+fmt(trialTotal)+" total"
-                  : s.type==="waste" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
-                  : s.type==="consumption" ? s.data.qty+" "+s.data.unit+" — "+s.data.ingredient_name
+                  : s.type==="waste" ? (s.data.entered_qty ? s.data.entered_qty+" "+s.data.entered_unit : s.data.qty+" "+s.data.unit)+" — "+s.data.ingredient_name
+                  : s.type==="consumption" ? (s.data.entered_qty ? s.data.entered_qty+" "+s.data.entered_unit : s.data.qty+" "+s.data.unit)+" — "+s.data.ingredient_name
                   : s.type==="requisition" ? (s.data.items||[]).length+" items requested — "+fmt(reqTotal)+" total"
                   : s.type==="receiving" ? (s.data.items||[]).length+" items — "+fmt(s.data.invoice_total)+" invoice, "+(s.data.supplier_name||"unknown supplier")
                   : s.type==="daily_recon" ? (s.data.items||[]).length+" items recon — "+fmt(s.data.total_variance_value||0)+" variance"
@@ -1041,14 +1041,14 @@ const trialTotal = s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).
               })()}
               {viewModal.type==="waste" && (
                 <div style={{ display:"grid", gap:14 }}>
-                  {[["Date",viewModal.data.date||"—"],["Ingredient",viewModal.data.ingredient_name],["Quantity",viewModal.data.qty+" "+viewModal.data.unit],["Reason",viewModal.data.reason],["Est. Cost",fmt(viewModal.data.estimated_cost)],["Notes",viewModal.data.notes||"—"]].map(([k,v])=>(
+                  {[["Date",viewModal.data.date||"—"],["Ingredient",viewModal.data.ingredient_name],["Quantity", (viewModal.data.entered_qty ? viewModal.data.entered_qty+" "+viewModal.data.entered_unit : viewModal.data.qty+" "+viewModal.data.unit) + (viewModal.data.entered_qty && viewModal.data.entered_unit !== viewModal.data.unit ? " ("+viewModal.data.qty+" "+viewModal.data.unit+")" : "")],["Reason",viewModal.data.reason],["Est. Cost",fmt(viewModal.data.estimated_cost)],["Notes",viewModal.data.notes||"—"]].map(([k,v])=>(
                     <div key={k}><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>{k}</div><div style={{ fontWeight:600, marginTop:3 }}>{v}</div></div>
                   ))}
                 </div>
               )}
               {viewModal.type==="consumption" && (
                 <div style={{ display:"grid", gap:14 }}>
-                  {[["Date",viewModal.data.date||"—"],["Ingredient",viewModal.data.ingredient_name],["Quantity",viewModal.data.qty+" "+viewModal.data.unit],["Est. Cost",fmt(viewModal.data.estimated_cost)],["Notes",viewModal.data.notes||"—"]].map(([k,v])=>(
+                  {[["Date",viewModal.data.date||"—"],["Ingredient",viewModal.data.ingredient_name],["Quantity", (viewModal.data.entered_qty ? viewModal.data.entered_qty+" "+viewModal.data.entered_unit : viewModal.data.qty+" "+viewModal.data.unit) + (viewModal.data.entered_qty && viewModal.data.entered_unit !== viewModal.data.unit ? " ("+viewModal.data.qty+" "+viewModal.data.unit+")" : "")],["Est. Cost",fmt(viewModal.data.estimated_cost)],["Notes",viewModal.data.notes||"—"]].map(([k,v])=>(
                     <div key={k}><div style={{ fontSize:11, color:"var(--ink4)", fontWeight:700, textTransform:"uppercase" }}>{k}</div><div style={{ fontWeight:600, marginTop:3 }}>{v}</div></div>
                   ))}
                 </div>

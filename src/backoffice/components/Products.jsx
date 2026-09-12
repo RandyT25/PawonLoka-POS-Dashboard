@@ -145,7 +145,8 @@ export default function Products() {
     }
     if (modal === "add") {
       const sku = (form.cat||"PRD").slice(0,3).toUpperCase().replace(/\s/g,"") + Date.now().toString().slice(-6)
-      await supabase.from("products").insert({ ...payload, sku })
+      const { error } = await supabase.from("products").insert({ ...payload, sku })
+      if (error) { alert("Error adding product: " + error.message); setSaving(false); return; }
     } else {
       const existing = products.find(p => p.sku === form.sku)
       if (existing && existing.price !== parseInt(form.price)) {
@@ -157,7 +158,8 @@ export default function Products() {
           changed_by: "Backoffice",
         }).catch(() => {})
       }
-      await supabase.from("products").update(payload).eq("sku", form.sku)
+      const { error } = await supabase.from("products").update(payload).eq("sku", form.sku)
+      if (error) { alert("Error updating product: " + error.message); setSaving(false); return; }
     }
     await load(); closeModal(); setSaving(false)
   }
