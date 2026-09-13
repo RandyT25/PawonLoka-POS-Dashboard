@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react"
+import Login from "./components/Login.jsx"
+import Attendance from "./components/Attendance.jsx"
+import OpnameForm from "./components/OpnameForm.jsx"
 import { supabase } from "../lib/supabase"
 import { offlineStore } from "../lib/offlineStore"
 
