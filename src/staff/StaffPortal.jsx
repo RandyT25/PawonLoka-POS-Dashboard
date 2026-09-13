@@ -599,7 +599,9 @@ export default function StaffPortal() {
 
   if (screen==="opname") {
     return <OpnameForm 
-      ingredients={ingredients} 
+      ingredients={ingredients}
+      staff={loggedStaff}
+      station={station} 
       stationColor={stationColor} 
       saving={saving}
       onBack={() => { setScreen(station ? "home" : "home"); setOpnameSearch("") }}
