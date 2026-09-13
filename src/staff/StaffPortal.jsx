@@ -625,14 +625,14 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={{ fontSize:13, color:"#888", marginBottom:14, marginTop:4, fontWeight:600, textTransform:"uppercase", letterSpacing:0.5 }}>Menu</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:16 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(280px, 1fr))", gap:12 }}>
           {[{screen:"attendance", icon:"🕒", label:"Attendance", sub:"Clock in / Clock out", bg:"#10B981"}, ...MENU_ITEMS.filter(m=>MENUS[station].includes(m.screen))].map(b=>(
             <button key={b.screen} onClick={()=>setScreen(b.screen)} 
-              style={{ background:b.bg, border:"none", borderRadius:16, padding:"20px", display:"flex", alignItems:"center", gap:16, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.08)", transition:"transform 0.1s" }}>
-              <div style={{ fontSize:32, background:"rgba(255,255,255,0.2)", width:56, height:56, borderRadius:14, display:"flex", alignItems:"center", justifyContent:"center" }}>{b.icon}</div>
+              style={{ background:b.bg, border:"none", borderRadius:14, padding:"12px 16px", display:"flex", alignItems:"center", gap:14, cursor:"pointer", boxShadow:"0 4px 12px rgba(0,0,0,0.08)", transition:"transform 0.1s" }}>
+              <div style={{ fontSize:26, background:"rgba(255,255,255,0.2)", width:46, height:46, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{b.icon}</div>
               <div style={{ textAlign:"left", flex:1 }}>
-                <div style={{ fontSize:17, fontWeight:800, color:"#fff", marginBottom:4 }}>{b.label}</div>
-                <div style={{ fontSize:13, fontWeight:500, color:"rgba(255,255,255,0.85)", lineHeight:1.3 }}>{b.sub}</div>
+                <div style={{ fontSize:16, fontWeight:800, color:"#fff", marginBottom:2 }}>{b.label}</div>
+                <div style={{ fontSize:12, fontWeight:500, color:"rgba(255,255,255,0.9)", lineHeight:1.3 }}>{b.sub}</div>
               </div>
             </button>
           ))}

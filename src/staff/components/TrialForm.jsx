@@ -114,16 +114,16 @@ export default function TrialForm({ ingredients, allProducts, onBack, onSubmit, 
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
                     <input type="text" inputMode="decimal" value={item.qty} onChange={e => updateItem(i, "qty", e.target.value)} 
-                      style={{ flex: 1, padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center" }} placeholder="Qty" />
+                      style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center" }} placeholder="Qty" />
                     
                     {unitOptions.length > 0 ? (
                       <select value={item.unit} onChange={e => updateItem(i, "unit", e.target.value)} 
-                        style={{ flex: 1, padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center", appearance: "none" }}>
+                        style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center", appearance: "none" }}>
                         {unitOptions.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     ) : (
                       <input list="uom-options" value={item.unit} onChange={e => updateItem(i, "unit", e.target.value)} 
-                        style={{ flex: 1, padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center" }} placeholder="Unit" />
+                        style={{ flex: 1, minWidth: 0, boxSizing: "border-box", padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9", textAlign: "center" }} placeholder="Unit" />
                     )}
                   </div>
                 </div>

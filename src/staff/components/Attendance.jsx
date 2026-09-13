@@ -71,7 +71,7 @@ export default function Attendance({ staff, onBack }) {
         // Location is required
         try {
           const pos = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 20000 })
           })
           const { latitude, longitude } = pos.coords
           setLocation({ lat: latitude, lng: longitude })
@@ -84,7 +84,13 @@ export default function Attendance({ staff, onBack }) {
             return
           }
         } catch(e) {
-          setError("Location access required for attendance. Please allow location access in your browser.")
+          if (e.code === 1) {
+            setError("Location access denied. Please check your browser AND device settings (e.g. iOS Settings > Privacy > Location).")
+          } else if (e.code === 3) {
+            setError("Location request timed out. Ensure your GPS is on and try stepping outside.")
+          } else {
+            setError("Location error: " + (e.message || "Unknown error"))
+          }
           setStep("init")
           return
         }
