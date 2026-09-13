@@ -107,7 +107,8 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
                 
                 <div style={{ 
                   display: "flex", alignItems: "center", background: filled ? "#E3FCEF" : "#F4F5F7", 
-                  borderRadius: 12, padding: "4px", border: filled ? "1px solid #00875A" : "1px solid #E8ECF0", flexShrink: 0 
+                  borderRadius: 12, padding: "4px", border: filled ? "1px solid #00875A" : "1px solid #E8ECF0", flexShrink: 0,
+                  width: 140
                 }}>
                   <input type="text" inputMode="decimal" value={item.actual_qty}
                     onChange={e => handleUpdate(item.ingredient_id, "actual_qty", e.target.value)}
@@ -121,12 +122,12 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
                     
                   {item.conversions.length > 0 ? (
                     <select value={item.input_unit} onChange={e => handleUpdate(item.ingredient_id, "input_unit", e.target.value)}
-                      style={{ padding: "8px 4px", fontSize: 14, fontWeight: 600, border: "none", background: "transparent", outline: "none", cursor: "pointer", color: filled ? "#00875A" : "#444" }}>
+                      style={{ flex: 1, minWidth: 0, padding: "8px 4px", fontSize: 14, fontWeight: 600, border: "none", background: "transparent", outline: "none", cursor: "pointer", color: filled ? "#00875A" : "#444" }}>
                       <option value={item.unit}>{item.unit}</option>
                       {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
                     </select>
                   ) : (
-                    <div style={{ padding: "8px 4px", fontSize: 14, fontWeight: 600, color: filled ? "#00875A" : "#888", minWidth: 40, textAlign: "center" }}>
+                    <div style={{ flex: 1, minWidth: 0, padding: "8px 4px", fontSize: 14, fontWeight: 600, color: filled ? "#00875A" : "#888", textAlign: "center" }}>
                       {item.unit}
                     </div>
                   )}
