@@ -75,7 +75,8 @@ const startProcess = async (type) => {
     setLoading(true)
     
     // 1. Check Geofence Settings First
-    const isOwner = staff?.role?.toLowerCase() === "owner" || staff?.role?.toLowerCase() === "admin";
+    const roles = Array.isArray(staff?.role) ? staff.role : [];
+    const isOwner = roles.some(r => typeof r === "string" && (r.toLowerCase() === "owner" || r.toLowerCase() === "admin"));
     try {
       const { data: settings } = await supabase.from('app_settings').select('store_lat, store_lng, store_radius_meters').eq('id', 'main').single()
       
