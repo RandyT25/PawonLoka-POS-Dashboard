@@ -50,10 +50,10 @@ const STATION_DEPTS = {
 }
 
 const MENUS = {
-  Kitchen: ["opname","waste","production","requisition","trial"],
-  Snack:   ["opname","waste","production","requisition","trial"],
-  Bar:     ["opname","waste","production","requisition","trial"],
-  Kasir:   ["opname","waste","production","requisition","trial"],
+  Kitchen: ["opname","waste","consumption","production","requisition","trial"],
+  Snack:   ["opname","waste","consumption","production","requisition","trial"],
+  Bar:     ["opname","waste","consumption","production","requisition","trial"],
+  Kasir:   ["opname","waste","consumption","production","requisition","trial"],
 }
 
 const MENU_ITEMS = [
@@ -615,7 +615,9 @@ export default function StaffPortal() {
         <div style={{ fontSize:14, color:"#666", marginBottom:28 }}>Report sent to manager for review.</div>
         <div style={{ display:"flex", flexDirection:"column", gap:10, maxWidth:280, margin:"0 auto" }}>
           <button onClick={()=>reset()} style={{ ...s.btn, background:stationColor, color:"#fff", marginBottom:0 }}>Submit Another</button>
-          <button onClick={()=>{ reset(true); setStation(null) }} style={{ ...s.btn, background:"#f0f0f0", color:"#333", marginBottom:0 }}>{station ? "Change Station" : "Back to Menu"}</button>
+          {(!station || isOwner(loggedStaff) || !Object.keys(STATION_DEPTS).some(st => ((loggedStaff?.role)||[]).some(r => STATION_DEPTS[st].includes(r)))) && (
+    <button onClick={()=>{ reset(true); setStation(null) }} style={{ ...s.btn, background:"#f0f0f0", color:"#333", marginBottom:0 }}>{station ? "Change Station" : "Back to Menu"}</button>
+  )}
         </div>
       </div>
     </div>
@@ -630,7 +632,7 @@ export default function StaffPortal() {
           <div style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</div>
           <div style={{ fontSize:12, opacity:0.85 }}>{station} Station</div>
         </div>
-        <button onClick={()=>setStation(null)} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", borderRadius:8, padding:"5px 11px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Change</button>
+        {(isOwner(loggedStaff) || !Object.keys(STATION_DEPTS).some(st => ((loggedStaff?.role)||[]).some(r => STATION_DEPTS[st].includes(r)))) && (<button onClick={()=>setStation(null)} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", borderRadius:8, padding:"5px 11px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Change</button>)}
       </div>
       <div style={s.body}>
         <div style={{ fontSize:13, color:"#888", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
