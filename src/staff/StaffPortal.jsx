@@ -390,57 +390,7 @@ export default function StaffPortal() {
     setDone(true)
   }
 
-  async function submitOpname() {
-    const filled = opnameCounts.filter(i=>i.actual_qty!=="")
-    if (!filled.length) { alert("Enter at least one count"); return }
-    await submit("opname", { date:opnameDate||new Date().toISOString().slice(0,10), items:filled.map(i=>{
-      const enteredQty = parseNum(i.actual_qty)||0
-      const ing = ingredients.find(x=>x.id===i.ingredient_id)
-      const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit||i.unit)
-      return { ...i, entered_qty:enteredQty, entered_unit:i.input_unit||i.unit, actual_qty, diff:actual_qty-i.system_qty }
-    }) })
-  }
 
-  async function submitWaste() {
-    const ing = ingredientsById[wasteForm.ingredient_id]
-    if (!ing||!wasteForm.qty) { alert("Select ingredient and quantity"); return }
-    const enteredQty = parseNum(wasteForm.qty)
-    const enteredUnit = wasteForm.unit || biggestUnit(ing)
-    const baseQty = toBaseUnit(ing, enteredQty, enteredUnit)
-    
-    await submit("waste", { 
-      ingredient_id:ing.id, 
-      ingredient_name:ing.name, 
-      entered_qty: enteredQty,
-      entered_unit: enteredUnit,
-      qty: baseQty, 
-      unit: ing.unit, 
-      reason:wasteForm.reason, 
-      notes:wasteForm.notes, 
-      date:wasteForm.date||new Date().toISOString().slice(0,10), 
-      estimated_cost: baseQty * (ing.cost_per_unit||0) 
-    })
-  }
-
-  async function submitConsumption() {
-    const ing = ingredientsById[consumptionForm.ingredient_id]
-    if (!ing||!consumptionForm.qty) { alert("Select ingredient and quantity"); return }
-    const enteredQty = parseNum(consumptionForm.qty)
-    const enteredUnit = consumptionForm.unit || biggestUnit(ing)
-    const baseQty = toBaseUnit(ing, enteredQty, enteredUnit)
-    
-    await submit("consumption", { 
-      ingredient_id:ing.id, 
-      ingredient_name:ing.name, 
-      entered_qty: enteredQty,
-      entered_unit: enteredUnit,
-      qty: baseQty, 
-      unit: ing.unit, 
-      notes:consumptionForm.notes, 
-      date:consumptionForm.date||new Date().toISOString().slice(0,10), 
-      estimated_cost: baseQty * (ing.cost_per_unit||0) 
-    })
-  }
 
 
   function reset(forceHome) {
@@ -595,10 +545,15 @@ export default function StaffPortal() {
         
         await submit("waste", {
           ingredient_id: payload.ingredient_id,
-          qty: -qtyInBase,
+          ingredient_name: ing?.name,
+          entered_qty: enteredQty,
+          entered_unit: payload.unit,
+          qty: qtyInBase,
+          unit: ing?.unit,
           reason: payload.reason,
           notes: enteredQty + " " + payload.unit + " — " + payload.notes,
           date: payload.date,
+          estimated_cost: qtyInBase * (ing?.cost_per_unit || 0),
           staff_name: loggedStaff.name,
           station
         })
@@ -621,9 +576,14 @@ export default function StaffPortal() {
         
         await submit("consumption", {
           ingredient_id: payload.ingredient_id,
-          qty: -qtyInBase,
+          ingredient_name: ing?.name,
+          entered_qty: enteredQty,
+          entered_unit: payload.unit,
+          qty: qtyInBase,
+          unit: ing?.unit,
           notes: enteredQty + " " + payload.unit + " (Staff Meal)",
           date: payload.date,
+          estimated_cost: qtyInBase * (ing?.cost_per_unit || 0),
           staff_name: loggedStaff.name,
           station
         })
