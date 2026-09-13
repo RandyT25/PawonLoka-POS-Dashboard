@@ -324,17 +324,8 @@ export default function InvIngredients({ mode="ingredients" }) {
                           ? <span className="bo-badge bo-badge-blue">{i.category}</span>
                           : <span className="bo-badge" style={{ background:"var(--red-lt)", color:"var(--red)" }} title="No category set — click to fix">⚠ Uncategorized</span>}
                     </td>
-                    <td onClick={()=>!editing("station")&&startQuickEdit(i,"station")} style={{ cursor:"pointer" }} title="Click to quick-edit">
-                      {editing("station") ? (
-                        <select autoFocus value={quickVal} onChange={e=>setQuickVal(e.target.value)}
-                          onBlur={()=>saveQuickEdit(i,"station", [quickVal])} onKeyDown={e=>{ if(e.key==="Enter") saveQuickEdit(i,"station", [quickVal]); if(e.key==="Escape") cancelQuickEdit() }}
-                          className="bo-select" style={{ fontSize:12 }} onClick={e=>e.stopPropagation()}>
-                          <option value="Kitchen">Kitchen</option>
-                          <option value="Snack">Snack</option>
-                          <option value="Bar">Bar</option>
-                          <option value="Kasir">Kasir</option>
-                        </select>
-                      ) : (i.station && i.station.length > 0)
+                    <td>
+                      {(i.station && i.station.length > 0)
                           ? <span className="bo-badge" style={{ background:"#F3F4F6", color:"#374151" }}>{Array.isArray(i.station) ? i.station.join(", ") : i.station}</span>
                           : <span className="bo-badge" style={{ background:"var(--red-lt)", color:"var(--red)" }}>⚠ None</span>}
                     </td>
