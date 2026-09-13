@@ -20,7 +20,8 @@ export default function Attendance({ staff, onBack }) {
   const [error, setError] = useState("")
   const [status, setStatus] = useState(null) // null, 'in', 'out'
   const [step, setStep] = useState("init") // 'init', 'camera', 'uploading', 'done'
-  const [actionType, setActionType] = useState("") // 'clock_in', 'clock_out'
+  const [actionType, setActionType] = useState("")
+  const [debug, setDebug] = useState("") // 'clock_in', 'clock_out'
   const [location, setLocation] = useState(null)
   
   const videoRef = useRef(null)
@@ -61,7 +62,10 @@ export default function Attendance({ staff, onBack }) {
     useEffect(() => {
     if (step === "camera" && videoRef.current && stream) {
       videoRef.current.srcObject = stream;
-      videoRef.current.play().catch(e => console.warn("Video play error:", e));
+      videoRef.current.onloadedmetadata = () => {
+         setDebug(prev => prev + " | Metadata loaded");
+         videoRef.current.play().then(() => setDebug(prev => prev + " | Playing")).catch(e => setDebug(prev => prev + " | Play err: " + e.message));
+      };
     }
   }, [step, stream]);
 
@@ -223,6 +227,7 @@ const startProcess = async (type) => {
           <div style={{ width: "100%", maxWidth: 400, display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ background: "#000", borderRadius: 16, overflow: "hidden", position: "relative", aspectRatio: "3/4" }}>
               <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              <div style={{ position: "absolute", top: 10, left: 10, right: 10, color: "lime", fontSize: 12, background: "rgba(0,0,0,0.8)", padding: 4, zIndex: 100 }}>{debug}</div>
               <div style={{ position: "absolute", bottom: 20, left: 0, right: 0, textAlign: "center" }}>
                 <div style={{ display: "inline-block", background: "rgba(0,0,0,0.5)", color: "#fff", padding: "8px 16px", borderRadius: 20, fontSize: 14 }}>
                   Please take a clear selfie
