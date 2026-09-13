@@ -302,6 +302,7 @@ export default function InvDailyRecon() {
               {filteredSubmissions.map(sub => {
                 const items = sub.data?.items || []
                 const totalMinusQty = items.reduce((acc, it) => acc + (it.diff_qty < 0 ? Math.abs(it.diff_qty) : 0), 0)
+                const hasDiscrepancy = items.some(it => it.diff_qty !== 0);
                 const totalVariance = sub.data?.total_variance_value;
                 let displayVal = "Rp 0";
                 let displayColor = "var(--ink1)";
