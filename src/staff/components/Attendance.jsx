@@ -180,7 +180,7 @@ const startProcess = async (type) => {
           }).eq("id", attId)
         }
         
-        setStep("done")
+        setStep("init")
         checkStatus()
       } catch (e) {
         setError("Failed to submit attendance: " + e.message)
