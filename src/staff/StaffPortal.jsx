@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo } from "react"
 import Login from "./components/Login.jsx"
 import Attendance from "./components/Attendance.jsx"
 import OpnameForm from "./components/OpnameForm.jsx"
+import WasteForm from "./components/WasteForm.jsx"
+import ConsumptionForm from "./components/ConsumptionForm.jsx"
 import { supabase } from "../lib/supabase"
 import { offlineStore } from "../lib/offlineStore"
 
@@ -693,58 +695,30 @@ export default function StaffPortal() {
     />
   }
 
-  if (screen==="consumption") return (
-    <div style={s.wrap}>
-      <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
-      <div style={s.header}>
-        <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
-        <span style={{ fontSize:17, fontWeight:800 }}>Staff Meal / Personal Use</span>
-      </div>
-      <div style={s.body}>
-        <div style={s.card}>
-          <StaffPicker color={stationColor} value={staffName} onChange={setStaffName} staffList={station ? (stationStaff[station]||[]) : allStaff} />
-        </div>
-        <div style={s.card}>
-          <label style={s.label}>Date *</label>
-          <input type="date" value={consumptionForm.date} onChange={e=>setConsumptionForm(f=>({...f,date:e.target.value}))} style={s.input} max={new Date().toISOString().slice(0,10)} />
-        </div>
-        <div style={s.card}>
-          <label style={s.label}>Ingredient / Sub-Recipe *</label>
-          <SearchableSelect options={[...filteredIngredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={consumptionForm.ingredient_id} onChange={v=>{
-            const ing = ingredientsById[v]
-            setConsumptionForm(f=>({...f,ingredient_id:v, unit:ing ? biggestUnit(ing) : ""}))
-          }} placeholder="— Search ingredient or sub-recipe —" />
-          <label style={{ ...s.label, marginTop:14 }}>Quantity *</label>
-          <div style={{ display:"flex", gap:8 }}>
-            <input type="text" inputMode="decimal" value={consumptionForm.qty} onChange={e=>setConsumptionForm(f=>({...f,qty:e.target.value}))} style={{...s.input, flex:1}} placeholder="0" />
-            {consumptionForm.ingredient_id && (() => {
-              const ing = ingredientsById[consumptionForm.ingredient_id]
-              const currentUnit = consumptionForm.unit || (ing ? biggestUnit(ing) : "")
-              if (ing && ing.conversions && ing.conversions.length > 0) {
-                 return (
-                   <select value={currentUnit} onChange={e=>setConsumptionForm(f=>({...f,unit:e.target.value}))} style={{...s.input, width:100, padding:"11px 8px"}}>
-                     <option value={ing.unit}>{ing.unit}</option>
-                     {ing.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
-                   </select>
-                 )
-              }
-              return <div style={{...s.input, width:100, background:"#f5f5f5", color:"#888", display:"flex", alignItems:"center", justifyContent:"center"}}>{ing ? ing.unit : "Unit"}</div>
-            })()}
-          </div>
-          {consumptionForm.ingredient_id && consumptionForm.qty && (
-            <div style={{ marginTop:8, padding:"9px 13px", background:"#fff8e6", borderRadius:10, fontSize:13, color:"#B45309", fontWeight:700 }}>
-              Est. Cost: Rp {fmt((parseNum(consumptionForm.qty)||0)*(ingredientsById[consumptionForm.ingredient_id]?.cost_per_unit||0))}
-            </div>
-          )}
-          <label style={{ ...s.label, marginTop:14 }}>Notes</label>
-          <input value={consumptionForm.notes} onChange={e=>setConsumptionForm(f=>({...f,notes:e.target.value}))}
-            style={{ ...s.input, direction:'ltr', unicodeBidi:'plaintext' }} placeholder="Optional"
-            dir="ltr" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} />
-        </div>
-        <button onClick={submitConsumption} disabled={saving} style={{ ...s.btn, background:"#F59E0B", color:"#fff" }}>{saving?"Submitting...":"Submit Report"}</button>
-      </div>
-    </div>
-  )
+
+  if (screen==="consumption") {
+    return <ConsumptionForm 
+      ingredients={filteredIngredients} subRecipes={subRecipeOptions} 
+      onBack={() => setScreen("home")} 
+      onSubmit={async (payload) => {
+        const ing = ingredientsById[payload.ingredient_id]
+        const enteredQty = parseNum(payload.qty)
+        const qtyInBase = convertToBase(enteredQty, payload.unit, ing)
+        if (qtyInBase <= 0) { alert("Quantity must be greater than 0"); return }
+        
+        await submit("consumption", {
+          ingredient_id: payload.ingredient_id,
+          qty: -qtyInBase,
+          notes: enteredQty + " " + payload.unit + " (Staff Meal)",
+          date: payload.date,
+          staff_name: loggedStaff.name,
+          station
+        })
+        setScreen("home")
+      }}
+      saving={submitting} stationColor={stationColor} 
+    />
+  }
 
   if (screen==="production") {
     const selectedSub     = prodType==="sub"     ? subRecipes.find(s => s.id === prodSubId) : null

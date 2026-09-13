@@ -1,5 +1,5 @@
 import { useState } from "react"
-import SearchableSelect from "../../backoffice/components/SearchableSelect"
+import SearchableSelect from "./SearchableSelect.jsx"
 
 export default function ConsumptionForm({ ingredients, subRecipes, onBack, onSubmit, saving, stationColor }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0,10))

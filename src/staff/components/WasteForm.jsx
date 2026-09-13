@@ -1,5 +1,5 @@
 import { useState } from "react"
-import SearchableSelect from "../../backoffice/components/SearchableSelect"
+import SearchableSelect from "./SearchableSelect.jsx"
 
 function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 function parseNum(v) {
