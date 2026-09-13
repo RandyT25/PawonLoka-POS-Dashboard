@@ -404,10 +404,10 @@ export default function InvIngredients({ mode="ingredients" }) {
                 <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", marginBottom:8 }}>Station Assignment *</div>
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {["Kitchen", "Snack", "Bar", "Kasir"].map(st => {
-                    const linked = (form.station||[]).includes(st)
+                    const safeArr = Array.isArray(form.station) ? form.station : (form.station ? [form.station] : []); const linked = safeArr.includes(st)
                     return (
                       <button key={st} type="button"
-                        onClick={()=>setForm(f=>({ ...f, station: linked ? (f.station||[]).filter(x=>x!==st) : [...(f.station||[]), st] }))}
+                        onClick={()=>setForm(f=>{ const arr = Array.isArray(f.station) ? f.station : (f.station ? [f.station] : []); return { ...f, station: linked ? arr.filter(x=>x!==st) : [...arr, st] } })}
                         style={{ fontSize:12, fontWeight:600, padding:"5px 14px", borderRadius:20, cursor:"pointer", fontFamily:"inherit",
                           background: linked ? "var(--brand)" : "var(--surface)",
                           color: linked ? "#fff" : "var(--ink2)",
