@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from "react"
 import Login from "./components/Login.jsx"
 import Attendance from "./components/Attendance.jsx"
+import ProductionForm from "./components/ProductionForm.jsx"
+import RequisitionForm from "./components/RequisitionForm.jsx"
+import TrialForm from "./components/TrialForm.jsx"
 import OpnameForm from "./components/OpnameForm.jsx"
 import WasteForm from "./components/WasteForm.jsx"
 import ConsumptionForm from "./components/ConsumptionForm.jsx"
@@ -552,6 +555,316 @@ export default function StaffPortal() {
   )
 
   
+  if (!loggedStaff) {
+    return <Login allStaff={allStaff.map(s=>s.name)} onLogin={(s) => {
+       setLoggedStaff(s)
+       setStaffName(s.name)
+       const matchingStation = Object.keys(STATION_DEPTS).find(st => (s.role||[]).some(r => STATION_DEPTS[st].includes(r)))
+       if (matchingStation) setStation(matchingStation)
+    }} />
+  }
+
+  if (screen === "attendance") {
+    return <Attendance staff={loggedStaff} onBack={() => setScreen("home")} />
+  }
+
+  // Station picker screen
+  if (!station && screen !== "consumption") return (
+    <div style={s.wrap}>
+      <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
+      <div style={{ ...s.header, background:"#1a1a2e" }}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
+      <div style={s.body}>
+        <div style={{ ...s.card, marginTop:24 }}>
+          <div style={{ textAlign:"center", marginBottom:24 }}>
+            <img src="/logo-staff.png" alt="PawonLoka" style={{ width:72, height:72, borderRadius:14, objectFit:"cover", marginBottom:12 }} />
+            <div style={{ fontSize:19, fontWeight:800 }}>Select Your Station</div>
+            <div style={{ fontSize:13, color:"#888", marginTop:4 }}>Pick your station to continue</div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {Object.entries(STATIONS).map(([name, cfg]) => (
+              <button key={name} onClick={()=>setStation(name)}
+                style={{ ...s.btn, background:cfg.color, color:"#fff", marginBottom:0, fontSize:17, letterSpacing:"0.3px" }}>
+                {name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div style={{ display:"flex", alignItems:"center", gap:10, margin:"18px 4px" }}>
+          <div style={{ flex:1, height:1, background:"#e0e0e0" }} />
+          <span style={{ fontSize:12, color:"#999", fontWeight:700 }}>OR</span>
+          <div style={{ flex:1, height:1, background:"#e0e0e0" }} />
+        </div>
+        <div style={{ ...s.card, padding:0, overflow:"hidden" }}>
+          <button onClick={()=>setScreen("consumption")}
+            style={{ ...s.btn, background:"#F59E0B", color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
+            <span style={{ fontSize:28 }}>🍽️</span>
+            <div>
+              <div style={{ fontSize:16 }}>Staff Meal / Personal Use</div>
+              <div style={{ fontSize:12, fontWeight:400, opacity:0.85, marginTop:2 }}>Log food or drink you took for yourself</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  if (done) return (
+    <div style={s.wrap}>
+      <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
+      <div style={s.header}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>{station ? `${station} Station` : "PawonLoka Staff"}</span></div>
+      <div style={{ ...s.body, textAlign:"center", paddingTop:60 }}>
+        <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
+        <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>Submitted!</div>
+        <div style={{ fontSize:14, color:"#666", marginBottom:28 }}>Report sent to manager for review.</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10, maxWidth:280, margin:"0 auto" }}>
+          <button onClick={()=>reset()} style={{ ...s.btn, background:stationColor, color:"#fff", marginBottom:0 }}>Submit Another</button>
+          {(!station || isOwner(loggedStaff) || !Object.keys(STATION_DEPTS).some(st => ((loggedStaff?.role)||[]).some(r => STATION_DEPTS[st].includes(r)))) && (
+    <button onClick={()=>{ reset(true); setStation(null) }} style={{ ...s.btn, background:"#f0f0f0", color:"#333", marginBottom:0 }}>{station ? "Change Station" : "Back to Menu"}</button>
+  )}
+        </div>
+      </div>
+    </div>
+  )
+
+  if (screen==="home") return (
+    <div style={s.wrap}>
+      <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
+      <div style={s.header}>
+        <Logo />
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</div>
+          <div style={{ fontSize:12, opacity:0.85 }}>{station} Station</div>
+        </div>
+        {(isOwner(loggedStaff) || !Object.keys(STATION_DEPTS).some(st => ((loggedStaff?.role)||[]).some(r => STATION_DEPTS[st].includes(r)))) && (<button onClick={()=>setStation(null)} style={{ background:"rgba(255,255,255,0.2)", border:"none", color:"#fff", borderRadius:8, padding:"5px 11px", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Change</button>)}
+      </div>
+      <div style={s.body}>
+        <div style={{ fontSize:13, color:"#888", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
+        {[{screen:"attendance", icon:"🕒", label:"Attendance", sub:"Clock in / Clock out", bg:"#10B981"}, ...MENU_ITEMS.filter(m=>MENUS[station].includes(m.screen))].map(b=>(
+          <div key={b.screen} style={{ ...s.card, padding:0, overflow:"hidden" }}>
+            <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
+              <span style={{ fontSize:28 }}>{b.icon}</span>
+              <div>
+                <div style={{ fontSize:16 }}>{b.label}</div>
+                <div style={{ fontSize:12, fontWeight:400, opacity:0.85, marginTop:2 }}>{b.sub}</div>
+              </div>
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
+  if (screen==="opname") {
+    return <OpnameForm 
+      ingredients={filteredIngredients}
+      staff={loggedStaff}
+      station={station} 
+      stationColor={stationColor} 
+      saving={saving}
+      onBack={() => { setScreen(station ? "home" : "home"); setOpnameSearch("") }}
+      onSubmit={async (data) => {
+         const items = data.items.map(i => {
+           const enteredQty = parseNum(i.actual_qty)||0
+           const ing = ingredients.find(x=>x.id===i.ingredient_id)
+           const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit)
+           return { ...i, entered_qty: enteredQty, entered_unit: i.input_unit, actual_qty, diff: actual_qty - i.system_qty }
+         })
+         await submit("opname", { items }, data.date)
+      }} 
+    />
+  }
+
+  
+  if (screen==="waste") {
+    return <WasteForm 
+      ingredients={filteredIngredients} subRecipes={subRecipeOptions} 
+      onBack={() => setScreen("home")} 
+      onSubmit={async (payload) => {
+        const ing = ingredientsById[payload.ingredient_id]
+        const enteredQty = parseNum(payload.qty)
+        const qtyInBase = convertToBase(enteredQty, payload.unit, ing)
+        if (qtyInBase <= 0) { alert("Quantity must be greater than 0"); return }
+        
+        await submit("waste", {
+          ingredient_id: payload.ingredient_id,
+          qty: -qtyInBase,
+          reason: payload.reason,
+          notes: enteredQty + " " + payload.unit + " — " + payload.notes,
+          date: payload.date,
+          staff_name: loggedStaff.name,
+          station
+        })
+        setScreen("home")
+      }}
+      saving={saving} stationColor={stationColor} 
+    />
+  }
+
+
+  if (screen==="consumption") {
+    return <ConsumptionForm 
+      ingredients={filteredIngredients} subRecipes={subRecipeOptions} 
+      onBack={() => setScreen("home")} 
+      onSubmit={async (payload) => {
+        const ing = ingredientsById[payload.ingredient_id]
+        const enteredQty = parseNum(payload.qty)
+        const qtyInBase = convertToBase(enteredQty, payload.unit, ing)
+        if (qtyInBase <= 0) { alert("Quantity must be greater than 0"); return }
+        
+        await submit("consumption", {
+          ingredient_id: payload.ingredient_id,
+          qty: -qtyInBase,
+          notes: enteredQty + " " + payload.unit + " (Staff Meal)",
+          date: payload.date,
+          staff_name: loggedStaff.name,
+          station
+        })
+        setScreen("home")
+      }}
+      saving={saving} stationColor={stationColor} 
+    />
+  }
+
+  
+  if (screen==="production") {
+    return <ProductionForm
+      ingredients={filteredIngredients} subRecipes={filteredSubRecipes} frozenProducts={filteredFrozenProducts}
+      subRecipeIngs={subRecipeIngs} frozenRecipes={frozenRecipes}
+      stationColor={stationColor} saving={saving}
+      onBack={() => setScreen("home")}
+      onSubmit={async (payload) => {
+        setSaving(true)
+        try {
+          const { data:user } = await supabase.auth.getUser()
+          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
+
+          let outNotes = payload.prodType==="product"
+            ? `Diproduksi ${payload.batchQty} pack ${payload.selectedItem.name}`
+            : `Diproduksi ${payload.batchQty} batch (${payload.batchQty*payload.selectedItem.yield_qty} ${payload.selectedItem.yield_unit}) ${payload.selectedItem.name}`
+          if (payload.notes) outNotes += ` — Catatan: ${payload.notes}`
+
+          const { data:prodData, error:prodErr } = await supabase.from("production").insert([{
+            business_id,
+            production_date: payload.date,
+            target_type: payload.prodType,
+            target_id: payload.prodType==="sub"?payload.prodId:null,
+            target_sku: payload.prodType==="product"?payload.prodId:null,
+            target_name: payload.selectedItem.name,
+            batch_qty: payload.batchQty,
+            notes: outNotes,
+            staff_name: loggedStaff.name,
+            station
+          }]).select().single()
+          if (prodErr) throw prodErr
+
+          if (payload.prodType==="product") {
+            await supabase.from("frozen_products").update({ stock: (payload.selectedItem.stock||0) + payload.batchQty }).eq("sku", payload.prodId)
+          } else {
+            await supabase.from("sub_recipes").update({ stock: (payload.selectedItem.stock||0) + (payload.batchQty*payload.selectedItem.yield_qty) }).eq("id", payload.prodId)
+          }
+
+          const preview = payload.recipeLines.map(l => {
+            const ing = ingredientsById[l.ingredient_id] || ingredients.find(i=>i.id===l.ingredient_id)
+            const total = l.qty * payload.batchQty
+            return { ingredient_id:l.ingredient_id, name:ing?.name||l.ingredient_name||"", perBatch:l.qty, unit:l.unit||ing?.unit||"", total, cost:total*(ing?.cost_per_unit||0) }
+          })
+
+          const usedInserts = []
+          for (const p of preview) {
+            const ing = ingredientsById[p.ingredient_id] || ingredients.find(i=>i.name===p.name)
+            if (ing) {
+              await supabase.from("ingredients").update({ stock: (ing.stock||0) - p.total }).eq("id", ing.id)
+            }
+            usedInserts.push({
+              production_id: prodData.id,
+              ingredient_id: ing?.id||null,
+              ingredient_name: p.name,
+              qty: p.total,
+              unit: p.unit,
+              cost_per_unit: ing?.cost_per_unit||0
+            })
+          }
+          if (usedInserts.length > 0) {
+            await supabase.from("production_used").insert(usedInserts)
+          }
+          setScreen("home")
+        } catch(e) {
+          alert("Error: " + e.message)
+        } finally {
+          setSaving(false)
+        }
+      }}
+    />
+  }
+
+  if (screen==="trial") {
+    return <TrialForm
+      ingredients={filteredIngredients} allProducts={allProducts}
+      stationColor={stationColor} saving={saving}
+      onBack={() => setScreen("home")}
+      onSubmit={async (payload) => {
+        setSaving(true)
+        try {
+          const { data:user } = await supabase.auth.getUser()
+          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
+          
+          let n = "R&D / Trial: " + payload.trialName
+          if (payload.notes) n += " — " + payload.notes
+          
+          for (const item of payload.items) {
+            const ing = ingredientsById[item.ingredient_id]
+            const qtyInBase = convertToBase(item.qty, item.unit, ing)
+            if (qtyInBase > 0) {
+              await supabase.from("ingredients_ledger").insert([{
+                business_id, ingredient_id: item.ingredient_id,
+                change_qty: -qtyInBase, type: "trial", notes: item.qty + " " + item.unit + " — " + n,
+                date: new Date().toISOString().slice(0,10), staff_name: loggedStaff.name, station
+              }])
+              await supabase.from("ingredients").update({ stock: (ing?.stock||0) - qtyInBase }).eq("id", item.ingredient_id)
+            }
+          }
+          setScreen("home")
+        } catch(e) {
+          alert("Error: " + e.message)
+        } finally {
+          setSaving(false)
+        }
+      }}
+    />
+  }
+
+  if (screen==="requisition") {
+    return <RequisitionForm
+      ingredients={filteredIngredients}
+      stationColor={stationColor} saving={saving}
+      onBack={() => setScreen("home")}
+      onSubmit={async (payload) => {
+        setSaving(true)
+        try {
+          const { data:user } = await supabase.auth.getUser()
+          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
+          
+          let n = "Requested for " + payload.date
+          if (payload.notes) n += " — " + payload.notes
+          
+          for (const item of payload.items) {
+            const ing = ingredientsById[item.ingredient_id]
+            await supabase.from("requisitions").insert([{
+              business_id, ingredient_id: item.ingredient_id,
+              qty: item.qty, unit: item.unit, notes: n,
+              req_date: payload.date, staff_name: loggedStaff.name, station
+            }])
+          }
+          setScreen("home")
+        } catch(e) {
+          alert("Error: " + e.message)
+        } finally {
+          setSaving(false)
+        }
+      }}
+    />
+  }
+
   if (!loggedStaff) {
     return <Login allStaff={allStaff.map(s=>s.name)} onLogin={(s) => {
        setLoggedStaff(s)
