@@ -302,8 +302,25 @@ export default function InvDailyRecon() {
               {filteredSubmissions.map(sub => {
                 const items = sub.data?.items || []
                 const totalMinusQty = items.reduce((acc, it) => acc + (it.diff_qty < 0 ? Math.abs(it.diff_qty) : 0), 0)
-                const totalLossVal = sub.data?.total_variance_value || items.reduce((acc, it) => acc + (it.diff_qty < 0 ? Math.abs(it.diff_qty) * (it.cost_per_unit || 0) : 0), 0)
-                const hasDiscrepancy = items.some(it => it.diff_qty !== 0)
+                const totalVariance = sub.data?.total_variance_value;
+                let displayVal = "Rp 0";
+                let displayColor = "var(--ink1)";
+
+                if (totalVariance !== undefined) {
+                  if (totalVariance < 0) {
+                    displayVal = `-${fmt(Math.abs(totalVariance))}`;
+                    displayColor = "#DE350B";
+                  } else if (totalVariance > 0) {
+                    displayVal = `+${fmt(totalVariance)}`;
+                    displayColor = "#00875A";
+                  }
+                } else {
+                  const lossOnly = items.reduce((acc, it) => acc + (it.diff_qty < 0 ? Math.abs(it.diff_qty) * (it.cost_per_unit || 0) : 0), 0)
+                  if (lossOnly > 0) {
+                    displayVal = `-${fmt(lossOnly)}`;
+                    displayColor = "#DE350B";
+                  }
+                }
 
                 return (
                   <tr key={sub.id}>
@@ -319,8 +336,8 @@ export default function InvDailyRecon() {
                         </span>
                       )}
                     </td>
-                    <td style={{ fontWeight: 800, color: totalLossVal > 0 ? "#DE350B" : "var(--ink1)" }}>
-                      {totalLossVal > 0 ? `-${fmt(totalLossVal)}` : "Rp 0"}
+                    <td style={{ fontWeight: 800, color: displayColor }}>
+                      {displayVal}
                     </td>
                     <td>
                       <span className={"bo-badge " + (sub.status === "approved" ? "bo-badge-green" : "bo-badge-amber")}>
