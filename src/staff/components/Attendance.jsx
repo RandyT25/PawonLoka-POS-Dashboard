@@ -73,8 +73,23 @@ const startProcess = async (type) => {
     setActionType(type)
     setError("")
     setLoading(true)
-    
-    // 1. Check Geofence Settings First
+
+    // 1. Get Camera IMMEDIATELY to preserve the user gesture token
+    let mediaStream;
+    try {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 } } });
+      } catch (err1) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+    } catch (e) {
+      setLoading(false);
+      setError("Camera Error (" + e.name + "): " + e.message + ". Please allow camera access.");
+      setStep("init");
+      return;
+    }
+
+    // 2. Check Geofence Settings
     const roles = Array.isArray(staff?.role) ? staff.role : [];
     const isOwner = roles.some(r => typeof r === "string" && (r.toLowerCase() === "owner" || r.toLowerCase() === "admin"));
     try {
@@ -92,12 +107,14 @@ const startProcess = async (type) => {
           const dist = getDistance(latitude, longitude, settings.store_lat, settings.store_lng)
           const radius = settings.store_radius_meters || 50
           if (dist > radius) {
+            mediaStream.getTracks().forEach(t => t.stop())
             setLoading(false)
             setError(`You are ${Math.round(dist)}m away from the store. You must be within ${radius}m to clock in/out.`)
             setStep("init")
             return
           }
         } catch(e) {
+          mediaStream.getTracks().forEach(t => t.stop())
           setLoading(false)
           if (e.code === 1) {
             setError("Location access denied. Please check your browser AND device settings (e.g. iOS Settings > Privacy > Location).")
@@ -114,22 +131,9 @@ const startProcess = async (type) => {
       console.warn("Failed to check app_settings for geofence", e)
     }
 
+    setStream(mediaStream)
     setLoading(false)
     setStep("camera")
-    // 2. Start Camera
-    try {
-      let mediaStream;
-      try {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 } } });
-      } catch (err1) {
-        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      }
-      setStream(mediaStream);
-    } catch (e) {
-      setLoading(false);
-      setError("Camera Error (" + e.name + "): " + e.message + ". Please allow camera access.");
-      setStep("init");
-    }
   }
 
   const takePhotoAndSubmit = async () => {
