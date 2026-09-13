@@ -63,29 +63,34 @@ export default function Attendance({ staff, onBack }) {
     setError("")
     setStep("camera")
     
-    // 1. Get Location
+    // 1. Check Geofence Settings First
     try {
-      const pos = await new Promise((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
-      })
-      const { latitude, longitude } = pos.coords
-      setLocation({ lat: latitude, lng: longitude })
-      
-      // Verify Geofence
       const { data: settings } = await supabase.from('app_settings').select('store_lat, store_lng, store_radius_meters').eq('id', 'main').single()
+      
       if (settings && settings.store_lat && settings.store_lng) {
-        const dist = getDistance(latitude, longitude, settings.store_lat, settings.store_lng)
-        const radius = settings.store_radius_meters || 50
-        if (dist > radius) {
-          setError(`You are ${Math.round(dist)}m away from the store. You must be within ${radius}m to clock in/out.`)
+        // Location is required
+        try {
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 })
+          })
+          const { latitude, longitude } = pos.coords
+          setLocation({ lat: latitude, lng: longitude })
+          
+          const dist = getDistance(latitude, longitude, settings.store_lat, settings.store_lng)
+          const radius = settings.store_radius_meters || 50
+          if (dist > radius) {
+            setError(`You are ${Math.round(dist)}m away from the store. You must be within ${radius}m to clock in/out.`)
+            setStep("init")
+            return
+          }
+        } catch(e) {
+          setError("Location access required for attendance. Please allow location access in your browser.")
           setStep("init")
           return
         }
       }
     } catch (e) {
-      setError("Failed to get location. Please allow location access.")
-      setStep("init")
-      return
+      console.warn("Failed to check app_settings for geofence", e)
     }
 
     // 2. Start Camera
