@@ -142,7 +142,8 @@ export default function StaffPortal() {
   const [opnameSearch, setOpnameSearch] = useState("")
   const [opnameDate,   setOpnameDate]   = useState(new Date().toISOString().slice(0,10))
   const [staffName,    setStaffName]    = useState("")
-  const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
+  const [loggedStaff, setLoggedStaff] = useState(null)
+      const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
   const [consumptionForm, setConsumptionForm] = useState({ ingredient_id:"", qty:"", unit:"", notes:"", date:new Date().toISOString().slice(0,10) })
   const [trialForm, setTrialForm] = useState({ trialName:"", notes:"", items:[{ingredient_id:"", qty:"", unit:""}] })
   const [prodType,     setProdType]     = useState("") // 'sub' | 'product'
@@ -179,15 +180,13 @@ export default function StaffPortal() {
     return map
   }
 
-  function buildAllStaff(rows) {
-    return [...new Set(rows.map(r=>r.name))].sort()
-  }
+  function buildAllStaff(rows) { return rows.sort((a,b)=>a.name.localeCompare(b.name)) }
 
   async function loadStaff() {
     const cached = await offlineStore.getCache('staff')
     if (cached?.length) { setStationStaff(buildStationStaff(cached)); setAllStaff(buildAllStaff(cached)) }
     try {
-      const { data } = await supabase.from("staff").select("name,role,active").eq("active", true)
+      const { data } = await supabase.from("staff").select("id,name,role,pin,active").eq("active", true)
       if (data) { setStationStaff(buildStationStaff(data)); setAllStaff(buildAllStaff(data)); offlineStore.setCache('staff', data) }
     } catch { /* offline — cached already applied */ }
   }
@@ -497,6 +496,20 @@ export default function StaffPortal() {
     <img src="/logo-staff.png" alt="PawonLoka" style={{ height:36, width:36, borderRadius:8, objectFit:"cover" }} />
   )
 
+  
+  if (!loggedStaff) {
+    return <Login allStaff={allStaff.map(s=>s.name)} onLogin={(s) => {
+       setLoggedStaff(s)
+       setStaffName(s.name)
+       const matchingStation = Object.keys(STATION_DEPTS).find(st => (s.role||[]).some(r => STATION_DEPTS[st].includes(r)))
+       if (matchingStation) setStation(matchingStation)
+    }} />
+  }
+
+  if (screen === "attendance") {
+    return <Attendance staff={loggedStaff} onBack={() => setScreen("home")} />
+  }
+
   // Station picker screen
   if (!station && screen !== "consumption") return (
     <div style={s.wrap}>
@@ -566,7 +579,7 @@ export default function StaffPortal() {
       </div>
       <div style={s.body}>
         <div style={{ fontSize:13, color:"#888", marginBottom:14, marginTop:4 }}>What do you want to report?</div>
-        {MENU_ITEMS.filter(m=>MENUS[station].includes(m.screen)).map(b=>(
+        {[{screen:"attendance", icon:"🕒", label:"Attendance", sub:"Clock in / Clock out", bg:"#10B981"}, ...MENU_ITEMS.filter(m=>MENUS[station].includes(m.screen))].map(b=>(
           <div key={b.screen} style={{ ...s.card, padding:0, overflow:"hidden" }}>
             <button onClick={()=>setScreen(b.screen)} style={{ ...s.btn, background:b.bg, color:"#fff", marginBottom:0, textAlign:"left", display:"flex", alignItems:"center", gap:14, padding:"18px 16px", borderRadius:0 }}>
               <span style={{ fontSize:28 }}>{b.icon}</span>
@@ -582,65 +595,21 @@ export default function StaffPortal() {
   )
 
   if (screen==="opname") {
-    const filteredOp = opnameCounts.filter(i=>!opnameSearch||i.name.toLowerCase().includes(opnameSearch.toLowerCase()))
-    const filledCount = opnameCounts.filter(i=>i.actual_qty!=="").length
-    return (
-      <div style={s.wrap}>
-      <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
-        <div style={s.header}>
-          <button onClick={()=>setScreen("home")} style={s.backBtn}>←</button>
-          <div style={{ flex:1 }}>
-            <div style={{ fontSize:17, fontWeight:800 }}>Stock Count</div>
-            <div style={{ fontSize:11, opacity:0.8 }}>{filledCount} items filled</div>
-          </div>
-        </div>
-        <div style={s.body}>
-          <div style={{ ...s.card, marginBottom:10 }}>
-            <StaffPicker color={stationColor} value={staffName} onChange={setStaffName} staffList={stationStaff[station]||[]} />
-          </div>
-          <div style={{ ...s.card, marginBottom:10 }}>
-            <label style={s.label}>Count Date *</label>
-            <input type="date" value={opnameDate} onChange={e=>setOpnameDate(e.target.value)} style={s.input} max={new Date().toISOString().slice(0,10)} />
-          </div>
-          <div style={{ ...s.card, padding:"10px 12px", marginBottom:10, display:"flex", alignItems:"center", gap:8 }}>
-            <span style={{ fontSize:16 }}>🔍</span>
-            <input value={opnameSearch} onChange={e=>setOpnameSearch(e.target.value)} placeholder="Search ingredient..." style={{ ...s.input, border:"none", padding:"4px 0", fontSize:14, flex:1 }} />
-            {opnameSearch && <button onClick={()=>setOpnameSearch("")} style={{ background:"none", border:"none", color:"#999", fontSize:18, cursor:"pointer", padding:0 }}>✕</button>}
-          </div>
-          <div style={{ fontSize:12, color:"#888", marginBottom:10 }}>Only fill items you counted. Leave blank to skip.</div>
-          {filteredOp.map((item)=>{
-            const realIdx = opnameCounts.findIndex(x=>x.ingredient_id===item.ingredient_id)
-            const filled = item.actual_qty !== ""
-            return (
-              <div key={item.ingredient_id} style={{ ...s.card, padding:"11px 14px", display:"flex", alignItems:"center", gap:10, marginBottom:8, borderLeft:`3px solid ${filled?"#00875A":"#e0e0e0"}` }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:700, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name}</div>
-                  <div style={{ fontSize:11, color:"#888" }}>System: {fmt(item.system_qty)} {item.unit}</div>
-                </div>
-                <input type="text" inputMode="decimal" value={item.actual_qty}
-                  onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,actual_qty:e.target.value}:x))}
-                  placeholder="—" style={{ ...s.input, width:76, textAlign:"center", padding:"9px 6px", fontSize:15, flexShrink:0, background:filled?"#f0fff8":"#fafafa", borderColor:filled?"#00875A":"#e0e0e0" }} />
-                {(item.conversions||[]).length > 0 ? (
-                  <select value={item.input_unit||item.unit}
-                    onChange={e=>setOpnameCounts(prev=>prev.map((x,i)=>i===realIdx?{...x,input_unit:e.target.value}:x))}
-                    style={{ fontSize:11, color:"#888", minWidth:48, flexShrink:0, border:"1px solid #e0e0e0", borderRadius:6, padding:"4px 2px", background:"#fff" }}>
-                    <option value={item.unit}>{item.unit}</option>
-                    {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
-                  </select>
-                ) : (
-                  <span style={{ fontSize:11, color:"#888", minWidth:24, flexShrink:0 }}>{item.unit}</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-        <div style={s.fixedBottom}>
-          <div style={{ maxWidth:480, margin:"0 auto" }}>
-            <button onClick={submitOpname} disabled={saving} style={{ ...s.btn, background:stationColor, color:"#fff", marginBottom:0 }}>{saving?"Submitting...":"Submit Count"+(filledCount>0?` (${filledCount} items)`:"")}</button>
-          </div>
-        </div>
-      </div>
-    )
+    return <OpnameForm 
+      ingredients={ingredients} 
+      stationColor={stationColor} 
+      saving={saving}
+      onBack={() => { setScreen(station ? "home" : "home"); setOpnameSearch("") }}
+      onSubmit={async (data) => {
+         const items = data.items.map(i => {
+           const enteredQty = parseNum(i.actual_qty)||0
+           const ing = ingredients.find(x=>x.id===i.ingredient_id)
+           const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit)
+           return { ...i, entered_qty: enteredQty, entered_unit: i.input_unit, actual_qty, diff: actual_qty - i.system_qty }
+         })
+         await submit("opname", { items }, data.date)
+      }} 
+    />
   }
 
   if (screen==="waste") return (

@@ -15,6 +15,9 @@ export default function Settings() {
   const [saving,   setSaving]   = useState(false)
   const [saved,    setSaved]    = useState(false)
   const [tab,      setTab]      = useState("outlet")
+  const [storeLat, setStoreLat] = useState("")
+  const [storeLng, setStoreLng] = useState("")
+  const [storeRadius, setStoreRadius] = useState(50)
   const [newStation, setNewStation] = useState({ name:"", icon:"🍳" })
   const [editStation, setEditStation] = useState(null)
   const [categories, setCategories] = useState([])
@@ -34,6 +37,11 @@ export default function Settings() {
       else { try { setCatRouting(JSON.parse(localStorage.getItem("pl_cat_routing")||"{}")) } catch {} }
     }
     setCategories(cats||[])
+    if (s) {
+      setStoreLat(s.store_lat||"")
+      setStoreLng(s.store_lng||"")
+      setStoreRadius(s.store_radius_meters||50)
+    }
     setLoading(false)
   }
 
@@ -45,7 +53,7 @@ export default function Settings() {
       gold_threshold: parseInt(settings.loyalty.gold_threshold)||0,
       silver_threshold: parseInt(settings.loyalty.silver_threshold)||0,
     }
-    await supabase.from("app_settings").upsert({ id:"main", ...settings, loyalty:cleanedLoyalty, cat_routing:catRouting, updated_at:new Date().toISOString() }, { onConflict:"id" })
+    await supabase.from("app_settings").upsert({ id:"main", ...settings, store_lat:parseFloat(storeLat)||null, store_lng:parseFloat(storeLng)||null, store_radius_meters:parseInt(storeRadius)||50, loyalty:cleanedLoyalty, cat_routing:catRouting, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setSettings(s=>({...s, loyalty:cleanedLoyalty}))
     localStorage.setItem("pl_cat_routing", JSON.stringify(catRouting))
     setSaving(false); setSaved(true)
@@ -68,6 +76,7 @@ export default function Settings() {
   }
 
   const TABS = [
+    ["attendance","🕒 Attendance"],
     ["outlet","🏪 Outlet"],["pos","🧾 POS"],["regional","🌍 Regional"],
     ["loyalty","⭐ Loyalty"],["stations","🍳 Stations"],["reset","🗑 Reset"],
   ]
@@ -85,6 +94,32 @@ export default function Settings() {
           {saving?"Saving...":saved?"✓ Saved":"Save All"}
         </button>
       </div>
+
+      
+      {tab==="attendance" && (
+        <div className="bo-card">
+          <div className="bo-card-title">🕒 Geofenced Attendance Settings</div>
+          <div style={{ fontSize:13, color:"var(--ink4)", marginBottom:16 }}>
+            Set the exact coordinates of PawonLoka. Staff will only be able to clock in and out from the Staff App if their device is within the allowed radius of these coordinates.
+          </div>
+          <div className="bo-form-row">
+            <label className="bo-label">Store Latitude</label>
+            <input type="number" step="any" value={storeLat} onChange={e=>setStoreLat(e.target.value)} className="bo-input" placeholder="-8.670458" />
+          </div>
+          <div className="bo-form-row">
+            <label className="bo-label">Store Longitude</label>
+            <input type="number" step="any" value={storeLng} onChange={e=>setStoreLng(e.target.value)} className="bo-input" placeholder="115.212629" />
+          </div>
+          <div className="bo-form-row">
+            <label className="bo-label">Allowed Radius (Meters)</label>
+            <input type="number" value={storeRadius} onChange={e=>setStoreRadius(e.target.value)} className="bo-input" placeholder="50" />
+            <div style={{ fontSize:11, color:"var(--ink4)", marginTop:4 }}>We recommend at least 50 meters to account for normal GPS drift on mobile devices.</div>
+          </div>
+          <div style={{ marginTop:16, padding:"12px 14px", background:"#E3FCEF", borderRadius:"var(--r)", fontSize:12, color:"#00875A", fontWeight:600 }}>
+            Geofence Attendance is Active. Ensure staff enable Location Services on their devices.
+          </div>
+        </div>
+      )}
 
       {tab==="outlet" && (
         <div className="bo-card">
