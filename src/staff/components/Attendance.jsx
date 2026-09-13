@@ -72,7 +72,7 @@ export default function Attendance({ staff, onBack }) {
 const startProcess = async (type) => {
     setActionType(type)
     setError("")
-    setStep("camera")
+    setLoading(true)
     
     // 1. Check Geofence Settings First
     const isOwner = staff?.role?.toLowerCase() === "owner" || staff?.role?.toLowerCase() === "admin";
@@ -91,11 +91,13 @@ const startProcess = async (type) => {
           const dist = getDistance(latitude, longitude, settings.store_lat, settings.store_lng)
           const radius = settings.store_radius_meters || 50
           if (dist > radius) {
+            setLoading(false)
             setError(`You are ${Math.round(dist)}m away from the store. You must be within ${radius}m to clock in/out.`)
             setStep("init")
             return
           }
         } catch(e) {
+          setLoading(false)
           if (e.code === 1) {
             setError("Location access denied. Please check your browser AND device settings (e.g. iOS Settings > Privacy > Location).")
           } else if (e.code === 3) {
@@ -111,6 +113,8 @@ const startProcess = async (type) => {
       console.warn("Failed to check app_settings for geofence", e)
     }
 
+    setLoading(false)
+    setStep("camera")
     // 2. Start Camera
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
