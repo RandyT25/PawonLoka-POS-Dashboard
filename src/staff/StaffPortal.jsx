@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import Login from "./components/Login.jsx"
 import Attendance from "./components/Attendance.jsx"
 import OpnameForm from "./components/OpnameForm.jsx"
@@ -182,7 +182,7 @@ export default function StaffPortal() {
   };
 
   // Memoize filters
-  const filteredIngredients = React.useMemo(() => {
+  const filteredIngredients = useMemo(() => {
     if (isOwner(loggedStaff)) return ingredients;
     if (isNita(loggedStaff)) return ingredients; // Nita can request anything
     return ingredients.filter(i => {
@@ -195,7 +195,7 @@ export default function StaffPortal() {
     });
   }, [ingredients, loggedStaff, station]);
 
-  const filteredSubRecipes = React.useMemo(() => {
+  const filteredSubRecipes = useMemo(() => {
     if (isOwner(loggedStaff)) return subRecipes;
     return subRecipes.filter(r => {
       if (isNita(loggedStaff) && r.name.toLowerCase().includes("sambal kacang")) return true;
@@ -210,7 +210,7 @@ export default function StaffPortal() {
     });
   }, [subRecipes, ingredients, loggedStaff, station]);
 
-  const filteredFrozenProducts = React.useMemo(() => {
+  const filteredFrozenProducts = useMemo(() => {
     if (isOwner(loggedStaff)) return frozenProducts;
     if ((station||"").toLowerCase() === "kitchen") return frozenProducts;
     return [];
