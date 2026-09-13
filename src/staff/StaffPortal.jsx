@@ -167,7 +167,57 @@ export default function StaffPortal() {
   // Use ingredient_id (not the sub_recipes row's own id) as the option value — that's the
   // id staff_submissions/stock_movements actually deduct against. See RecipeEditor.jsx's
   // `all` list for the same fix applied there.
-  const subRecipeOptions = subRecipes.map(s => {
+  
+  const isOwner = (staff) => {
+    if (!staff) return false;
+    const roles = Array.isArray(staff.role) ? staff.role : [];
+    if (roles.some(r => typeof r === "string" && r.toLowerCase() === "owner")) return true;
+    if (typeof staff.name === "string" && staff.name.toLowerCase().includes("claudy")) return true;
+    return false;
+  };
+
+  const isNita = (staff) => {
+    if (!staff) return false;
+    return typeof staff.name === "string" && staff.name.toLowerCase().includes("nita");
+  };
+
+  // Memoize filters
+  const filteredIngredients = React.useMemo(() => {
+    if (isOwner(loggedStaff)) return ingredients;
+    if (isNita(loggedStaff)) return ingredients; // Nita can request anything
+    return ingredients.filter(i => {
+      if (i.station && Array.isArray(i.station)) {
+        return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
+      } else if (i.station && typeof i.station === "string") {
+        return i.station.toLowerCase() === (station || "").toLowerCase();
+      }
+      return true;
+    });
+  }, [ingredients, loggedStaff, station]);
+
+  const filteredSubRecipes = React.useMemo(() => {
+    if (isOwner(loggedStaff)) return subRecipes;
+    return subRecipes.filter(r => {
+      if (isNita(loggedStaff) && r.name.toLowerCase().includes("sambal kacang")) return true;
+      const outIng = ingredients.find(i => i.id === r.ingredient_id);
+      if (!outIng) return true;
+      if (outIng.station && Array.isArray(outIng.station)) {
+        return outIng.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
+      } else if (outIng.station && typeof outIng.station === "string") {
+        return outIng.station.toLowerCase() === (station || "").toLowerCase();
+      }
+      return true;
+    });
+  }, [subRecipes, ingredients, loggedStaff, station]);
+
+  const filteredFrozenProducts = React.useMemo(() => {
+    if (isOwner(loggedStaff)) return frozenProducts;
+    if ((station||"").toLowerCase() === "kitchen") return frozenProducts;
+    return [];
+  }, [frozenProducts, loggedStaff, station]);
+
+  const subRecipeOptions = filteredSubRecipes.map(s => {
+
     const ing = ingredientsById[s.ingredient_id]
     return { id: s.ingredient_id||s.id, name:s.name, unit: ing?.unit||s.yield_unit||s.unit||"gr", cost_per_unit: ing?.cost_per_unit||s.cost_per_unit||0 }
   })
@@ -599,7 +649,7 @@ export default function StaffPortal() {
 
   if (screen==="opname") {
     return <OpnameForm 
-      ingredients={ingredients}
+      ingredients={filteredIngredients}
       staff={loggedStaff}
       station={station} 
       stationColor={stationColor} 
@@ -620,7 +670,7 @@ export default function StaffPortal() {
   
   if (screen==="waste") {
     return <WasteForm 
-      ingredients={ingredients} subRecipes={subRecipeOptions} 
+      ingredients={filteredIngredients} subRecipes={subRecipeOptions} 
       onBack={() => setScreen("home")} 
       onSubmit={async (payload) => {
         const ing = ingredientsById[payload.ingredient_id]
@@ -660,7 +710,7 @@ export default function StaffPortal() {
         </div>
         <div style={s.card}>
           <label style={s.label}>Ingredient / Sub-Recipe *</label>
-          <SearchableSelect options={[...ingredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={consumptionForm.ingredient_id} onChange={v=>{
+          <SearchableSelect options={[...filteredIngredients, ...subRecipeOptions].sort((a,b)=>a.name.localeCompare(b.name))} value={consumptionForm.ingredient_id} onChange={v=>{
             const ing = ingredientsById[v]
             setConsumptionForm(f=>({...f,ingredient_id:v, unit:ing ? biggestUnit(ing) : ""}))
           }} placeholder="— Search ingredient or sub-recipe —" />
@@ -712,8 +762,8 @@ export default function StaffPortal() {
     const totalCost = preview.reduce((s,p) => s+p.cost, 0)
     const canSubmit = !saving && ((prodType==="sub" && prodSubId) || (prodType==="product" && prodProductSku)) && batchQty > 0
     const productionOptions = [
-      ...subRecipes.map(r => ({ id:"sub:"+r.id, name:r.name })),
-      ...frozenProducts.map(p => ({ id:"prod:"+p.sku, name:p.name })),
+      ...filteredSubRecipes.map(r => ({ id:"sub:"+r.id, name:r.name })),
+      ...filteredFrozenProducts.map(p => ({ id:"prod:"+p.sku, name:p.name })),
     ].sort((a,b)=>a.name.localeCompare(b.name))
     const productionValue = prodType==="product" ? (prodProductSku?"prod:"+prodProductSku:"") : (prodSubId?"sub:"+prodSubId:"")
 
