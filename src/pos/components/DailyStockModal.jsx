@@ -229,7 +229,7 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
           : expected_sisa
         
         const diff = Math.round((actualQty - expected_sisa) * 100) / 100
-        const diffValue = diff < 0 ? Math.abs(diff) * (item.cost_per_unit || 0) : 0
+        const diffValue = diff * (item.cost_per_unit || 0)
         totalVarianceValue += diffValue
 
         return {
