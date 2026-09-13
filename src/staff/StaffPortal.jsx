@@ -442,85 +442,6 @@ export default function StaffPortal() {
     })
   }
 
-  async function submitProduction() {
-    if (prodType === "product") {
-      if (!prodProductSku) { alert("Pilih item terlebih dahulu"); return }
-      if (!prodBatchQty || parseNum(prodBatchQty) <= 0) { alert("Masukkan jumlah pack"); return }
-      const product = frozenProducts.find(p => p.sku === prodProductSku)
-      const lines   = frozenRecipes.filter(l => l.product_id === prodProductSku)
-      const packs   = parseNum(prodBatchQty)
-      const ingredients_used = lines.map(l => {
-        const ing = ingredientsById[l.ingredient_id]
-        return { ingredient_id:l.ingredient_id, name:ing?.name||l.ingredient_name||"", qty:Math.round(l.qty*packs*100)/100, unit:l.unit||ing?.unit||"" }
-      })
-      // No sub_recipe_id/item_id on purpose — approveOne() in StaffSubmissions.jsx only adds
-      // output stock when one of those resolves to a real ingredient. A frozen retail pack has
-      // no separate finished-goods stock: packing just consumes the prep ingredient directly
-      // (deductStock() in POS.jsx skips Frozen Food products at sale time to match).
-      await submit("production", {
-        product_sku: prodProductSku,
-        item_name: product?.name || "",
-        batch_qty: packs,
-        actual_yield: packs,
-        yield_unit: "pack",
-        notes: prodNotes,
-        date: prodDate||new Date().toISOString().slice(0,10),
-        needs_recipe_review: false,
-        ingredients_used
-      })
-      return
-    }
-    if (!prodSubId) { alert("Pilih resep terlebih dahulu"); return }
-    if (!prodBatchQty || parseNum(prodBatchQty) <= 0) { alert("Masukkan jumlah batch"); return }
-    const sub     = subRecipes.find(s => s.id === prodSubId)
-    const lines   = subRecipeIngs.filter(l => l.sub_recipe_id === prodSubId)
-    const batches = parseNum(prodBatchQty)
-    const ingredients_used = lines.map(l => {
-      const ing = ingredients.find(i => i.id === l.ingredient_id)
-      return { ingredient_id:l.ingredient_id, name:ing?.name||"", qty:Math.round(l.qty*batches*100)/100, unit:l.unit||ing?.unit||"" }
-    })
-    await submit("production", {
-      sub_recipe_id: prodSubId,
-      item_name: sub?.name || "",
-      batch_qty: batches,
-      actual_yield: Math.round((sub?.yield_qty||1) * batches * 100)/100,
-      yield_unit: sub?.yield_unit || sub?.unit || "gr",
-      notes: prodNotes,
-      date: prodDate||new Date().toISOString().slice(0,10),
-      needs_recipe_review: false,
-      ingredients_used
-    })
-  }
-
-  
-  async function submitTrial() {
-    if (!trialForm.trialName.trim()) { alert("Nama trial harus diisi"); return }
-    const validItems = trialForm.items.filter(i => i.ingredient_id && i.qty)
-    if (validItems.length === 0) { alert("Pilih minimal 1 bahan dan qty"); return }
-    
-    await submit("trial", {
-      trialName: trialForm.trialName,
-      notes: trialForm.notes,
-      items: validItems.map(it => {
-        const ing = ingredients.find(x => x.id === it.ingredient_id)
-        return {
-          ingredient_id: it.ingredient_id,
-          ingredient_name: ing?.name,
-          qty: parseNum(it.qty),
-          unit: it.unit
-        }
-      })
-    })
-  }
-
-  async function submitRequisition() {
-    const valid = reqItems.filter(i=>i.ingredient_id&&parseNum(i.qty)>0)
-    if (!valid.length) { alert("Add at least one item"); return }
-    await submit("requisition", {
-      needed_by: reqDate, notes: reqNotes,
-      items: valid.map(i=>{ const ing=ingredients.find(x=>x.id===i.ingredient_id); return { ingredient_id:i.ingredient_id, ingredient_name:ing?.name||"", qty:parseNum(i.qty), unit:i.unit||ing?.unit||"", supplier:ing?.supplier||"" } })
-    })
-  }
 
   function reset(forceHome) {
     setDone(false); setScreen(forceHome || station ? "home" : "consumption"); setStaffName(""); setOpnameSearch("")
@@ -722,61 +643,45 @@ export default function StaffPortal() {
       onSubmit={async (payload) => {
         setSaving(true)
         try {
-          const { data:user } = await supabase.auth.getUser()
-          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
-
-          let outNotes = payload.prodType==="product"
-            ? `Diproduksi ${payload.batchQty} pack ${payload.selectedItem.name}`
-            : `Diproduksi ${payload.batchQty} batch (${payload.batchQty*payload.selectedItem.yield_qty} ${payload.selectedItem.yield_unit}) ${payload.selectedItem.name}`
-          if (payload.notes) outNotes += ` — Catatan: ${payload.notes}`
-
-          const { data:prodData, error:prodErr } = await supabase.from("production").insert([{
-            business_id,
-            production_date: payload.date,
-            target_type: payload.prodType,
-            target_id: payload.prodType==="sub"?payload.prodId:null,
-            target_sku: payload.prodType==="product"?payload.prodId:null,
-            target_name: payload.selectedItem.name,
-            batch_qty: payload.batchQty,
-            notes: outNotes,
-            staff_name: loggedStaff.name,
-            station
-          }]).select().single()
-          if (prodErr) throw prodErr
-
-          if (payload.prodType==="product") {
-            await supabase.from("frozen_products").update({ stock: (payload.selectedItem.stock||0) + payload.batchQty }).eq("sku", payload.prodId)
+          const packs = payload.batchQty
+          
+          if (payload.prodType === "product") {
+            const ingredients_used = payload.recipeLines.map(l => {
+              const ing = ingredientsById[l.ingredient_id]
+              return { ingredient_id:l.ingredient_id, name:ing?.name||l.ingredient_name||"", qty:Math.round(l.qty*packs*100)/100, unit:l.unit||ing?.unit||"" }
+            })
+            await submit("production", {
+              product_sku: payload.prodId,
+              item_name: payload.selectedItem?.name || "",
+              batch_qty: packs,
+              actual_yield: packs,
+              yield_unit: "pack",
+              notes: payload.notes,
+              date: payload.date||new Date().toISOString().slice(0,10),
+              needs_recipe_review: false,
+              ingredients_used
+            })
           } else {
-            await supabase.from("sub_recipes").update({ stock: (payload.selectedItem.stock||0) + (payload.batchQty*payload.selectedItem.yield_qty) }).eq("id", payload.prodId)
-          }
-
-          const preview = payload.recipeLines.map(l => {
-            const ing = ingredientsById[l.ingredient_id] || ingredients.find(i=>i.id===l.ingredient_id)
-            const total = l.qty * payload.batchQty
-            return { ingredient_id:l.ingredient_id, name:ing?.name||l.ingredient_name||"", perBatch:l.qty, unit:l.unit||ing?.unit||"", total, cost:total*(ing?.cost_per_unit||0) }
-          })
-
-          const usedInserts = []
-          for (const p of preview) {
-            const ing = ingredientsById[p.ingredient_id] || ingredients.find(i=>i.name===p.name)
-            if (ing) {
-              await supabase.from("ingredients").update({ stock: (ing.stock||0) - p.total }).eq("id", ing.id)
-            }
-            usedInserts.push({
-              production_id: prodData.id,
-              ingredient_id: ing?.id||null,
-              ingredient_name: p.name,
-              qty: p.total,
-              unit: p.unit,
-              cost_per_unit: ing?.cost_per_unit||0
+            const sub = payload.selectedItem
+            const ingredients_used = payload.recipeLines.map(l => {
+              const ing = ingredients.find(i => i.id === l.ingredient_id)
+              return { ingredient_id:l.ingredient_id, name:ing?.name||"", qty:Math.round(l.qty*packs*100)/100, unit:l.unit||ing?.unit||"" }
+            })
+            await submit("production", {
+              sub_recipe_id: payload.prodId,
+              item_name: sub?.name || "",
+              batch_qty: packs,
+              actual_yield: Math.round((sub?.yield_qty||1) * packs * 100)/100,
+              yield_unit: sub?.yield_unit || sub?.unit || "gr",
+              notes: payload.notes,
+              date: payload.date||new Date().toISOString().slice(0,10),
+              needs_recipe_review: false,
+              ingredients_used
             })
           }
-          if (usedInserts.length > 0) {
-            await supabase.from("production_used").insert(usedInserts)
-          }
           setScreen("home")
-        } catch(e) {
-          alert("Error: " + e.message)
+        } catch (e) {
+          alert("Error saving production: "+e.message)
         } finally {
           setSaving(false)
         }
@@ -792,24 +697,19 @@ export default function StaffPortal() {
       onSubmit={async (payload) => {
         setSaving(true)
         try {
-          const { data:user } = await supabase.auth.getUser()
-          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
-          
-          let n = "R&D / Trial: " + payload.trialName
-          if (payload.notes) n += " — " + payload.notes
-          
-          for (const item of payload.items) {
-            const ing = ingredientsById[item.ingredient_id]
-            const qtyInBase = convertToBase(item.qty, item.unit, ing)
-            if (qtyInBase > 0) {
-              await supabase.from("ingredients_ledger").insert([{
-                business_id, ingredient_id: item.ingredient_id,
-                change_qty: -qtyInBase, type: "trial", notes: item.qty + " " + item.unit + " — " + n,
-                date: new Date().toISOString().slice(0,10), staff_name: loggedStaff.name, station
-              }])
-              await supabase.from("ingredients").update({ stock: (ing?.stock||0) - qtyInBase }).eq("id", item.ingredient_id)
-            }
-          }
+          await submit("trial", {
+            trialName: payload.trialName,
+            notes: payload.notes,
+            items: payload.items.map(it => {
+              const ing = ingredientsById[it.ingredient_id]
+              return {
+                ingredient_id: it.ingredient_id,
+                ingredient_name: ing?.name,
+                qty: parseNum(it.qty),
+                unit: it.unit
+              }
+            })
+          })
           setScreen("home")
         } catch(e) {
           alert("Error: " + e.message)
@@ -828,19 +728,20 @@ export default function StaffPortal() {
       onSubmit={async (payload) => {
         setSaving(true)
         try {
-          const { data:user } = await supabase.auth.getUser()
-          const business_id = user?.user?.id || (await supabase.from("staff").select("business_id").limit(1).single()).data?.business_id
-          
-          let n = "Requested for " + payload.date
-          if (payload.notes) n += " — " + payload.notes
-          
-          for (const item of payload.items) {
-            await supabase.from("requisitions").insert([{
-              business_id, ingredient_id: item.ingredient_id,
-              qty: item.qty, unit: item.unit, notes: n,
-              req_date: payload.date, staff_name: loggedStaff.name, station
-            }])
-          }
+          await submit("requisition", {
+            needed_by: payload.date,
+            notes: payload.notes,
+            items: payload.items.map(i => { 
+              const ing = ingredientsById[i.ingredient_id]
+              return { 
+                ingredient_id: i.ingredient_id, 
+                ingredient_name: ing?.name || "", 
+                qty: parseNum(i.qty), 
+                unit: i.unit || ing?.unit || "", 
+                supplier: ing?.supplier || "" 
+              } 
+            })
+          })
           setScreen("home")
         } catch(e) {
           alert("Error: " + e.message)
