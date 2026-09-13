@@ -64,11 +64,12 @@ export default function Attendance({ staff, onBack }) {
     setStep("camera")
     
     // 1. Check Geofence Settings First
+    const isOwner = staff?.role?.toLowerCase() === "owner" || staff?.role?.toLowerCase() === "admin";
     try {
       const { data: settings } = await supabase.from('app_settings').select('store_lat, store_lng, store_radius_meters').eq('id', 'main').single()
       
-      if (settings && settings.store_lat && settings.store_lng) {
-        // Location is required
+      if (!isOwner && settings && settings.store_lat && settings.store_lng) {
+        // Location is required for regular staff
         try {
           const pos = await new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 20000 })
