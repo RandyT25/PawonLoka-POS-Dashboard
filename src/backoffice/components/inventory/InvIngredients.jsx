@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../../lib/supabase"
-import MultiItemSelect from "../MultiItemSelect"
 import { FOOD_CATEGORIES_FALLBACK, SUPPLY_CATEGORIES_FALLBACK, isSupplyCategory, isFoodCategory } from "../../lib/ingredientCategories"
 
 function fmt(n) { return "Rp " + Number(n||0).toLocaleString("id-ID") }
@@ -400,14 +399,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                     <CategoryOptions/>
                   </select>
                 </div>
-                <div><label className="bo-label">Station *</label>
-                  <MultiItemSelect 
-                    options={["Kitchen", "Snack", "Bar", "Kasir"]} 
-                    selected={form.station || []} 
-                    onChange={v => setForm(f => ({ ...f, station: v }))} 
-                    placeholder="Pilih Station" 
-                  />
-                </div>
+                
 
                 <div><label className="bo-label">Supplier</label>
                   <select value={form.supplier||""} onChange={e=>setForm(f=>({...f,supplier:e.target.value}))} className="bo-select">
