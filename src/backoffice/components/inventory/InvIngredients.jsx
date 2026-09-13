@@ -416,6 +416,25 @@ export default function InvIngredients({ mode="ingredients" }) {
                   </select>
                 </div>
               </div>
+
+              <div style={{ marginBottom:18 }}>
+                <div style={{ fontSize:13, fontWeight:700, color:"var(--ink)", marginBottom:8 }}>Station Assignment *</div>
+                <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+                  {["Kitchen", "Snack", "Bar", "Kasir"].map(st => {
+                    const linked = (form.station||[]).includes(st)
+                    return (
+                      <button key={st} type="button"
+                        onClick={()=>setForm(f=>({ ...f, station: linked ? (f.station||[]).filter(x=>x!==st) : [...(f.station||[]), st] }))}
+                        style={{ fontSize:12, fontWeight:600, padding:"5px 14px", borderRadius:20, cursor:"pointer", fontFamily:"inherit",
+                          background: linked ? "var(--brand)" : "var(--surface)",
+                          color: linked ? "#fff" : "var(--ink2)",
+                          border: linked ? "1.5px solid var(--brand)" : "1.5px solid var(--surface3)" }}>
+                        {st}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:14 }}>
                 <div><label className="bo-label">Current Stock</label><input type="number" value={form.stock||0} onChange={e=>setForm(f=>({...f,stock:e.target.value}))} className="bo-input" /></div>
                 <div><label className="bo-label">Min Stock Alert</label><input type="number" value={form.min_stock||0} onChange={e=>setForm(f=>({...f,min_stock:e.target.value}))} className="bo-input" /></div>
