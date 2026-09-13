@@ -118,12 +118,17 @@ const startProcess = async (type) => {
     setStep("camera")
     // 2. Start Camera
     try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-      setStream(mediaStream)
-      
+      let mediaStream;
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 } } });
+      } catch (err1) {
+        mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      }
+      setStream(mediaStream);
     } catch (e) {
-      setError("Failed to access camera. Please allow camera access.")
-      setStep("init")
+      setLoading(false);
+      setError("Camera Error (" + e.name + "): " + e.message + ". Please allow camera access.");
+      setStep("init");
     }
   }
 
