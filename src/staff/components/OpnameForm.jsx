@@ -10,14 +10,13 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
   useEffect(() => {
     // Filter ingredients by station/staff
     let allowedIngs = ingredients
-    const isOwner = (staff?.role || []).includes("Owner") || staff?.name === "Claudy"
+    const isOwner = (staff?.role || []).some(r => r.toLowerCase() === "owner") || (staff?.name || "").toLowerCase().includes("claudy")
     
     if (!isOwner) {
       allowedIngs = ingredients.filter(i => {
-         // If it has no station, everyone can see it? Or limit to station?
-         // Usually limit to station. But Nita might need specific access?
-         // Opname is stock count, so they count their station.
-         if (i.station) {
+         if (i.station && Array.isArray(i.station) && i.station.length > 0) {
+           return i.station.some(s => s.toLowerCase() === (station || "").toLowerCase())
+         } else if (i.station && typeof i.station === "string") {
            return i.station.toLowerCase() === (station || "").toLowerCase()
          }
          return true // If ingredient has no station assigned, let them count it
