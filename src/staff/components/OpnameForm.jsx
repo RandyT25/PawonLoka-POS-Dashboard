@@ -68,6 +68,17 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
         </div>
       </div>
 
+      
+        <div style={{ padding: 10, background: '#eee', color: '#333', fontSize: 11, fontFamily: 'monospace' }}>
+          DEBUG: 
+          Staff: {staff?.name} | 
+          Role: {JSON.stringify(staff?.role)} | 
+          isOwner: {( (Array.isArray(staff?.role) ? staff.role : []).some(r => typeof r === "string" && r.toLowerCase() === "owner") || (typeof staff?.name === "string" && staff.name.toLowerCase().includes("claudy")) ) ? "YES" : "NO"} | 
+          StationProp: {station} | 
+          Total Ings: {ingredients?.length} | 
+          Counts: {counts.length}
+        </div>
+
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 100px 20px" }}>
         
         <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 2px 6px rgba(0,0,0,0.03)", marginBottom: 16 }}>
