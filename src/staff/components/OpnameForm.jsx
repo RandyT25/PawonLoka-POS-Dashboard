@@ -2,13 +2,29 @@ import { useState, useEffect } from "react"
 
 function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 
-export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stationColor }) {
+export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stationColor, staff, station }) {
   const [date, setDate] = useState(new Date().toISOString().slice(0,10))
   const [search, setSearch] = useState("")
   const [counts, setCounts] = useState([])
 
   useEffect(() => {
-    setCounts(ingredients.map(i => ({
+    // Filter ingredients by station/staff
+    let allowedIngs = ingredients
+    const isOwner = (staff?.role || []).includes("Owner") || staff?.name === "Claudy"
+    
+    if (!isOwner) {
+      allowedIngs = ingredients.filter(i => {
+         // If it has no station, everyone can see it? Or limit to station?
+         // Usually limit to station. But Nita might need specific access?
+         // Opname is stock count, so they count their station.
+         if (i.station) {
+           return i.station.toLowerCase() === (station || "").toLowerCase()
+         }
+         return true // If ingredient has no station assigned, let them count it
+      })
+    }
+    
+    setCounts(allowedIngs.map(i => ({
       ingredient_id: i.id,
       name: i.name,
       unit: i.unit,
@@ -80,26 +96,32 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
                   <div style={{ fontSize: 12, color: "#888" }}>System: <span style={{ fontWeight: 600 }}>{fmt(item.system_qty)} {item.unit}</span></div>
                 </div>
                 
-                <input type="text" inputMode="decimal" value={item.actual_qty}
-                  onChange={e => handleUpdate(item.ingredient_id, "actual_qty", e.target.value)}
-                  placeholder="—" 
-                  style={{ 
-                    width: 70, textAlign: "center", padding: "10px 8px", fontSize: 16, fontWeight: 600, flexShrink: 0, 
-                    background: filled ? "#E3FCEF" : "#F4F5F7", color: filled ? "#00875A" : "#111", border: "none", borderRadius: 10,
-                    outline: "none"
-                  }} />
-                  
-                {item.conversions.length > 0 ? (
-                  <select value={item.input_unit} onChange={e => handleUpdate(item.ingredient_id, "input_unit", e.target.value)}
-                    style={{ padding: "10px", fontSize: 14, fontWeight: 600, border: "none", background: "#F4F5F7", borderRadius: 10, flexShrink: 0, outline: "none", cursor: "pointer", color: "#444" }}>
-                    <option value={item.unit}>{item.unit}</option>
-                    {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
-                  </select>
-                ) : (
-                  <div style={{ padding: "10px", fontSize: 14, fontWeight: 600, border: "none", background: "#F4F5F7", borderRadius: 10, flexShrink: 0, color: "#888", minWidth: 50, textAlign: "center" }}>
-                    {item.unit}
-                  </div>
-                )}
+                <div style={{ 
+                  display: "flex", alignItems: "center", background: filled ? "#E3FCEF" : "#F4F5F7", 
+                  borderRadius: 12, padding: "4px", border: filled ? "1px solid #00875A" : "1px solid #E8ECF0", flexShrink: 0 
+                }}>
+                  <input type="text" inputMode="decimal" value={item.actual_qty}
+                    onChange={e => handleUpdate(item.ingredient_id, "actual_qty", e.target.value)}
+                    placeholder="—" 
+                    style={{ 
+                      width: 50, textAlign: "center", padding: "8px 4px", fontSize: 16, fontWeight: 700, 
+                      background: "transparent", color: filled ? "#00875A" : "#111", border: "none", outline: "none"
+                    }} />
+                    
+                  <div style={{ width: 1, height: 24, background: filled ? "rgba(0,135,90,0.2)" : "#D1D5DB", margin: "0 4px" }} />
+                    
+                  {item.conversions.length > 0 ? (
+                    <select value={item.input_unit} onChange={e => handleUpdate(item.ingredient_id, "input_unit", e.target.value)}
+                      style={{ padding: "8px 4px", fontSize: 14, fontWeight: 600, border: "none", background: "transparent", outline: "none", cursor: "pointer", color: filled ? "#00875A" : "#444" }}>
+                      <option value={item.unit}>{item.unit}</option>
+                      {item.conversions.map(c => <option key={c.unit} value={c.unit}>{c.unit}</option>)}
+                    </select>
+                  ) : (
+                    <div style={{ padding: "8px 4px", fontSize: 14, fontWeight: 600, color: filled ? "#00875A" : "#888", minWidth: 40, textAlign: "center" }}>
+                      {item.unit}
+                    </div>
+                  )}
+                </div>
               </div>
             )
           })}
