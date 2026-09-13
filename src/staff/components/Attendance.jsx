@@ -58,7 +58,14 @@ export default function Attendance({ staff, onBack }) {
     }
   }
 
-  const startProcess = async (type) => {
+    useEffect(() => {
+    if (step === "camera" && videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+      videoRef.current.play().catch(e => console.warn("Video play error:", e));
+    }
+  }, [step, stream]);
+
+const startProcess = async (type) => {
     setActionType(type)
     setError("")
     setStep("camera")
@@ -104,9 +111,7 @@ export default function Attendance({ staff, onBack }) {
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
       setStream(mediaStream)
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream
-      }
+      
     } catch (e) {
       setError("Failed to access camera. Please allow camera access.")
       setStep("init")
