@@ -123,10 +123,10 @@ export default function Attendance({ staff, onBack }) {
         const fileName = `${attId}-${actionType}-${Date.now()}.jpg`
         
         // Upload photo
-        const { data: uploadData, error: uploadErr } = await supabase.storage.from("attendance_selfies").upload(fileName, blob, { contentType: "image/jpeg" })
+        const { data: uploadData, error: uploadErr } = await supabase.storage.from("attendance-photos").upload(fileName, blob, { contentType: "image/jpeg" })
         if (uploadErr) throw uploadErr
         
-        const photoUrl = supabase.storage.from("attendance_selfies").getPublicUrl(fileName).data.publicUrl
+        const photoUrl = supabase.storage.from("attendance-photos").getPublicUrl(fileName).data.publicUrl
 
         // Update DB
         if (actionType === "clock_in") {
