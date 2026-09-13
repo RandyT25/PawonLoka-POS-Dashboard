@@ -66,7 +66,7 @@ export default function InvIngredients({ mode="ingredients" }) {
   }, [])
 
   async function load() {
-    setLoading(true)
+    setLoading(ingredients.length === 0)
     const [{ data:ings }, { data:sups }] = await Promise.all([
       supabase.from("ingredients").select("*").order("name"),
       supabase.from("suppliers").select("id,name"),
