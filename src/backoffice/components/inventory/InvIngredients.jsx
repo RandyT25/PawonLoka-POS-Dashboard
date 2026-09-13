@@ -101,7 +101,7 @@ export default function InvIngredients({ mode="ingredients" }) {
   function startQuickEdit(item, field) { setQuickEdit({ id:item.id, field }); setQuickVal(item[field] ?? "") }
   function cancelQuickEdit() { setQuickEdit(null); setQuickVal("") }
   async function saveQuickEdit(item, field, overrideVal) {
-    let value = quickVal
+    let value = overrideVal !== undefined ? overrideVal : quickVal
     if (field==="stock" || field==="min_stock" || field==="cost_per_unit") value = parseFloat(value)||0
     if (value === (item[field] ?? "")) { cancelQuickEdit(); return }
     await supabase.from("ingredients").update({ [field]: value }).eq("id", item.id)
@@ -284,15 +284,15 @@ export default function InvIngredients({ mode="ingredients" }) {
             <thead>
               <tr>
                 <th onClick={()=>toggleSort("name")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>{isSupplies?"Item":"Ingredient"} {sortBy==="name" && (sortDir==="asc"?"▲":"▼")}</th>
-                <th>SKU</th>
+                
                 <th onClick={()=>toggleSort("category")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Category {sortBy==="category" && (sortDir==="asc"?"▲":"▼")}</th>
                 <th onClick={()=>toggleSort("station")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Station {sortBy==="station" && (sortDir==="asc"?"▲":"▼")}</th>
                 <th>Unit</th>
                 <th onClick={()=>toggleSort("stock")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Stock {sortBy==="stock" && (sortDir==="asc"?"▲":"▼")}</th>
-                <th>Min Stock</th>
+                
                 <th>WAC / Unit</th>
                 <th>Stock Value</th>
-                <th>Supplier</th>
+                
                 <th>Status</th>
                 <th>Actions</th>
               </tr>
@@ -313,7 +313,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                         </div>
                       )}
                     </td>
-                    <td style={{ fontFamily:"monospace", fontSize:11, color:"var(--ink5)" }}>{i.sku||"—"}</td>
+                    
                     <td onClick={()=>!editing("category")&&startQuickEdit(i,"category")} style={{ cursor:"pointer" }} title="Click to quick-edit">
                       {editing("category") ? (
                         <select autoFocus value={quickVal} onChange={e=>setQuickVal(e.target.value)}
@@ -336,7 +336,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                           <option value="Kasir">Kasir</option>
                         </select>
                       ) : (i.station && i.station.length > 0)
-                          ? <span className="bo-badge" style={{ background:"#F3F4F6", color:"#374151" }}>{i.station.join(", ")}</span>
+                          ? <span className="bo-badge" style={{ background:"#F3F4F6", color:"#374151" }}>{Array.isArray(i.station) ? i.station.join(", ") : i.station}</span>
                           : <span className="bo-badge" style={{ background:"var(--red-lt)", color:"var(--red)" }}>⚠ None</span>}
                     </td>
                     <td>{i.unit}</td>
@@ -347,13 +347,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                           className="bo-input" style={{ width:80, fontSize:12 }} onClick={e=>e.stopPropagation()} />
                       ) : (i.stock||0)}
                     </td>
-                    <td onClick={()=>!editing("min_stock")&&startQuickEdit(i,"min_stock")} style={{ cursor:"pointer", color:"var(--ink5)" }} title="Click to quick-edit">
-                      {editing("min_stock") ? (
-                        <input autoFocus type="number" value={quickVal} onChange={e=>setQuickVal(e.target.value)}
-                          onBlur={()=>saveQuickEdit(i,"min_stock")} onKeyDown={e=>{ if(e.key==="Enter") saveQuickEdit(i,"min_stock"); if(e.key==="Escape") cancelQuickEdit() }}
-                          className="bo-input" style={{ width:80, fontSize:12 }} onClick={e=>e.stopPropagation()} />
-                      ) : (i.min_stock||"—")}
-                    </td>
+                    
                     <td onClick={()=>!editing("cost_per_unit")&&startQuickEdit(i,"cost_per_unit")} style={{ cursor:"pointer" }} title="Click to quick-edit">
                       {editing("cost_per_unit") ? (
                         <input autoFocus type="number" value={quickVal} onChange={e=>setQuickVal(e.target.value)}
@@ -365,16 +359,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                       }
                     </td>
                     <td style={{ fontWeight:600 }}>{val>0?fmt(val):"—"}</td>
-                    <td onClick={()=>!editing("supplier")&&startQuickEdit(i,"supplier")} style={{ cursor:"pointer", fontSize:12, color:"var(--ink4)" }} title="Click to quick-edit">
-                      {editing("supplier") ? (
-                        <select autoFocus value={quickVal||""} onChange={e=>setQuickVal(e.target.value)}
-                          onBlur={()=>saveQuickEdit(i,"supplier")} onKeyDown={e=>{ if(e.key==="Enter") saveQuickEdit(i,"supplier"); if(e.key==="Escape") cancelQuickEdit() }}
-                          className="bo-select" style={{ fontSize:12 }} onClick={e=>e.stopPropagation()}>
-                          <option value="">— none —</option>
-                          {suppliers.map(s=><option key={s.id} value={s.name}>{s.name}</option>)}
-                        </select>
-                      ) : (i.supplier||"—")}
-                    </td>
+                    
                     <td><span style={{ fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:10, background:st.color+"22", color:st.color }}>{st.label}</span></td>
                     <td>
                       <div style={{ display:"flex", gap:4 }}>
@@ -385,7 +370,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                   </tr>
                 )
               })}
-              {filtered.length===0 && <tr><td colSpan={11} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No ingredients found</td></tr>}
+              {filtered.length===0 && <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No ingredients found</td></tr>}
             </tbody>
           </table>
         )}
