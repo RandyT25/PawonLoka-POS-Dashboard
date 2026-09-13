@@ -99,7 +99,7 @@ export default function InvIngredients({ mode="ingredients" }) {
   // Quick edit — click a cell to edit it in place without opening the full modal
   function startQuickEdit(item, field) { setQuickEdit({ id:item.id, field }); setQuickVal(item[field] ?? "") }
   function cancelQuickEdit() { setQuickEdit(null); setQuickVal("") }
-  async function saveQuickEdit(item, field) {
+  async function saveQuickEdit(item, field, overrideVal) {
     let value = quickVal
     if (field==="stock" || field==="min_stock" || field==="cost_per_unit") value = parseFloat(value)||0
     if (value === (item[field] ?? "")) { cancelQuickEdit(); return }
@@ -125,7 +125,7 @@ export default function InvIngredients({ mode="ingredients" }) {
   function closeModal() { setModal(null); setForm(EMPTY); setConvs([]) }
 
   // Bulk add — quick multi-row grid for adding several items at once
-  function emptyBulkRow() { return { name:"", unit:"", category:"", stock:0, cost_per_unit:0, supplier:"" } }
+  function emptyBulkRow() { return { name:"", unit:"", category:"", station:"Kitchen", stock:0, cost_per_unit:0, supplier:"" } }
   function openBulk()            { setBulkRows(Array.from({length:5}, emptyBulkRow)); setBulkModal(true) }
   function closeBulk()           { setBulkModal(false); setBulkRows([]) }
   function addBulkRow()          { setBulkRows(r => [...r, emptyBulkRow()]) }
@@ -146,6 +146,7 @@ export default function InvIngredients({ mode="ingredients" }) {
       sku:           r.name.trim().toLowerCase().replace(/\s+/g,"-").slice(0,20),
       unit:          r.unit,
       category:      r.category,
+      station:       [r.station || "Kitchen"],
       stock:         parseFloat(r.stock)||0,
       min_stock:     0,
       cost_per_unit: parseFloat(r.cost_per_unit)||0,
@@ -284,6 +285,7 @@ export default function InvIngredients({ mode="ingredients" }) {
                 <th onClick={()=>toggleSort("name")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>{isSupplies?"Item":"Ingredient"} {sortBy==="name" && (sortDir==="asc"?"▲":"▼")}</th>
                 <th>SKU</th>
                 <th onClick={()=>toggleSort("category")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Category {sortBy==="category" && (sortDir==="asc"?"▲":"▼")}</th>
+                <th onClick={()=>toggleSort("station")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Station {sortBy==="station" && (sortDir==="asc"?"▲":"▼")}</th>
                 <th>Unit</th>
                 <th onClick={()=>toggleSort("stock")} style={{ cursor:"pointer", userSelect:"none", whiteSpace:"nowrap" }}>Stock {sortBy==="stock" && (sortDir==="asc"?"▲":"▼")}</th>
                 <th>Min Stock</th>
@@ -321,6 +323,20 @@ export default function InvIngredients({ mode="ingredients" }) {
                       ) : i.category
                           ? <span className="bo-badge bo-badge-blue">{i.category}</span>
                           : <span className="bo-badge" style={{ background:"var(--red-lt)", color:"var(--red)" }} title="No category set — click to fix">⚠ Uncategorized</span>}
+                    </td>
+                    <td onClick={()=>!editing("station")&&startQuickEdit(i,"station")} style={{ cursor:"pointer" }} title="Click to quick-edit">
+                      {editing("station") ? (
+                        <select autoFocus value={quickVal} onChange={e=>setQuickVal(e.target.value)}
+                          onBlur={()=>saveQuickEdit(i,"station", [quickVal])} onKeyDown={e=>{ if(e.key==="Enter") saveQuickEdit(i,"station", [quickVal]); if(e.key==="Escape") cancelQuickEdit() }}
+                          className="bo-select" style={{ fontSize:12 }} onClick={e=>e.stopPropagation()}>
+                          <option value="Kitchen">Kitchen</option>
+                          <option value="Snack">Snack</option>
+                          <option value="Bar">Bar</option>
+                          <option value="Kasir">Kasir</option>
+                        </select>
+                      ) : (i.station && i.station.length > 0)
+                          ? <span className="bo-badge" style={{ background:"#F3F4F6", color:"#374151" }}>{i.station.join(", ")}</span>
+                          : <span className="bo-badge" style={{ background:"var(--red-lt)", color:"var(--red)" }}>⚠ None</span>}
                     </td>
                     <td>{i.unit}</td>
                     <td onClick={()=>!editing("stock")&&startQuickEdit(i,"stock")} style={{ cursor:"pointer", fontWeight:700, color:st.color }} title="Click to quick-edit">
@@ -396,6 +412,14 @@ export default function InvIngredients({ mode="ingredients" }) {
                   }} className="bo-select" style={!form.category?{ borderColor:"var(--red)" }:undefined}>
                     <option value="">— Select category —</option>
                     <CategoryOptions/>
+                  </select>
+                </div>
+                <div><label className="bo-label">Station *</label>
+                  <select value={(form.station && form.station[0]) || "Kitchen"} onChange={e=>setForm(f=>({ ...f, station: [e.target.value] }))} className="bo-select">
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Kasir">Kasir</option>
                   </select>
                 </div>
 
@@ -514,7 +538,7 @@ export default function InvIngredients({ mode="ingredients" }) {
             </div>
             <div className="bo-modal-body" style={{ overflowY:"auto" }}>
               <div style={{ display:"grid", gridTemplateColumns:"1fr 90px 150px 90px 110px 150px 28px", gap:8, marginBottom:6 }}>
-                {["NAME *","UNIT","CATEGORY","STOCK","COST/UNIT","SUPPLIER",""].map((h,i)=>(
+                {["NAME *","UNIT","CATEGORY","STATION","STOCK","COST/UNIT","SUPPLIER",""].map((h,i)=>(
                   <div key={i} style={{ fontSize:10, fontWeight:700, color:"var(--ink4)", letterSpacing:"0.5px" }}>{h}</div>
                 ))}
               </div>
@@ -528,6 +552,12 @@ export default function InvIngredients({ mode="ingredients" }) {
                   <select value={r.category} onChange={e=>updateBulkRow(i,"category",e.target.value)} className="bo-select" style={r.name.trim()&&!r.category?{ fontSize:12, borderColor:"var(--red)" }:{ fontSize:12 }}>
                     <option value="">— Category —</option>
                     <CategoryOptions/>
+                  </select>
+                  <select value={r.station} onChange={e=>updateBulkRow(i,"station",e.target.value)} className="bo-select" style={{ fontSize:12 }}>
+                    <option value="Kitchen">Kitchen</option>
+                    <option value="Snack">Snack</option>
+                    <option value="Bar">Bar</option>
+                    <option value="Kasir">Kasir</option>
                   </select>
                   <input type="number" value={r.stock} onChange={e=>updateBulkRow(i,"stock",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="0" />
                   <input type="number" value={r.cost_per_unit} onChange={e=>updateBulkRow(i,"cost_per_unit",e.target.value)} className="bo-input" style={{ fontSize:12 }} placeholder="0" />
