@@ -8,14 +8,21 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
   const [counts, setCounts] = useState([])
 
   useEffect(() => {
-    // Filter ingredients by station/staff
-    let allowedIngs = ingredients
-    const isOwner = (staff?.role || []).some(r => r.toLowerCase() === "owner") || (staff?.name || "").toLowerCase().includes("claudy")
+    let allowedIngs = ingredients || []
+    
+    let isOwner = false
+    try {
+      const roles = Array.isArray(staff?.role) ? staff.role : []
+      if (roles.some(r => typeof r === "string" && r.toLowerCase() === "owner")) isOwner = true
+      if (typeof staff?.name === "string" && staff.name.toLowerCase().includes("claudy")) isOwner = true
+    } catch(e) {
+      console.error("Error checking owner", e)
+    }
     
     if (!isOwner) {
-      allowedIngs = ingredients.filter(i => {
-         if (i.station && Array.isArray(i.station) && i.station.length > 0) {
-           return i.station.some(s => s.toLowerCase() === (station || "").toLowerCase())
+      allowedIngs = (ingredients||[]).filter(i => {
+         if (i.station && Array.isArray(i.station)) {
+           return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase())
          } else if (i.station && typeof i.station === "string") {
            return i.station.toLowerCase() === (station || "").toLowerCase()
          }
@@ -32,7 +39,7 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
       system_qty: i.stock || 0,
       actual_qty: ""
     })))
-  }, [ingredients])
+  }, [ingredients, staff, station])
 
   const filtered = counts.filter(i => !search || i.name.toLowerCase().includes(search.toLowerCase()))
   const filledCount = counts.filter(i => i.actual_qty !== "").length
