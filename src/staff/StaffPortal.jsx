@@ -693,7 +693,7 @@ export default function StaffPortal() {
         })
         setScreen("home")
       }}
-      saving={submitting} stationColor={stationColor} 
+      saving={saving} stationColor={stationColor} 
     />
   }
 
@@ -718,7 +718,7 @@ export default function StaffPortal() {
         })
         setScreen("home")
       }}
-      saving={submitting} stationColor={stationColor} 
+      saving={saving} stationColor={stationColor} 
     />
   }
 
