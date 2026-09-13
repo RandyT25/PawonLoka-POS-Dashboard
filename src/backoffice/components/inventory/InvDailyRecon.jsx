@@ -424,7 +424,23 @@ export default function InvDailyRecon() {
                 </thead>
                 <tbody>
                   {(viewDetail.data?.items || []).map((it, idx) => {
-                    const diffVal = it.diff_value || (it.diff_qty < 0 ? Math.abs(it.diff_qty) * (it.cost_per_unit || 0) : 0)
+                    let displayVal = "Rp 0";
+                    let displayColor = "var(--ink4)";
+                    if (it.diff_value !== undefined) {
+                      if (it.diff_value < 0) {
+                        displayVal = `-${fmt(Math.abs(it.diff_value))}`;
+                        displayColor = "#DE350B";
+                      } else if (it.diff_value > 0) {
+                        displayVal = `+${fmt(it.diff_value)}`;
+                        displayColor = "#00875A";
+                      }
+                    } else {
+                      const lossOnly = it.diff_qty < 0 ? Math.abs(it.diff_qty) * (it.cost_per_unit || 0) : 0;
+                      if (lossOnly > 0) {
+                        displayVal = `-${fmt(lossOnly)}`;
+                        displayColor = "#DE350B";
+                      }
+                    }
                     return (
                       <tr key={idx}>
                         <td>
@@ -467,8 +483,8 @@ export default function InvDailyRecon() {
                             <span style={{ color: "#F59E0B", fontWeight: 800 }}>+{it.diff_qty} {it.unit}</span>
                           )}
                         </td>
-                        <td style={{ textAlign: "right", fontWeight: 800, color: diffVal > 0 ? "#DE350B" : "var(--ink4)" }}>
-                          {diffVal > 0 ? `-${fmt(diffVal)}` : "Rp 0"}
+                        <td style={{ textAlign: "right", fontWeight: 800, color: displayColor }}>
+                          {displayVal}
                         </td>
                       </tr>
                     )
