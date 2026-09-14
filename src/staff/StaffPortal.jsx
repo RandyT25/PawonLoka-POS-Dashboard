@@ -341,7 +341,7 @@ export default function StaffPortal() {
       try {
         const d = data;
         const outputIngredientId = d.item_id || subRecipes.find(sr=>sr.id===d.sub_recipe_id)?.ingredient_id;
-        const item = outputIngredientId ? ingredients.find(i=>i.id===outputIngredientId) : null;
+        const item = outputIngredientId ? ingredientsById[outputIngredientId] : null;
         const producedQty = d.actual_yield ?? d.batch_qty;
         const producedDate = d.date || new Date().toISOString().slice(0,10);
         const movId = () => "MOV-" + Date.now() + "-" + Math.random().toString(36).slice(2,6);
@@ -540,7 +540,7 @@ export default function StaffPortal() {
       onSubmit={async (payload) => {
         const ing = ingredientsById[payload.ingredient_id]
         const enteredQty = parseNum(payload.qty)
-        const qtyInBase = convertToBase(enteredQty, payload.unit, ing)
+        const qtyInBase = toBaseUnit(ing, enteredQty, payload.unit)
         if (qtyInBase <= 0) { alert("Quantity must be greater than 0"); return }
         
         await submit("waste", {
@@ -571,7 +571,7 @@ export default function StaffPortal() {
       onSubmit={async (payload) => {
         const ing = ingredientsById[payload.ingredient_id]
         const enteredQty = parseNum(payload.qty)
-        const qtyInBase = convertToBase(enteredQty, payload.unit, ing)
+        const qtyInBase = toBaseUnit(ing, enteredQty, payload.unit)
         if (qtyInBase <= 0) { alert("Quantity must be greater than 0"); return }
         
         await submit("consumption", {
