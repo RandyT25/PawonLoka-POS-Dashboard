@@ -624,6 +624,17 @@ export default function InvPO() {
     setEditModal(po)
   }
 
+  function openDuplicate(po) {
+    setPOForm({ supplier_id:po.supplier_id||"", invoice_no:"", order_date:new Date().toISOString().split("T")[0], due_date:po.due_date||"", notes:(po.notes||"") + " (Copy)" })
+    setPOItems((po.po_items||[]).map(i=>{
+      const qty       = parseFloat(i.qty)       || 0
+      const unit_cost = parseFloat(i.unit_cost) || 0
+      const total_cost = i.total_cost != null ? parseFloat(i.total_cost) : qty * unit_cost
+      return { ingredient_id:i.ingredient_id, qty:String(i.qty), unit:i.unit, total_cost:String(total_cost), unit_cost:String(unit_cost) }
+    }))
+    setNewPO(true)
+  }
+
 
   return (
     <div>
@@ -768,12 +779,16 @@ export default function InvPO() {
             <div className="bo-modal-footer">
               <button onClick={()=>setViewModal(null)} className="bo-btn bo-btn-ghost">Close</button>
               {viewModal.status==="Unpaid" && <>
+                <button onClick={()=>{openDuplicate(viewModal); setViewModal(null)}} className="bo-btn bo-btn-ghost">Duplicate</button>
                 <button onClick={()=>{setViewModal(null);openEdit(viewModal)}} className="bo-btn bo-btn-ghost">Edit</button>
                 <button onClick={()=>deletePO(viewModal)} className="bo-btn bo-btn-danger">Delete</button>
                 <button onClick={()=>markPaid(viewModal)} className="bo-btn bo-btn-primary">✓ Mark as Paid</button>
               </>}
               {viewModal.status==="Paid" && (
-                <button onClick={()=>{ voidPO(viewModal); setViewModal(null) }} className="bo-btn bo-btn-danger">Void PO</button>
+                <>
+                  <button onClick={()=>{openDuplicate(viewModal); setViewModal(null)}} className="bo-btn bo-btn-ghost">Duplicate</button>
+                  <button onClick={()=>{ voidPO(viewModal); setViewModal(null) }} className="bo-btn bo-btn-danger">Void PO</button>
+                </>
               )}
             </div>
           </div>
