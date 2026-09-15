@@ -580,8 +580,54 @@ export default function InvPO() {
       status:"Unpaid", subtotal:grandTotal, total:grandTotal, items:poItems_json
     }
     if (isEdit) {
-      const { error } = await supabase.from("purchase_orders").update(payload).eq("id", editModal.id)
-      if (error) { alert("Error saving PO: " + error.message); setSaving(false); return; }
+      if (editModal.status === "Paid") {
+        if (!confirm("This PO is already Paid. Saving edits will recalculate stock and COGS. Continue?")) {
+          setSaving(false);
+          return;
+        }
+        payload.status = "Paid";
+        
+        try {
+          const { data: freshIngs } = await supabase.from("ingredients").select("*");
+          const ingMap = {};
+          for (const i of freshIngs||[]) ingMap[i.id] = i;
+          
+          // 1. Compute reversal of the OLD po
+          const { ingUpdates: revUpdates, movements: revMovs } = computeVoidPOChanges(editModal, ingMap);
+          
+          // Apply reversals to ingMap so forward computation uses the reverted state
+          for (const [ingId, up] of Object.entries(revUpdates)) {
+            ingMap[ingId] = { ...ingMap[ingId], ...up };
+          }
+          
+          // 2. Compute forward application of the NEW po
+          const mockNewPo = { id: editModal.id, po_items: poItems_json };
+          const { updatedIngIds, ingUpdates: fwdUpdates, movements: fwdMovs } = computePaidPOChanges(mockNewPo, ingMap);
+          
+          // Merge updates (fwd overrides rev)
+          const finalIngUpdates = { ...revUpdates, ...fwdUpdates };
+          const finalMovements = [...revMovs, ...fwdMovs];
+          
+          // 3. Persist everything
+          await Promise.all([
+             persistPaidPOChanges(finalIngUpdates, finalMovements),
+             supabase.from("purchase_orders").update(payload).eq("id", editModal.id)
+          ]);
+          
+          const recalcIds = [...new Set([...(editModal.po_items||[]).map(i=>i.ingredient_id), ...updatedIngIds])].filter(Boolean);
+          if (recalcIds.length) {
+             await flagNeedsRecalc(recalcIds);
+             await cascadeRecalc(recalcIds);
+          }
+        } catch(e) {
+          alert("Error updating Paid PO: " + e.message);
+          setSaving(false);
+          return;
+        }
+      } else {
+        const { error } = await supabase.from("purchase_orders").update(payload).eq("id", editModal.id)
+        if (error) { alert("Error saving PO: " + error.message); setSaving(false); return; }
+      }
     } else {
       const newPoId = "PO-" + Date.now();
       
@@ -786,6 +832,7 @@ export default function InvPO() {
               </>}
               {viewModal.status==="Paid" && (
                 <>
+                  <button onClick={()=>{setViewModal(null);openEdit(viewModal)}} className="bo-btn bo-btn-primary">Edit</button>
                   <button onClick={()=>{openDuplicate(viewModal); setViewModal(null)}} className="bo-btn bo-btn-ghost">Duplicate</button>
                   <button onClick={()=>{ voidPO(viewModal); setViewModal(null) }} className="bo-btn bo-btn-danger">Void PO</button>
                 </>
