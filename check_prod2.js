@@ -10,7 +10,7 @@ async function run() {
   const { data, error } = await supabase
     .from('stock_movements')
     .select('id, ingredient_name, qty, date, type, note')
-    .eq('type', 'production')
+    .eq('type', 'Production')
     .gte('date', '2026-09-12')
     .order('date', { ascending: false })
   

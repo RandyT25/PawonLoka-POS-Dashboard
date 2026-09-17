@@ -8,20 +8,26 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function run() {
   const { data, error } = await supabase
-    .from('stock_movements')
-    .select('id, ingredient_name, qty, date, type, note')
-    .eq('type', 'production')
-    .gte('date', '2026-09-12')
-    .order('date', { ascending: false })
+    .from('staff_submissions')
+    .select('*')
+    .eq('type', 'daily_recon')
+    .order('submitted_at', { ascending: false })
+    .limit(5)
   
   if (error) {
     console.error(error)
     return
   }
   
-  console.log("Recent Production Movements:")
   data.forEach(d => {
-    console.log(`[${d.date}] ${d.qty > 0 ? '+' : ''}${d.qty} ${d.ingredient_name} | Note: ${d.note}`)
+    console.log(`Report ID: ${d.id}, Date: ${d.submitted_at}`)
+    const items = d.data.items || []
+    const hasSopIga = items.find(i => i.id === 'ING-170' || i.name.toLowerCase().includes('sop iga'))
+    if (hasSopIga) {
+      console.log(' -> CONTAINS SOP IGA:', hasSopIga.name)
+    } else {
+      console.log(' -> No Sop Iga')
+    }
   })
 }
 

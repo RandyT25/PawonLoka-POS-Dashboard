@@ -9,9 +9,9 @@ const supabase = createClient(supabaseUrl, supabaseKey)
 async function run() {
   const { data, error } = await supabase
     .from('stock_movements')
-    .select('id, ingredient_name, qty, date, type, note')
-    .eq('type', 'production')
-    .gte('date', '2026-09-12')
+    .select('id, type, qty, note, date, time')
+    .eq('ingredient_name', 'Telor')
+    .eq('type', 'Purchase')
     .order('date', { ascending: false })
   
   if (error) {
@@ -19,10 +19,8 @@ async function run() {
     return
   }
   
-  console.log("Recent Production Movements:")
-  data.forEach(d => {
-    console.log(`[${d.date}] ${d.qty > 0 ? '+' : ''}${d.qty} ${d.ingredient_name} | Note: ${d.note}`)
-  })
+  console.log("Telor Purchases (POs):")
+  console.log(data)
 }
 
 run()

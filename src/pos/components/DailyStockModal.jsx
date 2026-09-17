@@ -24,8 +24,7 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
   const [notes, setNotes]           = useState('')
   const [expandedItem, setExpandedItem] = useState(null)
   const [savedSuccess, setSavedSuccess] = useState(false)
-  const [manualAdded, setManualAdded] = useState({})
-  const [onlineWarningChecked, setOnlineWarningChecked] = useState(false)
+    const [onlineWarningChecked, setOnlineWarningChecked] = useState(false)
 
   const today = useMemo(() => {
     const d = new Date();
@@ -213,28 +212,8 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
       const movementsToInsert = [];
     let stockUpdates = [];
     const recordedItems = items.map(item => {
-      const finalAdded = manualAdded[item.id] !== undefined ? (parseFloat(manualAdded[item.id]) || 0) : item.added_qty;
-      
-      // expected_sisa MUST use auto_added_qty (True System Math), NOT finalAdded (Nita's claim)!
-      // This ensures that if Nita fakes a +Masuk to hide a shortage, the Teori still catches it!
-      const expected_sisa = Math.max(0, item.opening_stock + finalAdded + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
-
-      
-      const extraMasuk = finalAdded - item.auto_added_qty;
-      if (extraMasuk !== 0) {
-        movementsToInsert.push({
-          id: "MOV-" + Date.now() + "-" + Math.random().toString(36).slice(2,6),
-          type: extraMasuk > 0 ? "PO Receive" : "Adjustment",
-          ingredient_id: item.id,
-          ingredient_name: item.name,
-          qty: extraMasuk,
-          unit: item.unit,
-          note: "Manual Restock input from Daily Audit",
-          date: getBusinessDateStr(),
-          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.'),
-          actor: staff?.name || 'System'
-        });
-      }
+      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
+      const finalAdded = item.auto_added_qty;
         const rawActual = counts[item.id]
         const actualQty = rawActual !== undefined && rawActual !== ''
           ? parseFloat(String(rawActual).replace(',', '.'))
@@ -383,8 +362,7 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
                         : null
                       
                       const hasInput = actualQty !== null && !isNaN(actualQty)
-                      const finalAddedForRender = manualAdded[item.id] !== undefined ? (parseFloat(manualAdded[item.id]) || 0) : item.added_qty;
-                      const expected_sisa = Math.max(0, item.opening_stock + finalAddedForRender + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
+                      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
                       const diff = hasInput ? Math.round((actualQty - expected_sisa) * 100) / 100 : 0
                       const hasBreakdown = Object.keys(item.sales_breakdown || {}).length > 0
                       const isExpanded = expandedItem === item.id
@@ -422,14 +400,8 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
                             )}
                           </td>
                           <td style={{ ...styles.td, textAlign: 'center', color: '#64748B' }}>{item.opening_stock}</td>
-                          <td style={{ ...styles.td, textAlign: 'center', color: item.added_qty > 0 ? '#00875A' : '#94A3B8' }}>
-                            <input 
-                              type="number" 
-                              value={manualAdded[item.id] !== undefined ? manualAdded[item.id] : item.added_qty}
-                              onChange={e => setManualAdded(prev => ({...prev, [item.id]: e.target.value}))}
-                              style={{ ...styles.input, width: 60, padding: '4px', borderColor: '#86EFAC', color: '#166534', background: '#DCFCE7' }}
-                              placeholder={String(item.auto_added_qty)}
-                            />
+                          <td style={{ ...styles.td, textAlign: 'center', color: item.auto_added_qty > 0 ? '#00875A' : '#94A3B8' }}>
+                            {item.auto_added_qty > 0 ? `+${item.auto_added_qty}` : '—'}
                           </td>
                           <td style={{ ...styles.td, textAlign: 'center', color: item.sold_qty > 0 ? '#DE350B' : '#94A3B8', fontWeight: 600 }}>
                             {item.sold_qty > 0 ? `-${item.sold_qty}` : '0'}

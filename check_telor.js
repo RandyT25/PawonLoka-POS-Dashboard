@@ -1,20 +1,31 @@
 import { createClient } from '@supabase/supabase-js'
 import fs from 'fs'
 
-const env = fs.readFileSync('.env', 'utf8')
-let url = env.match(/VITE_SUPABASE_URL=(.*)/)?.[1]
-let key = env.match(/VITE_SUPABASE_ANON_KEY=(.*)/)?.[1]
-const supabase = createClient(url, key)
+const envContent = fs.readFileSync('.env', 'utf8')
+const supabaseUrl = envContent.match(/VITE_SUPABASE_URL=(.*)/)[1]
+const supabaseKey = envContent.match(/VITE_SUPABASE_ANON_KEY=(.*)/)[1]
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function run() {
-  const { data: subs } = await supabase.from('staff_submissions').select('*').eq('type', 'daily_recon').order('submitted_at', { ascending: false })
+  const { data, error } = await supabase
+    .from('staff_submissions')
+    .select('*')
+    .eq('type', 'daily_recon')
+    .limit(10)
   
-  subs.forEach(s => {
-    const d = s.data.date || s.submitted_at
-    const telor = s.data.items.find(i => i.name === 'Telor')
-    if (telor && d.startsWith('2026-09-1')) {
-      console.log(`[${d}] Telor -> Open: ${telor.opening_stock}, Sold: ${telor.sold_qty}, Expected: ${telor.expected_qty}, Actual: ${telor.actual_qty}, Diff: ${telor.diff_qty}`)
+  if (error) {
+    console.error(error)
+    return
+  }
+  
+  for (const d of data) {
+    const items = d.data.items || []
+    const telor = items.find(i => i.name.toLowerCase().includes('telor'))
+    if (telor && telor.diff_qty !== 0) {
+      console.log(`Report ID: ${d.id}`)
+      console.log(telor)
     }
-  })
+  }
 }
+
 run()
