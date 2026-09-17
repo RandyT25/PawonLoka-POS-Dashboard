@@ -217,13 +217,24 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
       
       // expected_sisa MUST use auto_added_qty (True System Math), NOT finalAdded (Nita's claim)!
       // This ensures that if Nita fakes a +Masuk to hide a shortage, the Teori still catches it!
-      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
+      const expected_sisa = Math.max(0, item.opening_stock + finalAdded + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
 
       
-      // REMOVED AUTO-INJECTION: We no longer magically create stock movements based on Nita's input.
-      // Her input is just a CLAIM that will be cross-checked against true system production.
       const extraMasuk = finalAdded - item.auto_added_qty;
-
+      if (extraMasuk !== 0) {
+        movementsToInsert.push({
+          id: "MOV-" + Date.now() + "-" + Math.random().toString(36).slice(2,6),
+          type: extraMasuk > 0 ? "PO Receive" : "Adjustment",
+          ingredient_id: item.id,
+          ingredient_name: item.name,
+          qty: extraMasuk,
+          unit: item.unit,
+          note: "Manual Restock input from Daily Audit",
+          date: getBusinessDateStr(),
+          time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.'),
+          actor: staff?.name || 'System'
+        });
+      }
         const rawActual = counts[item.id]
         const actualQty = rawActual !== undefined && rawActual !== ''
           ? parseFloat(String(rawActual).replace(',', '.'))
@@ -372,7 +383,8 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
                         : null
                       
                       const hasInput = actualQty !== null && !isNaN(actualQty)
-                      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
+                      const finalAddedForRender = manualAdded[item.id] !== undefined ? (parseFloat(manualAdded[item.id]) || 0) : item.added_qty;
+                      const expected_sisa = Math.max(0, item.opening_stock + finalAddedForRender + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
                       const diff = hasInput ? Math.round((actualQty - expected_sisa) * 100) / 100 : 0
                       const hasBreakdown = Object.keys(item.sales_breakdown || {}).length > 0
                       const isExpanded = expandedItem === item.id
