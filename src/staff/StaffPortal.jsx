@@ -194,6 +194,7 @@ export default function StaffPortal() {
     return ingredients.filter(i => {
       // Allow Packaging to be requested/wasted by Kasir and Snack regardless of strict station assignment
       if (i.category === "Packaging" && (station === "Kasir" || station === "Snack" || station === "Kitchen")) return true;
+      if (i.name.toLowerCase().includes("kerupuk") && (station === "Kitchen" || station === "Snack")) return true;
 
       if (i.station && Array.isArray(i.station)) {
         return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
@@ -275,7 +276,7 @@ export default function StaffPortal() {
     // Refresh from Supabase in background
     try {
       const [{ data:ings }, { data:subs }, { data:subIngs }, { data:frozenProds }, { data:allProds }, { data:allRecipes }] = await Promise.all([
-        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions").order("name"),
+        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions,category").order("name"),
         supabase.from("sub_recipes").select("*").order("name"),
         supabase.from("sub_recipe_ingredients").select("*"),
         supabase.from("products").select("sku,name,cat,price").eq("cat","Frozen Food").eq("active",true).order("name"),
