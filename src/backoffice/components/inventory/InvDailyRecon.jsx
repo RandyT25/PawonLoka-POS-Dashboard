@@ -12,11 +12,117 @@ const DEFAULT_CRITICAL_ITEMS = [
   'ING-183',           // Telor
   'ING-154',           // Sate Kambing (sub)
   'ING-155',           // Sate Ayam (sub)
-  'ING-170',           // Sop Iga Kambing (sub)
   'ING-200',           // Tulang Iga Kambing
   'ING-201',           // Tulang Kambing
   'ING-046'            // Daging Kambing
 ]
+
+
+import React from 'react'
+function DailyReconDetails({ viewDetail, fmt }) {
+  return (
+    <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: 8, border: "1px solid var(--surface3)", margin: "8px 16px" }}>
+                  <div className="bo-modal-body" style={{ maxHeight: "75vh", overflowY: "auto", paddingBottom: "40px" }}>
+              {viewDetail.data?.notes && (
+                <div style={{ background: "#F8FAFC", padding: "16px", borderRadius: 8, marginBottom: 24, border: "1px solid #E2E8F0" }}>
+                  <div style={{ color: "#334155", fontWeight: 700, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 18 }}>📝</span> Analisis Sistem Otomatis
+                  </div>
+                  <div style={{ color: "#475569", fontSize: 14, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                    {viewDetail.data.notes}
+                  </div>
+                </div>
+              )}
+
+              <table className="bo-table" style={{ width: "100%" }}>
+                <thead>
+                  <tr>
+                    <th>Bahan</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>Awal</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>+Masuk</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Terjual</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Produksi</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>-Waste</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>Staff Meal</th>
+                    <th style={{ textAlign: "center", background: "#F1F5F9", whiteSpace: "nowrap" }}>Sisa Teori</th>
+                    <th style={{ textAlign: "center", background: "#EFF6FF", whiteSpace: "nowrap" }}>Sisa Fisik</th>
+                    <th style={{ textAlign: "center", whiteSpace: "nowrap" }}>Selisih</th>
+                    <th style={{ textAlign: "right", whiteSpace: "nowrap" }}>Nilai Selisih</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(viewDetail.data?.items || []).map((it, idx) => {
+                    let displayVal = "Rp 0";
+                    let displayColor = "var(--ink4)";
+                    if (it.diff_value !== undefined) {
+                      if (it.diff_value < 0) {
+                        displayVal = `-${fmt(Math.abs(it.diff_value))}`;
+                        displayColor = "#DE350B";
+                      } else if (it.diff_value > 0) {
+                        displayVal = `+${fmt(it.diff_value)}`;
+                        displayColor = "#00875A";
+                      }
+                    } else {
+                      const lossOnly = it.diff_qty < 0 ? Math.abs(it.diff_qty) * (it.cost_per_unit || 0) : 0;
+                      if (lossOnly > 0) {
+                        displayVal = `-${fmt(lossOnly)}`;
+                        displayColor = "#DE350B";
+                      }
+                    }
+                    return (
+                      <tr key={idx}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: "var(--ink1)" }}>{it.name}</div>
+                          <div style={{ fontSize: 11, color: "var(--ink5)" }}>Satuan: {it.unit}</div>
+                        </td>
+                        <td style={{ textAlign: "center" }}>{it.opening_stock ?? "—"}</td>
+                        <td style={{ textAlign: "center", color: it.added_qty > 0 ? "#00875A" : "var(--ink5)" }}>
+                          {it.added_qty > 0 ? `+${it.added_qty}` : "0"}
+                          {it.claimed_added_qty !== undefined && it.claimed_added_qty !== it.added_qty && (
+                            <div style={{ color: "#DE350B", fontSize: 10, fontWeight: 700, marginTop: 2, background: "#FEE2E2", padding: "2px 4px", borderRadius: 4 }}>
+                              Klaim Kasir: +{it.claimed_added_qty}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "center", color: it.sold_qty > 0 ? "#DE350B" : "var(--ink5)", fontWeight: 600 }}>
+                          {it.sold_qty > 0 ? `-${it.sold_qty}` : "0"}
+                        </td>
+                        <td style={{ textAlign: "center", color: (it.production_qty || 0) > 0 ? "#D97706" : "var(--ink5)", fontWeight: 600 }}>
+                          {(it.production_qty || 0) > 0 ? `-${it.production_qty}` : "0"}
+                        </td>
+                        <td style={{ textAlign: "center", color: (it.waste_qty || 0) > 0 ? "#9A3412" : "var(--ink5)", fontWeight: 600 }}>
+                          {(it.waste_qty || 0) > 0 ? `-${it.waste_qty}` : "0"}
+                        </td>
+                        <td style={{ textAlign: "center", color: (it.adj_qty || 0) !== 0 ? "#475569" : "var(--ink5)", fontWeight: 600 }}>
+                          {(it.adj_qty || 0) > 0 ? `+${it.adj_qty}` : (it.adj_qty || 0) < 0 ? it.adj_qty : "0"}
+                        </td>
+                        <td style={{ textAlign: "center", fontWeight: 700, background: "#F8FAFC" }}>
+                          {it.expected_qty} {it.unit}
+                        </td>
+                        <td style={{ textAlign: "center", fontWeight: 800, color: "#0284C7", background: "#F0F9FF" }}>
+                          {it.actual_qty} {it.unit}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          {it.diff_qty === 0 ? (
+                            <span style={{ color: "#00875A", fontWeight: 700 }}>✓ Cocok</span>
+                          ) : it.diff_qty < 0 ? (
+                            <span style={{ color: "#DE350B", fontWeight: 800 }}>{it.diff_qty} {it.unit}</span>
+                          ) : (
+                            <span style={{ color: "#F59E0B", fontWeight: 800 }}>+{it.diff_qty} {it.unit}</span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: "right", fontWeight: 800, color: displayColor }}>
+                          {displayVal}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+    </div>
+  )
+}
 
 export default function InvDailyRecon() {
   const [submissions, setSubmissions] = useState([])
@@ -24,6 +130,7 @@ export default function InvDailyRecon() {
   const [trackedItemIds, setTrackedItemIds] = useState([])
   const [loading, setLoading] = useState(true)
   const [viewDetail, setViewDetail] = useState(null)
+  const [expandedId, setExpandedId] = useState(null)
   const [showManageModal, setShowManageModal] = useState(false)
   const [searchIng, setSearchIng] = useState("")
   const [savingSettings, setSavingSettings] = useState(false)
@@ -324,7 +431,8 @@ export default function InvDailyRecon() {
                 }
 
                 return (
-                  <tr key={sub.id}>
+                  <React.Fragment key={sub.id}>
+<tr onClick={(e) => { if(!e.target.closest("button") && !e.target.closest("input")) setExpandedId(expandedId === sub.id ? null : sub.id) }} style={{ cursor:"pointer" }}>
                     <td style={{ fontWeight: 700 }}>{sub.data?.date || (sub.submitted_at || "").slice(0, 10)}</td>
                     <td>{sub.submitted_by || sub.data?.staff_name || "Kasir"}</td>
                     <td>{items.length} item</td>
@@ -347,9 +455,7 @@ export default function InvDailyRecon() {
                     </td>
                     <td>
                       <div style={{ display: "flex", gap: 6 }}>
-                        <button onClick={() => setViewDetail(sub)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color: "var(--brand)" }}>
-                          Lihat Detail
-                        </button>
+                        <button onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)} className="bo-btn bo-btn-ghost bo-btn-sm" style={{ color: "var(--brand)" }}>{expandedId === sub.id ? "Tutup Detail" : "Lihat Detail"}</button>
                         {sub.status !== "approved" && (
                           <button
                             onClick={() => handleApprove(sub, false)}
@@ -371,6 +477,17 @@ export default function InvDailyRecon() {
                       </div>
                     </td>
                   </tr>
+                  {expandedId === sub.id && (
+                    <tr style={{ background: "var(--surface2)" }}>
+                      <td colSpan={7} style={{ padding: 0 }}>
+                        <DailyReconDetails 
+                          viewDetail={sub} 
+                          fmt={fmt}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 )
               })}
             </tbody>
