@@ -18,7 +18,7 @@ export default function InvProduction() {
   const [viewModal,     setViewModal]     = useState(null)
   const [useRecipe,     setUseRecipe]     = useState(true)
   const [recipeId,      setRecipeId]      = useState("")
-  const [form,          setForm]          = useState({ item_id:"", batch_qty:"", unit:"", date:new Date().toISOString().slice(0,10), produced_by:"", notes:"" })
+  const [form,          setForm]          = useState({ item_id:"", batch_qty:"", unit:"", date:getBusinessDateStr(), produced_by:"", notes:"" })
   const [usedItems,     setUsedItems]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
   const [saving,        setSaving]        = useState(false)
   const [loading,       setLoading]       = useState(true)
@@ -154,7 +154,7 @@ export default function InvProduction() {
       await load()
       setModal(false)
       setRecipeId(""); setUseRecipe(true)
-      setForm({ item_id:"", batch_qty:"", unit:"", date:new Date().toISOString().slice(0,10), produced_by:"", notes:"" })
+      setForm({ item_id:"", batch_qty:"", unit:"", date:getBusinessDateStr(), produced_by:"", notes:"" })
       setUsedItems([{ ingredient_id:"", qty:"", unit:"" }])
     } catch(e) { alert("Error: "+e.message) }
     setSaving(false)

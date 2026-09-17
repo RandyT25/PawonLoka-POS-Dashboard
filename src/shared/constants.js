@@ -42,3 +42,16 @@ export const KITCHEN_STATIONS = {
 
 export const fmt = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID')
 export const TAX_RATE = 0.10
+
+export const SHIFT_START_HOUR = 6;
+export function getBusinessDate(actualDate = new Date()) {
+  const d = new Date(actualDate);
+  if (d.getHours() < SHIFT_START_HOUR) {
+    d.setDate(d.getDate() - 1);
+  }
+  return d;
+}
+export function getBusinessDateStr(actualDate = new Date()) {
+  const d = getBusinessDate(actualDate);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}

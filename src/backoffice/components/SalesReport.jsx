@@ -11,6 +11,7 @@ export default function SalesReport() {
   const [range,       setRange]       = useState("month")
   const [customDate,  setCustomDate]  = useState(today())
   const [customDateTo,setCustomDateTo]= useState(today())
+  const [expandedDate, setExpandedDate] = useState(null)
   const [itemFilter,  setItemFilter]  = useState(new Set())
   const [rawOrders,   setRawOrders]   = useState([])
   const [rows,        setRows]        = useState([])
@@ -48,7 +49,7 @@ export default function SalesReport() {
     const map = {}
     filtered.forEach(o => {
       const d = o.date
-      if (!map[d]) map[d] = { date:d, orders:0, subtotal:0, tax:0, discount:0, total:0 }
+      if (!map[d]) map[d] = { date:d, orders:0, subtotal:0, tax:0, discount:0, total:0, orderList: [] }
       map[d].orders++;  map[d].subtotal += o.subtotal||0
       map[d].tax      += o.tax||0;    map[d].discount += o.discount||0
       map[d].total    += o.total||0
@@ -165,7 +166,8 @@ export default function SalesReport() {
                 </thead>
                 <tbody>
                   {rows.map(r => (
-                    <tr key={r.date}>
+                    <React.Fragment key={r.date}>
+<tr onClick={() => setExpandedDate(expandedDate === r.date ? null : r.date)} style={{ cursor: "pointer", background: expandedDate === r.date ? "var(--surface2)" : undefined }}>
                       <td style={{ fontWeight:600 }}>{new Date(r.date+"T12:00:00").toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}</td>
                       <td style={{ textAlign:"right" }}>{r.orders}</td>
                       <td style={{ textAlign:"right" }}>{fmt(r.subtotal)}</td>
@@ -174,6 +176,66 @@ export default function SalesReport() {
                       <td style={{ textAlign:"right", fontWeight:800, color:"#00875A" }}>{fmt(r.total)}</td>
                       <td style={{ textAlign:"right", color:"#6B778C" }}>{fmt(r.orders ? Math.round(r.total/r.orders) : 0)}</td>
                     </tr>
+
+                    {expandedDate === r.date && (
+
+                      <tr style={{ background: "var(--surface2)" }}>
+
+                        <td colSpan={7} style={{ padding: "16px 24px" }}>
+
+                          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8, color: "var(--ink4)" }}>Orders on {new Date(r.date+"T12:00:00").toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short",year:"numeric"})}</div>
+
+                          <table className="bo-table" style={{ background: "#fff", border: "1px solid var(--surface3)", borderRadius: "var(--r)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}>
+
+                            <thead>
+
+                              <tr>
+
+                                <th>Order ID</th>
+
+                                <th>Items</th>
+
+                                <th style={{ textAlign:"right" }}>Subtotal</th>
+
+                                <th style={{ textAlign:"right" }}>Tax</th>
+
+                                <th style={{ textAlign:"right" }}>Total</th>
+
+                              </tr>
+
+                            </thead>
+
+                            <tbody>
+
+                              {r.orderList.map(o => (
+
+                                <tr key={o.id}>
+
+                                  <td style={{ fontFamily: "monospace" }}>#{o.id.slice(-6)}</td>
+
+                                  <td style={{ fontSize: 12, color: "var(--ink5)" }}>{(o.items || []).map(i => `${i.qty}x ${i.name}`).join(", ")}</td>
+
+                                  <td style={{ textAlign:"right" }}>{fmt(o.subtotal)}</td>
+
+                                  <td style={{ textAlign:"right" }}>{fmt(o.tax)}</td>
+
+                                  <td style={{ textAlign:"right", fontWeight: 600 }}>{fmt(o.total)}</td>
+
+                                </tr>
+
+                              ))}
+
+                            </tbody>
+
+                          </table>
+
+                        </td>
+
+                      </tr>
+
+                    )}
+
+                    </React.Fragment>
                   ))}
                 </tbody>
                 <tfoot>

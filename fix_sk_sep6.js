@@ -1,0 +1,29 @@
+import { createClient } from '@supabase/supabase-js'
+import fs from 'fs'
+
+const env = fs.readFileSync('.env', 'utf8')
+let url = env.match(/VITE_SUPABASE_URL=(.*)/)?.[1]
+let key = env.match(/VITE_SUPABASE_ANON_KEY=(.*)/)?.[1]
+const supabase = createClient(url, key)
+
+async function run() {
+  const { data: subs } = await supabase.from('staff_submissions').select('*').eq('type', 'daily_recon').eq('data->>date', '2026-09-06')
+  for (const sub of subs) {
+    let mod = false;
+    sub.data.items = sub.data.items.map(it => {
+      if (it.ingredient_id === 'ING-154') { // Sate Kambing
+        if (it.actual_qty === 293) {
+          it.actual_qty = 296; // restore the true physical count
+          it.diff_qty = it.actual_qty - it.expected_qty; // 296 - 296 = 0
+          mod = true;
+        }
+      }
+      return it;
+    })
+    if (mod) {
+      await supabase.from('staff_submissions').update({ data: sub.data }).eq('id', sub.id)
+      console.log("Restored Sate Kambing to 296 for Sep 6")
+    }
+  }
+}
+run()

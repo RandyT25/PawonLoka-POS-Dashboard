@@ -148,11 +148,11 @@ export default function StaffPortal() {
   const [done,         setDone]         = useState(false)
   const [opnameCounts, setOpnameCounts] = useState([])
   const [opnameSearch, setOpnameSearch] = useState("")
-  const [opnameDate,   setOpnameDate]   = useState(new Date().toISOString().slice(0,10))
+  const [opnameDate,   setOpnameDate]   = useState(getBusinessDateStr())
   const [staffName,    setStaffName]    = useState("")
   const [loggedStaff, setLoggedStaff] = useState(null)
-      const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
-  const [consumptionForm, setConsumptionForm] = useState({ ingredient_id:"", qty:"", unit:"", notes:"", date:new Date().toISOString().slice(0,10) })
+      const [wasteForm,    setWasteForm]    = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", notes:"", date:getBusinessDateStr() })
+  const [consumptionForm, setConsumptionForm] = useState({ ingredient_id:"", qty:"", unit:"", notes:"", date:getBusinessDateStr() })
   const [trialForm, setTrialForm] = useState({ trialName:"", notes:"", items:[{ingredient_id:"", qty:"", unit:""}] })
   const [prodType,     setProdType]     = useState("") // 'sub' | 'product'
   const [prodSubId,    setProdSubId]    = useState("")
@@ -162,8 +162,8 @@ export default function StaffPortal() {
   const [prodYieldUnit,setProdYieldUnit]= useState("")
   const [prodUsed,     setProdUsed]     = useState([])
   const [prodNotes,    setProdNotes]    = useState("")
-  const [prodDate,     setProdDate]     = useState(new Date().toISOString().slice(0,10))
-  const [reqDate,      setReqDate]      = useState(new Date().toISOString().slice(0,10))
+  const [prodDate,     setProdDate]     = useState(getBusinessDateStr())
+  const [reqDate,      setReqDate]      = useState(getBusinessDateStr())
   const [reqNotes,     setReqNotes]     = useState("")
   const [reqItems,     setReqItems]     = useState([{ ingredient_id:"", qty:"", unit:"" }])
   const [stationStaff, setStationStaff] = useState({})
@@ -343,7 +343,7 @@ export default function StaffPortal() {
         const outputIngredientId = d.item_id || subRecipes.find(sr=>sr.id===d.sub_recipe_id)?.ingredient_id;
         const item = outputIngredientId ? ingredientsById[outputIngredientId] : null;
         const producedQty = d.actual_yield ?? d.batch_qty;
-        const producedDate = d.date || new Date().toISOString().slice(0,10);
+        const producedDate = d.date || getBusinessDateStr();
         const movId = () => "MOV-" + Date.now() + "-" + Math.random().toString(36).slice(2,6);
         const nowTime = () => new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"});
         
@@ -395,12 +395,12 @@ export default function StaffPortal() {
 
   function reset(forceHome) {
     setDone(false); setScreen(forceHome || station ? "home" : "consumption"); setStaffName(""); setOpnameSearch("")
-    setOpnameDate(new Date().toISOString().slice(0,10))
-    setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"", date:new Date().toISOString().slice(0,10) })
-    setConsumptionForm({ ingredient_id:"", qty:"", notes:"", date:new Date().toISOString().slice(0,10) })
+    setOpnameDate(getBusinessDateStr())
+    setWasteForm({ ingredient_id:"", qty:"", reason:"Expired", notes:"", date:getBusinessDateStr() })
+    setConsumptionForm({ ingredient_id:"", qty:"", notes:"", date:getBusinessDateStr() })
     setProdType(""); setProdSubId(""); setProdProductSku(""); setProdBatchQty(""); setProdYield(""); setProdYieldUnit(""); setProdUsed([]); setProdNotes("")
-    setProdDate(new Date().toISOString().slice(0,10))
-    setReqDate(new Date().toISOString().slice(0,10)); setReqNotes(""); setReqItems([{ ingredient_id:"", qty:"", unit:"" }])
+    setProdDate(getBusinessDateStr())
+    setReqDate(getBusinessDateStr()); setReqNotes(""); setReqItems([{ ingredient_id:"", qty:"", unit:"" }])
     setTrialForm({ trialName:"", notes:"", items:[{ingredient_id:"", qty:"", unit:""}] })
     if ((stationStaff[station]||[]).length === 1) setStaffName(stationStaff[station][0])
   }
@@ -617,7 +617,7 @@ export default function StaffPortal() {
               actual_yield: packs,
               yield_unit: "pack",
               notes: payload.notes,
-              date: payload.date||new Date().toISOString().slice(0,10),
+              date: payload.date||getBusinessDateStr(),
               needs_recipe_review: false,
               ingredients_used
             })
@@ -634,7 +634,7 @@ export default function StaffPortal() {
               actual_yield: Math.round((sub?.yield_qty||1) * packs * 100)/100,
               yield_unit: sub?.yield_unit || sub?.unit || "gr",
               notes: payload.notes,
-              date: payload.date||new Date().toISOString().slice(0,10),
+              date: payload.date||getBusinessDateStr(),
               needs_recipe_review: false,
               ingredients_used
             })

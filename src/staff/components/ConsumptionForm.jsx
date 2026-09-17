@@ -2,7 +2,7 @@ import { useState } from "react"
 import SearchableSelect from "./SearchableSelect.jsx"
 
 export default function ConsumptionForm({ ingredients, subRecipes, onBack, onSubmit, saving, stationColor }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10))
+  const [date, setDate] = useState(getBusinessDateStr())
   const [ingredientId, setIngredientId] = useState("")
   const [qty, setQty] = useState("")
   const [unit, setUnit] = useState("")
@@ -45,7 +45,7 @@ export default function ConsumptionForm({ ingredients, subRecipes, onBack, onSub
       <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px 100px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 2px 6px rgba(0,0,0,0.03)" }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Date</label>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={new Date().toISOString().slice(0,10)} 
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={getBusinessDateStr()} 
             style={{ width: "100%", padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9" }} />
         </div>
 

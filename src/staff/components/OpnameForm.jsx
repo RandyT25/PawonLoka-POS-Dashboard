@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 function fmt(n) { return Number(n||0).toLocaleString("id-ID") }
 
 export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stationColor, staff, station }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10))
+  const [date, setDate] = useState(getBusinessDateStr())
   const [search, setSearch] = useState("")
   const [counts, setCounts] = useState([])
 
@@ -75,7 +75,7 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
         
         <div style={{ background: "#fff", padding: 16, borderRadius: 16, boxShadow: "0 2px 6px rgba(0,0,0,0.03)", marginBottom: 16 }}>
           <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#666", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>Count Date</label>
-          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={new Date().toISOString().slice(0,10)} 
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} max={getBusinessDateStr()} 
             style={{ width: "100%", padding: "12px 14px", border: "1px solid #E8ECF0", borderRadius: 10, fontSize: 15, background: "#f9f9f9" }} />
         </div>
 

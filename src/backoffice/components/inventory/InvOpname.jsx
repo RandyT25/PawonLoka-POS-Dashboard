@@ -64,7 +64,7 @@ export default function InvOpname() {
       const changed = fresh.find((r, idx) => Number(r.data?.stock ?? items[idx].system_qty) !== Number(items[idx].system_qty))
       if (changed) throw new Error("Stock changed while this count was open. Reload and recount before submitting.")
       const { error:opnErr } = await supabase.from("stock_opname").insert({
-        id: sessionId, date: new Date().toISOString().slice(0,10),
+        id: sessionId, date: getBusinessDateStr(),
         status:"Completed", items, total_variance:totalVariance
       })
       if (opnErr) throw opnErr
@@ -84,7 +84,7 @@ export default function InvOpname() {
             type:"Adjustment", ingredient_id:item.ingredient_id, ingredient_name:item.ingredient_name,
             qty:item.diff, unit:item.unit, ref:sessionId,
             note:"Stock opname "+sessionId+` (${item.system_qty} → ${newStock})`,
-            date:new Date().toISOString().slice(0,10),
+            date:getBusinessDateStr(),
             time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
           })
           if (movErr) throw movErr

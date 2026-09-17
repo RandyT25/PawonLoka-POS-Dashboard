@@ -23,7 +23,7 @@ function parseNum(v) {
 }
 
 export default function RequisitionForm({ ingredients, onBack, onSubmit, saving, stationColor }) {
-  const [date, setDate] = useState(new Date().toISOString().slice(0,10))
+  const [date, setDate] = useState(getBusinessDateStr())
   const [notes, setNotes] = useState("")
   const [items, setItems] = useState([{ ingredient_id: "", qty: "", unit: "" }])
 

@@ -70,7 +70,7 @@ export default function InvMovements() {
         id:"MOV-"+Date.now(), type:"Adjustment",
         ingredient_id:ing.id, ingredient_name:ing.name,
         qty, unit:form.unit||ing.unit, ref:"MANUAL", note:form.reason,
-        date:new Date().toISOString().slice(0,10),
+        date:getBusinessDateStr(),
         time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
       })
       if (movErr) throw movErr

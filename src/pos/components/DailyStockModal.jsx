@@ -10,7 +10,7 @@ const DEFAULT_CRITICAL_ITEMS = [
   'ING-183',           // Telor
   'ING-154',           // Sate Kambing (sub)
   'ING-155',           // Sate Ayam (sub)
-  'ING-170',           // Sop Iga Kambing (sub)
+  
   'ING-200',           // Tulang Iga Kambing
   'ING-201',           // Tulang Kambing
   'ING-046'            // Daging Kambing
@@ -28,7 +28,8 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
   const [onlineWarningChecked, setOnlineWarningChecked] = useState(false)
 
   const today = useMemo(() => {
-    const d = new Date()
+    const d = new Date();
+    if (d.getHours() < 6) d.setDate(d.getDate() - 1);
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   }, [])
 

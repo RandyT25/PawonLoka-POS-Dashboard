@@ -166,7 +166,7 @@ function computePaidPOChanges(po, ingMap) {
         type:"Purchase", ingredient_id:ing.id, ingredient_name:ing.name,
         qty:qtyBase, unit:ing.unit, ref:po.id,
         note:`Received: ${item.qty} ${item.unit} @ ${fmt(item.unit_cost)} → WAC: ${fmt(newWAC)}/${ing.unit}`,
-        date:new Date().toISOString().slice(0,10),
+        date:getBusinessDateStr(),
         time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
       })
       ingMap[ing.id] = { ...ing, stock:newStock, cost_per_unit:newWAC }
@@ -204,7 +204,7 @@ function computeVoidPOChanges(po, ingMap) {
       type:"Purchase", ingredient_id:ing.id, ingredient_name:ing.name,
       qty:-qtyBase, unit:ing.unit, ref:po.id,
       note:`Void ${po.id}: reversed ${item.qty} ${item.unit}`,
-      date:new Date().toISOString().slice(0,10),
+      date:getBusinessDateStr(),
       time:new Date().toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"})
     })
     ingMap[ing.id] = { ...ing, stock:newStock }
@@ -235,7 +235,7 @@ export default function InvPO() {
   const [editModal,   setEditModal]   = useState(null)
   const [newPO,       setNewPO]       = useState(false)
   const [selected,    setSelected]    = useState(new Set())
-  const [poForm,      setPOForm]      = useState({ supplier_id:"", invoice_no:"", order_date:new Date().toISOString().slice(0,10), due_date:"", notes:"" })
+  const [poForm,      setPOForm]      = useState({ supplier_id:"", invoice_no:"", order_date:getBusinessDateStr(), due_date:"", notes:"" })
   const [poItems,     setPOItems]     = useState([{ ingredient_id:"", qty:"", unit:"gr", total_cost:"", unit_cost:"" }])
   const [saving,      setSaving]      = useState(false)
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -248,13 +248,13 @@ export default function InvPO() {
     payment_account_id: "",
     payment_account_name: "",
     transaction_type: "no_ref",
-    transaction_date: new Date().toISOString().slice(0,10),
+    transaction_date: getBusinessDateStr(),
     transaction_no: "",
     notes: ""
   })
   const [payLines,    setPayLines]    = useState([])
   const [unitsList,   setUnitsList]   = useState(UNITS_FALLBACK)
-  const today = new Date().toISOString().slice(0,10)
+  const today = getBusinessDateStr()
   const [range,        setRange]        = useState("month")
   const [customDate,   setCustomDate]   = useState(today)
   const [customDateTo, setCustomDateTo] = useState(today)
@@ -391,7 +391,7 @@ export default function InvPO() {
       payment_account_id: "",
       payment_account_name: "",
       transaction_type: "no_ref",
-      transaction_date: new Date().toISOString().slice(0,10),
+      transaction_date: getBusinessDateStr(),
       transaction_no: txNo,
       notes: ""
     })
@@ -654,7 +654,7 @@ export default function InvPO() {
     }
     await load()
     setNewPO(false); setEditModal(null)
-    setPOForm({ supplier_id:"", invoice_no:"", order_date:new Date().toISOString().slice(0,10), due_date:"", notes:"" })
+    setPOForm({ supplier_id:"", invoice_no:"", order_date:getBusinessDateStr(), due_date:"", notes:"" })
     setPOItems([{ ingredient_id:"", qty:"", unit:"gr", total_cost:"", unit_cost:"" }])
     setSaving(false)
   }

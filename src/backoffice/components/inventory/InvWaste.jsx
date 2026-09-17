@@ -29,7 +29,7 @@ export default function InvWaste() {
   const [lastUpdated,  setLastUpdated]  = useState(null)
 
   const [modal,       setModal]       = useState(false)
-  const [form,        setForm]        = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", date:new Date().toISOString().slice(0,10), recorded_by:"", notes:"" })
+  const [form,        setForm]        = useState({ ingredient_id:"", qty:"", unit:"", reason:"Expired", date:getBusinessDateStr(), recorded_by:"", notes:"" })
   const [costPreview, setCostPreview] = useState(0)
   const [saving,      setSaving]      = useState(false)
   const [loading,     setLoading]     = useState(true)
@@ -111,7 +111,7 @@ export default function InvWaste() {
       if (movErr) throw movErr
       await load()
       setModal(false)
-      setForm({ ingredient_id:"", qty:"", unit:"", reason:"Expired", date:new Date().toISOString().slice(0,10), recorded_by:"", notes:"" })
+      setForm({ ingredient_id:"", qty:"", unit:"", reason:"Expired", date:getBusinessDateStr(), recorded_by:"", notes:"" })
       setCostPreview(0)
     } catch(e) { alert("Error: "+e.message) }
     setSaving(false)
