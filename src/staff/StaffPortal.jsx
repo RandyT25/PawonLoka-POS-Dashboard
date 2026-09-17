@@ -191,6 +191,9 @@ export default function StaffPortal() {
     if (isOwner(loggedStaff)) return ingredients;
     if (isNita(loggedStaff)) return ingredients; // Nita can request anything
     return ingredients.filter(i => {
+      // Allow Packaging to be requested/wasted by Kasir and Snack regardless of strict station assignment
+      if (i.category === "Packaging" && (station === "Kasir" || station === "Snack")) return true;
+
       if (i.station && Array.isArray(i.station)) {
         return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
       } else if (i.station && typeof i.station === "string") {
@@ -204,6 +207,7 @@ export default function StaffPortal() {
     if (isOwner(loggedStaff)) return subRecipes;
     return subRecipes.filter(r => {
       if (isNita(loggedStaff) && r.name.toLowerCase().includes("sambal kacang")) return true;
+      if (r.name.toLowerCase().includes("kerupuk udang") && (station === "Kitchen" || station === "Snack")) return true;
       const outIng = ingredients.find(i => i.id === r.ingredient_id);
       if (!outIng) return true;
       if (outIng.station && Array.isArray(outIng.station)) {
@@ -218,7 +222,7 @@ export default function StaffPortal() {
   const filteredFrozenProducts = useMemo(() => {
     if (isOwner(loggedStaff)) return frozenProducts;
     if ((station||"").toLowerCase() === "kitchen") return frozenProducts;
-    return [];
+    return frozenProducts.filter(p => p.name.toLowerCase().includes("kerupuk udang") && station === "Snack");
   }, [frozenProducts, loggedStaff, station]);
 
   const subRecipeOptions = filteredSubRecipes.map(s => {
