@@ -1,4 +1,3 @@
-import { getBusinessDateStr } from "../shared/constants.js"
 import { useState, useEffect, useRef, useMemo } from "react"
 import Login from "./components/Login.jsx"
 import Attendance from "./components/Attendance.jsx"
@@ -193,8 +192,7 @@ export default function StaffPortal() {
     if (isNita(loggedStaff)) return ingredients; // Nita can request anything
     return ingredients.filter(i => {
       // Allow Packaging to be requested/wasted by Kasir and Snack regardless of strict station assignment
-      if (i.category === "Packaging" && (station === "Kasir" || station === "Snack" || station === "Kitchen")) return true;
-      if (i.name.toLowerCase().includes("kerupuk") && (station === "Kitchen" || station === "Snack")) return true;
+      if (i.category === "Packaging" && (station === "Kasir" || station === "Snack")) return true;
 
       if (i.station && Array.isArray(i.station)) {
         return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
@@ -209,7 +207,7 @@ export default function StaffPortal() {
     if (isOwner(loggedStaff)) return subRecipes;
     return subRecipes.filter(r => {
       if (isNita(loggedStaff) && r.name.toLowerCase().includes("sambal kacang")) return true;
-      if (r.name.toLowerCase().includes("kerupuk") && (station === "Kitchen" || station === "Snack")) return true;
+      if (r.name.toLowerCase().includes("kerupuk udang") && (station === "Kitchen" || station === "Snack")) return true;
       const outIng = ingredients.find(i => i.id === r.ingredient_id);
       if (!outIng) return true;
       if (outIng.station && Array.isArray(outIng.station)) {
@@ -224,7 +222,7 @@ export default function StaffPortal() {
   const filteredFrozenProducts = useMemo(() => {
     if (isOwner(loggedStaff)) return frozenProducts;
     if ((station||"").toLowerCase() === "kitchen") return frozenProducts;
-    return frozenProducts.filter(p => p.name.toLowerCase().includes("kerupuk") && station === "Snack");
+    return frozenProducts.filter(p => p.name.toLowerCase().includes("kerupuk udang") && station === "Snack");
   }, [frozenProducts, loggedStaff, station]);
 
   const subRecipeOptions = filteredSubRecipes.map(s => {
@@ -276,7 +274,7 @@ export default function StaffPortal() {
     // Refresh from Supabase in background
     try {
       const [{ data:ings }, { data:subs }, { data:subIngs }, { data:frozenProds }, { data:allProds }, { data:allRecipes }] = await Promise.all([
-        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions,category").order("name"),
+        supabase.from("ingredients").select("id,name,unit,stock,cost_per_unit,supplier,station,conversions").order("name"),
         supabase.from("sub_recipes").select("*").order("name"),
         supabase.from("sub_recipe_ingredients").select("*"),
         supabase.from("products").select("sku,name,cat,price").eq("cat","Frozen Food").eq("active",true).order("name"),
@@ -427,7 +425,7 @@ export default function StaffPortal() {
     fixedBottom:{ position:"fixed", bottom:0, left:0, right:0, padding:"12px 16px", background:"#fff", borderTop:"1px solid #eee", zIndex:10 },
   }
 
-  const logoEl = (
+  const Logo = () => (
     <img src="/logo-staff.png" alt="PawonLoka" style={{ height:36, width:36, borderRadius:8, objectFit:"cover" }} />
   )
 
@@ -449,7 +447,7 @@ export default function StaffPortal() {
   if (!station) return (
     <div style={s.wrap}>
       <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
-      <div style={{ ...s.header, background:"#1a1a2e" }}>{logoEl}<span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
+      <div style={{ ...s.header, background:"#1a1a2e" }}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</span></div>
       <div style={s.body}>
         <div style={{ ...s.card, marginTop:24 }}>
           <div style={{ textAlign:"center", marginBottom:24 }}>
@@ -474,7 +472,7 @@ export default function StaffPortal() {
   if (done) return (
     <div style={s.wrap}>
       <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
-      <div style={s.header}>{logoEl}<span style={{ fontSize:17, fontWeight:800 }}>{station ? `${station} Station` : "PawonLoka Staff"}</span></div>
+      <div style={s.header}><Logo /><span style={{ fontSize:17, fontWeight:800 }}>{station ? `${station} Station` : "PawonLoka Staff"}</span></div>
       <div style={{ ...s.body, textAlign:"center", paddingTop:60 }}>
         <div style={{ fontSize:56, marginBottom:16 }}>✅</div>
         <div style={{ fontSize:20, fontWeight:800, marginBottom:8 }}>Submitted!</div>
@@ -493,7 +491,7 @@ export default function StaffPortal() {
     <div style={s.wrap}>
       <datalist id="uom-options">{UOM_OPTIONS.map(u=><option key={u} value={u}/>)}</datalist>
       <div style={s.header}>
-        {logoEl}
+        <Logo />
         <div style={{ flex:1 }}>
           <div style={{ fontSize:17, fontWeight:800 }}>PawonLoka Staff</div>
           <div style={{ fontSize:12, opacity:0.85 }}>{station} Station</div>
