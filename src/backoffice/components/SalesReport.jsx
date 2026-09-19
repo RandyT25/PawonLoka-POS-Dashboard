@@ -1,3 +1,4 @@
+import React from "react";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"

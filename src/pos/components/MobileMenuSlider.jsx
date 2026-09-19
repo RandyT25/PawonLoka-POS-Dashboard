@@ -1,3 +1,4 @@
+/* global __BUILD_TIME__ */
 export default function MobileMenuSlider({ show, onClose, staff, onClockIn, onDailyStock, onCashLog, onReprint, onPrintCheck, onSettings, onLogout, onRefresh }) {
   if (!show) return null
 
