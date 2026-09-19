@@ -40,7 +40,7 @@ function IngSearchEdit({ ingredients, onSelect }) {
 
 
 import React from 'react'
-function SubmissionDetails({ viewModal, ingredients, dismissedOrphanIds, retryOrphan, dismissOrphan, processing, EXPECTED_MOVEMENT_TYPE, fmt, isOrphanApproved, updateReqItemSupplier, sendSupplierGroupWA }) {
+function SubmissionDetails({ viewModal, ingredients, dismissedOrphanIds, retryOrphan, dismissOrphan, processing, EXPECTED_MOVEMENT_TYPE, fmt, isOrphanApproved, updateReqItemSupplier, sendSupplierGroupWA, liveStock, reqSelected, toggleReqItem, suppliers, setReqSelected }) {
   return (
     <div style={{ padding: "16px", background: "var(--surface2)", borderRadius: 8, border: "1px solid var(--surface3)", margin: "8px 16px" }}>
                   {isOrphanApproved(viewModal) && (
@@ -1241,6 +1241,11 @@ const trialTotal = s.type==="trial" ? (s.data.items||(s.details||{}).items||[]).
                           isOrphanApproved={isOrphanApproved}
                           updateReqItemSupplier={updateReqItemSupplier}
                           sendSupplierGroupWA={sendSupplierGroupWA}
+                          liveStock={liveStock}
+                          reqSelected={reqSelected}
+                          toggleReqItem={toggleReqItem}
+                          suppliers={suppliers}
+                          setReqSelected={setReqSelected}
                         />
                       </td>
                     </tr>
