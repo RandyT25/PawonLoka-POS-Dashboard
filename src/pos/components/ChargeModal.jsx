@@ -169,7 +169,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
                 🧾 Tagihan
               </button>
             )}
-            <button onClick={onClose} style={S.closeBtn}>x</button>
+            <button onClick={onClose} disabled={saving} style={{ ...S.closeBtn, opacity: saving ? 0.5 : 1 }}>x</button>
           </div>
         </div>
 

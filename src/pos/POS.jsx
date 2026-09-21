@@ -74,6 +74,7 @@ export default function POS() {
   const [orderType, setOrderType]     = useState('Dine-in')
   const [openBillId, setOpenBillId]   = useState(() => sessionStorage.getItem('pos_open_bill') || null)
   const [deliveryFee, setDeliveryFee]   = useState(0)
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false)
   const [deliveryAddr, setDeliveryAddr] = useState('')
 
   // Modals
@@ -921,7 +922,10 @@ export default function POS() {
   }
 
   async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, splitItems, orderNote, promoDisc = 0, promoName, multiPay }) {
-    const orderCogs = cart.reduce((sum, item) => {
+    if (isProcessingOrder) return null
+    setIsProcessingOrder(true)
+    try {
+      const orderCogs = cart.reduce((sum, item) => {
       const prod = products.find(p => p.sku === item.sku)
       return sum + (prod?.cogs || 0) * (item.qty || 1)
     }, 0)
@@ -1098,6 +1102,9 @@ export default function POS() {
     setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
     setDeliveryAddr(''); setAppliedPromo(null); setSplitPaid(0)
     return newOrder
+    } finally {
+      setIsProcessingOrder(false)
+    }
   }
 
   async function handleReprint(order) {
