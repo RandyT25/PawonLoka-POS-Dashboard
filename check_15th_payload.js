@@ -7,18 +7,8 @@ const supabaseKey = envContent.match(/VITE_SUPABASE_ANON_KEY=(.*)/)[1]
 const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function run() {
-  const { data, error } = await supabase
-    .from('staff_submissions')
-    .select('id, submitted_at, data')
-    .eq('type', 'daily_recon')
-    .order('submitted_at', { ascending: false })
-  
-  if (error) {
-    console.error(error)
-    return
-  }
-  
-  data.forEach(d => console.log(d.id, d.submitted_at))
+  const { data } = await supabase.from('staff_submissions').select('*').eq('id', 'SS-RECON-1789488000000').single()
+  const telor = data.data.items.find(i => i.name === 'Telor')
+  console.log(telor)
 }
-
 run()

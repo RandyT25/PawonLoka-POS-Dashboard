@@ -11,13 +11,14 @@ async function run() {
     .from('staff_submissions')
     .select('id, submitted_at, data')
     .eq('type', 'daily_recon')
-    .order('submitted_at', { ascending: false })
+    .like('submitted_at', '2026-09-15%')
   
   if (error) {
     console.error(error)
     return
   }
   
+  console.log(`Found ${data.length} reports on Sept 15th.`)
   data.forEach(d => console.log(d.id, d.submitted_at))
 }
 

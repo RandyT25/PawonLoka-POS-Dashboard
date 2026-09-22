@@ -11,14 +11,15 @@ async function run() {
     .from('staff_submissions')
     .select('id, submitted_at, data')
     .eq('type', 'daily_recon')
-    .order('submitted_at', { ascending: false })
   
   if (error) {
     console.error(error)
     return
   }
   
-  data.forEach(d => console.log(d.id, d.submitted_at))
+  const sept15 = data.filter(d => d.submitted_at.startsWith('2026-09-15'))
+  console.log(`Found ${sept15.length} reports on Sept 15th.`)
+  sept15.forEach(d => console.log(d.id, d.submitted_at))
 }
 
 run()

@@ -11,7 +11,7 @@ async function run() {
     .from('staff_submissions')
     .select('id, submitted_at, data')
     .eq('type', 'daily_recon')
-    .order('submitted_at', { ascending: false })
+    .order('submitted_at', { ascending: true })
   
   if (error) {
     console.error(error)

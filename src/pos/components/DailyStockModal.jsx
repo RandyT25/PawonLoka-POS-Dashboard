@@ -208,17 +208,99 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
     }
     setSaving(true)
     try {
+      // ── RE-FETCH everything fresh at submission time ──
+      // This guarantees that any Production, Waste, PO, or Sale logged
+      // between when the modal opened and when the cashier clicks Submit
+      // is included in the final saved numbers.
+      const [
+        freshSettings,
+        freshIngredients,
+        freshRecipes,
+        freshOrders,
+        freshMovements,
+        freshRecons
+      ] = await Promise.all([
+        qr(supabase.from('app_settings').select('pos_behaviour').eq('id', 'main').single(), { ms: 5000 }),
+        qr(supabase.from('ingredients').select('id, name, unit, stock, cost_per_unit').order('name'), { ms: 5000 }),
+        qr(supabase.from('recipes').select('product_id, ingredient_id, qty, unit, ingredient_name'), { ms: 5000 }),
+        qr(supabase.from('orders').select('id, items, status').eq('date', today).eq('status', 'Paid'), { ms: 5000 }),
+        qr(supabase.from('stock_movements').select('ingredient_id, type, qty, date').eq('date', today), { ms: 5000 }),
+        qr(supabase.from('staff_submissions').select('*').eq('type', 'daily_recon').order('submitted_at', { ascending: false }).limit(30), { ms: 5000 })
+      ])
+
+      const ingredientsMap = {}
+      ;(freshIngredients || []).forEach(ing => { ingredientsMap[ing.id] = ing })
+
+      // ── Recalculate sold qty from recipes × orders ──
+      const salesUsage = {}
+      ;(freshOrders || []).forEach(order => {
+        ;(order.items || []).forEach(item => {
+          const itemSku = item.sku
+          const itemQty = item.qty || 1
+          const itemRecipes = (freshRecipes || []).filter(r => r.product_id === itemSku)
+          itemRecipes.forEach(rec => {
+            const ingId = rec.ingredient_id
+            if (!salesUsage[ingId]) salesUsage[ingId] = { total: 0, breakdown: {} }
+            const usedForThisItem = (parseFloat(rec.qty) || 0) * itemQty
+            salesUsage[ingId].total += usedForThisItem
+            if (!salesUsage[ingId].breakdown[item.name]) {
+              salesUsage[ingId].breakdown[item.name] = { orderQty: 0, portionQty: parseFloat(rec.qty) || 0, totalUsed: 0, unit: rec.unit || '' }
+            }
+            salesUsage[ingId].breakdown[item.name].orderQty += itemQty
+            salesUsage[ingId].breakdown[item.name].totalUsed += usedForThisItem
+          })
+        })
+      })
+
+      // ── Recalculate additions / waste / production / adjustments ──
+      const additions = {}, wasteMap = {}, production_deductions = {}, adjustments = {}
+      ;(freshMovements || []).forEach(mov => {
+        const ingId = mov.ingredient_id
+        const qty = parseFloat(mov.qty) || 0
+        if (mov.type === 'Sale' || mov.type === 'Stock Reset' || mov.type === 'Void') return
+        if (mov.type === 'Adjustment') {
+          adjustments[ingId] = (adjustments[ingId] || 0) + qty
+        } else if (qty > 0) {
+          additions[ingId] = (additions[ingId] || 0) + Math.abs(qty)
+        } else if (qty < 0 && mov.type === 'Production') {
+          production_deductions[ingId] = (production_deductions[ingId] || 0) + Math.abs(qty)
+        } else if (qty < 0 && mov.type === 'Waste') {
+          wasteMap[ingId] = (wasteMap[ingId] || 0) + Math.abs(qty)
+        }
+      })
+
+      // ── Get previous day's physical count for opening stock ──
+      const prevDayRecon = (freshRecons || []).find(r => r.data?.date && r.data.date < today)
+      const prevCountsMap = {}
+      if (prevDayRecon?.data?.items) {
+        prevDayRecon.data.items.forEach(it => {
+          if (it.actual_qty !== undefined) prevCountsMap[it.ingredient_id] = it.actual_qty
+        })
+      }
+
+      // ── Build final recorded items using fresh data + cashier's physical counts ──
       let totalVarianceValue = 0
-      const movementsToInsert = [];
-    let stockUpdates = [];
-    const recordedItems = items.map(item => {
-      const expected_sisa = Math.max(0, item.opening_stock + item.auto_added_qty + (item.adj_qty||0) - item.sold_qty - item.waste_qty - (item.production_qty||0));
-      const finalAdded = item.auto_added_qty;
+      const recordedItems = items.map(item => {
+        const ing = ingredientsMap[item.id]
+        const sold = salesUsage[item.id]?.total || 0
+        const breakdown = salesUsage[item.id]?.breakdown || {}
+        const added = additions[item.id] || 0
+        const wasted = wasteMap[item.id] || 0
+        const prodDed = production_deductions[item.id] || 0
+        const adj = adjustments[item.id] || 0
+
+        const currentLiveStock = ing ? (parseFloat(ing.stock) || 0) : 0
+        const openingStock = prevCountsMap[item.id] !== undefined
+          ? prevCountsMap[item.id]
+          : Math.max(0, currentLiveStock + sold + wasted + prodDed - added - adj)
+
+        const expected_sisa = Math.max(0, openingStock + added + adj - sold - wasted - prodDed)
+
         const rawActual = counts[item.id]
         const actualQty = rawActual !== undefined && rawActual !== ''
           ? parseFloat(String(rawActual).replace(',', '.'))
           : expected_sisa
-        
+
         const diff = Math.round((actualQty - expected_sisa) * 100) / 100
         const diffValue = diff * (item.cost_per_unit || 0)
         totalVarianceValue += diffValue
@@ -228,17 +310,17 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
           name: item.name,
           unit: item.unit,
           cost_per_unit: item.cost_per_unit,
-          opening_stock: item.opening_stock,
-          added_qty: finalAdded,
-          sold_qty: item.sold_qty,
-          waste_qty: item.waste_qty,
-          production_qty: item.production_qty,
-          adj_qty: item.adj_qty,
-          expected_qty: expected_sisa,
+          opening_stock: Math.round(openingStock * 100) / 100,
+          added_qty: Math.round(added * 100) / 100,
+          sold_qty: Math.round(sold * 100) / 100,
+          waste_qty: Math.round(wasted * 100) / 100,
+          production_qty: Math.round(prodDed * 100) / 100,
+          adj_qty: Math.round(adj * 100) / 100,
+          expected_qty: Math.round(expected_sisa * 100) / 100,
           actual_qty: actualQty,
           diff_qty: diff,
           diff_value: Math.round(diffValue),
-          sales_breakdown: Object.entries(item.sales_breakdown || {}).map(([menuName, info]) => ({
+          sales_breakdown: Object.entries(breakdown).map(([menuName, info]) => ({
             menu: menuName,
             orders: info.orderQty,
             per_portion: info.portionQty,
@@ -249,18 +331,7 @@ export default function DailyStockModal({ show, onClose, staff, shift }) {
       })
 
       const submissionId = 'SS-RECON-' + Date.now()
-      
-      // Update missing movements if any
-      if (movementsToInsert.length > 0) {
-        await supabase.from("stock_movements").insert(movementsToInsert);
-        for (const up of stockUpdates) {
-          const { data: ingData } = await supabase.from("ingredients").select("stock").eq("id", up.id).maybeSingle();
-          if (ingData) {
-            await supabase.from("ingredients").update({ stock: (parseFloat(ingData.stock)||0) + up.qty }).eq("id", up.id);
-          }
-        }
-      }
-      
+
       const payload = {
         id: submissionId,
         type: 'daily_recon',
