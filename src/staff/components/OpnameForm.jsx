@@ -11,7 +11,7 @@ function matchesFilter(item, activeTab) {
   if (!activeTab || activeTab === "All") return true
   if (activeTab === "Sub-recipes") return isSub(item)
   const stations = Array.isArray(item.station) ? item.station.flat(Infinity) : (item.station ? [item.station] : [])
-  if (stations.length === 0) return true
+  if (stations.length === 0) return false
   return stations.some(s => typeof s === "string" && s.toLowerCase() === activeTab.toLowerCase())
 }
 
@@ -20,7 +20,7 @@ const TABS = ["All", "Sub-recipes", "Kitchen", "Bar", "Snack", "Kasir"]
 export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stationColor, staff, station }) {
   const [date, setDate] = useState(getBusinessDateStr())
   const [search, setSearch] = useState("")
-  const [activeTab, setActiveTab] = useState("All")
+  const [activeTab, setActiveTab] = useState(station || "All")
   const [counts, setCounts] = useState([])
 
   useEffect(() => {
@@ -46,7 +46,17 @@ export default function OpnameForm({ ingredients, onBack, onSubmit, saving, stat
 
   const filtered = counts.filter(item => {
     if (search) {
-      return item.name.toLowerCase().includes(search.toLowerCase())
+      const q = search.trim().toLowerCase()
+      const name = item.name.toLowerCase()
+      const cat = (item.category || "").toLowerCase()
+      if (name.includes(q) || cat.includes(q)) return true
+      if (q === "mac and cheese" || q === "mac & cheese") return name.includes("macaroni")
+      if (q === "keju parmesan" || q === "parmesan") return name.includes("parmesan")
+      if (q === "tissu kecil" || q === "tissue kecil") return name.includes("tissu") && name.includes("kecil")
+      if (q === "tissu sedang" || q === "tissue sedang") return name.includes("tissu") && name.includes("sedang")
+      if (q === "tray sambel" || q === "tray sambal") return name.includes("tray") && (name.includes("sambal") || name.includes("sambel"))
+      if (q === "kentang chicken steak") return name.includes("chicken steak") || (name.includes("kentang") && name.includes("steak"))
+      return false
     }
     return matchesFilter(item, activeTab)
   })
