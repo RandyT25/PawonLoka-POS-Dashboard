@@ -265,7 +265,7 @@ export default function StaffPortal() {
       offlineStore.getCache('all_products'),
       offlineStore.getCache('recipes'),
     ])
-    if (cachedIngs?.length)   { setIngredientsById(Object.fromEntries(cachedIngs.map(i=>[i.id,i]))); setIngredients(cachedIngs.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
+    if (cachedIngs?.length)   { setIngredientsById(Object.fromEntries(cachedIngs.map(i=>[i.id,i]))); setIngredients(cachedIngs); setOpnameCounts(cachedIngs.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))) }
     if (cachedSubs?.length)   setSubRecipes(cachedSubs)
     if (cachedSubIngs?.length) setSubRecipeIngs(cachedSubIngs)
     if (cachedFrozenProds?.length) setFrozenProducts(cachedFrozenProds)
@@ -283,7 +283,7 @@ export default function StaffPortal() {
         supabase.from("products").select("sku,name,cat").eq("active",true).order("name"),
         supabase.from("recipes").select("product_id,ingredient_id,qty,unit,ingredient_name"),
       ])
-      if (ings)    { setIngredientsById(Object.fromEntries(ings.map(i=>[i.id,i]))); setIngredients(ings.filter(i => !i.name.includes("(sub)"))); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
+      if (ings)    { setIngredientsById(Object.fromEntries(ings.map(i=>[i.id,i]))); setIngredients(ings); setOpnameCounts(ings.map(i=>({ ingredient_id:i.id, name:i.name, unit:i.unit, conversions:i.conversions||[], input_unit:i.unit, system_qty:i.stock||0, actual_qty:"" }))); offlineStore.setCache('ingredients', ings) }
       if (subs)    { setSubRecipes(subs); offlineStore.setCache('sub_recipes', subs) }
       if (subIngs) { setSubRecipeIngs(subIngs); offlineStore.setCache('sub_recipe_ingredients', subIngs) }
       if (frozenProds) { setFrozenProducts(frozenProds); offlineStore.setCache('frozen_products', frozenProds) }
@@ -520,7 +520,7 @@ export default function StaffPortal() {
 
   if (screen==="opname") {
     return <OpnameForm 
-      ingredients={filteredIngredients}
+      ingredients={ingredients}
       staff={loggedStaff}
       station={station} 
       stationColor={stationColor} 
@@ -529,7 +529,7 @@ export default function StaffPortal() {
       onSubmit={async (data) => {
          const items = data.items.map(i => {
            const enteredQty = parseNum(i.actual_qty)||0
-           const ing = ingredients.find(x=>x.id===i.ingredient_id)
+           const ing = ingredientsById[i.ingredient_id] || ingredients.find(x=>x.id===i.ingredient_id)
            const actual_qty = toBaseUnit(ing, enteredQty, i.input_unit)
            return { ...i, entered_qty: enteredQty, entered_unit: i.input_unit, actual_qty, diff: actual_qty - i.system_qty }
          })
@@ -688,7 +688,7 @@ export default function StaffPortal() {
 
   if (screen==="requisition") {
     return <RequisitionForm
-      ingredients={filteredIngredients}
+      ingredients={filteredIngredients.filter(i => !i.name.includes("(sub)") && i.category !== "Semi-finished")}
       stationColor={stationColor} saving={saving}
       onBack={() => setScreen("home")}
       onSubmit={async (payload) => {

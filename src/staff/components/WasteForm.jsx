@@ -16,9 +16,12 @@ export default function WasteForm({ ingredients, subRecipes, onBack, onSubmit, s
   const [reason, setReason] = useState("Expired")
   const [notes, setNotes] = useState("")
 
-  const allItems = [...(ingredients||[]), ...(subRecipes||[])].sort((a,b)=>a.name.localeCompare(b.name))
-  const itemsById = {}
-  for (const i of allItems) itemsById[i.id] = i
+  const allItemsMap = new Map()
+  for (const i of [...(ingredients||[]), ...(subRecipes||[])]) {
+    if (i?.id && !allItemsMap.has(i.id)) allItemsMap.set(i.id, i)
+  }
+  const allItems = Array.from(allItemsMap.values()).sort((a,b)=>a.name.localeCompare(b.name))
+  const itemsById = Object.fromEntries(allItemsMap)
 
   const selectedItem = itemsById[ingredientId]
 

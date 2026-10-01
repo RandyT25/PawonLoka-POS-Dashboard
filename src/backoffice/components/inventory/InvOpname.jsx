@@ -20,9 +20,8 @@ export default function InvOpname() {
   const [customDate,   setCustomDate]   = useState(today())
   const [customDateTo, setCustomDateTo] = useState(today())
   const [lastUpdated,  setLastUpdated]  = useState(null)
+  const [searchTerm,   setSearchTerm]   = useState("")
 
-
-  
   const load = useCallback(async () => {
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
     const fromDate = fromStr.slice(0, 10)
@@ -41,14 +40,15 @@ export default function InvOpname() {
   useEffect(() => { load() }, [load])
 
   function startOpname() {
+    setSearchTerm("")
     setActiveCount(ingredients.map(i => ({
       ingredient_id: i.id, ingredient_name: i.name, unit: i.unit,
       system_qty: i.stock||0, actual_qty: i.stock||0, cost_per: i.cost_per_unit||0, notes:""
     })))
   }
 
-  function updateActual(idx, val) {
-    setActiveCount(prev => prev.map((item,i) => i===idx ? {...item, actual_qty:parseFloat(val)||0} : item))
+  function updateActual(id, val) {
+    setActiveCount(prev => prev.map(item => item.ingredient_id===id ? {...item, actual_qty:parseFloat(val)||0} : item))
   }
 
   async function submitOpname() {
@@ -104,9 +104,17 @@ export default function InvOpname() {
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
         loading={loading} lastUpdated={lastUpdated} onRefresh={load} />
 
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:12 }}>
           <div style={{ fontSize:14, fontWeight:700, color:"var(--ink)" }}>📋 Active Stock Count Session</div>
-          <div style={{ display:"flex", gap:8 }}>
+          <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+            <input 
+              type="text" 
+              placeholder="Search ingredient / sub-recipe..." 
+              value={searchTerm} 
+              onChange={e=>setSearchTerm(e.target.value)} 
+              className="bo-input" 
+              style={{ width:240, fontSize:13 }} 
+            />
             <button onClick={()=>setActiveCount(null)} className="bo-btn bo-btn-ghost">Cancel</button>
             <button onClick={submitOpname} disabled={submitting} className="bo-btn bo-btn-primary">{submitting?"Submitting...":"Submit Count"}</button>
           </div>
@@ -115,7 +123,9 @@ export default function InvOpname() {
           <table className="bo-table">
             <thead><tr><th>Ingredient</th><th>Unit</th><th>System Stock</th><th>Actual Count</th><th>Difference</th><th>Value Diff</th></tr></thead>
             <tbody>
-              {activeCount.map((item,idx) => {
+              {activeCount
+                .filter(item => !searchTerm || item.ingredient_name.toLowerCase().includes(searchTerm.toLowerCase()))
+                .map((item) => {
                 const diff = item.actual_qty - item.system_qty
                 const valDiff = diff * item.cost_per
                 return (
@@ -124,7 +134,7 @@ export default function InvOpname() {
                     <td>{item.unit}</td>
                     <td>{item.system_qty}</td>
                     <td>
-                      <input type="number" value={item.actual_qty} onChange={e=>updateActual(idx,e.target.value)}
+                      <input type="number" value={item.actual_qty} onChange={e=>updateActual(item.ingredient_id, e.target.value)}
                         style={{ width:80, padding:"5px 8px", border:"1.5px solid var(--surface3)", borderRadius:"var(--r)", fontSize:13 }} />
                     </td>
                     <td style={{ fontWeight:700, color:diff===0?"var(--ink5)":diff<0?"var(--red)":"var(--green)" }}>
