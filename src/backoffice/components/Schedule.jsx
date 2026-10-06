@@ -11,11 +11,11 @@ const DEPT_COLORS  = ["#6366F1","#10B981","#F59E0B","#3B82F6","#8B5CF6","#EF4444
 const DEPT_EMPTY   = { name:"", color:"#6366F1" }
 
 // Default staff — can be overridden by shuffle
-const DEFAULT_STAFF = ["Nita","Uti","Mahes","Alin","Yudi","Meldy","Oji"]
+const DEFAULT_STAFF = ["Nita","Alex","Mahes","Alin","Yudi","Meldy","Oji"]
 
 // Default OFF rules
 const DEFAULT_OFF = {
-  Monday:["Alin","Meldy"], Tuesday:["Nita"], Wednesday:["Uti"],
+  Monday:["Alin","Meldy"], Tuesday:["Nita"], Wednesday:["Alex"],
   Thursday:["Mahes"], Friday:["Yudi"], Saturday:[], Sunday:["Oji"]
 }
 
