@@ -16,12 +16,12 @@ const DEFAULT_STAFF = ["Nita","Alex","Mahes","Alin","Yudi","Meldy","Oji"]
 // Default OFF rules
 const DEFAULT_OFF = {
   Monday:["Alin","Meldy"], Tuesday:["Nita", "Oji"], Wednesday:["Alex", "Yudi"],
-  Thursday:["Mahes"], Friday:["Alex"], Saturday:[], Sunday:["Alex"]
+  Thursday:["Mahes"], Friday:[], Saturday:[], Sunday:[]
 }
 
 // OFF validation rules
 const OFF_RULES = {
-  Monday:2, Tuesday:2, Wednesday:2, Thursday:1, Friday:1, Saturday:0, Sunday:1
+  Monday:2, Tuesday:2, Wednesday:2, Thursday:1, Friday:0, Saturday:0, Sunday:0
 }
 
 // A staff member is eligible for a station if their Staff-tab role tags include it — plus a
