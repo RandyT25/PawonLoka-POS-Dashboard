@@ -187,45 +187,10 @@ export default function StaffPortal() {
     return typeof staff.name === "string" && staff.name.toLowerCase().includes("nita");
   };
 
-  // Memoize filters
-  const filteredIngredients = useMemo(() => {
-    if (isOwner(loggedStaff)) return ingredients;
-    if (isNita(loggedStaff)) return ingredients; // Nita can request anything
-    return ingredients.filter(i => {
-      // Allow Packaging to be requested/wasted by Kasir and Snack regardless of strict station assignment
-      if (i.category === "Packaging" && (station === "Kasir" || station === "Snack" || station === "Kitchen")) return true;
-      if (i.name.toLowerCase().includes("kerupuk") && (station === "Kitchen" || station === "Snack")) return true;
-
-      if (i.station && Array.isArray(i.station)) {
-        return i.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
-      } else if (i.station && typeof i.station === "string") {
-        return i.station.toLowerCase() === (station || "").toLowerCase();
-      }
-      return true;
-    });
-  }, [ingredients, loggedStaff, station]);
-
-  const filteredSubRecipes = useMemo(() => {
-    if (isOwner(loggedStaff)) return subRecipes;
-    return subRecipes.filter(r => {
-      if (isNita(loggedStaff) && r.name.toLowerCase().includes("sambal kacang")) return true;
-      if (r.name.toLowerCase().includes("kerupuk") && (station === "Kitchen" || station === "Snack")) return true;
-      const outIng = ingredients.find(i => i.id === r.ingredient_id);
-      if (!outIng) return true;
-      if (outIng.station && Array.isArray(outIng.station)) {
-        return outIng.station.some(s => typeof s === "string" && s.toLowerCase() === (station || "").toLowerCase());
-      } else if (outIng.station && typeof outIng.station === "string") {
-        return outIng.station.toLowerCase() === (station || "").toLowerCase();
-      }
-      return true;
-    });
-  }, [subRecipes, ingredients, loggedStaff, station]);
-
-  const filteredFrozenProducts = useMemo(() => {
-    if (isOwner(loggedStaff)) return frozenProducts;
-    if ((station||"").toLowerCase() === "kitchen") return frozenProducts;
-    return frozenProducts.filter(p => p.name.toLowerCase().includes("kerupuk") && station === "Snack");
-  }, [frozenProducts, loggedStaff, station]);
+  // Memoize filters — open everything for everyone across all stations
+  const filteredIngredients = useMemo(() => ingredients, [ingredients]);
+  const filteredSubRecipes = useMemo(() => subRecipes, [subRecipes]);
+  const filteredFrozenProducts = useMemo(() => frozenProducts, [frozenProducts]);
 
   const subRecipeOptions = filteredSubRecipes.map(s => {
 
