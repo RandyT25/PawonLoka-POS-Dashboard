@@ -98,7 +98,7 @@ function OrderDetailModal({ order, onClose }) {
     </div>
   )
 }
-const OWNER_PIN = "1234"
+const OWNER_PIN = "8686"
 
 /* ─── SVG Hourly Chart ─── */
 function HourlyChart({ data }) {
@@ -1016,14 +1016,10 @@ function ScreenDebtEquity() {
   const totalTalanganPaid = talanganList.reduce((s, r) => s + (r.data?.paid_amount || 0), 0)
   const totalTalanganRemaining = talanganList.reduce((s, r) => s + (r.data?.remaining_amount !== undefined ? r.data.remaining_amount : r.data?.original_amount || 0), 0)
 
-  const claudyEquity = modalList.find(r => r.id === "CAPITAL-CLAUDY")?.data?.original_amount || 77289028
+  const claudyEquity = modalList.find(r => r.id === "CAPITAL-CLAUDY")?.data?.original_amount || 90289028
   const claudyEquityPaid = modalList.find(r => r.id === "CAPITAL-CLAUDY")?.data?.paid_amount || 0
   const claudyTotalMoney = claudyEquity + totalTalangan
   const claudyRemaining = (claudyEquity - claudyEquityPaid) + totalTalanganRemaining
-
-  const milaEquity = modalList.find(r => r.id === "CAPITAL-MILA")?.data?.original_amount || 13000000
-  const milaPaid = modalList.find(r => r.id === "CAPITAL-MILA")?.data?.paid_amount || 0
-  const milaRemaining = modalList.find(r => r.id === "CAPITAL-MILA")?.data?.remaining_amount !== undefined ? modalList.find(r => r.id === "CAPITAL-MILA")?.data?.remaining_amount : 13000000
 
   const totalDebtsRemaining = debtsList.reduce((s, r) => s + (r.data?.remaining_amount || 0), 0)
   const totalReceivablesRemaining = receivablesList.reduce((s, r) => s + (r.data?.remaining_amount || 0), 0)
@@ -1123,7 +1119,7 @@ function ScreenDebtEquity() {
           <div className="ow-stat-accent" style={{ background: "#7C3AED" }} />
           <div className="ow-stat-label">Total Dana Claudy</div>
           <div className="ow-stat-val" style={{ color: "#7C3AED", fontSize: 19 }}>{fmtK(claudyTotalMoney)}</div>
-          <div className="ow-stat-sub">Modal Rp 77,2jt + Talangan Rp 84,0jt</div>
+          <div className="ow-stat-sub">Modal Rp 90,2jt + Talangan Rp 84,0jt</div>
         </div>
 
         <div className="ow-stat">
@@ -1137,9 +1133,9 @@ function ScreenDebtEquity() {
 
         <div className="ow-stat">
           <div className="ow-stat-accent" style={{ background: "#10B981" }} />
-          <div className="ow-stat-label">Modal Mitra Mila (14,4%)</div>
-          <div className="ow-stat-val" style={{ color: "#10B981", fontSize: 19 }}>{fmtK(milaEquity)}</div>
-          <div className="ow-stat-sub">Sisa modal: {fmtK(milaRemaining)}</div>
+          <div className="ow-stat-label">Modal Saham Claudy (100%)</div>
+          <div className="ow-stat-val" style={{ color: "#10B981", fontSize: 19 }}>{fmtK(claudyEquity)}</div>
+          <div className="ow-stat-sub">Sisa modal: {fmtK(claudyEquity - claudyEquityPaid)}</div>
         </div>
       </div>
 
@@ -1247,13 +1243,13 @@ function ScreenDebtEquity() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
               <div>
                 <div style={{ fontWeight: 800, fontSize: 15, color: "#1E293B" }}>Claudy (Pemilik Utama)</div>
-                <div style={{ fontSize: 11, color: "#64748B" }}>Porsi Kepemilikan: <b>85,60%</b></div>
+                <div style={{ fontSize: 11, color: "#64748B" }}>Porsi Kepemilikan: <b>100%</b></div>
               </div>
               <span className="ow-badge ow-badge-blue">Owner & Founder</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
               <span style={{ color: "#64748B" }}>1. Modal Disetor Awal (Saham):</span>
-              <span style={{ fontWeight: 700 }}>Rp 77.289.028</span>
+              <span style={{ fontWeight: 700 }}>{fmt(claudyEquity)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
               <span style={{ color: "#64748B" }}>2. Dana Talangan Operasional:</span>
@@ -1270,29 +1266,6 @@ function ScreenDebtEquity() {
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, borderTop: "1.5px solid #E2E8F0", paddingTop: 8, marginTop: 6, color: "#1E293B" }}>
               <span>Sisa Total Belum Kembali:</span>
               <span style={{ color: "#EF4444" }}>{fmt(claudyRemaining)}</span>
-            </div>
-          </div>
-
-          {/* Mila Equity Card */}
-          <div className="ow-card" style={{ padding: "16px", marginBottom: 0 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-              <div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: "#1E293B" }}>Mila (Mitra / Investor)</div>
-                <div style={{ fontSize: 11, color: "#64748B" }}>Porsi Kepemilikan: <b>14,40%</b></div>
-              </div>
-              <span className="ow-badge ow-badge-green">Partner Equity</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-              <span style={{ color: "#64748B" }}>Modal Awal Disetor:</span>
-              <span style={{ fontWeight: 700 }}>Rp 13.000.000</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, padding: "4px 0" }}>
-              <span style={{ color: "#64748B" }}>Sudah Dikembalikan:</span>
-              <span style={{ fontWeight: 700, color: "#10B981" }}>{fmt(milaPaid)}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 800, borderTop: "1px solid #E2E8F0", paddingTop: 8, marginTop: 6 }}>
-              <span>Sisa Modal Belum Kembali:</span>
-              <span style={{ color: "#10B981" }}>{fmt(milaRemaining)}</span>
             </div>
           </div>
         </div>

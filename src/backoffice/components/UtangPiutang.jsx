@@ -252,7 +252,7 @@ export default function UtangPiutang() {
   const totalTalanganPaid = useMemo(() => talanganRecords.reduce((sum, r) => sum + (r.data?.paid_amount || 0), 0), [talanganRecords])
   const totalTalanganRemaining = useMemo(() => talanganRecords.reduce((sum, r) => sum + (r.data?.remaining_amount !== undefined ? r.data.remaining_amount : r.data?.original_amount || 0), 0), [talanganRecords])
 
-  const claudyEquity = modalRecords.find(r => r.id === "CAPITAL-CLAUDY")?.data?.original_amount || 77289028
+  const claudyEquity = modalRecords.find(r => r.id === "CAPITAL-CLAUDY")?.data?.original_amount || 90289028
   const claudyEquityPaid = modalRecords.find(r => r.id === "CAPITAL-CLAUDY")?.data?.paid_amount || 0
   const claudyTotalMoneyIn = claudyEquity + totalTalanganOriginal
   const claudyTotalMoneyRemaining = (claudyEquity - claudyEquityPaid) + totalTalanganRemaining
@@ -460,7 +460,7 @@ export default function UtangPiutang() {
           ["overview", "📊 Ringkasan & Ekuitas"],
           ["talangan", "👑 Dana Talangan Claudy (" + talanganRecords.length + ")"],
           ["assets_capex", "🏢 Rincian Belanja Startup (Rp 90,2jt)"],
-          ["modal", "👥 Modal Saham Pemilik & Mitra"],
+          ["modal", "👥 Modal Saham Pemilik"],
           ["debts", "💸 Utang Usaha Luar (" + utangRecords.length + ")"],
           ["receivables", "📥 Piutang Usaha (" + piutangRecords.length + ")"],
           ["history", "📜 Histori Cicilan (" + paymentLogs.length + ")"]
@@ -484,7 +484,7 @@ export default function UtangPiutang() {
             <div className="bo-card" style={{ padding: "16px 20px", borderLeft: "4px solid #6366F1" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#6366F1", textTransform: "uppercase" }}>1. Modal Awal Pendirian (Equity)</div>
               <div style={{ fontSize: 24, fontWeight: 900, color: "var(--ink1)", marginTop: 4 }}>{fmt(grandTotalStartup)}</div>
-              <div style={{ fontSize: 11, color: "var(--ink4)", marginTop: 4 }}>Claudy (85,6%) + Mila (14,4%)</div>
+              <div style={{ fontSize: 11, color: "var(--ink4)", marginTop: 4 }}>100% milik Claudy</div>
             </div>
 
             <div className="bo-card" style={{ padding: "16px 20px", borderLeft: "4px solid #7C3AED" }}>
@@ -496,7 +496,7 @@ export default function UtangPiutang() {
             <div className="bo-card" style={{ padding: "16px 20px", borderLeft: "4px solid #00B8D9" }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#00B8D9", textTransform: "uppercase" }}>Total Dana Masuk dari Claudy</div>
               <div style={{ fontSize: 24, fontWeight: 900, color: "var(--ink1)", marginTop: 4 }}>{fmt(claudyTotalMoneyIn)}</div>
-              <div style={{ fontSize: 11, color: "var(--ink4)", marginTop: 4 }}>Modal (Rp 77,2jt) + Talangan (Rp 84,0jt)</div>
+              <div style={{ fontSize: 11, color: "var(--ink4)", marginTop: 4 }}>Modal (Rp 90,2jt) + Talangan (Rp 84,0jt)</div>
             </div>
 
             <div className="bo-card" style={{ padding: "16px 20px", borderLeft: "4px solid #00875A" }}>
@@ -508,7 +508,7 @@ export default function UtangPiutang() {
 
           {/* Equity & Talangan Breakdown */}
           <div style={{ fontSize: 15, fontWeight: 800, color: "var(--ink1)", marginBottom: 12 }}>
-            👥 Ringkasan Dana Pemilik & Mitra
+            👥 Ringkasan Dana Pemilik
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 14, marginBottom: 20 }}>
@@ -517,14 +517,14 @@ export default function UtangPiutang() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
                 <div>
                   <div style={{ fontSize: 16, fontWeight: 900, color: "var(--ink1)" }}>Claudy (Pemilik Utama)</div>
-                  <div style={{ fontSize: 12, color: "var(--ink4)" }}>Modal Saham (85,6%) + Dana Talangan Operasional</div>
+                  <div style={{ fontSize: 12, color: "var(--ink4)" }}>Modal Saham (100%) + Dana Talangan Operasional</div>
                 </div>
                 <span className="bo-badge bo-badge-blue">Owner & Founder</span>
               </div>
               
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                 <span style={{ color: "var(--ink4)" }}>1. Modal Disetor Awal (Saham):</span>
-                <span style={{ fontWeight: 800 }}>Rp 77.289.028</span>
+                <span style={{ fontWeight: 800 }}>{fmt(claudyEquity)}</span>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
                 <span style={{ color: "var(--ink4)" }}>2. Dana Talangan Gaji & Defisit:</span>
@@ -563,41 +563,6 @@ export default function UtangPiutang() {
                 </button>
               </div>
             </div>
-
-            {/* Mila Card */}
-            <div className="bo-card" style={{ padding: "18px 20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: "var(--ink1)" }}>Mila (Mitra / Investor)</div>
-                  <div style={{ fontSize: 12, color: "var(--ink4)" }}>Investasi Awal Resto · Porsi Kepemilikan: <b>14,40%</b></div>
-                </div>
-                <span className="bo-badge bo-badge-green">Partner Equity</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                <span style={{ color: "var(--ink4)" }}>Modal Awal Disetor:</span>
-                <span style={{ fontWeight: 800 }}>Rp 13.000.000</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 4 }}>
-                <span style={{ color: "var(--ink4)" }}>Sudah Dikembalikan:</span>
-                <span style={{ fontWeight: 800, color: "#00875A" }}>{fmt(modalRecords.find(r=>r.id==="CAPITAL-MILA")?.data?.paid_amount || 0)}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 900, borderTop: "1px solid var(--surface3)", paddingTop: 8, marginTop: 8 }}>
-                <span>Sisa Modal Belum Kembali:</span>
-                <span style={{ color: "#00875A" }}>{fmt(modalRecords.find(r=>r.id==="CAPITAL-MILA")?.data?.remaining_amount || 13000000)}</span>
-              </div>
-              <div style={{ marginTop: 14 }}>
-                <button
-                  onClick={() => {
-                    const rec = modalRecords.find(r => r.id === "CAPITAL-MILA")
-                    if (rec) { setSelectedRecord(rec); setShowPayModal(true) }
-                  }}
-                  className="bo-btn bo-btn-sm"
-                  style={{ width: "100%", background: "#00875A", color: "#fff", fontWeight: 700 }}
-                >
-                  💰 Catat Bagi Hasil / Pengembalian Modal
-                </button>
-              </div>
-            </div>
           </div>
 
           {/* LEGEND / PANDUAN PENJELASAN */}
@@ -608,7 +573,7 @@ export default function UtangPiutang() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 14, fontSize: 12.5, color: "#334155", lineHeight: 1.5 }}>
               <div>
                 <b>1. Modal Awal Disetor (Equity):</b>
-                <div>Uang pribadi yang Claudy & Mila keluarkan saat merintis PawonLoka (Total Rp 90.289.028). Uang ini <b>sudah 100% dibelanjakan</b> untuk pembangunan resto, peralatan & sewa tempat, dan menentukan porsi kepemilikan saham (85,6% : 14,4%).</div>
+                <div>Uang pribadi yang Claudy keluarkan saat merintis PawonLoka (Total Rp 90.289.028). Uang ini <b>sudah 100% dibelanjakan</b> untuk pembangunan resto, peralatan & sewa tempat. Kepemilikan saham: <b>100% Claudy</b>.</div>
               </div>
               <div>
                 <b>2. Dana Talangan Claudy (Owner's Loan - Rp 84.091.326):</b>
@@ -876,13 +841,13 @@ export default function UtangPiutang() {
         </div>
       )}
 
-      {/* TAB 4: MODAL SAHAM PEMILIK & MITRA */}
+      {/* TAB 4: MODAL SAHAM PEMILIK */}
       {activeTab === "modal" && (
         <div className="bo-card" style={{ padding: 0, overflowX: "auto" }}>
           <table className="bo-table">
             <thead>
               <tr>
-                <th>Nama Pemilik / Mitra</th>
+                <th>Nama Pemilik</th>
                 <th>Porsi Kepemilikan</th>
                 <th style={{ textAlign: "right" }}>Modal Disetor</th>
                 <th style={{ textAlign: "right" }}>Sudah Kembali (Prive)</th>

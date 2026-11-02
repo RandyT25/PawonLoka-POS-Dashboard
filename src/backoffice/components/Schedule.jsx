@@ -36,15 +36,53 @@ const STATION_ROLE_ALIASES = { Kitchen: ["Kitchen","Cook","Head Cook"] }
 // stations empty for anyone not in that original list, with no explanation. Now driven
 // entirely by data already editable in the Staff/Departments tabs: eligibility = active,
 // available today, and tagged for that station (directly or via the alias list above).
+//
+// Two passes so every station gets covered before anyone doubles up:
+//  1. Coverage — repeatedly pick the still-empty station with the FEWEST remaining eligible
+//     people, and give it the least-flexible candidate (fewest stations they can work),
+//     preferring someone whose home station (first role tag) is this one.
+//  2. Leftovers — anyone still unassigned goes to their home station.
+// Previously a single greedy pass dumped every eligible person into the first matching
+// station (Kasir → Bar → …), so multi-skilled staff piled up early and later stations
+// (e.g. Snack/Kitchen) were left empty.
+const stationsFor = s => STATIONS.filter(st => (s.role||[]).some(r => (STATION_ROLE_ALIASES[st] || [st]).includes(r)))
+const homeStation = s => {
+  for (const r of (s.role||[])) {
+    const st = STATIONS.find(st => (STATION_ROLE_ALIASES[st] || [st]).includes(r))
+    if (st) return st
+  }
+  return null
+}
+
 function autoFillDay(day, off, staffRows) {
-  const available = staffRows.filter(s => s.active !== false && !off.includes(s.name))
+  const available = staffRows.filter(s => s.active !== false && !off.includes(s.name) && stationsFor(s).length)
   const assigned = new Set()
   const result = { off }
-  STATIONS.forEach(station => {
-    const roleNames = STATION_ROLE_ALIASES[station] || [station]
-    const eligible = available.filter(s => !assigned.has(s.name) && (s.role||[]).some(r => roleNames.includes(r)))
-    result[station] = eligible.map(s => s.name)
-    eligible.forEach(s => assigned.add(s.name))
+  STATIONS.forEach(st => { result[st] = [] })
+
+  // Pass 1 — coverage
+  let open = [...STATIONS]
+  while (open.length) {
+    const candidates = st => available.filter(s => !assigned.has(s.name) && stationsFor(s).includes(st))
+    const ranked = open
+      .map(st => ({ st, cands: candidates(st) }))
+      .filter(x => x.cands.length)
+      .sort((a, b) => a.cands.length - b.cands.length || STATIONS.indexOf(a.st) - STATIONS.indexOf(b.st))
+    if (!ranked.length) break
+    const { st, cands } = ranked[0]
+    cands.sort((a, b) =>
+      stationsFor(a).length - stationsFor(b).length ||
+      (homeStation(b) === st) - (homeStation(a) === st))
+    result[st].push(cands[0].name)
+    assigned.add(cands[0].name)
+    open = open.filter(x => x !== st)
+  }
+
+  // Pass 2 — leftovers to their home station
+  available.forEach(s => {
+    if (assigned.has(s.name)) return
+    const home = homeStation(s)
+    if (home) { result[home].push(s.name); assigned.add(s.name) }
   })
   return result
 }

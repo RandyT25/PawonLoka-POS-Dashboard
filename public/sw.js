@@ -1,5 +1,5 @@
-const CACHE_VERSION = 'pawonloka-v13'
-const DATA_CACHE = 'pawonloka-data-v13'
+const CACHE_VERSION = 'pawonloka-v14'
+const DATA_CACHE = 'pawonloka-data-v14'
 
 // These get cached on install
 const PRECACHE = [
