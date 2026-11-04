@@ -7,7 +7,7 @@ export default function Cart({
   discount, onDiscountChange, orderType, onOrderTypeChange,
   openBillId, onManagerRemoveItem, onManagerReduceQty, onSplit, deliveryFee, onDeliveryFeeChange,
   deliveryAddr, onDeliveryAddrChange, backofficeDiscounts, taxRate, staffPerms,
-  onPrintCheck, onPrintBill
+  onPrintCheck, onPrintBill, markupPct = 0
 }) {
   const [itemDisc, setItemDisc]   = useState(null) // {key, type, value}
   const [itemNote, setItemNote]   = useState(null) // key
@@ -42,7 +42,7 @@ export default function Cart({
 
   return (
     <div style={S.cart} className="cart-inner">
-      {/* Order Type */}
+      {/* Order Type: In-house & Delivery */}
       <div style={S.typeRow}>
         {['Dine-in','Takeaway','Delivery'].map(t => (
           <button key={t} onClick={() => onOrderTypeChange(t)}
@@ -51,6 +51,36 @@ export default function Cart({
           </button>
         ))}
       </div>
+      {/* Online Food App Channels (+20% Markup) */}
+      <div style={{ display:'flex', gap:4, padding:'6px 8px', background:'#F8FAFC', borderBottom:'1px solid #E2E8F0', flexShrink:0 }}>
+        {[
+          { id:'GoFood',     label:'🚴 GoFood',     color:'#16A34A', bg:'#F0FDF4', border:'#86EFAC' },
+          { id:'GrabFood',   label:'🟢 GrabFood',   color:'#059669', bg:'#ECFDF5', border:'#6EE7B7' },
+          { id:'ShopeeFood', label:'🛍️ ShopeeFood', color:'#EA580C', bg:'#FFF7ED', border:'#FDBA74' },
+        ].map(app => {
+          const active = orderType === app.id
+          return (
+            <button key={app.id} onClick={() => onOrderTypeChange(app.id)}
+              style={{
+                flex:1, padding:'6px 4px', borderRadius:8, fontSize:11, fontWeight:800, cursor:'pointer',
+                border: active ? `1.5px solid ${app.color}` : '1.5px solid #E2E8F0',
+                background: active ? app.bg : 'white',
+                color: active ? app.color : '#6B7A8D',
+                transition:'all 0.15s',
+              }}>
+              {app.label}
+            </button>
+          )
+        })}
+      </div>
+      {markupPct > 0 && (
+        <div style={{ padding:'5px 12px', background:'#ECFDF5', borderBottom:'1px solid #A7F3D0', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontSize:11, fontWeight:800, color:'#059669' }}>⚡ {orderType} · Harga Online +{markupPct}%</span>
+          <button onClick={() => onOrderTypeChange('Dine-in')} style={{ fontSize:10, fontWeight:700, color:'#059669', background:'none', border:'none', cursor:'pointer', textDecoration:'underline' }}>
+            Reset Normal
+          </button>
+        </div>
+      )}
 
       {/* Customer row */}
       <div style={{ display:'flex', gap:6, padding:'8px 12px', borderBottom:'1px solid #E2E8F0', alignItems:'center' }}>
@@ -237,8 +267,8 @@ export default function Cart({
               🖨 Cetak Checker
             </button>
           )}
-          {/* Charge button */}
-          {openBillId && (
+          {/* Charge button — available both for open bills and direct checkout (e.g. GoFood/GrabFood/ShopeeFood/Takeaway) */}
+          {cart.length > 0 && (
             <button onClick={() => onCharge({ subtotal, tax, discAmt, total, fee, orderNote })} style={S.chargeBtn}>
               Charge & Pay — {fmt(total)}
             </button>

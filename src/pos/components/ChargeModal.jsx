@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { PAY_METHODS, fmt } from '../../shared/constants'
-import { computeOrderTotals } from '../../shared/orderPricing'
+import { computeOrderTotals, getMethodMarkupPct, applyChannelMarkupToItems } from '../../shared/orderPricing'
 
 import { useWhatsApp } from '../hooks/useWhatsApp'
 
@@ -32,14 +32,16 @@ const formatReceipt = (order, customer) => {
   return lines.filter(l => l !== null).join('\n')
 }
 
-export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, onReprint, onPrintBill, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles }) {
+export default function ChargeModal({ cart, totals, onConfirm, onClose, onSuccess, onReprint, onPrintBill, customer, appliedPromo, onOpenPromo, payMethods, backofficeDiscounts, taxRate, serviceRate, bundles, orderType }) {
   const { sendReceipt } = useWhatsApp()
+  const availableMethods = payMethods?.length ? payMethods : PAY_METHODS
+  const initialPayMethod = availableMethods.some(m => m.id === orderType) ? orderType : 'Cash'
   const [tab, setTab]           = useState('pay') // pay | split
   const [orderNote, setOrderNote] = useState('')
   const [multiPay, setMultiPay]   = useState([]) // [{method, amount}]
   const [showMulti, setShowMulti] = useState(false)
   const [activeSplit, setActiveSplit] = useState(null)
-  const [payMethod, setPayMethod] = useState('Cash')
+  const [payMethod, setPayMethod] = useState(initialPayMethod)
   const [cashGiven, setCashGiven] = useState('')
   const [saving, setSaving]     = useState(false)
   const [paidOrder, setPaidOrder] = useState(null)
@@ -59,19 +61,24 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   const [splitAmount, setSplitAmount] = useState('')
   const [splitChecked, setSplitChecked] = useState({})
 
-  const { subtotal, fee } = totals
-  const discAmt    = totals.discount ? Math.round(subtotal * totals.discount / 100) : 0
+  // Dynamically apply the selected payment method's markup (e.g. +20% for GoFood/GrabFood/ShopeeFood,
+  // 0% for Cash/QRIS/Card) relative to each item's base in-house price (`_inHousePrice`).
+  const methodMarkupPct = getMethodMarkupPct(payMethod, availableMethods)
+  const effectiveCart   = applyChannelMarkupToItems(cart, methodMarkupPct)
+  const { fee } = totals
   const promoDisc  = appliedPromo ? appliedPromo.disc : 0
   const alreadyPaid = totals.splitPaid || 0
   // Mirror computeOrderTotals() exactly — this is the same function POS.jsx uses to persist
   // subtotal/tax/discount/total when the order is written. Computing tax/total any other way
   // here (as this used to, taxing the pre-discount subtotal) let the checkout screen and the
   // saved order disagree on the total for any order with both a discount and tax.
-  const preRedeem  = computeOrderTotals({ items: cart, discountPct: totals.discount || 0, promoDisc, taxRate })
+  const preRedeem  = computeOrderTotals({ items: effectiveCart, discountPct: totals.discount || 0, promoDisc, taxRate })
+  const subtotal   = preRedeem.subtotal
+  const discAmt    = totals.discount ? Math.round( effectiveCart.reduce((s, i) => s + i.price * i.qty, 0) * totals.discount / 100 ) : 0
   const grossTotal = preRedeem.total + (fee||0)
   const actualTotal = grossTotal - alreadyPaid
   const maxPoints = customer ? Math.min(customer.points || 0, Math.floor(actualTotal / 100)) : 0
-  const canonical  = computeOrderTotals({ items: cart, discountPct: totals.discount || 0, promoDisc, pointsValue: usePoints * 100, taxRate })
+  const canonical  = computeOrderTotals({ items: effectiveCart, discountPct: totals.discount || 0, promoDisc, pointsValue: usePoints * 100, taxRate })
   const tax = canonical.tax
   const finalTotal = canonical.total + (fee||0) - alreadyPaid
   const isSplitAmount = activeSplit != null
@@ -87,7 +94,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
     setSaving(true)
     const effectiveFinal = isSplitAmount ? splitFinal : finalTotal
     const effectiveCash = isSplitAmount ? String(splitFinal) : cashGiven
-    const order = await onConfirm({ payMethod, cashGiven: effectiveCash, discount: 0, usePoints, finalTotal: effectiveFinal, splitLabel: activeSplit?.label, splitItems: activeSplit?.splitItems, orderNote, promoDisc: appliedPromo?.disc || 0, promoName: appliedPromo?.name, multiPay: multiPay.length > 0 ? multiPay : null })
+    const order = await onConfirm({ payMethod, cashGiven: effectiveCash, discount: 0, usePoints, finalTotal: effectiveFinal, splitLabel: activeSplit?.label, splitItems: activeSplit?.splitItems, orderNote, promoDisc: appliedPromo?.disc || 0, promoName: appliedPromo?.name, multiPay: multiPay.length > 0 ? multiPay : null, itemsOverride: effectiveCart, markupPct: methodMarkupPct })
     setSaving(false)
     if (order) setPaidOrder(order)
   }
@@ -110,7 +117,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   // Split helpers
   const remaining = actualTotal
   const perPart = Math.ceil(remaining / splitParts)
-  const splitItemsTotal = cart.filter(i => splitChecked[i._key])
+  const splitItemsTotal = effectiveCart.filter(i => splitChecked[i._key])
     .reduce((a,i) => a + (i.price-(i.itemDisc||0))*i.qty, 0)
 
   function chargeSplit() {
@@ -118,7 +125,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
     if (splitMode === 'equal') { amt = perPart; label = 'Split '+splitParts+' orang' }
     else if (splitMode === 'by-amount') { amt = parseFloat(splitAmount)||0; label = 'Partial Payment' }
     else {
-      const selected = cart.filter(i => splitChecked[i._key])
+      const selected = effectiveCart.filter(i => splitChecked[i._key])
       if (selected.length === 0) return
       amt = splitItemsTotal; label = 'Item Split'; splitItems = selected
     }
@@ -189,7 +196,13 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
 
           {/* Order summary */}
           <div style={S.summary}>
-            {cart.map(i => (
+            {methodMarkupPct > 0 && (
+              <div style={{ background:'#ECFDF5', border:'1px solid #A7F3D0', borderRadius:8, padding:'5px 10px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:11, fontWeight:800, color:'#059669' }}>⚡ {payMethod} · Harga Online +{methodMarkupPct}%</span>
+                <span style={{ fontSize:10, color:'#059669', fontWeight:600 }}>Otomatis diterapkan</span>
+              </div>
+            )}
+            {effectiveCart.map(i => (
               <div key={i._key} style={S.summaryRow}>
                 <span style={{ fontSize:12 }}>{i.qty}x {i.name}{Object.keys(i.modifiers||{}).length>0?' ('+Object.values(i.modifiers).join(', ')+')':''}</span>
                 <div style={{ textAlign:'right' }}>
@@ -251,12 +264,25 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             <div style={{ marginBottom:14 }}>
               <div style={S.label}>Metode Pembayaran</div>
               <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
-                {(payMethods || PAY_METHODS).map(m => (
-                  <button key={m.id} onClick={() => setPayMethod(m.id)}
-                    style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
-                    {m.icon} {m.name || m.label}
-                  </button>
-                ))}
+                {availableMethods.map(m => {
+                  const mPct = getMethodMarkupPct(m.id, availableMethods)
+                  return (
+                    <button key={m.id} onClick={() => setPayMethod(m.id)}
+                      style={{ ...S.optBtn, ...(payMethod===m.id ? S.optActive : {}) }}>
+                      {m.icon} {m.name || m.label}
+                      {mPct > 0 && (
+                        <span style={{
+                          marginLeft: 5, fontSize: 10, fontWeight: 800,
+                          padding: '1px 5px', borderRadius: 6,
+                          background: payMethod===m.id ? 'rgba(16,185,129,0.25)' : '#ECFDF5',
+                          color: payMethod===m.id ? '#6EE7B7' : '#059669',
+                        }}>
+                          +{mPct}%
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -317,7 +343,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
             {splitMode === 'by-item' && (
               <div>
                 <div style={{ fontSize:12, color:'#6B7A8D', marginBottom:10 }}>Pilih item untuk split ini:</div>
-                {cart.map(i => (
+                {effectiveCart.map(i => (
                   <div key={i._key} onClick={() => setSplitChecked(p=>({...p,[i._key]:!p[i._key]}))}
                     style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 12px', borderRadius:10,
                       border:'1.5px solid', borderColor:splitChecked[i._key]?'#3B82F6':'#E2E8F0',

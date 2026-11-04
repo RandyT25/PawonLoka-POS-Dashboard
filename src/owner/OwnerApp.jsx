@@ -37,8 +37,16 @@ function fmtDuration(ms) {
   return h>0?`${h}j ${m}m`:`${m}m`
 }
 
-const PAY_COLOR = { Cash:"#10B981",QRIS:"#0EA5E9",Card:"#3B82F6",GoPay:"#06B6D4",OVO:"#8B5CF6",Other:"#94A3B8" }
-const PAY_BADGE = { Cash:"ow-badge-green",QRIS:"ow-badge-blue",Card:"ow-badge-blue",GoPay:"ow-badge-blue",OVO:"ow-badge-purple",Other:"ow-badge-amber" }
+const PAY_COLOR = {
+  Cash:"#10B981", QRIS:"#0EA5E9", Card:"#3B82F6", "Debit/Credit":"#3B82F6", Transfer:"#6366F1",
+  GoFood:"#EF4444", GrabFood:"#00B14F", ShopeeFood:"#EE4D2D",
+  GoPay:"#06B6D4", OVO:"#8B5CF6", Other:"#94A3B8"
+}
+const PAY_BADGE = {
+  Cash:"ow-badge-green", QRIS:"ow-badge-blue", Card:"ow-badge-blue", "Debit/Credit":"ow-badge-blue", Transfer:"ow-badge-blue",
+  GoFood:"ow-badge-green", GrabFood:"ow-badge-green", ShopeeFood:"ow-badge-amber",
+  GoPay:"ow-badge-blue", OVO:"ow-badge-purple", Other:"ow-badge-amber"
+}
 const EXP_COLOR = { "Bahan Baku":"#EF4444","Operasional":"#F59E0B","Lain-lain":"#94A3B8" }
 const STAFF_COLORS = ["#0EA5E9","#10B981","#8B5CF6","#F59E0B","#EF4444","#06B6D4"]
 

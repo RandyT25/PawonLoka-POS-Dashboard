@@ -7,7 +7,7 @@ import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 import { qr } from '../lib/quickRead'
 import { dbWrite } from '../shared/dbWrite'
-import { computeOrderTotals } from '../shared/orderPricing'
+import { computeOrderTotals, mergePaymentMethods, getMethodMarkupPct, applyChannelMarkupToItems } from '../shared/orderPricing'
 import { applyRecipeStockMovement } from '../shared/stockMovements'
 import PinLogin from './components/PinLogin'
 import MenuGrid from './components/MenuGrid'
@@ -164,9 +164,9 @@ export default function POS() {
   const SERVICE_RATE = paySettings?.service?.enabled
     ? (paySettings.service.rate || 0) / 100
     : 0
-  const ACTIVE_PAY_METHODS = paySettings?.methods?.length
-    ? paySettings.methods.filter(m => m.enabled !== false)
-    : null
+  const ALL_PAY_METHODS = mergePaymentMethods(paySettings?.methods)
+  const ACTIVE_PAY_METHODS = ALL_PAY_METHODS.filter(m => m.enabled !== false)
+  const activeMarkupPct = getMethodMarkupPct(orderType, ALL_PAY_METHODS)
   const { sendReceipt, resendReceipt } = useWhatsApp()
   const [showCharge, setShowCharge]       = useState(false)
   const [showCustomer, setShowCustomer]   = useState(false)
@@ -191,6 +191,12 @@ export default function POS() {
   const { pendingCount, syncing, syncNow } = useOfflineSync()
   const [dismissedBills, setDismissedBills] = useState(new Set())
 
+  const handleOrderTypeChange = useCallback(nextType => {
+    setOrderType(nextType)
+    const nextMarkup = getMethodMarkupPct(nextType, ALL_PAY_METHODS)
+    setCart(prev => applyChannelMarkupToItems(prev, nextMarkup))
+  }, [ALL_PAY_METHODS, setCart])
+
   // Memoized (and declared ahead of the component's early returns — hooks can't
   // be called conditionally) so a stable onSelect can be passed to MenuGrid
   // without defeating React.memo.
@@ -207,9 +213,18 @@ export default function POS() {
         else minus += Math.abs(opt.price)
       }
     })
-    const finalProduct = (plus !== 0 || minus !== 0)
-      ? { ...product, price: product.price + plus, itemDisc: (product.itemDisc || 0) + minus, _basePrice: product.price }
-      : { ...product }
+    const inHousePrice = (Number(product._inHousePrice ?? product.price) || 0) + plus
+    const effectivePrice = activeMarkupPct > 0
+      ? Math.round(inHousePrice * (1 + activeMarkupPct / 100))
+      : inHousePrice
+    const finalProduct = {
+      ...product,
+      price: effectivePrice,
+      _inHousePrice: inHousePrice,
+      _markupPct: activeMarkupPct,
+      itemDisc: (product.itemDisc || 0) + minus,
+      _basePrice: product.price,
+    }
     // Build display labels with price
     const displayMods = Object.fromEntries(
       Object.entries(modifiers).map(([modId, optName]) => {
@@ -223,7 +238,7 @@ export default function POS() {
     )
     addItem({ ...finalProduct, note }, displayMods)
     setModifierItem(null)
-  }, [modifierGroups, addItem])
+  }, [modifierGroups, addItem, activeMarkupPct])
 
   const handleProductSelect = useCallback(product => {
     const prodCatId = categories.find(c => c.name === product.cat)?.id
@@ -473,7 +488,12 @@ export default function POS() {
       if (unsent.length > 0) return  // cart is correct, nothing to reload
     }
     setCart(order.items.map((i, idx) => ({ ...i, _key: i.sku + '-' + idx, modifiers: i.modifiers || {}, _sent: i._sent || true, _station: i._station || '', _printedQty: i.qty })))
-    setTableNo(order.table || '')
+    if (['GoFood','GrabFood','ShopeeFood','Takeaway','Delivery'].includes(order.table)) {
+      setOrderType(order.table)
+      setTableNo('')
+    } else {
+      setTableNo(order.table || '')
+    }
     setTableArea(order.table_area || '')
     setPax(order.pax || 0)
     setOpenBillId(order.id)
@@ -539,7 +559,11 @@ export default function POS() {
   }
 
   function handleCustomItem(item) {
-    addItem(item, {})
+    const inHousePrice = Number(item._inHousePrice ?? item.price) || 0
+    const effectivePrice = activeMarkupPct > 0
+      ? Math.round(inHousePrice * (1 + activeMarkupPct / 100))
+      : inHousePrice
+    addItem({ ...item, price: effectivePrice, _inHousePrice: inHousePrice, _markupPct: activeMarkupPct }, {})
   }
 
   function handleNewOrder() {
@@ -611,7 +635,7 @@ export default function POS() {
 
     if (openBillId) {
       // Rebuild item list from cart — cart is source of truth for the full order state
-      const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
+      const allItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), ...(i._markupPct ? { _markupPct: i._markupPct } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
       const ok = await dbWrite('orders', 'update', { items: allItems, subtotal, tax, discount: discAmt, total, delivery_fee: fee }, { id: openBillId })
       if (!ok) { alert('Gagal menyimpan tambahan pesanan — cek koneksi dan coba lagi.'); return }
       updateOrderCache({ id: openBillId, items: allItems, subtotal, tax, total, status: 'Open' })
@@ -620,9 +644,9 @@ export default function POS() {
       const orderId = 'ORD-' + Date.now()
       const order = {
         id: orderId,
-        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
+        items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), ...(i._markupPct ? { _markupPct: i._markupPct } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
         subtotal, tax, discount: discAmt, total, delivery_fee: fee,
-        pay: '-', staff: staff.name, table: capturedTable || null, table_area: capturedTableArea || null,
+        pay: '-', staff: staff.name, table: capturedTable || (capturedOrderType !== 'Dine-in' ? capturedOrderType : null), table_area: capturedTableArea || null,
         ...(pax > 0 ? { pax } : {}),
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
@@ -921,11 +945,12 @@ export default function POS() {
     }
   }
 
-  async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, splitItems, orderNote, promoDisc = 0, promoName, multiPay }) {
+  async function handleCharge({ payMethod, cashGiven, usePoints, finalTotal, splitLabel, splitItems, orderNote, promoDisc = 0, promoName, multiPay, itemsOverride }) {
     if (isProcessingOrder) return null
     setIsProcessingOrder(true)
     try {
-      const orderCogs = cart.reduce((sum, item) => {
+      const chargeCart = itemsOverride || cart
+      const orderCogs = chargeCart.reduce((sum, item) => {
       const prod = products.find(p => p.sku === item.sku)
       return sum + (prod?.cogs || 0) * (item.qty || 1)
     }, 0)
@@ -933,7 +958,7 @@ export default function POS() {
     // SPLIT — record partial payment
     if (splitLabel) {
       const now = new Date()
-      const mappedItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
+      const mappedItems = chargeCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
       const totals = computeOrderTotals({ items: mappedItems, discountPct: discount, promoDisc, pointsValue: (usePoints||0)*100, taxRate: TAX_RATE_LIVE })
       let billTotal = totals.total
       let prevNotes = ''
@@ -985,7 +1010,7 @@ export default function POS() {
             customer?.id
               ? dbWrite('customers', 'update', { points: (customer.points||0)+Math.floor(billTotal / 100), visits: (customer.visits||0)+1 }, { id: customer.id })
               : null,
-            deductStock(cart, openBillId),
+            deductStock(chargeCart, openBillId),
           ])
           invalidateFloorPlanCache()
         }
@@ -1001,7 +1026,7 @@ export default function POS() {
         date: now.toISOString().slice(0,10),
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         staff: staff.name, customer: customer?.name || null,
-        items: (isFullyPaid ? mappedItems : splitItems) || cart,
+        items: (isFullyPaid ? mappedItems : splitItems) || chargeCart,
         subtotal: existing?.subtotal ?? totals.subtotal, tax: existing?.tax ?? totals.tax, discount: existing?.discount ?? totals.discount,
         payments: isFullyPaid ? newPayments : [{ method: payMethod, amount: finalTotal }],
         _isSplit: !isFullyPaid, splitLabel, splitPaid: paidSoFar,
@@ -1013,10 +1038,11 @@ export default function POS() {
     // FULL PAYMENT — if open bill exists, update it to Paid instead of creating new
     if (openBillId) {
       const now = new Date()
-      const mappedItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
+      const mappedItems = chargeCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
       const totals = computeOrderTotals({ items: mappedItems, discountPct: discount, promoDisc, pointsValue: (usePoints||0)*100, taxRate: TAX_RATE_LIVE })
       const saved = await dbWrite('orders', 'update', {
         status: 'Paid', pay: payMethod,
+        payments: [{ method: payMethod, amount: finalTotal }],
         cash_given: payMethod === 'Cash' ? parseInt(cashGiven) : null,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : null,
         subtotal: totals.subtotal, tax: totals.tax, discount: totals.discount, 
@@ -1045,7 +1071,7 @@ export default function POS() {
         tableNo
           ? dbWrite('tables', 'update', { status: 'Available', open_bill_id: null }, tableArea ? { name: tableNo, area: tableArea } : { name: tableNo })
           : null,
-        deductStock(cart, openBillId),
+        deductStock(chargeCart, openBillId),
       ])
       invalidateFloorPlanCache()
 
@@ -1057,7 +1083,7 @@ export default function POS() {
         time: now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),
         cashier: staff.name, staff: staff.name,
         table: tableNo || null,
-        customer: customer?.name || null, items: cart,
+        customer: customer?.name || null, items: chargeCart,
         subtotal: totals.subtotal, tax: totals.tax, discount: totals.discount,
         payments: [{ method: payMethod, amount: finalTotal }],
       }
@@ -1070,15 +1096,16 @@ export default function POS() {
     // NO OPEN BILL — create and immediately close a new order
     const now2 = new Date()
     const newOrderId = 'ORD-' + Date.now()
-    const noBillItems = cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
+    const noBillItems = chargeCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
     const noBillTotals = computeOrderTotals({ items: noBillItems, discountPct: discount, promoDisc, pointsValue: (usePoints||0)*100, taxRate: TAX_RATE_LIVE })
+    const effectiveTableLabel = tableNo || (['GoFood','GrabFood','ShopeeFood'].includes(payMethod) ? payMethod : (orderType !== 'Dine-in' ? orderType : null))
     const newOrder = {
       id: newOrderId,
       items: noBillItems,
       subtotal: noBillTotals.subtotal, tax: noBillTotals.tax,
       discount: noBillTotals.discount, total: noBillTotals.total + parseFloat(deliveryFee||0), delivery_fee: parseFloat(deliveryFee)||0,
       pay: payMethod, staff: staff.name,
-      table: tableNo || null, table_area: tableArea || null,
+      table: effectiveTableLabel, table_area: tableArea || null,
       customer: customer?.name || null, customer_id: customer?.id || null,
       notes: [orderNote, promoName].filter(Boolean).join(' | ') || null,
       status: 'Paid', date: now2.toISOString().slice(0,10),
@@ -1096,7 +1123,7 @@ export default function POS() {
             visits: (customer.visits||0) + 1,
           }, { id: customer.id })
         : null,
-      deductStock(cart, newOrderId),
+      deductStock(chargeCart, newOrderId),
     ])
     clearCart(); setCustomer(null); setTableNo(''); setTableArea(''); setPax(0); setDiscount(0)
     setOpenBillId(null); setOrderType('Dine-in'); setDeliveryFee(0)
@@ -1252,6 +1279,8 @@ export default function POS() {
             categories={categories}
             bundles={bundles}
             onSelect={handleProductSelect}
+            markupPct={activeMarkupPct}
+            orderType={orderType}
           />
         </div>
         <div className={"pos-cart-panel" + (cartOpen ? " mobile-open" : "")}>
@@ -1275,7 +1304,8 @@ export default function POS() {
           onPrintCheck={printCheck}
           onPrintBill={printBill}
           orderType={orderType}
-          onOrderTypeChange={setOrderType}
+          onOrderTypeChange={handleOrderTypeChange}
+          markupPct={activeMarkupPct}
           openBillId={openBillId}
           onManagerRemoveItem={handleManagerRemoveItem}
           onManagerReduceQty={handleManagerReduceQty}
@@ -1347,6 +1377,7 @@ export default function POS() {
           appliedPromo={appliedPromo}
           onOpenPromo={() => { setShowCharge(false); setShowPromo(true) }}
           payMethods={ACTIVE_PAY_METHODS}
+          orderType={orderType}
           backofficeDiscounts={backofficeDiscounts}
           taxRate={TAX_RATE_LIVE}
           staffPerms={staff?.permissions}

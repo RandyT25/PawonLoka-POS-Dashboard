@@ -9,14 +9,16 @@ export const STAFF = [
 ]
 
 export const PAY_METHODS = [
-  { id:'Cash',       label:'Cash',        icon:'💵' },
-  { id:'QRIS',       label:'QRIS',        icon:'📱' },
-  { id:'Transfer',   label:'Transfer',    icon:'🏦' },
-  { id:'Debit',      label:'Debit',       icon:'💳' },
-  { id:'GoFood',     label:'GoFood',      icon:'🚴' },
-  { id:'GrabFood',   label:'GrabFood',    icon:'🟢' },
-  { id:'ShopeeFood', label:'ShopeeFood',  icon:'🛍️' },
+  { id:'Cash',       name:'Cash',          label:'Cash',        icon:'💵', surcharge:0 },
+  { id:'QRIS',       name:'QRIS',          label:'QRIS',        icon:'📲', surcharge:0 },
+  { id:'Card',       name:'Debit/Credit',  label:'Debit/Credit',icon:'💳', surcharge:0 },
+  { id:'Transfer',   name:'Bank Transfer', label:'Transfer',    icon:'🏦', surcharge:0 },
+  { id:'GoFood',     name:'GoFood',        label:'GoFood',      icon:'🚴', surcharge:20, isOnlineApp:true },
+  { id:'GrabFood',   name:'GrabFood',      label:'GrabFood',    icon:'🟢', surcharge:20, isOnlineApp:true },
+  { id:'ShopeeFood', name:'ShopeeFood',    label:'ShopeeFood',  icon:'🛍️', surcharge:20, isOnlineApp:true },
 ]
+
+export const ONLINE_ORDER_TYPES = ['GoFood', 'GrabFood', 'ShopeeFood']
 
 export const MODIFIERS = [
   { id:'sugar',  name:'Sugar Level',  options:['Normal','Less Sugar','No Sugar','Extra Sugar'] },

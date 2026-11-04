@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
+import { explodeOrderPayments } from "../../shared/orderPricing"
 
 const fmt  = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 const today = () => new Date().toISOString().slice(0,10)
@@ -14,6 +15,7 @@ export default function SalesReport() {
   const [customDateTo,setCustomDateTo]= useState(today())
   const [expandedDate, setExpandedDate] = useState(null)
   const [itemFilter,  setItemFilter]  = useState(new Set())
+  const [payFilter,   setPayFilter]   = useState("all")
   const [rawOrders,   setRawOrders]   = useState([])
   const [rows,        setRows]        = useState([])
   const [loading,     setLoading]     = useState(false)
@@ -24,7 +26,7 @@ export default function SalesReport() {
     setLoading(true)
     setErr(null)
     const { fromStr, toStr } = buildDateRange(range, customDate, customDateTo)
-    let q = supabase.from("orders").select("date,total,subtotal,tax,discount,status,items").eq("status","Paid").gte("created_at", fromStr)
+    let q = supabase.from("orders").select("id,date,total,subtotal,tax,discount,status,items,pay,payments").eq("status","Paid").gte("created_at", fromStr)
     if (toStr) q = q.lte("created_at", toStr)
     const { data, error } = await q.order("date", { ascending: false })
     if (error) { setErr(error.message); setLoading(false); return }
@@ -43,7 +45,12 @@ export default function SalesReport() {
   }, [rawOrders])
 
   useEffect(() => {
-    const filtered = itemFilter.size === 0 ? rawOrders : rawOrders.filter(o => {
+    const filtered = rawOrders.filter(o => {
+      if (payFilter !== "all") {
+        const methods = explodeOrderPayments(o).map(p => p.method)
+        if (!methods.includes(payFilter) && o.pay !== payFilter) return false
+      }
+      if (itemFilter.size === 0) return true
       const its = typeof o.items === "string" ? JSON.parse(o.items || "[]") : (o.items || [])
       return (its || []).some(i => itemFilter.has(i.name))
     })
@@ -54,9 +61,10 @@ export default function SalesReport() {
       map[d].orders++;  map[d].subtotal += o.subtotal||0
       map[d].tax      += o.tax||0;    map[d].discount += o.discount||0
       map[d].total    += o.total||0
+      map[d].orderList.push(o)
     })
     setRows(Object.values(map).sort((a,b) => b.date.localeCompare(a.date)))
-  }, [rawOrders, itemFilter])
+  }, [rawOrders, itemFilter, payFilter])
 
   const loadRef = useRef(load)
   useEffect(() => { loadRef.current = load })
@@ -123,6 +131,16 @@ export default function SalesReport() {
       <DateRangePicker range={range} setRange={setRange} customDate={customDate} setCustomDate={setCustomDate}
         customDateTo={customDateTo} setCustomDateTo={setCustomDateTo}
         loading={loading} lastUpdated={lastUpdated} onRefresh={() => loadRef.current()}>
+        <select value={payFilter} onChange={e => setPayFilter(e.target.value)} className="bo-select" style={{ width:"auto", minWidth:140, padding:"6px 10px", fontSize:12 }}>
+          <option value="all">Semua Pembayaran</option>
+          <option value="Cash">💵 Cash</option>
+          <option value="QRIS">📲 QRIS</option>
+          <option value="Card">💳 Card / Debit</option>
+          <option value="GoFood">🚴 GoFood</option>
+          <option value="GrabFood">🟢 GrabFood</option>
+          <option value="ShopeeFood">🛍️ ShopeeFood</option>
+          <option value="Transfer">🏦 Transfer</option>
+        </select>
         <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
         <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
         <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
@@ -194,6 +212,8 @@ export default function SalesReport() {
 
                                 <th>Order ID</th>
 
+                                <th>Pembayaran</th>
+
                                 <th>Items</th>
 
                                 <th style={{ textAlign:"right" }}>Subtotal</th>
@@ -208,13 +228,16 @@ export default function SalesReport() {
 
                             <tbody>
 
-                              {r.orderList.map(o => (
-
+                              {r.orderList.map(o => {
+                                const parsedItems = typeof o.items === "string" ? JSON.parse(o.items || "[]") : (o.items || [])
+                                return (
                                 <tr key={o.id}>
 
-                                  <td style={{ fontFamily: "monospace" }}>#{o.id.slice(-6)}</td>
+                                  <td style={{ fontFamily: "monospace" }}>#{String(o.id || "").slice(-6)}</td>
 
-                                  <td style={{ fontSize: 12, color: "var(--ink5)" }}>{(o.items || []).map(i => `${i.qty}x ${i.name}`).join(", ")}</td>
+                                  <td><span className="bo-badge bo-badge-blue">{o.pay || "—"}</span></td>
+
+                                  <td style={{ fontSize: 12, color: "var(--ink5)" }}>{(parsedItems || []).map(i => `${i.qty}x ${i.name}`).join(", ")}</td>
 
                                   <td style={{ textAlign:"right" }}>{fmt(o.subtotal)}</td>
 
@@ -223,8 +246,7 @@ export default function SalesReport() {
                                   <td style={{ textAlign:"right", fontWeight: 600 }}>{fmt(o.total)}</td>
 
                                 </tr>
-
-                              ))}
+                              )})}
 
                             </tbody>
 

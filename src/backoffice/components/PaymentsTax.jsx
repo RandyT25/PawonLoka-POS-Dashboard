@@ -1,41 +1,22 @@
 import { supabase } from "../../lib/supabase"
 import { useState, useEffect } from "react"
+import { DEFAULT_PAYMENT_METHODS, mergePaymentMethods } from "../../shared/orderPricing"
 
 const KEY = "pl_payments_settings"
 const DEFAULTS = {
   tax:      { enabled:true,  rate:0,  type:"exclusive" },
   service:  { enabled:true,  rate:0 },
   rounding: { enabled:true,  roundTo:"500" },
-  methods: [
-    { id:"Cash",      name:"Cash",         icon:"💵", note:"",               enabled:true,  surcharge:0 },
-    { id:"QRIS",      name:"QRIS",         icon:"📲", note:"T+1 settlement",  enabled:true,  surcharge:0 },
-    { id:"GoPay",     name:"GoPay",        icon:"🟦", note:"T+1 settlement",  enabled:false, surcharge:0 },
-    { id:"OVO",       name:"OVO",          icon:"🟣", note:"T+1 settlement",  enabled:false, surcharge:0 },
-    { id:"ShopeePay", name:"ShopeePay",    icon:"🧡", note:"T+1 settlement",  enabled:false, surcharge:0 },
-    { id:"DANA",      name:"DANA",         icon:"🔵", note:"T+1 settlement",  enabled:false, surcharge:0 },
-    { id:"Card",      name:"Debit/Credit", icon:"💳", note:"",               enabled:true,  surcharge:0 },
-    { id:"Transfer",  name:"Bank Transfer",icon:"🏦", note:"T+1 settlement",  enabled:false, surcharge:0 },
-  ]
+  methods:  DEFAULT_PAYMENT_METHODS,
 }
 
 function load() {
-  try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY)||"{}") } }
-  catch { return DEFAULTS }
-}
-async function loadFromDB() {
-  const { data } = await supabase.from("app_settings").select("payments").eq("id","main").maybeSingle()
-  if (data?.payments) {
-    const loaded = { ...DEFAULTS, ...data.payments }
-    // Preserve icons from DEFAULTS - never lose them
-    if (loaded.methods) {
-      loaded.methods = loaded.methods.map(m => {
-        const def = DEFAULTS.methods.find(d=>d.id===m.id)
-        return def ? { ...m, icon: def.icon } : m
-      })
-    }
-    return loaded
+  try {
+    const raw = JSON.parse(localStorage.getItem(KEY) || "{}")
+    return { ...DEFAULTS, ...raw, methods: mergePaymentMethods(raw.methods) }
+  } catch {
+    return DEFAULTS
   }
-  return load()
 }
 
 function Toggle({ on, onToggle }) {
@@ -46,28 +27,39 @@ function Toggle({ on, onToggle }) {
   )
 }
 
+const BUILTIN_IDS = new Set(DEFAULT_PAYMENT_METHODS.map(m => m.id))
+
 export default function PaymentsTax() {
-  const [s,     setS]     = useState(load)
-  const [saved, setSaved] = useState(false)
+  const [s,       setS]       = useState(load)
+  const [saved,   setSaved]   = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
+  const [newMethod, setNewMethod] = useState({ name:"", icon:"💳", note:"", surcharge:0 })
 
   useEffect(() => {
     supabase.from("app_settings").select("payments").eq("id","main").maybeSingle()
       .then(({data}) => {
         if (data?.payments) {
-          const loaded = { ...DEFAULTS, ...data.payments }
-          if (loaded.methods) {
-            loaded.methods = DEFAULTS.methods.map(def => {
-              const sv = loaded.methods.find(m=>m.id===def.id)
-              return sv ? { ...def, enabled:sv.enabled, surcharge:sv.surcharge||0 } : def
-            })
+          const loaded = {
+            ...DEFAULTS,
+            ...data.payments,
+            methods: mergePaymentMethods(data.payments.methods),
           }
           setS(loaded)
         }
       })
   }, [])
 
-  async function save() {
-    const cleaned = { ...s, tax:{...s.tax, rate:parseFloat(s.tax.rate)||0}, service:{...s.service, rate:parseFloat(s.service.rate)||0} }
+  async function save(overrideState) {
+    const target = (overrideState && Array.isArray(overrideState.methods)) ? overrideState : s
+    const cleaned = {
+      ...target,
+      tax:     { ...target.tax,     rate: parseFloat(target.tax.rate) || 0 },
+      service: { ...target.service, rate: parseFloat(target.service.rate) || 0 },
+      methods: (target.methods || []).map(m => ({
+        ...m,
+        surcharge: parseFloat(m.surcharge) || 0,
+      })),
+    }
     localStorage.setItem(KEY, JSON.stringify(cleaned))
     await supabase.from("app_settings").upsert({ id:"main", payments:cleaned, updated_at:new Date().toISOString() }, { onConflict:"id" })
     setS(cleaned)
@@ -78,24 +70,126 @@ export default function PaymentsTax() {
     setS(p=>({...p, methods:p.methods.map(m=>m.id===id?{...m,[key]:val}:m)}))
   }
 
+  function handleAddMethod() {
+    const name = newMethod.name.trim()
+    if (!name) return
+    const id = name.replace(/\s+/g, "")
+    if (s.methods.some(m => m.id.toLowerCase() === id.toLowerCase() || m.name.toLowerCase() === name.toLowerCase())) {
+      alert("Metode pembayaran sudah ada!")
+      return
+    }
+    const surcharge = parseFloat(newMethod.surcharge) || 0
+    const added = {
+      id,
+      name,
+      icon: newMethod.icon.trim() || "💳",
+      note: newMethod.note.trim() || (surcharge > 0 ? `Markup +${surcharge}%` : ""),
+      enabled: true,
+      surcharge,
+      isCustom: true,
+      isOnlineApp: surcharge > 0,
+    }
+    const nextState = { ...s, methods: [...s.methods, added] }
+    setS(nextState)
+    setNewMethod({ name:"", icon:"💳", note:"", surcharge:0 })
+    setShowAdd(false)
+    save(nextState)
+  }
+
+  function handleRemoveMethod(id) {
+    if (!window.confirm(`Hapus metode pembayaran "${id}"?`)) return
+    const nextState = { ...s, methods: s.methods.filter(m => m.id !== id) }
+    setS(nextState)
+    save(nextState)
+  }
+
   return (
     <div>
       <div style={{ display:"grid", gridTemplateColumns:"1fr", gap:16, alignItems:"start" }}>
 
         {/* LEFT: Payment Methods */}
         <div className="bo-card" style={{ marginBottom:0 }}>
-          <div className="bo-card-title">💳 Payment Methods</div>
-          <div style={{ display:"flex", flexDirection:"column" }}>
-            {s.methods.map((m,i) => (
-              <div key={m.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:i<s.methods.length-1?"1px solid var(--surface2)":"none" }}>
-                <div style={{ width:36, height:36, borderRadius:8, background:"var(--surface)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{m.icon}</div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:700, color:"#0A1628" }}>{m.name}</div>
-                  {m.note && m.note.split("\n").map((n,i)=><div key={i} style={{ fontSize:11, color:"#6B778C" }}>{n}</div>)}
-                </div>
-                <Toggle on={m.enabled} onToggle={()=>updateMethod(m.id,"enabled",!m.enabled)} />
+          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:10 }}>
+            <div>
+              <div className="bo-card-title" style={{ marginBottom:2 }}>💳 Payment Methods & Online Channels</div>
+              <div style={{ fontSize:12, color:"#6B778C" }}>
+                Atur metode pembayaran aktif dan markup harga otomatis (misal +20% untuk GoFood, GrabFood, ShopeeFood).
               </div>
-            ))}
+            </div>
+            <button onClick={() => setShowAdd(v => !v)} className="bo-btn bo-btn-primary bo-btn-sm">
+              {showAdd ? "Batal" : "+ Add Payment"}
+            </button>
+          </div>
+
+          {showAdd && (
+            <div style={{ background:"#F8FAFC", border:"1.5px solid #E2E8F0", borderRadius:12, padding:14, marginBottom:14 }}>
+              <div style={{ fontSize:13, fontWeight:800, color:"#0A1628", marginBottom:10 }}>Tambah Metode Pembayaran Baru</div>
+              <div style={{ display:"grid", gridTemplateColumns:"70px 1fr 120px", gap:8, marginBottom:8 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#6B778C", display:"block", marginBottom:4 }}>Icon</label>
+                  <input value={newMethod.icon} onChange={e=>setNewMethod(p=>({...p,icon:e.target.value}))}
+                    className="bo-input" style={{ textAlign:"center", fontSize:16 }} placeholder="💳" />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#6B778C", display:"block", marginBottom:4 }}>Nama Pembayaran</label>
+                  <input value={newMethod.name} onChange={e=>setNewMethod(p=>({...p,name:e.target.value}))}
+                    className="bo-input" placeholder="e.g. GoFood, GrabFood, ShopeeFood, EDC BCA..." />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:"#6B778C", display:"block", marginBottom:4 }}>Markup Harga (%)</label>
+                  <input type="number" value={newMethod.surcharge} onChange={e=>setNewMethod(p=>({...p,surcharge:e.target.value}))}
+                    className="bo-input" placeholder="0" min="0" max="100" />
+                </div>
+              </div>
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <input value={newMethod.note} onChange={e=>setNewMethod(p=>({...p,note:e.target.value}))}
+                  className="bo-input" style={{ flex:1 }} placeholder="Catatan opsional (misal: T+1 settlement / Online App +20%)" />
+                <button onClick={handleAddMethod} className="bo-btn bo-btn-primary">Simpan Metode</button>
+              </div>
+            </div>
+          )}
+
+          <div style={{ display:"flex", flexDirection:"column" }}>
+            {s.methods.map((m,i) => {
+              const markup = parseFloat(m.surcharge) || 0
+              const isCustom = !BUILTIN_IDS.has(m.id) || m.isCustom
+              return (
+                <div key={m.id} style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 0", borderBottom:i<s.methods.length-1?"1px solid var(--surface2)":"none", flexWrap:"wrap" }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:"var(--surface)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>{m.icon}</div>
+                  <div style={{ flex:1, minWidth:140 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <span style={{ fontSize:14, fontWeight:700, color:"#0A1628" }}>{m.name}</span>
+                      {markup > 0 && (
+                        <span style={{ fontSize:11, fontWeight:800, padding:"2px 8px", borderRadius:10, background:"#ECFDF5", color:"#059669", border:"1px solid #A7F3D0" }}>
+                          +{markup}% Harga Menu
+                        </span>
+                      )}
+                    </div>
+                    {m.note && m.note.split("\n").map((n,idx)=><div key={idx} style={{ fontSize:11, color:"#6B778C" }}>{n}</div>)}
+                  </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:"#6B778C" }}>Markup:</span>
+                    <input
+                      type="number"
+                      value={m.surcharge ?? 0}
+                      onChange={e => updateMethod(m.id, "surcharge", e.target.value)}
+                      className="bo-input"
+                      style={{ width:68, padding:"5px 8px", fontSize:13, textAlign:"right" }}
+                      min="0"
+                      max="100"
+                    />
+                    <span style={{ fontSize:12, fontWeight:700, color:"#6B778C" }}>%</span>
+                  </div>
+                  {isCustom && (
+                    <button onClick={() => handleRemoveMethod(m.id)} title="Hapus metode"
+                      style={{ background:"none", border:"none", color:"#DC2626", cursor:"pointer", fontSize:14, padding:"4px 6px" }}>
+                      ✕
+                    </button>
+                  )}
+                  <Toggle on={m.enabled} onToggle={()=>updateMethod(m.id,"enabled",!m.enabled)} />
+                </div>
+              )
+            })}
           </div>
         </div>
 

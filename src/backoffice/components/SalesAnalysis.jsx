@@ -6,7 +6,11 @@ import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from 
 import { explodeOrderPayments } from "../../shared/orderPricing"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
-const PAY_COLORS = { Cash:"#10B981", QRIS:"#0EA5E9", Card:"#1565C0", GoPay:"#00ADE0", OVO:"#8B5CF6", Other:"#94A3B8" }
+const PAY_COLORS = {
+  Cash:"#10B981", QRIS:"#0EA5E9", Card:"#1565C0", "Debit/Credit":"#1565C0", Transfer:"#6366F1",
+  GoFood:"#EF4444", GrabFood:"#00B14F", ShopeeFood:"#EE4D2D",
+  GoPay:"#00ADE0", OVO:"#8B5CF6", ShopeePay:"#EE4D2D", DANA:"#118EEA", Other:"#94A3B8"
+}
 
 export default function SalesAnalysis() {
   const todayStr  = new Date().toISOString().slice(0, 10)

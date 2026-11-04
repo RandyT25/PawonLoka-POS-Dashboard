@@ -11,7 +11,18 @@ const PAY_METHOD_MAP = {
   Cash: "Kas Outlet",
   QRIS: "Bank Transfer Qris",
   Transfer: "Bank Transfer",
+  Card: "Bank Transfer Card",
   "Debit/Credit": "Bank Transfer Card",
+  GoFood: "GoFood",
+  GrabFood: "GrabFood",
+  ShopeeFood: "ShopeeFood",
+}
+
+const PAY_CODE_MAP = {
+  GoFood: "GOF",
+  GrabFood: "GRB",
+  ShopeeFood: "SPF",
+  ShopeePay: "SPP",
 }
 
 function genReconNo(shiftId, method) {
@@ -84,7 +95,8 @@ export default function Rekonsiliasi() {
     }
 
     const rows = Object.values(groups).map(g => {
-      const recon_no = `STL/${g.date.replace(/-/g,"").slice(2)}/${g.pay.replace(/[^A-Za-z]/g,"").slice(0,3).toUpperCase()}`
+      const mCode = PAY_CODE_MAP[g.pay] || g.pay.replace(/[^A-Za-z]/g,"").slice(0,3).toUpperCase()
+      const recon_no = `STL/${g.date.replace(/-/g,"").slice(2)}/${mCode}`
       const existing = reconMap[recon_no]
       // Compute expected cash for Cash rows using the full drawer formula
       let expected_cash = null

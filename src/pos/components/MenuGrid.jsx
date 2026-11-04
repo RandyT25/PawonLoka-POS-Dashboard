@@ -1,9 +1,10 @@
 import { useState, memo } from 'react'
 import { fmt } from '../../shared/constants'
 
-function MenuGrid({ products, categories, onSelect, bundles }) {
+function MenuGrid({ products, categories, onSelect, bundles, markupPct = 0, orderType }) {
   const [activeTab, setActiveTab] = useState('All')
   const [search,    setSearch]    = useState('')
+  const applyMarkup = price => markupPct > 0 ? Math.round((Number(price) || 0) * (1 + markupPct / 100)) : Number(price) || 0
 
   const filtered = activeTab === 'Bundles' ? [] : products.filter(p => {
     const matchTab    = activeTab === 'All' || p.cat === activeTab
@@ -50,7 +51,10 @@ function MenuGrid({ products, categories, onSelect, bundles }) {
               ))}
               {(b.items||[]).length > 4 && <div style={{ fontSize:10, color:'#6B778C' }}>+{b.items.length-4} more</div>}
             </div>
-            <div style={{ fontSize:15, fontWeight:900, color:'#0052CC', marginTop:6 }}>Rp {Math.round(b.price).toLocaleString('id-ID')}</div>
+            <div style={{ fontSize:15, fontWeight:900, color: markupPct > 0 ? '#059669' : '#0052CC', marginTop:6 }}>
+              Rp {Math.round(applyMarkup(b.price)).toLocaleString('id-ID')}
+              {markupPct > 0 && <span style={{ fontSize:10, fontWeight:700, marginLeft:4 }}>+{markupPct}%</span>}
+            </div>
           </div>
         ))}
         {filtered.map(p => (
@@ -68,7 +72,10 @@ function MenuGrid({ products, categories, onSelect, bundles }) {
             }
 
             <div style={S.name}>{p.name}</div>
-            <div style={S.price}>{fmt(p.price)}</div>
+            <div style={{ ...S.price, color: markupPct > 0 ? '#059669' : '#3B82F6' }}>
+              {fmt(applyMarkup(p.price))}
+              {markupPct > 0 && <span style={{ fontSize:10, fontWeight:700, marginLeft:3 }}>+{markupPct}%</span>}
+            </div>
           </button>
         ))}
 

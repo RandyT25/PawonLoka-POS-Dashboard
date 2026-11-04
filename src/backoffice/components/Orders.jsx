@@ -32,6 +32,7 @@ export default function Orders() {
   const [loading,      setLoading]      = useState(true)
   const [search,       setSearch]       = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [payFilter,    setPayFilter]    = useState("all")
   const [dateFrom,     setDateFrom]     = useState(todayStr)
   const [dateTo,       setDateTo]       = useState(todayStr)
   const [selected,     setSelected]     = useState(null)
@@ -126,12 +127,14 @@ export default function Orders() {
 
   const filtered = orders.filter(o => {
     const matchStatus = statusFilter === "all" || (statusFilter === "void" ? VOID_STATUSES.includes(o.status?.toLowerCase()) : o.status?.toLowerCase() === statusFilter)
+    const matchPay = payFilter === "all" || o.pay === payFilter || (Array.isArray(o.payments) && o.payments.some(p => p.method === payFilter))
     const matchSearch = !search ||
       o.id?.toLowerCase().includes(search.toLowerCase()) ||
       o.staff?.toLowerCase().includes(search.toLowerCase()) ||
       o.customer?.toLowerCase().includes(search.toLowerCase()) ||
-      o.table?.toLowerCase().includes(search.toLowerCase())
-    return matchStatus && matchSearch
+      o.table?.toLowerCase().includes(search.toLowerCase()) ||
+      o.pay?.toLowerCase().includes(search.toLowerCase())
+    return matchStatus && matchPay && matchSearch
   })
 
   const paidOrders   = filtered.filter(o => o.status?.toLowerCase() === "paid")
@@ -154,7 +157,7 @@ export default function Orders() {
         "Discount":    o.discount || 0,
         "Tax":         o.tax || 0,
         "Total":       o.total || 0,
-        "Payment":     o.payment_method || "",
+        "Payment":     o.pay || o.payment_method || "",
         "Status":      o.status || "",
       }))
       const ws = XLSX.utils.json_to_sheet(rows)
@@ -208,6 +211,16 @@ export default function Orders() {
                 style={{ textTransform:"capitalize", padding:"6px 14px" }}>{s}</button>
             ))}
           </div>
+          <select value={payFilter} onChange={e=>setPayFilter(e.target.value)} className="bo-select" style={{ width:"auto", minWidth:140, padding:"6px 10px", fontSize:12 }}>
+            <option value="all">All Payments</option>
+            <option value="Cash">💵 Cash</option>
+            <option value="QRIS">📲 QRIS</option>
+            <option value="Card">💳 Card / Debit</option>
+            <option value="GoFood">🚴 GoFood</option>
+            <option value="GrabFood">🟢 GrabFood</option>
+            <option value="ShopeeFood">🛍️ ShopeeFood</option>
+            <option value="Transfer">🏦 Transfer</option>
+          </select>
           <button onClick={load} className="bo-btn bo-btn-ghost">Refresh</button>
           <button onClick={exportExcel} disabled={exporting||filtered.length===0} className="bo-btn bo-btn-ghost" style={{ color:"#16A34A", borderColor:"#16A34A" }}>
             {exporting ? "Exporting..." : "Export Excel"}

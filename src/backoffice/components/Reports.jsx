@@ -9,6 +9,7 @@ const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 export default function Reports() {
   const [orders,     setOrders]     = useState([])
   const [itemFilter, setItemFilter] = useState(new Set())
+  const [payFilter,  setPayFilter]  = useState("all")
   const [loading,    setLoading]    = useState(true)
   const [err,        setErr]        = useState(null)
   const [from,       setFrom]       = useState(new Date().toISOString().slice(0,10))
@@ -50,12 +51,16 @@ export default function Reports() {
   }, [orders])
 
   const displayOrders = useMemo(() => {
-    if (itemFilter.size === 0) return orders
     return orders.filter(o => {
+      if (payFilter !== "all") {
+        const methods = explodeOrderPayments(o).map(p => p.method)
+        if (!methods.includes(payFilter) && o.pay !== payFilter) return false
+      }
+      if (itemFilter.size === 0) return true
       const its = typeof o.items === "string" ? JSON.parse(o.items || "[]") : (o.items || [])
       return (its || []).some(i => itemFilter.has(i.name))
     })
-  }, [orders, itemFilter])
+  }, [orders, itemFilter, payFilter])
 
   const totalSales  = displayOrders.reduce((s,o) => s+(o.total||0), 0)
   const totalOrders = displayOrders.length
@@ -180,7 +185,17 @@ export default function Reports() {
               }} className="bo-btn bo-btn-ghost bo-btn-sm">{l}</button>
             ))}
           </div>
-          <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center" }}>
+          <div style={{ display:"flex", gap:8, marginLeft:"auto", alignItems:"center", flexWrap:"wrap" }}>
+            <select value={payFilter} onChange={e => setPayFilter(e.target.value)} className="bo-select" style={{ width:"auto", minWidth:140, padding:"6px 10px", fontSize:12 }}>
+              <option value="all">Semua Pembayaran</option>
+              <option value="Cash">💵 Cash</option>
+              <option value="QRIS">📲 QRIS</option>
+              <option value="Card">💳 Card / Debit</option>
+              <option value="GoFood">🚴 GoFood</option>
+              <option value="GrabFood">🟢 GrabFood</option>
+              <option value="ShopeeFood">🛍️ ShopeeFood</option>
+              <option value="Transfer">🏦 Transfer</option>
+            </select>
             <MultiItemSelect options={allItemNames} selected={itemFilter} onChange={setItemFilter} />
             <button onClick={handleExportExcel} className="bo-btn bo-btn-ghost bo-btn-sm">↓ Excel</button>
             <button onClick={handleExportPdf}   className="bo-btn bo-btn-ghost bo-btn-sm">↓ PDF</button>
