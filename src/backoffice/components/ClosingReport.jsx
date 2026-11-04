@@ -45,8 +45,14 @@ export default function ClosingReport() {
       .then(({ data }) => setCashLogs(data || []))
   }, [selected])
 
+  const shiftCashSales = sh => {
+    if (sh.cash_sales != null) return sh.cash_sales
+    if (sh.total_cash != null) return sh.total_cash
+    if (sh.float_close != null && sh.float_open != null) return Math.max(0, sh.float_close - sh.float_open)
+    return 0
+  }
   const totalFloat  = shifts.reduce((s,sh)=>s+(sh.float_open||sh.float||0),0)
-  const totalCash   = shifts.reduce((s,sh)=>s+(sh.cash_sales||sh.total_cash||0),0)
+  const totalCash   = shifts.reduce((s,sh)=>s+shiftCashSales(sh),0)
   const totalSales  = shifts.reduce((s,sh)=>s+(sh.sales||sh.total_sales||0),0)
   const totalOrders = shifts.reduce((s,sh)=>s+(sh.total_orders||0),0)
 
@@ -88,7 +94,7 @@ export default function ClosingReport() {
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{sh.date||sh.created_at?.slice(0,10)||"—"}</td>
                   <td style={{ padding:"10px 14px", fontWeight:600 }}>{sh.staff||sh.staff_name||"—"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{fmt(sh.float_open||sh.float||0)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#00875A" }}>{fmt(sh.sales||sh.total_sales||0)}</td>
+                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:700, color:"#00875A" }}>{fmt(shiftCashSales(sh))}</td>
                   <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700 }}>{fmt(sh.sales||sh.total_sales||0)}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>—</td>
                   <td style={{ padding:"10px 14px" }}>
@@ -110,7 +116,7 @@ export default function ClosingReport() {
                   ["Opened",  selected.created_at ? new Date(selected.created_at).toLocaleString("id-ID") : "—"],
                   ["Closed",  selected.clock_out && selected.clock_out !== "auto-closed" ? selected.clock_out : selected.clock_out === "auto-closed" ? "Auto-closed" : "Still open"],
                   ["Float",   fmt(selected.float_open||selected.float||0)],
-                  ["Cash Sales", fmt(selected.cash_sales||selected.total_cash||0)],
+                  ["Cash Sales", fmt(shiftCashSales(selected))],
                   ["Total",   fmt(selected.sales||selected.total_sales||0)],
                   ["Actual Cash", selected.actual_cash != null ? fmt(selected.actual_cash) : "—"],
                   ["Selisih Kas", selected.cash_discrepancy != null ? fmt(selected.cash_discrepancy) : "—"],

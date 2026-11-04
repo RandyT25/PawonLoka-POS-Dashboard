@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange, getBusinessDate, toLocalYMD } from "./DateRangePicker"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
 import { isFoodCategory } from "../lib/ingredientCategories"
-import { explodeOrderPayments } from "../../shared/orderPricing"
+import { explodeOrderPayments, computeOrderCommission } from "../../shared/orderPricing"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
 
@@ -44,11 +44,13 @@ export default function Dashboard({ onNavChange }) {
 
     const paid   = orders.filter(o => !o.status || o.status === "Paid"  || o.status === "paid")
     const open   = orders.filter(o =>  o.status === "Open"  || o.status === "open")
-    const totalSales  = paid.reduce((s, o) => s + (o.total || 0), 0)
-    const unpaidSales = open.reduce((s, o) => s + (o.total || 0), 0)
-    const totalCogs   = paid.reduce((s, o) => s + (o.cogs  || 0), 0)
-    const avgOrder    = paid.length ? Math.round(totalSales / paid.length) : 0
-    const totalProd   = paid.reduce((s, o) => {
+    const totalSales      = paid.reduce((s, o) => s + (o.total || 0), 0)
+    const totalCommission = paid.reduce((s, o) => s + computeOrderCommission(o).commission, 0)
+    const netStoreSales   = totalSales - totalCommission
+    const unpaidSales     = open.reduce((s, o) => s + (o.total || 0), 0)
+    const totalCogs       = paid.reduce((s, o) => s + (o.cogs  || 0), 0)
+    const avgOrder        = paid.length ? Math.round(totalSales / paid.length) : 0
+    const totalProd       = paid.reduce((s, o) => {
       const items = typeof o.items === "string" ? JSON.parse(o.items || "[]") : (o.items || o.items_snapshot || [])
       return s + (items || []).reduce((ss, i) => ss + (i.qty || 1), 0)
     }, 0)
@@ -91,7 +93,7 @@ export default function Dashboard({ onNavChange }) {
     const topArr = Object.values(im).sort((a,b)=>b.qty-a.qty).slice(0,5)
     const maxQty = topArr[0]?.qty||1
 
-    setStats({ sales:totalSales, unpaidSales, paidOrders:paid.length, openOrders:open.length, avgOrder, grossProfit:totalSales - totalCogs, totalProductsSold:totalProd, projection:proj, mtdSales:totalSales })
+    setStats({ sales:totalSales, commission:totalCommission, netSales:netStoreSales, unpaidSales, paidOrders:paid.length, openOrders:open.length, avgOrder, grossProfit:netStoreSales - totalCogs, totalProductsSold:totalProd, projection:proj, mtdSales:totalSales })
     setHourData(hourArr)
     setPayments(payArr)
     setTopProds(topArr.map(t=>({...t,max:maxQty})))
@@ -131,7 +133,7 @@ export default function Dashboard({ onNavChange }) {
       })
   }, [])
 
-  const margin = stats.sales > 0 ? Math.round(stats.grossProfit / stats.sales * 100) : 0
+  const margin = (stats.netSales || stats.sales) > 0 ? Math.round(stats.grossProfit / (stats.netSales || stats.sales) * 100) : 0
   const periodLabel = formatPeriodLabel(range, customDate, customDateTo)
   const slug = filenameSlug(range, customDate, customDateTo)
 
@@ -278,6 +280,12 @@ export default function Dashboard({ onNavChange }) {
         {/* Meta bar */}
         <div style={{ display:"flex", gap:20, flexWrap:"wrap", fontSize:11, borderTop:"1px solid rgba(255,255,255,0.12)", paddingTop:12 }}>
           <span style={{ opacity:0.6 }}>Avg/Transaksi <strong style={{ opacity:1 }}>{fmt(stats.avgOrder)}</strong></span>
+          {stats.commission > 0 && (
+            <>
+              <span style={{ opacity:0.6 }}>Komisi Platform (20%) <strong style={{ opacity:1, color:"#FCD34D" }}>{fmt(stats.commission)}</strong></span>
+              <span style={{ opacity:0.6 }}>Net Store <strong style={{ opacity:1 }}>{fmt(stats.netSales)}</strong></span>
+            </>
+          )}
           <span style={{ opacity:0.6 }}>Gross Profit <strong style={{ opacity:1, color: stats.grossProfit >= 0 ? "#86EFAC" : "#FCA5A5" }}>{fmt(stats.grossProfit)}</strong> <span style={{ opacity:0.5 }}>({margin}%)</span></span>
           <span style={{ opacity:0.6 }}>Proyeksi Bulan Ini <strong style={{ opacity:1 }}>{fmt(stats.projection)}</strong></span>
           <span style={{ opacity:0.6 }}>Produk Terjual <strong style={{ opacity:1 }}>{stats.totalProductsSold}</strong></span>

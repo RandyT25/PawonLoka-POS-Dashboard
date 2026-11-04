@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, Fragment } from "react"
 import { supabase } from "../../lib/supabase"
-import { explodeOrderPayments } from "../../shared/orderPricing"
+import { explodeOrderPayments, computeOrderCommission } from "../../shared/orderPricing"
 import ClosingReport from "./ClosingReport"
 import CashLog from "./CashLog"
 import { exportPDF, exportExcel } from "./exportUtils"
@@ -228,13 +228,16 @@ export default function Accounting() {
   }
 
   // ── CALCULATED FINANCIALS ─────────────────────────────
-  // `orders.total` is already post-discount, so it is the realised revenue.
-  const grossRevenue   = orders.reduce((a,o)=>a+(o.total||0),0)
-  const totalDiscount  = orders.reduce((a,o)=>a+(o.discount||0),0)
-  const netRevenue     = grossRevenue
-  const totalCOGS      = orders.reduce((a,o)=>a+(o.cogs||0),0)
-  const grossProfit    = netRevenue - totalCOGS
-  const grossMargin    = netRevenue>0 ? Math.round((grossProfit/netRevenue)*100) : 0
+  // `orders.total` is already post-discount, so it is the realised gross revenue.
+  // Online app orders (GoFood, GrabFood, ShopeeFood) carry a +20% platform commission
+  // inside `orders.total` — deduct `totalCommission` to get true Net Store Revenue (`netRevenue`).
+  const grossRevenue    = orders.reduce((a,o)=>a+(o.total||0),0)
+  const totalDiscount   = orders.reduce((a,o)=>a+(o.discount||0),0)
+  const totalCommission = orders.reduce((a,o)=>a+computeOrderCommission(o).commission,0)
+  const netRevenue      = grossRevenue - totalCommission
+  const totalCOGS       = orders.reduce((a,o)=>a+(o.cogs||0),0)
+  const grossProfit     = netRevenue - totalCOGS
+  const grossMargin     = netRevenue>0 ? Math.round((grossProfit/netRevenue)*100) : 0
 
   // Auto expenses from POs
   const poTotal = pos.reduce((a,p)=>a+(p.total||0),0)
@@ -351,7 +354,7 @@ export default function Accounting() {
   // Cash flow
   const paymentBreakdown = orders.flatMap(explodeOrderPayments)
   const cashIn   = paymentBreakdown.filter(p=>p.method==="Cash").reduce((a,p)=>a+p.amount,0)
-  const qrisIn   = paymentBreakdown.filter(p=>p.method!=="Cash").reduce((a,p)=>a+p.amount,0)
+  const qrisIn   = paymentBreakdown.filter(p=>p.method!=="Cash").reduce((a,p)=>a+p.amount,0) - totalCommission
   const cashOut  = poTotal + salaryTotal + manualExpenses.filter(e=>e.payment_method==="Cash").reduce((a,e)=>a+(e.amount||0),0)
   // Was missing qrisIn — a QRIS/transfer-heavy day showed a big negative "Saldo Akhir" here
   // even though the KAS MASUK card right above it already displays cashIn+qrisIn as inflow.
@@ -721,9 +724,10 @@ export default function Accounting() {
             <div className="bo-card">
               <div className="bo-card-title">Ringkasan Laba Rugi</div>
               {[
-                ["Pendapatan Kotor",grossRevenue,"#0052CC"],
+                ["Pendapatan Kotor (Gross)",grossRevenue,"#0052CC"],
+                ...(totalCommission>0 ? [["Komisi Platform (20%)",-totalCommission,"#D97706"]] : []),
                 ["Diskon",-totalDiscount,"#DE350B"],
-                ["Pendapatan Bersih",netRevenue,"#0052CC"],
+                ["Pendapatan Bersih (Net Store)",netRevenue,"#0052CC"],
                 ["COGS",-totalCOGS,"#6B778C"],
                 ["Laba Kotor",grossProfit,grossProfit>=0?"#00875A":"#DE350B"],
                 ["Beban Operasional",-totalOpex,"#FF8B00"],
@@ -778,9 +782,14 @@ export default function Accounting() {
           {/* Revenue */}
           <div style={{ marginBottom:16 }}>
             <div style={{ fontSize:11,fontWeight:800,color:"#0052CC",textTransform:"uppercase",letterSpacing:"0.5px",marginBottom:8,paddingBottom:4,borderBottom:"2px solid #0052CC" }}>PENDAPATAN</div>
-            {[["Penjualan Kotor",grossRevenue],["Diskon",-totalDiscount],["Penjualan Bersih",netRevenue]].map(([l,v])=>(
-              <div key={l} style={{ display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:13,borderBottom:"1px solid var(--surface2)",fontWeight:l==="Penjualan Bersih"?800:400 }}>
-                <span style={{ paddingLeft:l==="Penjualan Bersih"?0:16,color:l==="Penjualan Bersih"?"#0052CC":"#0A1628" }}>{l}</span>
+            {[
+              ["Penjualan Kotor (Gross)",grossRevenue],
+              ...(totalCommission>0 ? [["Komisi Platform Online (20%)",-totalCommission]] : []),
+              ["Diskon",-totalDiscount],
+              ["Penjualan Bersih (Net Store)",netRevenue]
+            ].map(([l,v])=>(
+              <div key={l} style={{ display:"flex",justifyContent:"space-between",padding:"6px 0",fontSize:13,borderBottom:"1px solid var(--surface2)",fontWeight:l.startsWith("Penjualan Bersih")?800:400 }}>
+                <span style={{ paddingLeft:l.startsWith("Penjualan Bersih")?0:16,color:l.startsWith("Penjualan Bersih")?"#0052CC":"#0A1628" }}>{l}</span>
                 <span style={{ color:v<0?"#DE350B":"#0A1628" }}>{fmt(v)}</span>
               </div>
             ))}
