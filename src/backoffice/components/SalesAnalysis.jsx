@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import DateRangePicker, { buildDateRange } from "./DateRangePicker"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, formatPeriodLabel, filenameSlug, fmtIDR } from "./exportUtils"
-import { explodeOrderPayments } from "../../shared/orderPricing"
+import { explodeOrderPayments, computeOrderCommission } from "../../shared/orderPricing"
 
 const fmt = n => "Rp " + Number(n || 0).toLocaleString("id-ID")
 const PAY_COLORS = {
@@ -23,7 +23,7 @@ export default function SalesAnalysis() {
 
   const [itemFilter,  setItemFilter]  = useState(new Set())
   const [rawOrders,   setRawOrders]  = useState([])
-  const [summary,  setSummary]  = useState({ revenue:0, cogs:0, profit:0, orders:0, avg:0, margin:0 })
+  const [summary,  setSummary]  = useState({ revenue:0, commission:0, netRevenue:0, cogs:0, profit:0, orders:0, avg:0, margin:0 })
   const [payments, setPayments] = useState([])
   const [byDay,    setByDay]    = useState([])
 
@@ -57,26 +57,42 @@ export default function SalesAnalysis() {
   }, [rawOrders, itemFilter])
 
   useEffect(() => {
-    const revenue = filteredOrders.reduce((s, o) => s + (o.total || 0), 0)
-    const cogs    = filteredOrders.reduce((s, o) => s + (o.cogs  || 0), 0)
-    const profit  = revenue - cogs
-    const avg     = filteredOrders.length ? Math.round(revenue / filteredOrders.length) : 0
-    const margin  = revenue > 0 ? Math.round(profit / revenue * 100) : 0
-    setSummary({ revenue, cogs, profit, orders:filteredOrders.length, avg, margin })
+    const revenue    = filteredOrders.reduce((s, o) => s + (o.total || 0), 0)
+    const commission = filteredOrders.reduce((s, o) => s + computeOrderCommission(o).commission, 0)
+    const netRevenue = revenue - commission
+    const cogs       = filteredOrders.reduce((s, o) => s + (o.cogs  || 0), 0)
+    const profit     = netRevenue - cogs
+    const avg        = filteredOrders.length ? Math.round(revenue / filteredOrders.length) : 0
+    const margin     = netRevenue > 0 ? Math.round(profit / netRevenue * 100) : 0
+    setSummary({ revenue, commission, netRevenue, cogs, profit, orders:filteredOrders.length, avg, margin })
 
     const payMap = {}
-    filteredOrders.forEach(o => { explodeOrderPayments(o).forEach(({ method, amount }) => { payMap[method] = (payMap[method] || 0) + amount }) })
+    const payCommMap = {}
+    filteredOrders.forEach(o => {
+      const oComm = computeOrderCommission(o)
+      explodeOrderPayments(o).forEach(({ method, amount }) => {
+        payMap[method] = (payMap[method] || 0) + amount
+        const ratio = (o.total || 0) > 0 ? amount / o.total : 1
+        payCommMap[method] = (payCommMap[method] || 0) + Math.round(oComm.commission * ratio)
+      })
+    })
     setPayments(Object.entries(payMap)
-      .map(([method, amount]) => ({ method, amount, pct: revenue ? Math.round(amount / revenue * 100) : 0 }))
+      .map(([method, amount]) => {
+        const comm = payCommMap[method] || 0
+        return { method, amount, commission: comm, netAmount: amount - comm, pct: revenue ? Math.round(amount / revenue * 100) : 0 }
+      })
       .sort((a, b) => b.amount - a.amount))
 
     const dayMap = {}
     filteredOrders.forEach(o => {
       const d = o.created_at?.slice(0, 10) || "?"
-      if (!dayMap[d]) dayMap[d] = { date:d, orders:0, revenue:0, cogs:0 }
+      const oComm = computeOrderCommission(o)
+      if (!dayMap[d]) dayMap[d] = { date:d, orders:0, revenue:0, commission:0, netRevenue:0, cogs:0 }
       dayMap[d].orders++
-      dayMap[d].revenue += o.total || 0
-      dayMap[d].cogs    += o.cogs  || 0
+      dayMap[d].revenue    += o.total || 0
+      dayMap[d].commission += oComm.commission
+      dayMap[d].netRevenue += oComm.netRevenue
+      dayMap[d].cogs       += o.cogs  || 0
     })
     setByDay(Object.values(dayMap).sort((a, b) => b.date.localeCompare(a.date)))
   }, [filteredOrders])
@@ -116,32 +132,34 @@ export default function SalesAnalysis() {
           columns: ["Metrik", "Nilai"],
           colWidths: [28, 22],
           rows: [
-            ["Gross Revenue",  fmtIDR(summary.revenue)],
-            ["Est. COGS",      fmtIDR(summary.cogs)],
-            ["Gross Profit",   fmtIDR(summary.profit)],
-            ["Margin",         summary.margin + "%"],
-            ["Total Transaksi",summary.orders],
-            ["Avg per Order",  fmtIDR(summary.avg)],
+            ["Gross Revenue",            fmtIDR(summary.revenue)],
+            ["Komisi Platform (20%)",    fmtIDR(summary.commission)],
+            ["Net Store Revenue",        fmtIDR(summary.netRevenue)],
+            ["Est. COGS",                fmtIDR(summary.cogs)],
+            ["Gross Profit (After Comm)",fmtIDR(summary.profit)],
+            ["Margin",                   summary.margin + "%"],
+            ["Total Transaksi",          summary.orders],
+            ["Avg per Order",            fmtIDR(summary.avg)],
           ],
         },
         {
           name: "Per Hari",
-          columns: ["Tanggal","Transaksi","Revenue","COGS","Profit","Margin"],
-          colWidths: [20,14,20,20,20,12],
+          columns: ["Tanggal","Transaksi","Gross Revenue","Komisi Platform","Net Store","COGS","Profit","Margin"],
+          colWidths: [20,12,20,18,20,18,20,12],
           rows: byDay.map(d => {
-            const p = d.revenue - d.cogs
+            const p = d.netRevenue - d.cogs
             return [
               new Date(d.date + "T12:00:00").toLocaleDateString("id-ID"),
-              d.orders, fmtIDR(d.revenue), fmtIDR(d.cogs),
-              fmtIDR(p), (d.revenue > 0 ? Math.round(p/d.revenue*100) : 0) + "%",
+              d.orders, fmtIDR(d.revenue), fmtIDR(d.commission), fmtIDR(d.netRevenue), fmtIDR(d.cogs),
+              fmtIDR(p), (d.netRevenue > 0 ? Math.round(p/d.netRevenue*100) : 0) + "%",
             ]
           }),
         },
         {
           name: "Pembayaran",
-          columns: ["Metode","Jumlah","Persen"],
-          colWidths: [20,22,12],
-          rows: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+          columns: ["Metode","Gross Jumlah","Komisi Platform","Net Diterima","Persen"],
+          colWidths: [20,20,18,20,12],
+          rows: payments.map(p => [p.method, fmtIDR(p.amount), fmtIDR(p.commission || 0), fmtIDR(p.netAmount ?? p.amount), p.pct + "%"]),
         },
       ],
     })
@@ -153,28 +171,30 @@ export default function SalesAnalysis() {
         label: "Ringkasan P&L",
         head: ["Metrik", "Nilai"],
         body: [
-          ["Gross Revenue",  fmtIDR(summary.revenue)],
-          ["Est. COGS",      fmtIDR(summary.cogs)],
-          ["Gross Profit",   fmtIDR(summary.profit)],
-          ["Margin",         summary.margin + "%"],
-          ["Total Transaksi",summary.orders],
-          ["Avg per Order",  fmtIDR(summary.avg)],
+          ["Gross Revenue",            fmtIDR(summary.revenue)],
+          ["Komisi Platform (20%)",    fmtIDR(summary.commission)],
+          ["Net Store Revenue",        fmtIDR(summary.netRevenue)],
+          ["Est. COGS",                fmtIDR(summary.cogs)],
+          ["Gross Profit (After Comm)",fmtIDR(summary.profit)],
+          ["Margin",                   summary.margin + "%"],
+          ["Total Transaksi",          summary.orders],
+          ["Avg per Order",            fmtIDR(summary.avg)],
         ],
       },
       ...(payments.length > 0 ? [{
         label: "Metode Pembayaran",
-        head: ["Metode", "Jumlah", "Persen"],
-        body: payments.map(p => [p.method, fmtIDR(p.amount), p.pct + "%"]),
+        head: ["Metode", "Gross", "Komisi 20%", "Net Store", "Persen"],
+        body: payments.map(p => [p.method, fmtIDR(p.amount), fmtIDR(p.commission || 0), fmtIDR(p.netAmount ?? p.amount), p.pct + "%"]),
       }] : []),
       ...(byDay.length > 0 ? [{
         label: "Penjualan per Hari",
-        head: ["Tanggal","Transaksi","Revenue","COGS","Profit","Margin"],
+        head: ["Tanggal","Trx","Gross","Komisi 20%","Net Store","COGS","Profit","Margin"],
         body: byDay.map(d => {
-          const p = d.revenue - d.cogs
+          const p = d.netRevenue - d.cogs
           return [
             new Date(d.date + "T12:00:00").toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"}),
-            d.orders, fmtIDR(d.revenue), fmtIDR(d.cogs),
-            fmtIDR(p), (d.revenue > 0 ? Math.round(p/d.revenue*100) : 0) + "%",
+            d.orders, fmtIDR(d.revenue), fmtIDR(d.commission), fmtIDR(d.netRevenue), fmtIDR(d.cogs),
+            fmtIDR(p), (d.netRevenue > 0 ? Math.round(p/d.netRevenue*100) : 0) + "%",
           ]
         }),
       }] : []),
@@ -193,11 +213,12 @@ export default function SalesAnalysis() {
       {err && <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:8, padding:"10px 14px", marginBottom:16, color:"#DC2626", fontSize:13 }}>⚠ Gagal memuat data: {err}</div>}
 
       {/* ── P&L Summary ───────────────────────────────── */}
-      <div className="bo-sa-plrow" style={{ gap:12, marginBottom:16 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:12, marginBottom:16 }}>
         {[
-          { label:"Gross Revenue",  value:fmt(summary.revenue), color:"var(--ink)",  sub:`${summary.orders} transaksi · avg ${fmt(summary.avg)}` },
-          { label:"Est. COGS",      value:fmt(summary.cogs),    color:"#DC2626",     sub:"Estimasi harga pokok" },
-          { label:"Gross Profit",   value:fmt(summary.profit),  color:summary.profit >= 0 ? "#059669" : "#DC2626", sub:`Margin ${summary.margin}%` },
+          { label:"Gross Revenue",         value:fmt(summary.revenue),    color:"var(--ink)",  sub:`${summary.orders} transaksi · avg ${fmt(summary.avg)}` },
+          { label:"Komisi Platform (20%)", value:fmt(summary.commission), color:"#D97706",     sub:`Net Store: ${fmt(summary.netRevenue)}` },
+          { label:"Est. COGS",             value:fmt(summary.cogs),       color:"#DC2626",     sub:"Estimasi harga pokok" },
+          { label:"Net Gross Profit",      value:fmt(summary.profit),     color:summary.profit >= 0 ? "#059669" : "#DC2626", sub:`Margin ${summary.margin}% (setelah komisi)` },
         ].map(k => (
           <div key={k.label} style={{ background:"#fff", borderRadius:14, padding:"20px 22px", border:"1px solid var(--surface3)" }}>
             <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:8 }}>{k.label}</div>
@@ -231,7 +252,14 @@ export default function SalesAnalysis() {
                     borderRadius:4, transition:"width 0.4s",
                   }} />
                 </div>
-                <div style={{ fontSize:10, color:"var(--ink5)", marginTop:3 }}>{p.pct}% dari total penjualan</div>
+                <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"var(--ink5)", marginTop:3 }}>
+                  <span>{p.pct}% dari total penjualan</span>
+                  {p.commission > 0 && (
+                    <span style={{ color:"#D97706", fontWeight:600 }}>
+                      Komisi 20%: {fmt(p.commission)} · Net: {fmt(p.netAmount)}
+                    </span>
+                  )}
+                </div>
               </div>
             ))
           }
@@ -282,7 +310,9 @@ export default function SalesAnalysis() {
               <tr>
                 <th>Tanggal</th>
                 <th style={{ textAlign:"right" }}>Transaksi</th>
-                <th style={{ textAlign:"right" }}>Revenue</th>
+                <th style={{ textAlign:"right" }}>Gross Revenue</th>
+                <th style={{ textAlign:"right" }}>Komisi 20%</th>
+                <th style={{ textAlign:"right" }}>Net Store</th>
                 <th style={{ textAlign:"right" }}>COGS</th>
                 <th style={{ textAlign:"right" }}>Profit</th>
                 <th style={{ textAlign:"right" }}>Margin</th>
@@ -290,14 +320,16 @@ export default function SalesAnalysis() {
             </thead>
             <tbody>
               {byDay.map(d => {
-                const profit = d.revenue - d.cogs
-                const margin = d.revenue > 0 ? Math.round(profit / d.revenue * 100) : 0
+                const profit = d.netRevenue - d.cogs
+                const margin = d.netRevenue > 0 ? Math.round(profit / d.netRevenue * 100) : 0
                 const dateLabel = new Date(d.date + "T12:00:00").toLocaleDateString("id-ID", { weekday:"short", day:"numeric", month:"short" })
                 return (
                   <tr key={d.date}>
                     <td style={{ fontWeight:600 }}>{dateLabel}</td>
                     <td style={{ textAlign:"right" }}>{d.orders}</td>
                     <td style={{ textAlign:"right", fontWeight:700 }}>{fmt(d.revenue)}</td>
+                    <td style={{ textAlign:"right", color:"#D97706", fontWeight:600 }}>{d.commission ? fmt(d.commission) : "—"}</td>
+                    <td style={{ textAlign:"right", fontWeight:700, color:"#7C3AED" }}>{fmt(d.netRevenue)}</td>
                     <td style={{ textAlign:"right", color:"#EF4444" }}>{fmt(d.cogs)}</td>
                     <td style={{ textAlign:"right", fontWeight:700, color: profit >= 0 ? "#059669" : "#DC2626" }}>{fmt(profit)}</td>
                     <td style={{ textAlign:"right", color: margin >= 30 ? "#059669" : margin >= 15 ? "#F59E0B" : "#DC2626", fontWeight:700 }}>{margin}%</td>

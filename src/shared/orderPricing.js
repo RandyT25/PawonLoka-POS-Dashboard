@@ -102,6 +102,52 @@ export function applyChannelMarkupToItems(items = [], markupPct = 0) {
   })
 }
 
+// Compute the online platform markup / commission embedded in an order.
+// Returns { grossTotal, commission, netRevenue, markupPct, isOnline } so reports
+// and order details can clearly separate Gross App Sales, Platform Commission (+20%),
+// and Net Store Revenue (base in-house price).
+export function computeOrderCommission(order, payMethods = []) {
+  const grossTotal = Number(order?.total) || 0
+  let rawItems = order?.items_snapshot || order?.items || []
+  if (typeof rawItems === 'string') {
+    try { rawItems = JSON.parse(rawItems || '[]') } catch { rawItems = [] }
+  }
+  const items = Array.isArray(rawItems) ? rawItems : []
+
+  // 1. Exact item-level calculation when `_inHousePrice` was recorded on items
+  let itemCommission = 0
+  let hasItemMarkup = false
+  let detectedPct = 0
+  for (const it of items) {
+    const qty = Number(it.qty) || 1
+    const price = Number(it.price) || 0
+    const base = Number(it._inHousePrice ?? price) || 0
+    if (price > base && base > 0) {
+      hasItemMarkup = true
+      itemCommission += (price - base) * qty
+      if (!detectedPct && it._markupPct) detectedPct = Number(it._markupPct)
+    }
+  }
+
+  if (hasItemMarkup && itemCommission > 0) {
+    const commission = Math.min(grossTotal, Math.round(itemCommission))
+    const netRevenue = Math.max(0, grossTotal - commission)
+    const markupPct = detectedPct || (netRevenue > 0 ? Math.round((commission / netRevenue) * 100) : 20)
+    return { grossTotal, commission, netRevenue, markupPct, isOnline: true }
+  }
+
+  // 2. Fallback: infer from payment method or order_type (e.g., GoFood, GrabFood, ShopeeFood)
+  const channel = order?.pay || order?.payment_method || order?.order_type || ''
+  const pct = getMethodMarkupPct(channel, payMethods)
+  if (pct > 0 && grossTotal > 0) {
+    const netRevenue = Math.round(grossTotal / (1 + pct / 100))
+    const commission = Math.max(0, grossTotal - netRevenue)
+    return { grossTotal, commission, netRevenue, markupPct: pct, isOnline: true }
+  }
+
+  return { grossTotal, commission: 0, netRevenue: grossTotal, markupPct: 0, isOnline: false }
+}
+
 // Given an order row's own stored discount/subtotal, imply the discount % that
 // produced it (discount is persisted as an absolute amount, not a rate) so it
 // can be reapplied to a new subtotal — e.g. when merging two bills together.

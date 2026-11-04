@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import MultiItemSelect from "./MultiItemSelect"
 import { exportPDF, exportExcel, fmtIDR } from "./exportUtils"
-import { explodeOrderPayments } from "../../shared/orderPricing"
+import { explodeOrderPayments, computeOrderCommission } from "../../shared/orderPricing"
 
 const fmt = n => "Rp " + Number(n||0).toLocaleString("id-ID")
 
@@ -62,11 +62,13 @@ export default function Reports() {
     })
   }, [orders, itemFilter, payFilter])
 
-  const totalSales  = displayOrders.reduce((s,o) => s+(o.total||0), 0)
-  const totalOrders = displayOrders.length
-  const totalCogs   = displayOrders.reduce((s,o) => s+(o.cogs||0), 0)
-  const grossProfit = totalSales - totalCogs
-  const avgOrder    = totalOrders ? Math.round(totalSales/totalOrders) : 0
+  const totalSales      = displayOrders.reduce((s,o) => s+(o.total||0), 0)
+  const totalCommission = displayOrders.reduce((s,o) => s+computeOrderCommission(o).commission, 0)
+  const netStoreSales   = totalSales - totalCommission
+  const totalOrders     = displayOrders.length
+  const totalCogs       = displayOrders.reduce((s,o) => s+(o.cogs||0), 0)
+  const grossProfit     = netStoreSales - totalCogs
+  const avgOrder        = totalOrders ? Math.round(totalSales/totalOrders) : 0
 
   const byPayment = displayOrders.reduce((acc,o) => {
     explodeOrderPayments(o).forEach(({ method, amount }) => { acc[method] = (acc[method]||0) + amount })
@@ -75,10 +77,13 @@ export default function Reports() {
 
   const byDate = displayOrders.reduce((acc,o) => {
     const d = o.created_at?.slice(0,10) || "?"
-    if (!acc[d]) acc[d] = { date:d, orders:0, sales:0, cogs:0 }
+    const comm = computeOrderCommission(o)
+    if (!acc[d]) acc[d] = { date:d, orders:0, sales:0, commission:0, netSales:0, cogs:0 }
     acc[d].orders++
-    acc[d].sales += o.total || 0
-    acc[d].cogs  += o.cogs  || 0
+    acc[d].sales      += o.total || 0
+    acc[d].commission += comm.commission
+    acc[d].netSales   += comm.netRevenue
+    acc[d].cogs       += o.cogs  || 0
     return acc
   }, {})
 
@@ -95,30 +100,37 @@ export default function Reports() {
       sheets: [
         {
           name: "Semua Order",
-          columns: ["Tanggal","Waktu","Order ID","Meja","Kasir","Pembayaran","Total","COGS","Gross Profit"],
-          colWidths: [14,10,18,12,14,14,20,18,18],
-          rows: displayOrders.map(o => [
-            o.created_at?.slice(0,10),
-            o.time || new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
-            o.code || o.id,
-            tableName(o),
-            o.staff || "—",
-            o.pay || "—",
-            fmtIDR(o.total),
-            fmtIDR(o.cogs||0),
-            fmtIDR((o.total||0)-(o.cogs||0)),
-          ]),
+          columns: ["Tanggal","Waktu","Order ID","Meja","Kasir","Pembayaran","Gross Total","Komisi Platform (20%)","Net Store","COGS","Gross Profit"],
+          colWidths: [14,10,18,12,14,14,18,20,18,16,18],
+          rows: displayOrders.map(o => {
+            const comm = computeOrderCommission(o)
+            return [
+              o.created_at?.slice(0,10),
+              o.time || new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}),
+              o.code || o.id,
+              tableName(o),
+              o.staff || "—",
+              o.pay || "—",
+              fmtIDR(o.total),
+              fmtIDR(comm.commission),
+              fmtIDR(comm.netRevenue),
+              fmtIDR(o.cogs||0),
+              fmtIDR(comm.netRevenue-(o.cogs||0)),
+            ]
+          }),
         },
         {
           name: "Ringkasan",
           columns: ["Metrik","Nilai"],
-          colWidths: [24,22],
+          colWidths: [26,22],
           rows: [
-            ["Total Sales",  fmtIDR(totalSales)],
-            ["Total COGS",   fmtIDR(totalCogs)],
-            ["Gross Profit", fmtIDR(grossProfit)],
-            ["Total Orders", totalOrders],
-            ["Avg Order",    fmtIDR(avgOrder)],
+            ["Gross Sales",          fmtIDR(totalSales)],
+            ["Komisi Platform (20%)",fmtIDR(totalCommission)],
+            ["Net Store Sales",      fmtIDR(netStoreSales)],
+            ["Total COGS",           fmtIDR(totalCogs)],
+            ["Net Gross Profit",     fmtIDR(grossProfit)],
+            ["Total Orders",         totalOrders],
+            ["Avg Order",            fmtIDR(avgOrder)],
           ],
         },
       ],
@@ -134,25 +146,31 @@ export default function Reports() {
           label: "Ringkasan",
           head: ["Metrik","Nilai"],
           body: [
-            ["Total Sales",  fmtIDR(totalSales)],
-            ["Total COGS",   fmtIDR(totalCogs)],
-            ["Gross Profit", fmtIDR(grossProfit)],
-            ["Total Orders", totalOrders],
-            ["Avg Order",    fmtIDR(avgOrder)],
+            ["Gross Sales",          fmtIDR(totalSales)],
+            ["Komisi Platform (20%)",fmtIDR(totalCommission)],
+            ["Net Store Sales",      fmtIDR(netStoreSales)],
+            ["Total COGS",           fmtIDR(totalCogs)],
+            ["Net Gross Profit",     fmtIDR(grossProfit)],
+            ["Total Orders",         totalOrders],
+            ["Avg Order",            fmtIDR(avgOrder)],
           ],
         },
         {
           label: "Semua Order",
-          head: ["Tanggal","Order ID","Meja","Kasir","Pembayaran","Total","COGS"],
-          body: displayOrders.map(o => [
-            o.created_at?.slice(0,10),
-            o.code || String(o.id).slice(-8),
-            tableName(o),
-            o.staff || "—",
-            o.pay || "—",
-            fmtIDR(o.total),
-            fmtIDR(o.cogs||0),
-          ]),
+          head: ["Tanggal","Order ID","Meja","Pembayaran","Gross","Komisi 20%","Net Store","COGS"],
+          body: displayOrders.map(o => {
+            const comm = computeOrderCommission(o)
+            return [
+              o.created_at?.slice(0,10),
+              o.code || String(o.id).slice(-8),
+              tableName(o),
+              o.pay || "—",
+              fmtIDR(o.total),
+              comm.commission ? fmtIDR(comm.commission) : "—",
+              fmtIDR(comm.netRevenue),
+              fmtIDR(o.cogs||0),
+            ]
+          }),
         },
       ],
     })
@@ -208,22 +226,24 @@ export default function Reports() {
       {/* KPI Cards */}
       <div className="bo-metrics">
         <div className="bo-met blue">
-          <div className="bo-met-label">Total Sales</div>
+          <div className="bo-met-label">Gross Sales</div>
           <div className="bo-met-val">{fmt(totalSales)}</div>
-          <div className="bo-met-sub">{totalOrders} orders</div>
-        </div>
-        <div className="bo-met green">
-          <div className="bo-met-label">Gross Profit</div>
-          <div className="bo-met-val">{fmt(grossProfit)}</div>
-          <div className="bo-met-sub">Margin {totalSales ? Math.round(grossProfit/totalSales*100) : 0}%</div>
+          <div className="bo-met-sub">{totalOrders} orders · Net Store {fmt(netStoreSales)}</div>
         </div>
         <div className="bo-met amber">
-          <div className="bo-met-label">Avg Order</div>
-          <div className="bo-met-val">{fmt(avgOrder)}</div>
+          <div className="bo-met-label">Komisi Platform (20%)</div>
+          <div className="bo-met-val">{fmt(totalCommission)}</div>
+          <div className="bo-met-sub">GoFood / GrabFood / ShopeeFood</div>
+        </div>
+        <div className="bo-met green">
+          <div className="bo-met-label">Net Gross Profit</div>
+          <div className="bo-met-val">{fmt(grossProfit)}</div>
+          <div className="bo-met-sub">Margin {netStoreSales ? Math.round(grossProfit/netStoreSales*100) : 0}% (setelah komisi)</div>
         </div>
         <div className="bo-met blue">
           <div className="bo-met-label">Est. COGS</div>
           <div className="bo-met-val">{fmt(totalCogs)}</div>
+          <div className="bo-met-sub">Avg Order {fmt(avgOrder)}</div>
         </div>
       </div>
 
@@ -276,12 +296,16 @@ export default function Reports() {
                   <th>Table</th>
                   <th>Cashier</th>
                   <th>Payment</th>
+                  <th>Komisi 20%</th>
+                  <th>Net Store</th>
                   <th>COGS</th>
-                  <th>Total</th>
+                  <th>Gross Total</th>
                 </tr>
               </thead>
               <tbody>
-                {displayOrders.map(o => (
+                {displayOrders.map(o => {
+                  const comm = computeOrderCommission(o)
+                  return (
                   <tr key={o.id}>
                     <td style={{ fontWeight:600, fontFamily:"monospace", fontSize:12 }}>{o.code || o.id?.slice(-10)}</td>
                     <td style={{ color:"var(--ink4)", fontSize:12 }}>
@@ -291,12 +315,14 @@ export default function Reports() {
                     <td>{tableName(o)}</td>
                     <td>{o.staff || "-"}</td>
                     <td><span className="bo-badge bo-badge-blue">{o.pay || "-"}</span></td>
+                    <td style={{ color:"#D97706", fontSize:12, fontWeight:600 }}>{comm.commission ? fmt(comm.commission) : "—"}</td>
+                    <td style={{ color:"#7C3AED", fontSize:12, fontWeight:600 }}>{fmt(comm.netRevenue)}</td>
                     <td style={{ color:"var(--red)", fontSize:12 }}>{fmt(o.cogs||0)}</td>
                     <td style={{ fontWeight:700 }}>{fmt(o.total)}</td>
                   </tr>
-                ))}
+                )})}
                 {displayOrders.length === 0 && (
-                  <tr><td colSpan={7} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No orders in this period</td></tr>
+                  <tr><td colSpan={9} style={{ textAlign:"center", color:"var(--ink5)", padding:"32px 0" }}>No orders in this period</td></tr>
                 )}
               </tbody>
             </table>

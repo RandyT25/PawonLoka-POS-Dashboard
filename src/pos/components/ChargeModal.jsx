@@ -65,6 +65,7 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
   // 0% for Cash/QRIS/Card) relative to each item's base in-house price (`_inHousePrice`).
   const methodMarkupPct = getMethodMarkupPct(payMethod, availableMethods)
   const effectiveCart   = applyChannelMarkupToItems(cart, methodMarkupPct)
+  const baseSubtotal    = effectiveCart.reduce((s, i) => s + ((Number(i._inHousePrice ?? i.price) || 0) - (i.itemDisc || 0)) * i.qty, 0)
   const { fee } = totals
   const promoDisc  = appliedPromo ? appliedPromo.disc : 0
   const alreadyPaid = totals.splitPaid || 0
@@ -212,7 +213,13 @@ export default function ChargeModal({ cart, totals, onConfirm, onClose, onSucces
               </div>
             ))}
             <div style={S.divider}/>
-            <div style={S.summaryRow}><span style={S.dimTxt}>Subtotal</span><span>{fmt(subtotal)}</span></div>
+            {methodMarkupPct > 0 && subtotal > baseSubtotal && (
+              <>
+                <div style={S.summaryRow}><span style={S.dimTxt}>Harga Normal (Net Store)</span><span>{fmt(baseSubtotal)}</span></div>
+                <div style={S.summaryRow}><span style={{ color:'#D97706', fontSize:12, fontWeight:600 }}>Komisi Platform (+{methodMarkupPct}%)</span><span style={{ color:'#D97706', fontWeight:600 }}>+{fmt(subtotal - baseSubtotal)}</span></div>
+              </>
+            )}
+            <div style={S.summaryRow}><span style={S.dimTxt}>{methodMarkupPct > 0 ? 'Subtotal Online' : 'Subtotal'}</span><span>{fmt(subtotal)}</span></div>
             {fee > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Fee</span><span>{fmt(fee)}</span></div>}
             {tax > 0 && <div style={S.summaryRow}><span style={S.dimTxt}>Tax</span><span>{fmt(tax)}</span></div>}
             {discAmt > 0 && <div style={S.summaryRow}><span style={{ color:'#10B981', fontSize:12 }}>Diskon ({totals.discount}%)</span><span style={{ color:'#10B981' }}>-{fmt(discAmt)}</span></div>}

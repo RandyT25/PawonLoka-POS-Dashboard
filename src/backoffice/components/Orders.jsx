@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
+import { computeOrderCommission } from "../../shared/orderPricing"
 
 const fmt = n => "Rp " + Math.round(n||0).toLocaleString("id-ID")
 
@@ -137,29 +138,36 @@ export default function Orders() {
     return matchStatus && matchPay && matchSearch
   })
 
-  const paidOrders   = filtered.filter(o => o.status?.toLowerCase() === "paid")
-  const totalRevenue = paidOrders.reduce((s,o) => s + (o.total||0), 0)
-  const totalOrders  = paidOrders.length
-  const avgOrder     = totalOrders ? totalRevenue / totalOrders : 0
+  const paidOrders      = filtered.filter(o => o.status?.toLowerCase() === "paid")
+  const totalRevenue    = paidOrders.reduce((s,o) => s + (o.total||0), 0)
+  const totalCommission = paidOrders.reduce((s,o) => s + computeOrderCommission(o).commission, 0)
+  const netRevenue      = totalRevenue - totalCommission
+  const totalOrders     = paidOrders.length
+  const avgOrder        = totalOrders ? totalRevenue / totalOrders : 0
 
   function exportExcel() {
     setExporting(true)
     try {
-      const rows = filtered.map(o => ({
-        "Order ID":    o.id,
-        "Date":        o.created_at?.slice(0,10) || "",
-        "Time":        o.created_at ? new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) : "",
-        "Table":       o.table || o.order_type || "",
-        "Staff":       o.staff || "",
-        "Customer":    o.customer || "",
-        "Items":       (o.items||[]).map(i => i.qty + "x " + i.name).join(", "),
-        "Subtotal":    o.subtotal || 0,
-        "Discount":    o.discount || 0,
-        "Tax":         o.tax || 0,
-        "Total":       o.total || 0,
-        "Payment":     o.pay || o.payment_method || "",
-        "Status":      o.status || "",
-      }))
+      const rows = filtered.map(o => {
+        const comm = computeOrderCommission(o)
+        return {
+          "Order ID":              o.id,
+          "Date":                  o.created_at?.slice(0,10) || "",
+          "Time":                  o.created_at ? new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) : "",
+          "Table / Channel":       o.table || o.order_type || "",
+          "Staff":                 o.staff || "",
+          "Customer":              o.customer || "",
+          "Items":                 (o.items||[]).map(i => i.qty + "x " + i.name).join(", "),
+          "Net Store Revenue":     comm.netRevenue,
+          "Platform Commission":   comm.commission,
+          "Subtotal":              o.subtotal || 0,
+          "Discount":              o.discount || 0,
+          "Tax":                   o.tax || 0,
+          "Gross Total":           o.total || 0,
+          "Payment":               o.pay || o.payment_method || "",
+          "Status":                o.status || "",
+        }
+      })
       const ws = XLSX.utils.json_to_sheet(rows)
       const wb = XLSX.utils.book_new()
       XLSX.utils.book_append_sheet(wb, ws, "Orders")
@@ -175,15 +183,17 @@ export default function Orders() {
       </div>
 
       {/* Stats */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:12, marginBottom:20 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:12, marginBottom:20 }}>
         {[
-          ["Total Orders", totalOrders, "#0052CC"],
-          ["Revenue",      fmt(totalRevenue), "#16A34A"],
-          ["Avg Order",    fmt(avgOrder), "#7C3AED"],
-        ].map(([label, val, color]) => (
+          ["Total Orders",          totalOrders,          "#0052CC", `${paidOrders.length} paid`],
+          ["Gross Revenue",         fmt(totalRevenue),    "#16A34A", `Avg ${fmt(avgOrder)} / order`],
+          ["Platform Commission",   fmt(totalCommission), "#D97706", "20% GoFood / GrabFood / ShopeeFood"],
+          ["Net Revenue (Store)",   fmt(netRevenue),      "#7C3AED", "Setelah dipotong komisi 20%"],
+        ].map(([label, val, color, sub]) => (
           <div key={label} style={{ background:"#fff", borderRadius:12, padding:"16px 20px", border:"1px solid #E8ECF0" }}>
             <div style={{ fontSize:12, color:"var(--ink4)", fontWeight:600, marginBottom:4 }}>{label}</div>
             <div style={{ fontSize:22, fontWeight:900, color }}>{val}</div>
+            {sub && <div style={{ fontSize:11, color:"var(--ink4)", marginTop:3 }}>{sub}</div>}
           </div>
         ))}
       </div>
@@ -249,6 +259,7 @@ export default function Orders() {
             ) : filtered.map(o => {
               const sc   = STATUS_COLORS[o.status?.toLowerCase()] || STATUS_COLORS.open
               const time = o.created_at ? new Date(o.created_at).toLocaleTimeString("id-ID",{hour:"2-digit",minute:"2-digit"}) : "-"
+              const comm = computeOrderCommission(o)
               return (
                 <tr key={o.id} onClick={()=>setSelected(o)}
                   style={{ cursor:"pointer", borderBottom:"1px solid #F0F4F8" }}
@@ -260,8 +271,15 @@ export default function Orders() {
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{o.staff||"-"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{o.customer||"-"}</td>
                   <td style={{ padding:"10px 14px", fontSize:12 }}>{(o.items||[]).length} items</td>
-                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>{fmt(o.total)}</td>
-                  <td style={{ padding:"10px 14px", fontSize:12 }}>{o.payment_method||"-"}</td>
+                  <td style={{ padding:"10px 14px", fontSize:13, fontWeight:700, whiteSpace:"nowrap" }}>
+                    <div>{fmt(o.total)}</div>
+                    {comm.commission > 0 && (
+                      <div style={{ fontSize:10, color:"#D97706", fontWeight:600 }}>
+                        Komisi +{comm.markupPct}%: {fmt(comm.commission)} · Net: {fmt(comm.netRevenue)}
+                      </div>
+                    )}
+                  </td>
+                  <td style={{ padding:"10px 14px", fontSize:12, fontWeight:600 }}>{o.pay||o.payment_method||"-"}</td>
                   <td style={{ padding:"10px 14px" }}>
                     <span style={{ ...sc, padding:"3px 10px", borderRadius:20, fontSize:11, fontWeight:700 }}>{o.status}</span>
                   </td>
@@ -279,7 +297,9 @@ export default function Orders() {
       </div>
 
       {/* Order Detail Modal */}
-      {selected && (
+      {selected && (() => {
+        const selComm = computeOrderCommission(selected)
+        return (
         <div className="bo-overlay" onMouseDown={e=>e.target===e.currentTarget&&setSelected(null)}>
           <div className="bo-modal" style={{ maxWidth:540 }}>
             <div className="bo-modal-header">
@@ -295,7 +315,7 @@ export default function Orders() {
                   ["Customer", selected.customer||"-"],
                   ["Date",     selected.created_at ? new Date(selected.created_at).toLocaleString("id-ID",{dateStyle:"medium",timeStyle:"short"}) : "-"],
                   ["Status",   selected.status||"-"],
-                  ["Payment",  selected.payment_method||"-"],
+                  ["Payment",  selected.pay||selected.payment_method||"-"],
                 ].map(([k,v])=>(
                   <div key={k} style={{ fontSize:12 }}>
                     <span style={{ color:"var(--ink4)", fontWeight:600 }}>{k}: </span>
@@ -307,10 +327,18 @@ export default function Orders() {
               {/* Items */}
               <div style={{ borderTop:"1px solid #E8ECF0", paddingTop:12, marginBottom:12 }}>
                 <div style={{ fontSize:11, fontWeight:700, color:"var(--ink4)", marginBottom:8, textTransform:"uppercase" }}>Items</div>
-                {(selected.items||[]).map((item,i) => (
+                {(selected.items||[]).map((item,i) => {
+                  const basePrice = Number(item._inHousePrice ?? item.price) || 0
+                  const hasMarkup = item.price > basePrice && basePrice > 0
+                  return (
                   <div key={i} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"1px solid #F8FAFC", fontSize:13 }}>
                     <div>
                       <span style={{ fontWeight:600 }}>{item.qty}x {item.name}</span>
+                      {hasMarkup && (
+                        <div style={{ fontSize:11, color:"#D97706", fontWeight:600 }}>
+                          Harga Normal {fmt(basePrice * item.qty)} + Komisi {item._markupPct || 20}% ({fmt((item.price - basePrice) * item.qty)})
+                        </div>
+                      )}
                       {item.isBundle && item.bundleItems && (
                         <div style={{ fontSize:11, color:"var(--ink4)" }}>{item.bundleItems.map(b=>b.name).join(", ")}</div>
                       )}
@@ -324,13 +352,25 @@ export default function Orders() {
                       <span style={{ fontWeight:700 }}>{fmt((item.price-(item.itemDisc||0))*item.qty)}</span>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
 
               {/* Totals */}
               <div style={{ display:"flex", flexDirection:"column", gap:5, padding:"10px 14px", background:"#F8FAFC", borderRadius:10 }}>
+                {selComm.commission > 0 && (
+                  <>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
+                      <span style={{ color:"var(--ink4)" }}>Harga Normal (Net Store Revenue)</span>
+                      <span style={{ fontWeight:700, color:"#16A34A" }}>{fmt(selComm.netRevenue)}</span>
+                    </div>
+                    <div style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#D97706", fontWeight:600 }}>
+                      <span>Komisi Platform (+{selComm.markupPct}% {selected.pay || selected.order_type || "Online"})</span>
+                      <span>+{fmt(selComm.commission)}</span>
+                    </div>
+                  </>
+                )}
                 <div style={{ display:"flex", justifyContent:"space-between", fontSize:13 }}>
-                  <span style={{ color:"var(--ink4)" }}>Subtotal</span>
+                  <span style={{ color:"var(--ink4)" }}>{selComm.commission > 0 ? "Subtotal Online (Gross)" : "Subtotal"}</span>
                   <span>{fmt(selected.subtotal)}</span>
                 </div>
                 {selected.discount > 0 && (
@@ -382,7 +422,8 @@ export default function Orders() {
             </div>
           </div>
         </div>
-      )}
+        )
+      })()}
 
       {/* Void reason modal */}
       {voidModal && (
