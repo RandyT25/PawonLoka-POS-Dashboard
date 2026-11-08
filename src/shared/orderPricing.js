@@ -102,50 +102,62 @@ export function applyChannelMarkupToItems(items = [], markupPct = 0) {
   })
 }
 
-// Compute the online platform markup / commission embedded in an order.
-// Returns { grossTotal, commission, netRevenue, markupPct, isOnline } so reports
-// and order details can clearly separate Gross App Sales, Platform Commission (+20%),
-// and Net Store Revenue (base in-house price).
+// Platform commission is a % of the app (gross) price, independent of the markup the
+// POS adds to menu prices. Configurable per method via `commission_pct`; defaults to 20.
+const DEFAULT_COMMISSION_PCT = { GoFood: 20, GrabFood: 20, ShopeeFood: 20 }
+
+export function getMethodCommissionPct(method, payMethods = []) {
+  const found = (payMethods || []).find(m => m.id === method || m.name === method || m.label === method)
+  const v = found?.commission_pct
+  if (v !== undefined && v !== null && v !== '' && !Number.isNaN(Number(v))) return Math.max(0, Number(v))
+  return DEFAULT_COMMISSION_PCT[method] || 0
+}
+
+// Online platform commission for an order: commission = gross x commission_pct,
+// net store revenue = gross - commission (i.e. gross x 0.80 at 20%).
+// Returns { grossTotal, commission, netRevenue, commissionPct, markupPct, isOnline }.
+// Prefers values stored on the order at charge time (`commission_amount`/`expected_net`);
+// otherwise recomputes, so historical orders are reported without touching stored totals.
 export function computeOrderCommission(order, payMethods = []) {
   const grossTotal = Number(order?.total) || 0
+  const channel = order?.pay || order?.payment_method || order?.order_type || ''
+
+  const stored = order?.commission_amount
+  if (stored !== undefined && stored !== null && Number(stored) > 0) {
+    const commission = Math.min(grossTotal, Math.round(Number(stored)))
+    const netRevenue = order?.expected_net != null ? Number(order.expected_net) : grossTotal - commission
+    const commissionPct = grossTotal > 0 ? Math.round(commission / grossTotal * 100) : 0
+    return { grossTotal, commission, netRevenue, commissionPct, markupPct: getMethodMarkupPct(channel, payMethods), isOnline: true }
+  }
+
   let rawItems = order?.items_snapshot || order?.items || []
   if (typeof rawItems === 'string') {
     try { rawItems = JSON.parse(rawItems || '[]') } catch { rawItems = [] }
   }
   const items = Array.isArray(rawItems) ? rawItems : []
 
-  // 1. Exact item-level calculation when `_inHousePrice` was recorded on items
-  let itemCommission = 0
+  // Online if any item carries a markup over its in-house price, or the payment method is a platform.
+  let detectedMarkup = 0
   let hasItemMarkup = false
-  let detectedPct = 0
   for (const it of items) {
-    const qty = Number(it.qty) || 1
     const price = Number(it.price) || 0
     const base = Number(it._inHousePrice ?? price) || 0
     if (price > base && base > 0) {
       hasItemMarkup = true
-      itemCommission += (price - base) * qty
-      if (!detectedPct && it._markupPct) detectedPct = Number(it._markupPct)
+      if (!detectedMarkup && it._markupPct) detectedMarkup = Number(it._markupPct)
+    }
+  }
+  const methodPct = getMethodCommissionPct(channel, payMethods)
+  const commissionPct = methodPct || (hasItemMarkup ? 20 : 0)
+  if (commissionPct > 0 && grossTotal > 0) {
+    const commission = Math.round(grossTotal * commissionPct / 100)
+    return {
+      grossTotal, commission, netRevenue: grossTotal - commission, commissionPct,
+      markupPct: detectedMarkup || getMethodMarkupPct(channel, payMethods), isOnline: true,
     }
   }
 
-  if (hasItemMarkup && itemCommission > 0) {
-    const commission = Math.min(grossTotal, Math.round(itemCommission))
-    const netRevenue = Math.max(0, grossTotal - commission)
-    const markupPct = detectedPct || (netRevenue > 0 ? Math.round((commission / netRevenue) * 100) : 20)
-    return { grossTotal, commission, netRevenue, markupPct, isOnline: true }
-  }
-
-  // 2. Fallback: infer from payment method or order_type (e.g., GoFood, GrabFood, ShopeeFood)
-  const channel = order?.pay || order?.payment_method || order?.order_type || ''
-  const pct = getMethodMarkupPct(channel, payMethods)
-  if (pct > 0 && grossTotal > 0) {
-    const netRevenue = Math.round(grossTotal / (1 + pct / 100))
-    const commission = Math.max(0, grossTotal - netRevenue)
-    return { grossTotal, commission, netRevenue, markupPct: pct, isOnline: true }
-  }
-
-  return { grossTotal, commission: 0, netRevenue: grossTotal, markupPct: 0, isOnline: false }
+  return { grossTotal, commission: 0, netRevenue: grossTotal, commissionPct: 0, markupPct: 0, isOnline: false }
 }
 
 // Given an order row's own stored discount/subtotal, imply the discount % that

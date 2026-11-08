@@ -22,3 +22,22 @@ test('split payment breakdown, not order.pay, is used for reconciliation', () =>
     { method:'Cash', amount:8_000 }, { method:'QRIS', amount:12_000 },
   ])
 })
+
+import { computeOrderCommission } from '../src/shared/orderPricing.js'
+
+test('online commission is 20% of gross (net = gross x 0.80), not gross / 1.20', () => {
+  const r = computeOrderCommission({ pay:'GoFood', total:120_000, items:[{ price:120, _inHousePrice:100, qty:1 }] })
+  assert.equal(r.commission, 24_000)
+  assert.equal(r.netRevenue, 96_000)
+  assert.equal(r.isOnline, true)
+})
+
+test('commission_pct per method overrides default; in-house orders have no commission', () => {
+  assert.equal(computeOrderCommission({ pay:'GrabFood', total:100_000 }, [{ id:'GrabFood', commission_pct:25 }]).netRevenue, 75_000)
+  assert.deepEqual(computeOrderCommission({ pay:'Cash', total:50_000 }), { grossTotal:50_000, commission:0, netRevenue:50_000, commissionPct:0, markupPct:0, isOnline:false })
+})
+
+test('stored commission_amount/expected_net win over recomputation', () => {
+  const r = computeOrderCommission({ pay:'ShopeeFood', total:100_000, commission_amount:18_000, expected_net:82_000 })
+  assert.deepEqual([r.commission, r.netRevenue], [18_000, 82_000])
+})
