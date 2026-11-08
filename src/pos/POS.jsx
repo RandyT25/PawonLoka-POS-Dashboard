@@ -990,6 +990,7 @@ export default function POS() {
       if (openBillId) {
         const saved = isFullyPaid
           ? await dbWrite('orders', 'update', {
+              // TODO(channel): split-bill completion doesn't set orders.channel (keeps the value from bill open); revisit if online orders are ever split.
               status: 'Paid', pay: 'Split', notes: newNote,
               payments: newPayments, cogs: orderCogs, customer_id: customer?.id || null,
               items: mappedItems,
