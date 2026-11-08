@@ -124,18 +124,18 @@ end $$;
 -- p_staff: {id?, name, role[], color, active, permissions, salary, phone, join_date, pin?}
 create or replace function public.staff_admin_save(p_actor text, p_actor_pin text, p_staff jsonb) returns text
 language plpgsql security definer set search_path = public, extensions, pg_temp as $$
-declare sid text := nullif(p_staff->>'id',''); pin text := nullif(p_staff->>'pin',''); six boolean;
+declare sid text := nullif(p_staff->>'id',''); v_pin text := nullif(p_staff->>'pin',''); six boolean;
 begin
   perform private.require_owner(p_actor, p_actor_pin);
   six := private.is_priv(p_staff->'role');
-  if pin is not null and not private.pin_ok(pin, six) then raise exception 'weak_pin'; end if;
+  if v_pin is not null and not private.pin_ok(v_pin, six) then raise exception 'weak_pin'; end if;
   if sid is null then
-    if pin is null then raise exception 'pin_required'; end if;
+    if v_pin is null then raise exception 'pin_required'; end if;
     sid := 'STAFF-' || (extract(epoch from clock_timestamp()) * 1000)::bigint;
     insert into public.staff(id, name, role, color, active, permissions, salary, phone, join_date, pin, pin_hash)
     values (sid, p_staff->>'name', p_staff->'role', p_staff->>'color', coalesce((p_staff->>'active')::boolean, true),
             p_staff->'permissions', (p_staff->>'salary')::numeric, p_staff->'phone', p_staff->'join_date',
-            null, crypt(pin, gen_salt('bf', 10)));
+            null, crypt(v_pin, gen_salt('bf', 10)));
   else
     update public.staff set
       name = coalesce(p_staff->>'name', name), role = coalesce(p_staff->'role', to_jsonb(role)),
@@ -143,10 +143,10 @@ begin
       permissions = coalesce(p_staff->'permissions', permissions),
       salary = coalesce((p_staff->>'salary')::numeric, salary),
       phone = coalesce(p_staff->'phone', phone), join_date = coalesce(p_staff->'join_date', join_date),
-      pin_hash = case when pin is null then pin_hash else crypt(pin, gen_salt('bf', 10)) end,
-      pin = case when pin is null then public.staff.pin else null end   -- stop keeping plaintext once re-set
+      pin_hash = case when v_pin is null then pin_hash else crypt(v_pin, gen_salt('bf', 10)) end,
+      pin = case when v_pin is null then public.staff.pin else null end   -- stop keeping plaintext once re-set
     where id = sid;
-    if pin is not null then perform private.record_ok('staff:' || lower(p_staff->>'name')); end if;
+    if v_pin is not null then perform private.record_ok('staff:' || lower(p_staff->>'name')); end if;
   end if;
   return sid;
 end $$;
