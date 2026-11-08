@@ -27,9 +27,15 @@ export default function FloorPlan({ staff, onSelectTable, onTakeaway, onDelivery
 
     // Open orders — 3s timeout, empty fallback is fine
     const openOrders = (await qr(
-      supabase.from('orders').select('id, table, table_area, created_at, customer, items').eq('status','Open').eq('date',today),
+      supabase.from('orders').select('*').eq('status','Open').eq('date',today),
       { cache:'orders_modal_open', ms:3000 }
     )) || []
+
+    // Seed per-bill cache (only if missing, so locally-edited offline bills aren't clobbered)
+    // — otherwise tapping an occupied table offline says "Tagihan tidak tersedia"
+    for (const o of openOrders) {
+      if ((await offlineStore.getCache('offline_open_bill_' + o.id)) === null) offlineStore.setCache('offline_open_bill_' + o.id, o)
+    }
 
     const occupiedMap = {}
     ;(openOrders||[]).forEach(o => {
