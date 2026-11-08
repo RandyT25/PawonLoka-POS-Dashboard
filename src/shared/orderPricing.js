@@ -102,6 +102,17 @@ export function applyChannelMarkupToItems(items = [], markupPct = 0) {
   })
 }
 
+// Value for orders.channel (CHECK: dine_in, takeaway, delivery_other, gofood, grabfood, shopeefood).
+// An online platform payment method or order type wins over the in-house order type.
+export function orderChannel({ payMethod, orderType } = {}) {
+  for (const k of [payMethod, orderType]) {
+    if (k === 'GoFood' || k === 'GrabFood' || k === 'ShopeeFood') return k.toLowerCase()
+  }
+  if (orderType === 'Takeaway') return 'takeaway'
+  if (orderType === 'Delivery') return 'delivery_other'
+  return 'dine_in'
+}
+
 // Platform commission is a % of the app (gross) price, independent of the markup the
 // POS adds to menu prices. Configurable per method via `commission_pct`; defaults to 20.
 const DEFAULT_COMMISSION_PCT = { GoFood: 20, GrabFood: 20, ShopeeFood: 20 }

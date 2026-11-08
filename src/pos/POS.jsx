@@ -7,7 +7,7 @@ import useOfflineSync from './hooks/useOfflineSync'
 import { offlineStore, offlineFullSync } from '../lib/offlineStore'
 import { qr } from '../lib/quickRead'
 import { dbWrite } from '../shared/dbWrite'
-import { computeOrderTotals, mergePaymentMethods, getMethodMarkupPct, applyChannelMarkupToItems } from '../shared/orderPricing'
+import { computeOrderTotals, orderChannel, mergePaymentMethods, getMethodMarkupPct, applyChannelMarkupToItems } from '../shared/orderPricing'
 import { applyRecipeStockMovement } from '../shared/stockMovements'
 import PinLogin from './components/PinLogin'
 import MenuGrid from './components/MenuGrid'
@@ -646,7 +646,7 @@ export default function POS() {
         id: orderId,
         items: cart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), ...(i._markupPct ? { _markupPct: i._markupPct } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', _sent:true, _station: getStation(i.cat), isBundle:i.isBundle||false, bundleItems:i.bundleItems||null, itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' })),
         subtotal, tax, discount: discAmt, total, delivery_fee: fee,
-        pay: '-', staff: staff.name, table: capturedTable || (capturedOrderType !== 'Dine-in' ? capturedOrderType : null), table_area: capturedTableArea || null,
+        pay: '-', channel: orderChannel({ orderType: capturedOrderType }), staff: staff.name, table: capturedTable || (capturedOrderType !== 'Dine-in' ? capturedOrderType : null), table_area: capturedTableArea || null,
         ...(pax > 0 ? { pax } : {}),
         customer: customer ? customer.name : null, customer_id: customer ? customer.id : null,
         status: 'Open', date: now.toISOString().slice(0,10),
@@ -1041,7 +1041,7 @@ export default function POS() {
       const mappedItems = chargeCart.map(i => ({ sku:i.sku||'', name:i.name, qty:i.qty, price:i.price, ...(i._inHousePrice != null ? { _inHousePrice: i._inHousePrice } : {}), modifiers:i.modifiers||{}, note:i.note||'', cat:i.cat||'', itemDisc:i.itemDisc||0, itemDiscLabel:i.itemDiscLabel||'' }))
       const totals = computeOrderTotals({ items: mappedItems, discountPct: discount, promoDisc, pointsValue: (usePoints||0)*100, taxRate: TAX_RATE_LIVE })
       const saved = await dbWrite('orders', 'update', {
-        status: 'Paid', pay: payMethod,
+        status: 'Paid', pay: payMethod, channel: orderChannel({ payMethod, orderType }),
         payments: [{ method: payMethod, amount: finalTotal }],
         cash_given: payMethod === 'Cash' ? parseInt(cashGiven) : null,
         change: payMethod === 'Cash' ? (parseInt(cashGiven)||0) - finalTotal : null,
@@ -1104,7 +1104,7 @@ export default function POS() {
       items: noBillItems,
       subtotal: noBillTotals.subtotal, tax: noBillTotals.tax,
       discount: noBillTotals.discount, total: noBillTotals.total + parseFloat(deliveryFee||0), delivery_fee: parseFloat(deliveryFee)||0,
-      pay: payMethod, staff: staff.name,
+      pay: payMethod, channel: orderChannel({ payMethod, orderType }), staff: staff.name,
       table: effectiveTableLabel, table_area: tableArea || null,
       customer: customer?.name || null, customer_id: customer?.id || null,
       notes: [orderNote, promoName].filter(Boolean).join(' | ') || null,

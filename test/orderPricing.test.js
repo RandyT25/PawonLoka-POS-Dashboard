@@ -41,3 +41,12 @@ test('stored commission_amount/expected_net win over recomputation', () => {
   const r = computeOrderCommission({ pay:'ShopeeFood', total:100_000, commission_amount:18_000, expected_net:82_000 })
   assert.deepEqual([r.commission, r.netRevenue], [18_000, 82_000])
 })
+
+import { orderChannel } from '../src/shared/orderPricing.js'
+
+test('orderChannel maps to the orders.channel CHECK values', () => {
+  assert.equal(orderChannel({ payMethod:'GoFood', orderType:'Dine-in' }), 'gofood')
+  assert.equal(orderChannel({ payMethod:'Cash', orderType:'Takeaway' }), 'takeaway')
+  assert.equal(orderChannel({ payMethod:'QRIS', orderType:'Delivery' }), 'delivery_other')
+  assert.equal(orderChannel({ payMethod:'Cash', orderType:'Dine-in' }), 'dine_in')
+})
